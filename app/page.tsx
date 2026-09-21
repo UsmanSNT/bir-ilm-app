@@ -19,7 +19,6 @@ import {
   MessageSquare,
   MonitorSmartphone,
   Plus,
-  Search,
   Send,
   Settings,
   Smartphone,
@@ -44,6 +43,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast, Toaster } from "sonner";
 import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
+import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
 import {
   Book,
@@ -146,7 +146,7 @@ function normalizeSavedState(
   return {
     ...initial,
     ...saved,
-    shelf: shelf.length ? shelf : initial.shelf,
+    shelf,
     comments: Array.isArray(saved.comments) ? saved.comments : initial.comments,
   };
 }
@@ -264,8 +264,6 @@ export default function App() {
   const [session, setSession] = useState(0);
   const [modal, setModal] = useState("");
   const [selected, setSelected] = useState<Book>(books[0]);
-  const [query, setQuery] = useState("");
-  const [mine, setMine] = useState(false);
   const [message, setMessage] = useState("");
   const [audio, setAudio] = useState<Recording[]>([]);
   const [audioTitle, setAudioTitle] = useState("Atom odatlar muhokamasi");
@@ -522,6 +520,7 @@ export default function App() {
       <div className="app-shell">
         <aside className="desktop-rail">
           <Brand />
+          <div className="rail-intro"><span>KITOB BILAN</span><strong>Har kuningiz<br/>mazmunli.</strong><p>O‘qing. Fikrlashing.<br/>Birga o‘sing.</p></div>
           <div className="rail-status">
             <Wifi size={18} />
             <span>{backendLabel}</span>
@@ -568,6 +567,7 @@ export default function App() {
               </div>
 
               <TabsContent value="home">
+                <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
                 <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
               </TabsContent>
               <TabsContent value="profile">
@@ -774,59 +774,7 @@ export default function App() {
               </TabsContent>
 
               <TabsContent value="shelf">
-                <div className="section-row">
-                  <p className="muted">Umumiy kitoblar kutubxonasi</p>
-                  <button className="text-btn" onClick={() => setMine(!mine)}>
-                    {mine ? "Barcha kitoblar" : `Mening javonim (${data.shelf.length})`}
-                  </button>
-                </div>
-                <label className="search">
-                  <Search size={20} />
-                  <input
-                    aria-label="Kitob qidirish"
-                    placeholder="Kitob yoki muallifni qidiring..."
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                  />
-                </label>
-                <div className="shelf">
-                  {books
-                    .filter(
-                      (book) =>
-                        (!mine || data.shelf.includes(book.id)) &&
-                        `${book.title} ${book.author}`
-                          .toLowerCase()
-                          .includes(query.toLowerCase()),
-                    )
-                    .map((book) => (
-                      <button
-                        className="book-item"
-                        key={book.id}
-                        onClick={() => {
-                          setSelected(book);
-                          setModal("book");
-                        }}
-                      >
-                        <div className="book-cover" style={{ background: book.color }}>
-                          <span className="cover-kicker">BIR ILM</span>
-                          <strong>{book.title}</strong>
-                          <span>{book.author}</span>
-                          {data.shelf.includes(book.id) && (
-                            <Check className="saved-mark" size={20} />
-                          )}
-                        </div>
-                        <span className="book-caption">{book.title}</span>
-                      </button>
-                    ))}
-                </div>
-                {!books.some(
-                  (book) =>
-                    (!mine || data.shelf.includes(book.id)) &&
-                    `${book.title} ${book.author}`
-                      .toLowerCase()
-                      .includes(query.toLowerCase()),
-                ) && <div className="empty">Kitob topilmadi. Qidiruvni o&apos;zgartiring.</div>}
-                <p className="small-note">Muqovalar namunaviy ko&apos;rinishda berilgan.</p>
+                <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
               </TabsContent>
 
               <TabsContent value="leaders">
@@ -1048,6 +996,8 @@ export default function App() {
                 <>
                   <p className="muted">{selected.author}</p>
                   <p>{selected.summary}</p>
+                  <p className="book-detail-meta"><BookOpen size={18}/> {selected.pages} sahifa</p>
+                  <p className="small-note">Bu kitob haqida ma’lumot. To‘liq matn va audio hali joylanmagan.</p>
                   <button
                     className="button"
                     onClick={() => {
