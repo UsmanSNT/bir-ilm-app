@@ -386,11 +386,11 @@ export default function MobileLibrary({
 
           {!query && filter === "all" && <Continue item={library[0]} spot={place(library[0].id)} onPlay={() => openPlayer(library[0].id)} onAll={() => { setMine("downloaded"); setScreen("mine"); }} />}
 
-          <div className="lib-grid">
-            {(query || filter !== "all" ? searched : highlights).map((item) => (
-              <CatalogCard key={item.id} item={item} onOpen={() => openReader(item.id)} onPlay={() => openPlayer(item.id)} />
-            ))}
-          </div>
+          <BookShelf
+            items={query || filter !== "all" ? searched : highlights}
+            onOpen={(id) => openReader(id)}
+            onPlay={(id) => openPlayer(id)}
+          />
           {!searched.length && <p className="lib-empty">Bu so‘rov bo‘yicha kitob topilmadi.</p>}
 
           {!query && filter === "all" && (
@@ -399,11 +399,11 @@ export default function MobileLibrary({
                 <h2>Yangilar</h2>
                 <button type="button" onClick={() => setShowFresh((value) => !value)}>{showFresh ? "Yig‘ish" : "Barchasini ko‘rish"}</button>
               </div>
-              <div className="lib-grid">
-                {(showFresh ? fresh : fresh.slice(0, 2)).map((item) => (
-                  <CatalogCard key={item.id} item={item} onOpen={() => openReader(item.id)} onPlay={() => openPlayer(item.id)} />
-                ))}
-              </div>
+              <BookShelf
+                items={showFresh ? fresh : fresh.slice(0, 3)}
+                onOpen={(id) => openReader(id)}
+                onPlay={(id) => openPlayer(id)}
+              />
             </>
           )}
         </div>
@@ -598,18 +598,60 @@ function Continue({ item, spot, onPlay, onAll }: { item: LibraryMeta; spot: Spot
   );
 }
 
-function CatalogCard({ item, onOpen, onPlay }: { item: LibraryMeta; onOpen: () => void; onPlay: () => void }) {
-  const book = bookById(item.id);
-  if (!book) return null;
+function chunkRows<T>(items: T[], size: number) {
+  const rows: T[][] = [];
+  for (let index = 0; index < items.length; index += size) rows.push(items.slice(index, index + size));
+  return rows;
+}
+
+function BookShelf({
+  items,
+  onOpen,
+  onPlay,
+}: {
+  items: LibraryMeta[];
+  onOpen: (id: string) => void;
+  onPlay: (id: string) => void;
+}) {
+  if (!items.length) return null;
   return (
-    <article className="lib-card">
-      <button type="button" onClick={onOpen} aria-label={`${book.title}ni o‘qish`}><Cover id={item.id} /></button>
-      <button type="button" className="lib-card-title" onClick={onOpen}>{book.title}</button>
-      <p>{book.author}</p>
-      {item.audio ? (
-        <button type="button" className="lib-duration" onClick={onPlay}><Headphones size={13} /> {lengthLabel(item.totalSeconds)}</button>
-      ) : <span className="lib-duration">Elektron</span>}
-    </article>
+    <div className="lib-shelves">
+      {chunkRows(items, 3).map((row) => (
+        <section className="lib-shelf" key={row.map((item) => item.id).join("-")}>
+          <div className="lib-shelf-books">
+            {[0, 1, 2].map((slot) => {
+              const item = row[slot];
+              const book = item ? bookById(item.id) : null;
+              if (!item || !book) return <span key={slot} />;
+              return (
+                <button key={item.id} type="button" className="lib-stood" aria-label={`${book.title}ni o‘qish`} onClick={() => onOpen(item.id)}>
+                  <Cover id={item.id} />
+                </button>
+              );
+            })}
+          </div>
+          <div className="lib-plank" aria-hidden="true" />
+          <div className="lib-shelf-captions">
+            {[0, 1, 2].map((slot) => {
+              const item = row[slot];
+              const book = item ? bookById(item.id) : null;
+              if (!item || !book) return <span key={slot} />;
+              return (
+                <div key={item.id}>
+                  <button type="button" className="lib-card-title" onClick={() => onOpen(item.id)}>{book.title}</button>
+                  <p>{book.author}</p>
+                  {item.audio ? (
+                    <button type="button" className="lib-duration" onClick={() => onPlay(item.id)}>
+                      <Headphones size={13} /> {lengthLabel(item.totalSeconds)}
+                    </button>
+                  ) : <span className="lib-duration">Elektron</span>}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
   );
 }
 
@@ -617,8 +659,72 @@ function Cover({ id, size = "md" }: { id: string; size?: "sm" | "md" | "lg" }) {
   const book = bookById(id);
   return (
     <div className={`lib-cover lib-cover-${size} cover-${id}`} aria-hidden="true">
+      {size === "md" && <CoverArt id={id} />}
       <span>{book?.title}</span>
       {size === "lg" && <small>{book?.author}</small>}
     </div>
   );
+}
+
+function CoverArt({ id }: { id: string }) {
+  if (id === "otkan-kunlar") {
+    return (
+      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
+        <rect width="90" height="78" fill="#8ec6ea" />
+        <rect y="78" width="90" height="52" fill="#7daa55" />
+        <circle cx="70" cy="28" r="10" fill="#f6e7b2" />
+        <path d="M8 92c8-16 14-16 22 0 6-18 16-20 24 0 8-14 16-14 28 2v36H8z" fill="#2f6b38" />
+        <path d="M18 86c6-12 10-12 16 2 5-14 12-14 18 4v38H18z" fill="#3e8144" />
+      </svg>
+    );
+  }
+  if (id === "dunyoning-ishlari") {
+    return (
+      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
+        <rect width="90" height="130" fill="#b7d4e4" />
+        <path d="M0 78 L28 36 L46 62 L68 28 L90 70 V130 H0z" fill="#6d8ea3" />
+        <path d="M0 92 L24 58 L42 78 L90 48 V130 H0z" fill="#d7e4ea" />
+        <path d="M0 108h90v22H0z" fill="#8fb4c4" />
+      </svg>
+    );
+  }
+  if (id === "alchemist") {
+    return (
+      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
+        <rect width="90" height="130" fill="#e8834a" />
+        <circle cx="64" cy="36" r="12" fill="#f6d27a" />
+        <path d="M0 78c18 10 28-8 46 2 16 8 28-6 44 4v46H0z" fill="#d86a32" />
+        <path d="M0 100c20 8 34-6 52 2 14 6 24-4 38 6v22H0z" fill="#c45a28" />
+      </svg>
+    );
+  }
+  if (id === "kecha-va-kunduz") {
+    return (
+      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
+        <rect width="90" height="70" fill="#e7a15a" />
+        <circle cx="46" cy="58" r="14" fill="#f3d7a2" />
+        <rect y="70" width="90" height="60" fill="#2c5878" />
+        <path d="M20 92h50M16 104h58M24 116h42" stroke="#d7e6ef" strokeWidth="2" />
+      </svg>
+    );
+  }
+  if (id === "mehrobdan-chayon") {
+    return (
+      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
+        <rect width="90" height="130" fill="#c4513d" />
+        <circle cx="62" cy="34" r="16" fill="#e7b089" />
+        <path d="M45 130 V62 M45 78 L28 96 M45 70 L66 90 M45 92 L30 112 M45 88 L64 112" stroke="#4a1816" strokeWidth="4" fill="none" />
+        <rect y="108" width="90" height="22" fill="#6d2a22" />
+      </svg>
+    );
+  }
+  if (id === "ikigai" || id === "deep-work" || id === "money-psychology" || id === "1984") {
+    return (
+      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
+        <rect width="90" height="130" fill={id === "ikigai" ? "#c4b483" : id === "deep-work" ? "#2f8f78" : id === "1984" ? "#6a9aaf" : "#6d7c8a"} />
+        <rect x="14" y="28" width="62" height="74" rx="2" fill="rgba(255,255,255,.16)" />
+      </svg>
+    );
+  }
+  return null;
 }
