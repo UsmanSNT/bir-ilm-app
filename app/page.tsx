@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
-  BadgeCheck,
   Bell,
   BookOpen,
   Check,
@@ -13,20 +12,28 @@ import {
   Database,
   Flame,
   Headphones,
+  Heart,
   Home,
+  ImageIcon,
   LibraryBig,
   Medal,
+  MessageCircle,
   MessageSquare,
   MonitorSmartphone,
+  MoreHorizontal,
+  PenLine,
+  Play,
   Plus,
+  Search,
   Send,
   Settings,
+  Share2,
   Smartphone,
-  Star,
   Trophy,
   Upload,
   Users,
   UserRound,
+  Video,
   Wifi,
   X,
 } from "lucide-react";
@@ -640,63 +647,248 @@ export default function App() {
               </TabsContent>
 
               <TabsContent value="community">
-                <div className="community-layout">
-                  <div>
-                    {week()}
-                    <div className="chat-panel">
-                      <div className="section-row tight">
-                        <h3>Fikrlar va savollar</h3>
-                        <span>{data.comments.length} ta izoh</span>
-                      </div>
-                      <div className="messages">
-                        {data.comments.map((comment) => (
-                          <article className="message" key={comment.id}>
+                <section className="community-screen" aria-label="Community feed">
+                  <div className="community-topbar">
+                    <h2>Community</h2>
+                    <div>
+                      <button className="feed-icon" aria-label="Qidirish">
+                        <Search size={21} />
+                      </button>
+                      <button
+                        className="feed-icon"
+                        aria-label="Bildirishnomalar"
+                        onClick={() => setModal("notifications")}
+                      >
+                        <Bell size={21} />
+                        <span className="notification-dot">3</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="recommendation-strip" aria-label="Hafta tavsiyalari">
+                    <div className="strip-head">
+                      <strong>Bu hafta tavsiya etamiz</strong>
+                      <button className="text-btn" onClick={() => go("shelf")}>
+                        Barchasini ko&apos;rish <ChevronRight size={15} />
+                      </button>
+                    </div>
+                    <div className="recommendation-list">
+                      <article className="recommend-card">
+                        <span className="mini-cover warm">Atomic<br />Habits</span>
+                        <div>
+                          <strong>Atom odatlar</strong>
+                          <small>James Clear</small>
+                        </div>
+                        <button aria-label="Atom odatlar suhbatiga o'tish">
+                          <ChevronRight size={16} />
+                        </button>
+                      </article>
+                      <article className="recommend-card audio">
+                        <span className="mini-cover dark" />
+                        <div>
+                          <strong>Suhbatgacha</strong>
+                          <small>{timer.slice(0, 14)}</small>
+                        </div>
+                        <button aria-label="Suhbatni tinglash">
+                          <Play size={15} fill="currentColor" />
+                        </button>
+                      </article>
+                    </div>
+                  </div>
+
+                  <div className="feed-tabs" role="tablist" aria-label="Community filtrlari">
+                    <button className="active">Barchasi</button>
+                    <button>Kuzatilmoqda</button>
+                  </div>
+
+                  <div className="community-layout social-layout">
+                    <div className="social-feed">
+                      <article className="post-card featured-post">
+                        <div className="post-author">
+                          <span className="photo-avatar madina" />
+                          <div>
+                            <strong>Madina</strong>
+                            <small>2 soat oldin</small>
+                          </div>
+                          <button className="feed-icon ghost" aria-label="Post menyusi">
+                            <MoreHorizontal size={20} />
+                          </button>
+                        </div>
+                        <p>Bugungi kitobdan eng yoqqan fikrim.</p>
+                        <div className="book-photo ikigai-photo" aria-label="Ikigai kitobi rasmi">
+                          <span className="plant-shape" />
+                          <span className="coffee-cup" />
+                          <span className="paper-note" />
+                          <div className="book-prop">
+                            <span>IKIGAI</span>
+                            <small>Yaponlarning uzoq va baxtli hayot siri</small>
+                          </div>
+                        </div>
+                        <div className="post-actions">
+                          <button className="liked" aria-label="Yoqdi">
+                            <Heart size={20} fill="currentColor" /> 124
+                          </button>
+                          <button aria-label="Izohlar">
+                            <MessageCircle size={20} /> {data.comments.length + 25}
+                          </button>
+                          <button aria-label="Saqlash">
+                            <BookOpen size={20} />
+                          </button>
+                          <button aria-label="Ulashish">
+                            <Share2 size={20} />
+                          </button>
+                        </div>
+                      </article>
+
+                      <article className="post-card compact-post">
+                        <div className="post-author">
+                          <span className="photo-avatar aziz" />
+                          <div>
+                            <strong>Aziz</strong>
+                            <small>5 soat oldin</small>
+                          </div>
+                          <button className="feed-icon ghost" aria-label="Post menyusi">
+                            <MoreHorizontal size={20} />
+                          </button>
+                        </div>
+                        <p>Bugun yangi kitob boshladim. Siz nima o&apos;qiyapsiz?</p>
+                        <div className="post-actions">
+                          <button className="liked" aria-label="Yoqdi">
+                            <Heart size={20} fill="currentColor" /> 56
+                          </button>
+                          <button aria-label="Izohlar">
+                            <MessageCircle size={20} /> 42
+                          </button>
+                          <button aria-label="Saqlash">
+                            <BookOpen size={20} />
+                          </button>
+                          <button aria-label="Ulashish">
+                            <Share2 size={20} />
+                          </button>
+                        </div>
+                      </article>
+
+                      <form className="composer social-composer" onSubmit={submitComment}>
+                        <span className="photo-avatar me">{data.name.slice(0, 1)}</span>
+                        <textarea
+                          aria-label="Izoh yoki post"
+                          placeholder="Izoh yozing..."
+                          value={message}
+                          maxLength={2000}
+                          onChange={(event) => setMessage(event.target.value)}
+                        />
+                        <button
+                          className="send-round"
+                          disabled={!message.trim()}
+                          aria-label="Izoh yuborish"
+                        >
+                          <Send size={21} />
+                        </button>
+                      </form>
+                    </div>
+
+                    <aside className="community-side">
+                      <article className="new-post-panel">
+                        <div className="panel-head">
+                          <button className="feed-icon ghost" aria-label="Yopish">
+                            <X size={22} />
+                          </button>
+                          <strong>Yangi post</strong>
+                          <button className="publish-btn">Joylash</button>
+                        </div>
+                        <div className="post-author">
+                          <span className="photo-avatar madina" />
+                          <div>
+                            <strong>{data.name}</strong>
+                            <small className="audience">Hamma</small>
+                          </div>
+                        </div>
+                        <p className="post-placeholder">Nimalar haqida o&apos;ylayapsiz?</p>
+                        <p className="draft-text">Bugun o&apos;qigan kitobim haqida siz bilan bo&apos;lishmoqchiman.</p>
+                        <div className="book-photo stack-photo" aria-label="Yangi post rasmi">
+                          <div className="book-prop tall">
+                            <span>DUNYONING ENG BOY ODAMI</span>
+                          </div>
+                          <span className="book-stack">Atomic Habits<br />Psixologiya<br />Minimalizm</span>
+                          <button className="remove-media" aria-label="Rasmni olib tashlash">
+                            <X size={17} />
+                          </button>
+                        </div>
+                        <div className="post-tools">
+                          <button>
+                            <ImageIcon size={23} />
+                            Rasm
+                          </button>
+                          <button>
+                            <Video size={23} />
+                            Video
+                          </button>
+                        </div>
+                      </article>
+
+                      <article className="media-post">
+                        <div className="post-author">
+                          <span className="photo-avatar sanjar" />
+                          <div>
+                            <strong>Sanjar</strong>
+                            <small>4 soat oldin</small>
+                          </div>
+                          <button className="feed-icon ghost" aria-label="Post menyusi">
+                            <MoreHorizontal size={20} />
+                          </button>
+                        </div>
+                        <div className="video-preview">
+                          <span className="video-person" />
+                          <span className="poster-card">Good Books<br />Better People</span>
+                          <span className="held-book">ATOMIC<br />HABITS</span>
+                          <button aria-label="Videoni ko'rish">
+                            <Play size={26} fill="currentColor" />
+                          </button>
+                          <small>0:24</small>
+                        </div>
+                        <p>Bir kitob, bir yangi fikr.</p>
+                        <div className="post-actions">
+                          <button className="liked" aria-label="Yoqdi">
+                            <Heart size={20} fill="currentColor" /> 98
+                          </button>
+                          <button aria-label="Izohlar">
+                            <MessageCircle size={20} /> 16
+                          </button>
+                          <button aria-label="Ulashish">
+                            <Share2 size={20} />
+                          </button>
+                        </div>
+                      </article>
+
+                      <div className="comment-preview">
+                        <div className="section-row tight">
+                          <h3>Izohlar ({data.comments.length})</h3>
+                          <button className="text-btn">Barchasini ko&apos;rish</button>
+                        </div>
+                        {data.comments.slice(0, 3).map((comment) => (
+                          <article className="message mini-message" key={comment.id}>
                             <span className="avatar">{comment.name.slice(0, 1)}</span>
                             <div>
                               <div className="message-head">
                                 <strong>{comment.name}</strong>
-                                <small>{comment.demo ? "Namuna" : "Siz"}</small>
+                                <small>{comment.demo ? "2 soat oldin" : "Siz"}</small>
                               </div>
                               <p>{comment.text}</p>
                             </div>
                           </article>
                         ))}
                       </div>
-                      <form className="composer" onSubmit={submitComment}>
-                        <textarea
-                          aria-label="Izoh yoki savol"
-                          placeholder="Fikr yoki savol yozing..."
-                          value={message}
-                          maxLength={2000}
-                          onChange={(event) => setMessage(event.target.value)}
-                        />
-                        <button
-                          className="button"
-                          disabled={!message.trim()}
-                          aria-label="Izoh yuborish"
-                        >
-                          <Send size={20} />
-                        </button>
-                      </form>
-                    </div>
+                    </aside>
                   </div>
 
-                  <aside className="side-panel">
-                    <h3>Chat holati</h3>
-                    <div className="status-line">
-                      <BadgeCheck size={19} />
-                      <span>{backendLabel}</span>
-                    </div>
-                    <p>
-                      Backend ulanganda chat, progress va reyting barcha qurilmalarda bitta
-                      hisobga bog&apos;lanadi.
-                    </p>
-                    <button className="button secondary" onClick={() => setModal("note")}>
-                      <Star size={18} />
-                      Hafta fikrini yozish
-                    </button>
-                  </aside>
-                </div>
+                  <button
+                    className="floating-compose"
+                    aria-label="Yangi post yozish"
+                    onClick={() => setModal("note")}
+                  >
+                    <PenLine size={24} />
+                  </button>
+                </section>
               </TabsContent>
 
               <TabsContent value="talks">
