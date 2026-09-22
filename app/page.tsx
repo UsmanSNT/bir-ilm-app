@@ -15,7 +15,6 @@ import {
   Heart,
   Home,
   ImageIcon,
-  LibraryBig,
   Medal,
   MessageCircle,
   MessageSquare,
@@ -52,6 +51,7 @@ import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
+import MobileScreens from "./mobile-screens";
 import {
   Book,
   CommunityComment,
@@ -94,10 +94,10 @@ type AppStatePayload = {
 };
 
 const nav = [
-  ["home", "Bosh sahifa", Home],
-  ["community", "Chat", MessageSquare],
-  ["talks", "Suhbat", Headphones],
-  ["shelf", "Javon", LibraryBig],
+  ["home", "Home", Home],
+  ["community", "Community", Users],
+  ["talks", "Suhbatlar", MessageSquare],
+  ["shelf", "Javonim", BookOpen],
   ["profile", "Profil", UserRound],
 ] as const;
 
@@ -524,7 +524,7 @@ export default function App() {
   return (
     <>
       <Toaster richColors position="top-center" />
-      <div className="app-shell">
+      <div className={`app-shell${tab === "home" ? " show-mobile-home" : ""}`}>
         <aside className="desktop-rail">
           <Brand />
           <div className="rail-intro"><span>KITOB BILAN</span><strong>Har kuningiz<br/>mazmunli.</strong><p>O‘qing. Fikrlashing.<br/>Birga o‘sing.</p></div>
@@ -574,8 +574,32 @@ export default function App() {
               </div>
 
               <TabsContent value="home">
-                <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
-                <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
+                <div className="desktop-home">
+                  <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
+                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
+                </div>
+                <MobileScreens
+                  name={data.name}
+                  streak={data.streak}
+                  page={data.page}
+                  total={data.total}
+                  session={session}
+                  now={now}
+                  reminderOn={data.talk}
+                  onContinue={() => setModal("progress")}
+                  onOpenTimer={() => window.dispatchEvent(new Event("bir-open-pomodoro"))}
+                  onOpenBook={() => {
+                    setSelected(books[0]);
+                    setModal("book");
+                  }}
+                  onAddReminder={() => {
+                    if (data.talk) toast("Eslatma allaqachon yoqilgan");
+                    else {
+                      update({ talk: true });
+                      toast.success("Yakshanba, 18:00 uchun eslatma qo‘shildi");
+                    }
+                  }}
+                />
               </TabsContent>
               <TabsContent value="profile">
                 <ReadingDashboard mode="profile" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />

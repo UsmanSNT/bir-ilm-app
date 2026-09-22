@@ -16,6 +16,7 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [open, setOpen] = useState(false);
   const current = useRef(state);
   const callback = useRef(onComplete);
   useEffect(() => { callback.current = onComplete; }, [onComplete]);
@@ -63,6 +64,12 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
     return () => clearInterval(tick);
   }, []);
 
+  useEffect(() => {
+    const openTimer = () => setOpen(true);
+    window.addEventListener("bir-open-pomodoro", openTimer);
+    return () => window.removeEventListener("bir-open-pomodoro", openTimer);
+  }, []);
+
   function toggle() {
     const s = current.current;
     if (s.endAt) save({ ...s, endAt: null, remaining: Math.max(0, Math.ceil((s.endAt - Date.now()) / 1000)) });
@@ -84,7 +91,7 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
     finally { setSaving(false); }
   }
 
-  return <Dialog>
+  return <Dialog open={open} onOpenChange={setOpen}>
     <DialogTrigger asChild>
       <button className="focus-launcher" disabled={!ready}>
         <Timer size={20} />
