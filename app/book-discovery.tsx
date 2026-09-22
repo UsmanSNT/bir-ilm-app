@@ -6,7 +6,9 @@ import { books, type Book } from "./app-data";
 
 const genres: Record<string, string> = {
   "atomic-habits": "Shaxsiy rivojlanish", alchemist: "Badiiy adabiyot",
-  "otkan-kunlar": "O‘zbek adabiyoti", "1984": "Badiiy adabiyot",
+  "otkan-kunlar": "O‘zbek adabiyoti", "dunyoning-ishlari": "Shaxsiy rivojlanish",
+  "kecha-va-kunduz": "O‘zbek adabiyoti", "mehrobdan-chayon": "O‘zbek adabiyoti",
+  "1984": "Badiiy adabiyot",
   ikigai: "Shaxsiy rivojlanish", "deep-work": "Shaxsiy rivojlanish",
   "money-psychology": "Biznes va moliya", metamorphosis: "Badiiy adabiyot",
   "start-with-why": "Biznes va moliya",

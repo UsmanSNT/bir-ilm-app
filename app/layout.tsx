@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./discovery.css";
 import "./mobile-screens.css";
+import "./mobile-library.css";
 
 export const metadata: Metadata = {
   title: "Bir Ilm — kitobxonlik ilovasi",
