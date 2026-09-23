@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Clock,
   Flame,
+  Timer,
   Trophy,
   Users,
   X,
@@ -284,18 +285,20 @@ export default function MobileScreens({
           <header className="m-top">
             <p className="m-wordmark">BIR ILM</p>
             <div className="m-top-actions">
+              <button className="m-icon" type="button" aria-label="Pomodoro taymeri" onClick={onOpenTimer}>
+                <Timer size={21} />
+              </button>
               <button className="m-icon" type="button" aria-label="Suhbat eslatmasi" onClick={() => setReminder(true)}>
                 <Bell size={22} />
+                {!reminderOn && <span className="m-alert-dot" />}
               </button>
-              <span className="m-streak">
-                <Flame size={16} />
-                {streak} kunlik mutolaa
-              </span>
             </div>
           </header>
 
-          <h1 className="m-hello">Salom, {name}!</h1>
-          <p className="m-sub">Bugun ham bir sahifa oldinga.</p>
+          <div className="m-greeting-row">
+            <div><h1 className="m-hello">Salom, {name}!</h1><p className="m-sub">Bugun ham bir sahifa oldinga.</p></div>
+            <span className="m-streak"><Flame size={16} /><strong>{streak}</strong><small>kunlik mutolaa</small></span>
+          </div>
 
           <section className="m-card m-week">
             <p className="m-kicker">Hafta kitobi</p>
@@ -304,7 +307,7 @@ export default function MobileScreens({
               <div>
                 <h2>Atom odatlar</h2>
                 <p className="m-author">James Clear</p>
-                <p className="m-blurb">Kichik o‘zgarishlar – katta natijalar</p>
+                <p className="m-blurb">Jonli suhbatgacha:</p>
                 <CountBoxes days={days} hours={hours} />
               </div>
             </div>

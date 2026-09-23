@@ -65,14 +65,55 @@
   color: #1d332c;
 }
 
+.m-icon {
+  position: relative;
+}
+
+.m-alert-dot {
+  position: absolute;
+  top: 7px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid #fff;
+  border-radius: 50%;
+  background: #e33f4b;
+}
+
+.m-greeting-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.m-greeting-row > div {
+  min-width: 0;
+}
+
 .m-streak {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: auto auto;
   align-items: center;
-  gap: 4px;
+  column-gap: 4px;
+  margin-top: 10px;
   color: #e1842a;
-  font-size: 13px;
-  font-weight: 750;
   white-space: nowrap;
+}
+
+.m-streak svg {
+  grid-row: 1 / span 2;
+}
+
+.m-streak strong {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.m-streak small {
+  color: #8b7560;
+  font-size: 9px;
+  line-height: 1.2;
 }
 
 .m-hello {
