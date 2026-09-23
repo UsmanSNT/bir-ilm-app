@@ -5,9 +5,7 @@ import Image from "next/image";
 import {
   Bell,
   BookOpen,
-  Check,
   ChevronRight,
-  Clock,
   Crown,
   Database,
   Flame,
@@ -22,7 +20,6 @@ import {
   MoreHorizontal,
   PenLine,
   Play,
-  Plus,
   Search,
   Send,
   Settings,
@@ -53,6 +50,7 @@ import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
 import MobileScreens from "./mobile-screens";
 import MobileLibrary from "./mobile-library";
+import ProfileScreens from "./profile-screens";
 import {
   Book,
   CommunityComment,
@@ -439,33 +437,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.total]);
 
-  function week() {
-    return (
-      <section className="week-header">
-        <div className="week-top">
-          <span className="eyebrow">HAFTA KITOBI</span>
-          <span className="timer">
-            <Clock size={15} />
-            {timer}
-          </span>
-        </div>
-        <h2>Atom odatlar</h2>
-        <p>James Clear</p>
-        <div className="week-bottom">
-          <span>Suhbat: yakshanba, 18:00</span>
-          <span>{backendLabel}</span>
-        </div>
-        <Progress value={pct} aria-label="O'qish progressi" />
-        <div className="progress-label">
-          <span>
-            {data.page} / {data.total} sahifa
-          </span>
-          <span>{pct}%</span>
-        </div>
-      </section>
-    );
-  }
-
   function updateProgress(page: number, total = data.total) {
     const next = {
       ...data,
@@ -534,7 +505,7 @@ export default function App() {
   return (
     <>
       <Toaster richColors position="top-center" />
-      <div className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}${tab === "shelf" ? " show-mobile-shelf" : ""}`}>
+      <div className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}${tab === "shelf" ? " show-mobile-shelf" : ""}${tab === "profile" ? " show-profile" : ""}`}>
         <aside className="desktop-rail">
           <Brand />
           <div className="rail-intro"><span>KITOB BILAN</span><strong>Har kuningiz<br/>mazmunli.</strong><p>O‘qing. Fikrlashing.<br/>Birga o‘sing.</p></div>
@@ -616,72 +587,7 @@ export default function App() {
                 />
               </TabsContent>
               <TabsContent value="profile">
-                <ReadingDashboard mode="profile" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
-                <button className="button profile-ranking" onClick={() => go("leaders")}><Trophy size={18}/>Faollar reytingi · #{myRank}</button>
-                <div className="home-grid">
-                  <div className="stack">
-                    {week()}
-                    <div className="stats">
-                      <div className="mini">
-                        <strong>
-                          {Math.max(
-                            1,
-                            Math.ceil(
-                              (data.total - data.page) /
-                                Math.max(1, Math.ceil(secs / 86400)),
-                            ),
-                          )}
-                        </strong>
-                        <span>kunlik sahifa rejasi</span>
-                      </div>
-                      <div className="mini">
-                        <strong>{data.shelf.length}</strong>
-                        <span>javoningizdagi kitob</span>
-                      </div>
-                    </div>
-                    <button className="button full" onClick={() => setModal("progress")}>
-                      <BookOpen size={18} />
-                      Progressni yangilash
-                    </button>
-                  </div>
-
-                  <div className="stack">
-                    <h3 className="section-title">Bugungi reja</h3>
-                    <div className="card tasks">
-                      {[
-                        ["progress", "Kitob o'qish", `${data.page} sahifa o'qildi`, BookOpen],
-                        [
-                          "note",
-                          "Muhim fikr yozish",
-                          data.note ? "Fikringiz saqlangan" : "O'qiganingizdan bir xulosa",
-                          data.note ? Check : Plus,
-                        ],
-                        ["community", "Chatga fikr yozish", "Hafta savoliga javob bering", Users],
-                      ].map(([id, title, sub, Icon]) => {
-                        const TaskIcon = Icon as typeof Home;
-                        return (
-                          <button
-                            className="task"
-                            key={id as string}
-                            onClick={() =>
-                              id === "community" ? go("community") : setModal(id as string)
-                            }
-                          >
-                            <span className="check">
-                              <TaskIcon size={20} />
-                            </span>
-                            <span>
-                              {title as string}
-                              <small>{sub as string}</small>
-                            </span>
-                            <ChevronRight size={18} />
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                  </div>
-                </div>
+                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={data.streak} rank={myRank} onNavigate={go} onEdit={() => setModal("profile")} onProgress={() => setModal("progress")} onNotifications={() => setModal("notifications")} />
               </TabsContent>
 
               <TabsContent value="community">
