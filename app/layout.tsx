@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./discovery.css";
 import "./mobile-screens.css";
@@ -23,6 +23,13 @@ export const metadata: Metadata = {
     shortcut: "/favicon.svg",
     apple: "/assets/bir-ilm-logo.jpg",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f4f7f5",
 };
 
 export default function RootLayout({

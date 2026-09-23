@@ -281,7 +281,7 @@ export default function MobileScreens({
   return (
     <div className="mobile-home">
       {screen === "home" && (
-        <div className="m-screen">
+        <div className="m-screen m-home-screen">
           <header className="m-top">
             <p className="m-wordmark">BIR ILM</p>
             <div className="m-top-actions">
