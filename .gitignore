@@ -45,3 +45,14 @@ next-env.d.ts
 /.codex/
 /outputs/
 /work/
+
+# Capacitor
+/mobile/dist/
+/android/app/src/main/assets/public/
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/ios/App/App/public/
+/ios/App/Pods/
+/ios/App/build/

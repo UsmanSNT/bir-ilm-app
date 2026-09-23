@@ -1,0 +1,22 @@
+/**
+ * Mobil qobiq uchun CSS kirish nuqtasi.
+ *
+ * `app/layout.tsx` dagi AYNAN o'sha fayllar, AYNAN o'sha tartibda import
+ * qilinadi — shuning uchun ilovadagi ko'rinish webdagidan farq qilmaydi.
+ * Yangi CSS qo'shilsa, uni layout.tsx ga ham, bu yerga ham qo'shish kerak.
+ */
+@import "../app/globals.css";
+@import "../app/discovery.css";
+@import "../app/mobile-screens.css";
+@import "../app/mobile-library.css";
+@import "../app/profile-screens.css";
+@import "./native.css";
+
+/*
+ * Tailwind 4 sinf nomlarini manba fayllardan o'qiydi. Bu build'ning ildizi
+ * `mobile/` bo'lgani uchun skanerlanadigan papkalarni aniq ko'rsatamiz.
+ */
+@source "../app";
+@source "../components";
+@source "../hooks";
+@source "../lib";

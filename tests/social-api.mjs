@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { sqlite } from "../scripts/local-d1.mjs";
 
 // This test creates disposable readers only in the local D1 preview.
-const origin = "http://127.0.0.1:8787";
+const origin = process.env.TEST_ORIGIN ?? "http://127.0.0.1:8787";
 const ids = [];
 async function reader(name) {
   const response = await fetch(`${origin}/api/social`);

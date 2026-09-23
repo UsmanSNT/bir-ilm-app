@@ -1,7 +1,40 @@
 import { env } from "cloudflare:workers";
 import { activeBookId, books, seedComments, seedLeaderboard } from "@/app/app-data";
+import { corsHeaders, parseAllowedOrigins, preflightResponse } from "@/server/http/cors";
 
 export const runtime = "edge";
+
+function corsContext(request: Request) {
+  return {
+    origin: request.headers.get("origin"),
+    selfOrigin: new URL(request.url).origin,
+    allowed: parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
+  };
+}
+
+/**
+ * Javobga CORS sarlavhalarini qo'shadi.
+ *
+ * Native qobiq (`capacitor://localhost`) serverning o'z origini emas,
+ * shuning uchun bu sarlavhalarsiz brauzer qatlami javobni bloklaydi.
+ */
+function withCors(request: Request, response: Response): Response {
+  const headers = new Headers(response.headers);
+  for (const [key, value] of corsHeaders(corsContext(request))) {
+    headers.set(key, value);
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+/** Native ilovalar uchun CORS preflight. */
+export function OPTIONS(request: Request) {
+  return preflightResponse(corsContext(request));
+}
 
 type ActivityPayload = {
   score?: number;
@@ -124,7 +157,7 @@ async function upsertActivity(
     .run();
 }
 
-export async function GET() {
+async function handleGet(): Promise<Response> {
   const db = env.DB;
   if (!db) return Response.json(seedPayload("local"));
 
@@ -194,7 +227,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePost(request: Request): Promise<Response> {
   const db = env.DB;
   if (!db) {
     return Response.json(
@@ -282,4 +315,14 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+// Mavjud mantiq o'zgarmadi; eksport qilingan ishlovchilar unga faqat CORS
+// sarlavhalarini qo'shadi, shunda ayni shu API native ilovadan ham chaqiriladi.
+export async function GET(request: Request): Promise<Response> {
+  return withCors(request, await handleGet());
+}
+
+export async function POST(request: Request): Promise<Response> {
+  return withCors(request, await handlePost(request));
 }

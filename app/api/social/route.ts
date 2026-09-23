@@ -1,17 +1,43 @@
 import { env } from "cloudflare:workers";
 import type { ReadingPost, PostReply, Reader } from "@/app/social-types";
+import { resolveIdentity, sessionCookie } from "@/server/auth/identity";
+import { corsHeaders, isAllowedOrigin, parseAllowedOrigins, preflightResponse } from "@/server/http/cors";
 
 export const runtime = "edge";
 
-// A random HttpOnly bearer cookie identifies a guest without accepting a caller-supplied user ID.
+function corsContext(request: Request) {
+  return {
+    origin: request.headers.get("origin"),
+    selfOrigin: new URL(request.url).origin,
+    allowed: parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
+  };
+}
+
+/**
+ * Mehmonni tanib oladi.
+ *
+ * Identifikator tokendan serverda hisoblanadi — mijoz yuborgan `userId` ga
+ * hech qachon ishonilmaydi. Token ikki yo'l bilan kelishi mumkin:
+ * cookie (web) yoki `Authorization: Bearer` (Android / iOS). Ikkalasi ham
+ * bir xil `reader_<sha256>` beradi, shuning uchun bir foydalanuvchi webda
+ * ham, ilovada ham o'sha ma'lumotni ko'radi.
+ */
 async function identity(request: Request) {
-  const existing = request.headers.get("cookie")?.match(/(?:^|;\s*)bir_reader=([a-f0-9]{64})(?:;|$)/)?.[1];
-  const token = existing ?? Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, "0")).join("");
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
-  const id = "reader_" + Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
-  const headers = new Headers({ "Cache-Control": "no-store" });
-  if (!existing) headers.set("Set-Cookie", `bir_reader=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000${new URL(request.url).protocol === "https:" ? "; Secure" : ""}`);
-  return { id, headers };
+  const resolved = await resolveIdentity(request);
+  const headers = corsHeaders(corsContext(request));
+  headers.set("Cache-Control", "no-store");
+
+  // Cookie faqat brauzerga kerak; native mijoz tokenni o'zi saqlaydi.
+  if (resolved.isNew && resolved.platform === "web") {
+    headers.set("Set-Cookie", sessionCookie(request, resolved.token));
+  }
+
+  return { id: resolved.userId, headers };
+}
+
+/** Native ilovalar uchun CORS preflight. */
+export function OPTIONS(request: Request) {
+  return preflightResponse(corsContext(request));
 }
 
 export async function GET(request: Request) {
@@ -50,8 +76,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return Response.json({ error: "So'rov rad etildi." }, { status: 403 });
+  // CSRF: begona sayt cookie bilan yozuv qila olmasin. Native qobiqlarning
+  // originlari (capacitor://localhost va h.k.) ruxsat etilgan ro'yxatda.
+  if (!isAllowedOrigin(corsContext(request))) {
+    return Response.json({ error: "So'rov rad etildi." }, { status: 403 });
+  }
   const { id, headers } = await identity(request);
   let payload: Record<string, unknown>;
   try {
