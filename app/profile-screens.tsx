@@ -13,7 +13,7 @@ function Cover({ small = false }: { small?: boolean }) {
 }
 
 function Row({ icon, title, value, onClick }: { icon: ReactNode; title: string; value?: ReactNode; onClick: () => void }) {
-  return <button type="button" className="p-row" onClick={onClick}><span className="p-row-icon">{icon}</span><span>{title}</span>{value && <small>{value}</small>}<ChevronRight size={17} /></button>;
+  return <button type="button" className="p-row" onClick={onClick}><span className="p-row-icon">{icon}</span><span>{title}</span>{value != null && <small>{value}</small>}<ChevronRight size={17} /></button>;
 }
 
 export default function ProfileScreens(p: Props) {
