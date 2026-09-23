@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
+  BookOpen,
   Bookmark,
   ChevronLeft,
   Download,
@@ -640,11 +641,19 @@ function BookShelf({
                 <div key={item.id}>
                   <button type="button" className="lib-card-title" onClick={() => onOpen(item.id)}>{book.title}</button>
                   <p>{book.author}</p>
-                  {item.audio ? (
-                    <button type="button" className="lib-duration" onClick={() => onPlay(item.id)}>
-                      <Headphones size={13} /> {lengthLabel(item.totalSeconds)}
-                    </button>
-                  ) : <span className="lib-duration">Elektron</span>}
+                  <div className="lib-formats" aria-label={`${book.title} formatlari`}>
+                    {item.audio && (
+                      <button type="button" className="lib-format lib-format-audio" aria-label={`${book.title} audiokitobi, ${lengthLabel(item.totalSeconds)}`} onClick={() => onPlay(item.id)}>
+                        <Headphones size={14} />
+                        <span>{lengthLabel(item.totalSeconds)}</span>
+                      </button>
+                    )}
+                    {item.text && (
+                      <button type="button" className="lib-format" aria-label={`${book.title} elektron kitobi`} onClick={() => onOpen(item.id)}>
+                        <BookOpen size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}

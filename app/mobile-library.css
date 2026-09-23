@@ -340,6 +340,46 @@
   font-weight: 650;
 }
 
+.lib-formats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 22px;
+  margin-top: 5px;
+}
+
+.lib-format {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 5px;
+  border: 1px solid #cfe2da;
+  border-radius: 5px;
+  background: #f5faf8;
+  color: #087a51;
+  cursor: pointer;
+}
+
+.lib-format-audio {
+  gap: 4px;
+  padding-inline: 5px 7px;
+}
+
+.lib-format span {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.lib-format:focus-visible {
+  outline: 2px solid #087a51;
+  outline-offset: 2px;
+}
+
 .lib-bar {
   display: block;
   height: 4px;
