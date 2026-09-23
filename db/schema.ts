@@ -7,7 +7,14 @@ export const readingPosts = sqliteTable("reading_posts", {
   book: text("book").notNull(),
   body: text("body").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-}, (t) => [index("idx_posts_created").on(t.createdAt), index("idx_posts_user").on(t.userId)]);
+}, (t) => [
+  index("idx_posts_created").on(t.createdAt),
+  index("idx_posts_user").on(t.userId),
+  // Lenta (created_at, id) juftligi bo'yicha tartiblanadi va shu juftlik
+  // kursor sifatida ishlatiladi, shuning uchun indeks ham kompozit.
+  index("idx_posts_feed").on(t.createdAt, t.id),
+  index("idx_posts_user_feed").on(t.userId, t.createdAt, t.id),
+]);
 
 export const postReplies = sqliteTable("post_replies", {
   id: text("id").primaryKey(),

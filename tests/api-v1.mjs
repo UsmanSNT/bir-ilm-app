@@ -1,0 +1,565 @@
+/**
+ * `/api/v1` uchun integratsion testlar.
+ *
+ * Route funksiyalari TO'G'RIDAN-TO'G'RI chaqiriladi, shuning uchun test ishga
+ * tushirilgan server, port yoki build talab qilmaydi va lokal D1 nusxasida
+ * (`.sites-runtime/node-preview.sqlite`) barcha migratsiyalar bilan ishlaydi.
+ *
+ * Eng muhim tekshiruv: AYNAN bir token web cookie orqali ham, mobil
+ * `Authorization: Bearer` orqali ham BIR XIL foydalanuvchini beradi. Bu —
+ * "bitta backend, bitta baza, uchta platforma" va'dasining isboti.
+ *
+ * Ishga tushirish: `node tests/api-v1.mjs`
+ */
+import assert from "node:assert/strict";
+import { statSync } from "node:fs";
+import { registerHooks } from "node:module";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = new URL("../", import.meta.url);
+const d1Module = new URL("scripts/local-d1.mjs", projectRoot).href;
+
+/** Bundler kengaytmasiz import qiladi; Node uchun uni o'zimiz topamiz. */
+function isFile(url) {
+  try {
+    return statSync(fileURLToPath(url)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function withExtension(url) {
+  if (isFile(url)) return url;
+
+  for (const candidate of [".ts", ".tsx", "/index.ts", "/index.tsx"]) {
+    const attempt = `${url}${candidate}`;
+    if (isFile(attempt)) return attempt;
+  }
+
+  return url;
+}
+
+// Loyihada `@/*` aliasi va Worker moduli ishlatiladi; Node uchun ularni
+// preview serveri qiladigan tarzda xaritalaymiz.
+registerHooks({
+  resolve(specifier, context, next) {
+    if (specifier === "cloudflare:workers") return { url: d1Module, shortCircuit: true };
+
+    if (specifier.startsWith("@/")) {
+      return next(withExtension(new URL(specifier.slice(2), projectRoot).href), context);
+    }
+
+    if (specifier.startsWith(".") && context.parentURL?.startsWith("file:")) {
+      return next(withExtension(new URL(specifier, context.parentURL).href), context);
+    }
+
+    return next(specifier, context);
+  },
+});
+
+const { sqlite } = await import(d1Module);
+
+const load = (path) => import(new URL(path, projectRoot).href);
+
+const session = await load("app/api/v1/auth/session/route.ts");
+const feed = await load("app/api/v1/feed/route.ts");
+const posts = await load("app/api/v1/posts/route.ts");
+const post = await load("app/api/v1/posts/[id]/route.ts");
+const replies = await load("app/api/v1/posts/[id]/replies/route.ts");
+const profile = await load("app/api/v1/profile/route.ts");
+const follows = await load("app/api/v1/follows/route.ts");
+const focus = await load("app/api/v1/focus/route.ts");
+const books = await load("app/api/v1/books/route.ts");
+const progress = await load("app/api/v1/progress/route.ts");
+const leaderboard = await load("app/api/v1/leaderboard/route.ts");
+const health = await load("app/api/v1/health/route.ts");
+
+// Eski (v1 dan oldingi) route'lar — mobil qobiq ular bilan ham ishlashi kerak.
+const legacySocial = await load("app/api/social/route.ts");
+const legacyAppState = await load("app/api/app-state/route.ts");
+
+const ORIGIN = "http://127.0.0.1:8787";
+const createdUsers = [];
+
+function request(path, { method = "GET", body, headers = {} } = {}) {
+  return new Request(`${ORIGIN}${path}`, {
+    method,
+    headers: {
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+/** Route'ni chaqiradi, konvertni ochadi va kutilgan kodni tekshiradi. */
+async function call(handler, path, { params, expect = 200, ...options } = {}) {
+  const response = await handler(
+    request(path, options),
+    params ? { params: Promise.resolve(params) } : undefined,
+  );
+
+  const payload = await response.json();
+  assert.equal(
+    response.status,
+    expect,
+    `${options.method ?? "GET"} ${path} → ${response.status}: ${JSON.stringify(payload)}`,
+  );
+
+  return { response, payload };
+}
+
+/** Web mijoz: cookie bilan, xuddi brauzerdek. */
+async function webClient() {
+  const { response, payload } = await call(session.POST, "/api/v1/auth/session", {
+    method: "POST",
+    body: { platform: "web", wantToken: false },
+    headers: { Origin: ORIGIN },
+    expect: 201,
+  });
+
+  const setCookie = response.headers.get("set-cookie");
+  assert.ok(setCookie, "Web sessiyasi cookie o'rnatishi kerak");
+  assert.match(setCookie, /HttpOnly/, "Cookie HttpOnly bo'lishi kerak");
+  assert.equal(payload.data.token, null, "Web tokenni javob tanasida olmasligi kerak");
+
+  const cookie = setCookie.split(";")[0];
+  createdUsers.push(payload.data.userId);
+
+  return {
+    userId: payload.data.userId,
+    call: (handler, path, options = {}) =>
+      call(handler, path, {
+        ...options,
+        headers: { Cookie: cookie, Origin: ORIGIN, ...options.headers },
+      }),
+  };
+}
+
+/** Native mijoz: token bilan, xuddi Android/iOS ilovasidek. */
+async function nativeClient(platform) {
+  const { response, payload } = await call(session.POST, "/api/v1/auth/session", {
+    method: "POST",
+    body: { platform, wantToken: true },
+    headers: { Origin: "capacitor://localhost", "X-Client-Platform": platform },
+    expect: 201,
+  });
+
+  assert.ok(payload.data.token, "Native mijoz tokenni javobda olishi kerak");
+  assert.match(payload.data.token, /^[a-f0-9]{64}$/);
+  assert.equal(
+    response.headers.get("set-cookie"),
+    null,
+    "Native mijozga cookie yuborilmasligi kerak",
+  );
+
+  createdUsers.push(payload.data.userId);
+
+  return {
+    userId: payload.data.userId,
+    token: payload.data.token,
+    call: (handler, path, options = {}) =>
+      call(handler, path, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${payload.data.token}`,
+          Origin: "capacitor://localhost",
+          "X-Client-Platform": platform,
+          ...options.headers,
+        },
+      }),
+  };
+}
+
+try {
+  // --- 1. Sog'liq ---------------------------------------------------------
+  {
+    const { payload } = await call(health.GET, "/api/v1/health");
+    assert.equal(payload.ok, true);
+    assert.equal(payload.data.version, "v1");
+    assert.equal(payload.data.database, "connected");
+    console.log("PASS: sog'liq tekshiruvi.");
+  }
+
+  // --- 2. Platformalar aro bir xil shaxs ----------------------------------
+  {
+    const android = await nativeClient("android");
+
+    // AYNAN o'sha tokenni cookie sifatida yuboramiz — web tashuvchisi.
+    const { payload: viaCookie } = await call(session.GET, "/api/v1/auth/session", {
+      headers: { Cookie: `bir_reader=${android.token}` },
+    });
+
+    assert.equal(
+      viaCookie.data.userId,
+      android.userId,
+      "Bir token ikki tashuvchida ham bir xil foydalanuvchi berishi kerak",
+    );
+
+    await android.call(posts.POST, "/api/v1/posts", {
+      method: "POST",
+      body: { book: "Sinov kitobi", body: "Telefonda yozilgan fikr." },
+      expect: 201,
+    });
+
+    const { payload: webFeed } = await call(feed.GET, "/api/v1/feed?scope=mine", {
+      headers: { Cookie: `bir_reader=${android.token}` },
+    });
+
+    assert.equal(webFeed.data.items.length, 1);
+    assert.equal(webFeed.data.items[0].body, "Telefonda yozilgan fikr.");
+    console.log("PASS: bir token — web va mobil uchun bir xil foydalanuvchi va bir xil ma'lumot.");
+  }
+
+  // --- 3. Postlar, izohlar, egalik ----------------------------------------
+  const alisher = await webClient();
+  const zuhra = await webClient();
+  {
+    await alisher.call(profile.PATCH, "/api/v1/profile", {
+      method: "PATCH",
+      body: { name: "Alisher", bio: "Tarixiy romanlar." },
+    });
+
+    const { payload: me } = await alisher.call(profile.GET, "/api/v1/profile");
+    assert.equal(me.data.name, "Alisher");
+    assert.equal(me.data.bio, "Tarixiy romanlar.");
+    assert.equal(me.data.isSelf, true);
+
+    const { payload: created } = await alisher.call(posts.POST, "/api/v1/posts", {
+      method: "POST",
+      body: { book: "O'tkan kunlar", body: "Birinchi taassurot." },
+      expect: 201,
+    });
+
+    const postId = created.data.id;
+    assert.equal(created.data.userId, alisher.userId);
+
+    await zuhra.call(replies.POST, `/api/v1/posts/${postId}/replies`, {
+      method: "POST",
+      body: { body: "Men ham o'qiganman." },
+      params: { id: postId },
+      expect: 201,
+    });
+
+    const { payload: list } = await zuhra.call(feed.GET, "/api/v1/feed");
+    const target = list.data.items.find((item) => item.id === postId);
+    assert.ok(target, "Post umumiy lentada ko'rinishi kerak");
+    assert.equal(target.replies.length, 1);
+    assert.equal(target.replies[0].body, "Men ham o'qiganman.");
+
+    // Boshqa odamning postini o'chirib bo'lmaydi.
+    await zuhra.call(post.DELETE, `/api/v1/posts/${postId}`, {
+      method: "DELETE",
+      params: { id: postId },
+      expect: 403,
+    });
+    await alisher.call(post.DELETE, `/api/v1/posts/${postId}`, {
+      method: "DELETE",
+      params: { id: postId },
+    });
+    console.log("PASS: post, izoh va egalik nazorati.");
+  }
+
+  // --- 4. Obuna -----------------------------------------------------------
+  {
+    await zuhra.call(follows.POST, "/api/v1/follows", {
+      method: "POST",
+      body: { target: alisher.userId, follow: true },
+    });
+
+    const { payload: seen } = await zuhra.call(
+      profile.GET,
+      `/api/v1/profile?userId=${alisher.userId}`,
+    );
+    assert.equal(seen.data.isFollowing, true);
+    assert.equal(seen.data.isSelf, false);
+    assert.equal(seen.data.followers, 1);
+
+    // O'ziga obuna bo'lish taqiqlangan.
+    await zuhra.call(follows.POST, "/api/v1/follows", {
+      method: "POST",
+      body: { target: zuhra.userId, follow: true },
+      expect: 403,
+    });
+
+    await zuhra.call(follows.POST, "/api/v1/follows", {
+      method: "POST",
+      body: { target: alisher.userId, follow: false },
+    });
+    const { payload: after } = await zuhra.call(
+      profile.GET,
+      `/api/v1/profile?userId=${alisher.userId}`,
+    );
+    assert.equal(after.data.followers, 0);
+    console.log("PASS: obuna va profil ko'rinishi.");
+  }
+
+  // --- 5. Validatsiya -----------------------------------------------------
+  {
+    const { payload: invalid } = await alisher.call(posts.POST, "/api/v1/posts", {
+      method: "POST",
+      body: { book: "", body: "" },
+      expect: 422,
+    });
+    assert.equal(invalid.ok, false);
+    assert.equal(invalid.error.code, "validation_failed");
+    assert.ok(invalid.error.fields.book, "Xato maydon nomi bilan qaytishi kerak");
+
+    const { payload: longBio } = await alisher.call(profile.PATCH, "/api/v1/profile", {
+      method: "PATCH",
+      body: { bio: "x".repeat(301) },
+      expect: 422,
+    });
+    assert.ok(longBio.error.fields.bio);
+    console.log("PASS: validatsiya maydon nomlari bilan qaytadi.");
+  }
+
+  // --- 6. Fokus seansi takrorlanmaydi -------------------------------------
+  {
+    const focusSession = { sessionId: crypto.randomUUID(), minutes: 25 };
+    await alisher.call(focus.POST, "/api/v1/focus", {
+      method: "POST",
+      body: focusSession,
+      expect: 201,
+    });
+    await alisher.call(focus.POST, "/api/v1/focus", {
+      method: "POST",
+      body: focusSession,
+      expect: 201,
+    });
+
+    const { payload: summary } = await alisher.call(focus.GET, "/api/v1/focus");
+    assert.equal(summary.data.sessions, 1, "Bir xil sessionId ikki marta hisoblanmasligi kerak");
+    assert.equal(summary.data.minutes, 25);
+
+    // Ruxsat etilmagan davomiylik rad etiladi.
+    await alisher.call(focus.POST, "/api/v1/focus", {
+      method: "POST",
+      body: { sessionId: crypto.randomUUID(), minutes: 7 },
+      expect: 422,
+    });
+    console.log("PASS: fokus seansi idempotent va tekshiriladi.");
+  }
+
+  // --- 7. Katalog va reyting serverda hisoblanadi --------------------------
+  {
+    const { payload: catalog } = await alisher.call(books.GET, "/api/v1/books");
+    assert.ok(catalog.data.items.length > 0, "Katalog bo'sh bo'lmasligi kerak");
+    const bookId = catalog.data.activeBookId ?? catalog.data.items[0].id;
+
+    await alisher.call(progress.PUT, "/api/v1/progress", {
+      method: "PUT",
+      body: { bookId, page: 120, total: 320 },
+    });
+
+    const { payload: saved } = await alisher.call(progress.GET, "/api/v1/progress");
+    assert.equal(saved.data.items.find((item) => item.bookId === bookId).page, 120);
+
+    const { payload: board } = await alisher.call(leaderboard.GET, "/api/v1/leaderboard?limit=100");
+    const entry = board.data.items.find((item) => item.id === alisher.userId);
+    assert.ok(entry, "Faol foydalanuvchi reytingda bo'lishi kerak");
+    assert.equal(entry.pages, 120, "Sahifalar bazadagi haqiqiy jarayondan olinadi");
+    assert.ok(entry.score > 0);
+
+    // Mijoz o'z ballini yozib yubora olmaydi — bunday maydon qabul qilinmaydi.
+    await alisher.call(progress.PUT, "/api/v1/progress", {
+      method: "PUT",
+      body: { bookId, page: 120, total: 320, score: 999999, streak: 500 },
+    });
+    const { payload: recheck } = await alisher.call(
+      leaderboard.GET,
+      "/api/v1/leaderboard?limit=100",
+    );
+    const unchanged = recheck.data.items.find((item) => item.id === alisher.userId);
+    assert.equal(unchanged.score, entry.score, "Mijoz ballni o'zgartira olmasligi kerak");
+    assert.equal(unchanged.streak, entry.streak);
+
+    // Sahifa jami sahifadan oshmasligi kerak.
+    await alisher.call(progress.PUT, "/api/v1/progress", {
+      method: "PUT",
+      body: { bookId, page: 9999, total: 320 },
+    });
+    const { payload: capped } = await alisher.call(progress.GET, "/api/v1/progress");
+    assert.equal(capped.data.items.find((item) => item.bookId === bookId).page, 320);
+    console.log("PASS: reyting serverda hisoblanadi, mijoz uni buza olmaydi.");
+  }
+
+  // --- 8. Kursorli sahifalash ---------------------------------------------
+  {
+    for (let index = 0; index < 5; index += 1) {
+      await zuhra.call(posts.POST, "/api/v1/posts", {
+        method: "POST",
+        body: { book: `Kitob ${index}`, body: `Fikr ${index}` },
+        expect: 201,
+      });
+    }
+
+    const { payload: first } = await zuhra.call(feed.GET, "/api/v1/feed?scope=mine&limit=2");
+    assert.equal(first.data.items.length, 2);
+    assert.ok(first.data.nextCursor, "Keyingi sahifa kursori bo'lishi kerak");
+
+    const seen = new Set(first.data.items.map((item) => item.id));
+    let cursor = first.data.nextCursor;
+    let guard = 0;
+
+    while (cursor && guard < 10) {
+      const { payload: page } = await zuhra.call(
+        feed.GET,
+        `/api/v1/feed?scope=mine&limit=2&cursor=${encodeURIComponent(cursor)}`,
+      );
+      for (const item of page.data.items) {
+        assert.ok(!seen.has(item.id), "Sahifalar orasida takror bo'lmasligi kerak");
+        seen.add(item.id);
+      }
+      cursor = page.data.nextCursor;
+      guard += 1;
+    }
+
+    assert.equal(seen.size, 5, "Varaqlashda hamma post bir marta ko'rinishi kerak");
+    console.log("PASS: kursorli sahifalash takrorlamaydi va hech narsani tushirmaydi.");
+  }
+
+  // --- 9. CORS va CSRF -----------------------------------------------------
+  {
+    const preflight = await feed.OPTIONS(
+      request("/api/v1/feed", {
+        method: "OPTIONS",
+        headers: { Origin: "capacitor://localhost" },
+      }),
+    );
+    assert.equal(preflight.status, 204);
+    assert.equal(
+      preflight.headers.get("access-control-allow-origin"),
+      "capacitor://localhost",
+      "Native origin uchun CORS ruxsat berilishi kerak",
+    );
+    assert.match(preflight.headers.get("access-control-allow-headers"), /Authorization/);
+
+    const { payload: evil } = await call(posts.POST, "/api/v1/posts", {
+      method: "POST",
+      body: { book: "x", body: "y" },
+      headers: { Origin: "https://yovuz-sayt.example" },
+      expect: 403,
+    });
+    assert.equal(evil.error.code, "forbidden");
+    console.log("PASS: native originlarga CORS ochiq, begona originlarga yopiq.");
+  }
+
+  // --- 10. Mijoz yuborgan userId e'tiborga olinmaydi -----------------------
+  {
+    const { payload } = await alisher.call(posts.POST, "/api/v1/posts", {
+      method: "POST",
+      body: { book: "Soxta", body: "Boshqa nom ostida.", userId: zuhra.userId },
+      expect: 201,
+    });
+    assert.equal(
+      payload.data.userId,
+      alisher.userId,
+      "Muallif faqat sessiyadan olinishi kerak",
+    );
+    console.log("PASS: mijoz boshqa foydalanuvchi nomidan yoza olmaydi.");
+  }
+
+  // --- 11. Eski API ham native qobiqdan ishlaydi ---------------------------
+  // Mobil ilova hozircha UI bilan birga eski `/api/social` ni chaqiradi.
+  // Cookie cross-site yuborilmaydi, shuning uchun u Bearer tokenni ham
+  // qabul qilishi va CORS ochishi SHART — aks holda ilovada ma'lumot
+  // ko'rinmaydi.
+  {
+    const android = await nativeClient("android");
+
+    const legacyResponse = await legacySocial.GET(
+      request("/api/social", {
+        headers: {
+          Authorization: `Bearer ${android.token}`,
+          Origin: "capacitor://localhost",
+          "X-Client-Platform": "android",
+        },
+      }),
+    );
+    const legacy = await legacyResponse.json();
+
+    assert.equal(legacyResponse.status, 200, JSON.stringify(legacy));
+    assert.equal(
+      legacy.userId,
+      android.userId,
+      "Eski API va /api/v1 bir xil foydalanuvchini ko'rsatishi kerak",
+    );
+    assert.equal(
+      legacyResponse.headers.get("access-control-allow-origin"),
+      "capacitor://localhost",
+    );
+    assert.equal(
+      legacyResponse.headers.get("set-cookie"),
+      null,
+      "Native mijozga cookie yuborilmasligi kerak",
+    );
+
+    // Yozuv ham native origindan o'tishi kerak (ilgari 403 bo'lardi).
+    const writeResponse = await legacySocial.POST(
+      request("/api/social", {
+        method: "POST",
+        body: { type: "post", book: "Native kitob", body: "Ilovadan yozilgan." },
+        headers: {
+          Authorization: `Bearer ${android.token}`,
+          Origin: "capacitor://localhost",
+          "X-Client-Platform": "android",
+        },
+      }),
+    );
+    assert.equal(writeResponse.status, 200, await writeResponse.text());
+
+    // Begona sayt esa hamon rad etilishi kerak.
+    const evilResponse = await legacySocial.POST(
+      request("/api/social", {
+        method: "POST",
+        body: { type: "post", book: "x", body: "y" },
+        headers: { Origin: "https://yovuz-sayt.example" },
+      }),
+    );
+    assert.equal(evilResponse.status, 403, "Begona origin yozuv qila olmasligi kerak");
+
+    // `/api/app-state` preflight'i ham native uchun ochiq bo'lsin.
+    const appStatePreflight = legacyAppState.OPTIONS(
+      request("/api/app-state", {
+        method: "OPTIONS",
+        headers: { Origin: "capacitor://localhost" },
+      }),
+    );
+    assert.equal(appStatePreflight.status, 204);
+    assert.equal(
+      appStatePreflight.headers.get("access-control-allow-origin"),
+      "capacitor://localhost",
+    );
+
+    console.log("PASS: eski API native qobiqdan ham ishlaydi (Bearer + CORS).");
+  }
+
+  console.log("\nHAMMASI O'TDI: /api/v1 va eski API web va mobil uchun bir xil ishlaydi.");
+} finally {
+  if (createdUsers.length) {
+    const unique = [...new Set(createdUsers)];
+    assert.ok(unique.every((id) => /^reader_[a-f0-9]{64}$/.test(id)));
+    const placeholders = unique.map(() => "?").join(",");
+
+    // Ba'zi jadvallarda cascade ishlamasligi mumkin — tartib bilan tozalaymiz.
+    sqlite
+      .prepare(
+        `DELETE FROM post_replies WHERE user_id IN (${placeholders}) OR post_id IN (SELECT id FROM reading_posts WHERE user_id IN (${placeholders}))`,
+      )
+      .run(...unique, ...unique);
+    sqlite.prepare(`DELETE FROM reading_posts WHERE user_id IN (${placeholders})`).run(...unique);
+    sqlite
+      .prepare(
+        `DELETE FROM reader_follows WHERE follower_id IN (${placeholders}) OR followed_id IN (${placeholders})`,
+      )
+      .run(...unique, ...unique);
+    sqlite.prepare(`DELETE FROM focus_sessions WHERE user_id IN (${placeholders})`).run(...unique);
+    sqlite.prepare(`DELETE FROM reading_progress WHERE user_id IN (${placeholders})`).run(...unique);
+    sqlite.prepare(`DELETE FROM comments WHERE user_id IN (${placeholders})`).run(...unique);
+    sqlite.prepare(`DELETE FROM user_activity WHERE user_id IN (${placeholders})`).run(...unique);
+    sqlite.prepare(`DELETE FROM users WHERE id IN (${placeholders})`).run(...unique);
+
+    console.log(`Tozalandi: ${unique.length} ta test foydalanuvchisi.`);
+  }
+}

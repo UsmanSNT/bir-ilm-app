@@ -22,6 +22,16 @@ class Statement {
   constructor(sql, args = []) { this.sql = sql; this.args = args; }
   bind(...args) { return new Statement(this.sql, args); }
   async all() { return { success: true, results: sqlite.prepare(this.sql).all(...this.args) }; }
+  // Drizzle's D1 driver reads rows positionally through `raw()`.
+  async raw() {
+    const statement = sqlite.prepare(this.sql);
+    const names = statement.columns().map(column => column.name);
+    if (new Set(names).size !== names.length) {
+      // `all()` returns objects, so same-named columns would silently collapse.
+      throw new Error(`Duplicate column names in preview query; alias them: ${names.join(", ")}`);
+    }
+    return statement.all(...this.args).map(row => names.map(name => row[name] ?? null));
+  }
   async first(column) { const row = sqlite.prepare(this.sql).get(...this.args); return column ? row?.[column] ?? null : row ?? null; }
   async run() {
     const result = sqlite.prepare(this.sql).run(...this.args);
