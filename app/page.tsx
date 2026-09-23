@@ -601,6 +601,7 @@ export default function App() {
                   reminderOn={data.talk}
                   onContinue={() => setModal("progress")}
                   onOpenTimer={() => window.dispatchEvent(new Event("bir-open-pomodoro"))}
+                  onOpenNotifications={() => setModal("notifications")}
                   onOpenBook={() => {
                     setSelected(books[0]);
                     setModal("book");
@@ -1159,6 +1160,8 @@ export default function App() {
           <DialogDescription>
             {!data.onboarded
               ? "Har kuni o'qing. Hafta oxirida kitobni birga tahlil qiling."
+              : modal === "notifications"
+                ? "Ilovadagi muhim yangiliklar, suhbatlar va eslatmalar shu yerda jamlanadi."
               : "O'zgarishlar backend mavjud bo'lsa serverga, aks holda qurilmaga saqlanadi."}
           </DialogDescription>
 
@@ -1282,6 +1285,37 @@ export default function App() {
 
               {modal === "notifications" && (
                 <>
+                  <div className="notification-center">
+                    <button type="button" className="notification-item" onClick={() => { setModal(""); go("talks"); }}>
+                      <span className="notification-icon"><MessageSquare size={19} /></span>
+                      <span className="notification-copy">
+                        <strong>Yakshanba birga muhokama qilamiz</strong>
+                        <small>Atom odatlar bo‘yicha jonli suhbatga qo‘shiling.</small>
+                        <time>2 soat oldin</time>
+                      </span>
+                      <ChevronRight size={18} />
+                    </button>
+                    <button type="button" className="notification-item" onClick={() => { setModal(""); go("home"); }}>
+                      <span className="notification-icon notification-icon-gold"><Trophy size={19} /></span>
+                      <span className="notification-copy">
+                        <strong>Jonli viktorina bugun soat 20:00</strong>
+                        <small>“Kitob bilimdoni” xonasi ishtirokchilarni kutmoqda.</small>
+                        <time>5 soat oldin</time>
+                      </span>
+                      <ChevronRight size={18} />
+                    </button>
+                    <button type="button" className="notification-item" onClick={() => setModal("")}>
+                      <span className="notification-icon notification-icon-blue"><BookOpen size={19} /></span>
+                      <span className="notification-copy">
+                        <strong>Kun hikmati yangilandi</strong>
+                        <small>Bugungi yangi fikrni o‘qib, mutolaani davom ettiring.</small>
+                        <time>Kecha</time>
+                      </span>
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+
+                  <h3 className="notification-settings-title">Eslatma sozlamalari</h3>
                   <div className="setting">
                     <label htmlFor="read-reminder">O&apos;qish eslatmasi</label>
                     <Switch

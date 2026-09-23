@@ -8,6 +8,10 @@
   padding: 6px 16px 28px;
 }
 
+.m-home-screen {
+  width: 100%;
+}
+
 .mobile-home h1,
 .mobile-home h2,
 .mobile-home p {
@@ -33,7 +37,8 @@
 .m-top {
   display: flex;
   justify-content: space-between;
-  padding-top: 10px;
+  min-height: 68px;
+  padding-top: 4px;
 }
 
 .m-wordmark,
@@ -73,11 +78,17 @@
   position: absolute;
   top: 7px;
   right: 6px;
-  width: 7px;
-  height: 7px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
   border: 1.5px solid #fff;
-  border-radius: 50%;
+  border-radius: 999px;
   background: #e33f4b;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 12px;
+  text-align: center;
 }
 
 .m-greeting-row {

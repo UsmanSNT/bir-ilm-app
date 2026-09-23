@@ -1543,6 +1543,81 @@ audio {
   height: 20px;
 }
 
+.notification-center {
+  display: grid;
+  gap: 8px;
+}
+
+.notification-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 10px;
+  border: 0;
+  border-bottom: 1px solid #e5ece9;
+  background: transparent;
+  color: #16352c;
+  text-align: left;
+}
+
+.notification-item:hover {
+  background: #f3f8f6;
+}
+
+.notification-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e6f4ee;
+  color: #087a55;
+}
+
+.notification-icon-gold {
+  background: #fff2d9;
+  color: #b56b00;
+}
+
+.notification-icon-blue {
+  background: #e7f1f7;
+  color: #27647d;
+}
+
+.notification-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.notification-copy strong,
+.notification-copy small,
+.notification-copy time {
+  overflow-wrap: anywhere;
+}
+
+.notification-copy strong {
+  font-size: 14px;
+}
+
+.notification-copy small {
+  color: #566e66;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.notification-copy time {
+  color: #83958f;
+  font-size: 11px;
+}
+
+.notification-settings-title {
+  margin: 4px 0 0;
+  font-size: 15px;
+}
+
 .app-dialog {
   max-height: 90dvh;
   overflow-y: auto;

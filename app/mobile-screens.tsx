@@ -134,6 +134,7 @@ export default function MobileScreens({
   reminderOn,
   onContinue,
   onOpenTimer,
+  onOpenNotifications,
   onOpenBook,
   onAddReminder,
 }: {
@@ -146,6 +147,7 @@ export default function MobileScreens({
   reminderOn: boolean;
   onContinue: () => void;
   onOpenTimer: () => void;
+  onOpenNotifications: () => void;
   onOpenBook: () => void;
   onAddReminder: () => void;
 }) {
@@ -288,9 +290,9 @@ export default function MobileScreens({
               <button className="m-icon" type="button" aria-label="Pomodoro taymeri" onClick={onOpenTimer}>
                 <Timer size={21} />
               </button>
-              <button className="m-icon" type="button" aria-label="Suhbat eslatmasi" onClick={() => setReminder(true)}>
+              <button className="m-icon" type="button" aria-label="Bildirishnomalar" onClick={onOpenNotifications}>
                 <Bell size={22} />
-                {!reminderOn && <span className="m-alert-dot" />}
+                <span className="m-alert-dot">3</span>
               </button>
             </div>
           </header>
