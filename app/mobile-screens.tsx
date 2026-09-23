@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useSyncExternalStore, useState } from "react";
+import Image from "next/image";
+import { FormEvent, useEffect, useMemo, useSyncExternalStore, useState, type CSSProperties } from "react";
 import {
   ArrowRight,
   Bell,
@@ -10,8 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Flame,
+  Leaf,
   Timer,
+  TreePine,
   Trophy,
   Users,
   X,
@@ -105,15 +107,35 @@ function CountBoxes({ days, hours }: { days: string; hours: string }) {
   );
 }
 
-function DiscussionArt() {
+function koreaWeekProgress(timestamp: number) {
+  const korea = new Date(timestamp + 9 * 60 * 60 * 1000);
+  const day = korea.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const start = Date.UTC(korea.getUTCFullYear(), korea.getUTCMonth(), korea.getUTCDate() + mondayOffset);
+  const end = start + (5 * 24 + 22) * 60 * 60 * 1000;
+  const current = korea.getTime();
+  const elapsed = Math.max(0, Math.min(end - start, current - start));
+  const remaining = Math.max(0, end - current);
+  const remainingHours = Math.ceil(remaining / 3_600_000);
+  return {
+    progress: Math.round((elapsed / (end - start)) * 100),
+    label: remainingHours >= 24
+      ? `${Math.floor(remainingHours / 24)} kun ${remainingHours % 24} soat qoldi`
+      : remainingHours > 0 ? `${remainingHours} soat qoldi` : "Suhbat boshlandi",
+  };
+}
+
+function DiscussionArt({ variant = "talk" }: { variant?: string }) {
+  const background = variant === "quiz" ? "#e8e2d1" : variant === "habit" ? "#d7e8e8" : "#d7e4dc";
+  const accent = variant === "quiz" ? "#b58b35" : variant === "habit" ? "#367688" : "#1f6b4e";
   return (
     <svg className="m-news-art" viewBox="0 0 160 132" aria-hidden="true">
-      <rect width="160" height="132" rx="14" fill="#d7e4dc" />
+      <rect width="160" height="132" fill={background} />
       <rect x="18" y="78" width="124" height="14" rx="4" fill="#c4a27a" />
       <rect x="28" y="90" width="10" height="22" fill="#b08968" />
       <rect x="122" y="90" width="10" height="22" fill="#b08968" />
       <circle cx="42" cy="48" r="11" fill="#e7c2a4" />
-      <rect x="30" y="60" width="24" height="26" rx="8" fill="#1f6b4e" />
+      <rect x="30" y="60" width="24" height="26" rx="8" fill={accent} />
       <circle cx="78" cy="42" r="11" fill="#f0d0b4" />
       <rect x="66" y="54" width="24" height="28" rx="8" fill="#f4f1ea" />
       <circle cx="112" cy="50" r="11" fill="#d9aa88" />
@@ -169,6 +191,9 @@ export default function MobileScreens({
   const days = String(Math.floor(secs / 86400)).padStart(2, "0");
   const hours = String(Math.floor((secs / 3600) % 24)).padStart(2, "0");
   const percent = Math.round((page / Math.max(1, total)) * 100);
+  const dailyMinutes = Math.min(5, Math.max(1, streak));
+  const dailyProgress = dailyMinutes * 20;
+  const week = koreaWeekProgress(now);
   const quote = wisdom[0];
   const visibleQuizzes = showQuizzes ? quizzes : quizzes.slice(0, 2);
 
@@ -287,6 +312,12 @@ export default function MobileScreens({
           <header className="m-top">
             <p className="m-wordmark">BIR ILM</p>
             <div className="m-top-actions">
+              <span className="m-daily-progress" aria-label={`Bugungi mutolaa ${dailyMinutes} daqiqa, maqsad 5 daqiqa`}>
+                <TreePine size={18} />
+                <span className="m-daily-ring" style={{ "--daily-progress": `${dailyProgress * 3.6}deg` } as CSSProperties}>
+                  <b>{dailyMinutes}</b><small>/5</small>
+                </span>
+              </span>
               <button className="m-icon" type="button" aria-label="Pomodoro taymeri" onClick={onOpenTimer}>
                 <Timer size={21} />
               </button>
@@ -299,7 +330,6 @@ export default function MobileScreens({
 
           <div className="m-greeting-row">
             <div><h1 className="m-hello">Salom, {name}!</h1><p className="m-sub">Bugun ham bir sahifa oldinga.</p></div>
-            <span className="m-streak"><Flame size={16} /><strong>{streak}</strong><small>kunlik mutolaa</small></span>
           </div>
 
           <section className="m-card m-week">
@@ -309,8 +339,14 @@ export default function MobileScreens({
               <div>
                 <h2>Atom odatlar</h2>
                 <p className="m-author">James Clear</p>
-                <p className="m-blurb">Jonli suhbatgacha:</p>
-                <CountBoxes days={days} hours={hours} />
+                <p className="m-blurb">Dushanba e’lon qilindi · Shanba 22:00 KST suhbat</p>
+              </div>
+            </div>
+            <div className={`m-week-timeline ${week.progress >= 80 ? "is-finishing" : ""}`}>
+              <div className="m-week-labels"><span>Dush</span><strong>{week.label}</strong><span>Shan 22:00</span></div>
+              <div className="m-week-track" aria-label={`Haftalik vaqtning ${week.progress} foizi o‘tdi`}>
+                <span style={{ width: `${week.progress}%` }} />
+                <Leaf size={17} style={{ left: `${Math.min(96, week.progress)}%` }} />
               </div>
             </div>
             <div className="m-progress">
@@ -325,21 +361,11 @@ export default function MobileScreens({
           </section>
 
           <section className="m-card m-wisdom">
-            <span className="m-wisdom-icon" aria-hidden="true">
-              <BookOpen size={18} />
-            </span>
-            <div>
-              <p className="m-kicker">Kun hikmati</p>
-              <p>{quote}</p>
-            </div>
+            <Image src="/assets/adras.png" alt="" width={720} height={240} />
+            <blockquote>{quote}</blockquote>
           </section>
 
           <div className="m-shortcuts">
-            <button className="m-card m-shortcut" type="button" onClick={onOpenTimer}>
-              <Clock size={22} />
-              <strong>Mutolaa taymeri</strong>
-              <small>Diqqatli mutolaa</small>
-            </button>
             <button className="m-card m-shortcut" type="button" onClick={openQuizzes}>
               <Trophy size={22} />
               <strong>Viktorinalar</strong>
@@ -353,7 +379,9 @@ export default function MobileScreens({
               Barchasini ko‘rish <ChevronRight size={16} />
             </button>
           </div>
-          <NewsCard item={news[0]} />
+          <div className="m-news-carousel" aria-label="Bir ilm yangiliklari">
+            {news.map((item) => <NewsCard key={item.id} item={item} />)}
+          </div>
         </div>
       )}
 
@@ -561,11 +589,11 @@ function Subhead({ title, onBack }: { title: string; onBack: () => void }) {
 function NewsCard({
   item,
 }: {
-  item: { title: string; body: string; time: string; open: () => void };
+  item: { id?: string; title: string; body: string; time: string; open: () => void };
 }) {
   return (
     <button className="m-card m-news" type="button" onClick={item.open}>
-      <DiscussionArt />
+      <DiscussionArt variant={item.id} />
       <span>
         <span className="m-news-brand">
           <b>BIR ILM</b>
