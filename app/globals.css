@@ -615,6 +615,10 @@ small,
   color: #111827;
 }
 
+.show-community .page-heading {
+  display: none;
+}
+
 .community-topbar,
 .strip-head,
 .post-author,
@@ -633,6 +637,54 @@ small,
 .community-topbar h2 {
   color: #0c1222;
   font-size: 28px;
+}
+
+.community-nav-title {
+  margin: 0;
+  color: #102c2b;
+  font-size: 21px;
+  line-height: 1.2;
+  font-weight: 750;
+}
+
+.community-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.community-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 7px 12px;
+  background: #f2f6f5;
+  border: 1px solid #dce8e4;
+  border-radius: 8px;
+}
+
+.community-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.community-search button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.community-search-empty {
+  padding: 28px 12px;
+  text-align: center;
+  color: #63736f;
 }
 
 .community-topbar > div {
@@ -1648,6 +1700,20 @@ input {
 }
 
 @media (max-width: 980px) {
+  .show-community .app-header {
+    height: 68px;
+    padding: 12px 20px;
+  }
+
+  .show-community .page-heading,
+  .show-community .community-topbar {
+    display: none;
+  }
+
+  .show-community .workspace {
+    padding-top: 18px;
+  }
+
   body {
     background: #ffffff;
   }

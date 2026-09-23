@@ -272,6 +272,8 @@ export default function App() {
   const [modal, setModal] = useState("");
   const [selected, setSelected] = useState<Book>(books[0]);
   const [message, setMessage] = useState("");
+  const [communitySearchOpen, setCommunitySearchOpen] = useState(false);
+  const [communityQuery, setCommunityQuery] = useState("");
   const [audio, setAudio] = useState<Recording[]>([]);
   const [audioTitle, setAudioTitle] = useState("Atom odatlar muhokamasi");
   const [busy, setBusy] = useState(false);
@@ -279,6 +281,12 @@ export default function App() {
   const [serverLeaders, setServerLeaders] = useState<LeaderboardMember[]>([]);
 
   const pct = Math.round((data.page / Math.max(1, data.total)) * 100);
+  const searchTerm = communityQuery.trim().toLocaleLowerCase("uz-UZ");
+  const matchingPosts = [
+    "madina bugungi kitobdan eng yoqqan fikrim ikigai",
+    "aziz bugun yangi kitob boshladim siz nima o'qiyapsiz",
+    "sanjar bir kitob bir yangi fikr atomic habits video",
+  ].map((text) => !searchTerm || text.includes(searchTerm));
   const secs = Math.max(0, Math.floor((session - now) / 1000));
   const timer = `${Math.floor(secs / 86400)} kun ${String(
     Math.floor(secs / 3600) % 24,
@@ -524,7 +532,7 @@ export default function App() {
   return (
     <>
       <Toaster richColors position="top-center" />
-      <div className={`app-shell${tab === "home" ? " show-mobile-home" : ""}`}>
+      <div className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}`}>
         <aside className="desktop-rail">
           <Brand />
           <div className="rail-intro"><span>KITOB BILAN</span><strong>Har kuningiz<br/>mazmunli.</strong><p>O‘qing. Fikrlashing.<br/>Birga o‘sing.</p></div>
@@ -536,14 +544,17 @@ export default function App() {
 
         <main className="app-main">
           <header className="app-header">
-            <Brand />
-            <button
-              className="icon-btn"
-              aria-label="Bildirishnomalar"
-              onClick={() => setModal("notifications")}
-            >
-              <Bell size={22} />
-            </button>
+            {tab === "community" ? (
+              <>
+                <h1 className="community-nav-title">Community</h1>
+                <div className="community-nav-actions">
+                  <button className="feed-icon" aria-label="Qidirish" onClick={() => setCommunitySearchOpen((value) => !value)}><Search size={21} /></button>
+                  <button className="feed-icon" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={21} /><span className="notification-dot">3</span></button>
+                </div>
+              </>
+            ) : (
+              <><Brand /><button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} /></button></>
+            )}
           </header>
 
           <Tabs value={tab} onValueChange={go} className="app-tabs">
@@ -675,7 +686,7 @@ export default function App() {
                   <div className="community-topbar">
                     <h2>Community</h2>
                     <div>
-                      <button className="feed-icon" aria-label="Qidirish">
+                      <button className="feed-icon" aria-label="Qidirish" onClick={() => setCommunitySearchOpen((value) => !value)}>
                         <Search size={21} />
                       </button>
                       <button
@@ -688,6 +699,7 @@ export default function App() {
                       </button>
                     </div>
                   </div>
+                  {communitySearchOpen && <div className="community-search"><Search size={18} /><input autoFocus aria-label="Communitydan qidirish" placeholder="Postlarni qidirish..." value={communityQuery} onChange={(event) => setCommunityQuery(event.target.value)} /><button aria-label="Qidirishni yopish" onClick={() => { setCommunitySearchOpen(false); setCommunityQuery(""); }}><X size={18} /></button></div>}
 
                   <div className="recommendation-strip" aria-label="Hafta tavsiyalari">
                     <div className="strip-head">
@@ -727,7 +739,7 @@ export default function App() {
 
                   <div className="community-layout social-layout">
                     <div className="social-feed">
-                      <article className="post-card featured-post">
+                      <article className="post-card featured-post" style={{ display: matchingPosts[0] ? undefined : "none" }}>
                         <div className="post-author">
                           <span className="photo-avatar madina" />
                           <div>
@@ -764,7 +776,7 @@ export default function App() {
                         </div>
                       </article>
 
-                      <article className="post-card compact-post">
+                      <article className="post-card compact-post" style={{ display: matchingPosts[1] ? undefined : "none" }}>
                         <div className="post-author">
                           <span className="photo-avatar aziz" />
                           <div>
@@ -791,6 +803,8 @@ export default function App() {
                           </button>
                         </div>
                       </article>
+
+                      {searchTerm && !matchingPosts.some(Boolean) && <p className="community-search-empty">Post topilmadi.</p>}
 
                       <form className="composer social-composer" onSubmit={submitComment}>
                         <span className="photo-avatar me">{data.name.slice(0, 1)}</span>
@@ -850,7 +864,7 @@ export default function App() {
                         </div>
                       </article>
 
-                      <article className="media-post">
+                      <article className="media-post" style={{ display: matchingPosts[2] ? undefined : "none" }}>
                         <div className="post-author">
                           <span className="photo-avatar sanjar" />
                           <div>
