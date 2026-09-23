@@ -2143,6 +2143,7 @@ input {
   .show-community .app-header {
     width: 100%;
     box-sizing: border-box;
+    padding-right: 30px;
   }
 
   .community-nav-actions {
@@ -2154,6 +2155,15 @@ input {
     background: #f5f7f6;
   }
 
+  .show-community .app-main,
+  .show-community .app-tabs,
+  .show-community .workspace,
+  .show-community .community-screen {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   .community-screen {
     max-width: none;
   }
@@ -2161,10 +2171,10 @@ input {
   .community-screen > .community-search,
   .community-screen > .recommendation-strip,
   .community-screen > .feed-tabs {
-    width: calc(100% - 24px) !important;
+    width: calc(100% - 32px) !important;
     box-sizing: border-box;
-    margin-right: 12px;
-    margin-left: 12px;
+    margin-right: 16px;
+    margin-left: 16px;
   }
 
   .community-screen .feed-tabs button {
