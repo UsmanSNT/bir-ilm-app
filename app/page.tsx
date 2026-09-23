@@ -275,6 +275,7 @@ export default function App() {
   const [message, setMessage] = useState("");
   const [communitySearchOpen, setCommunitySearchOpen] = useState(false);
   const [communityQuery, setCommunityQuery] = useState("");
+  const [communityPanel, setCommunityPanel] = useState<"feed" | "comments" | "compose">("feed");
   const [audio, setAudio] = useState<Recording[]>([]);
   const [audioTitle, setAudioTitle] = useState("Atom odatlar muhokamasi");
   const [busy, setBusy] = useState(false);
@@ -765,7 +766,7 @@ export default function App() {
                           <button className="liked" aria-label="Yoqdi">
                             <Heart size={20} fill="currentColor" /> 124
                           </button>
-                          <button aria-label="Izohlar">
+                          <button aria-label="Izohlar" onClick={() => setCommunityPanel("comments")}>
                             <MessageCircle size={20} /> {data.comments.length + 25}
                           </button>
                           <button aria-label="Saqlash">
@@ -793,7 +794,7 @@ export default function App() {
                           <button className="liked" aria-label="Yoqdi">
                             <Heart size={20} fill="currentColor" /> 56
                           </button>
-                          <button aria-label="Izohlar">
+                          <button aria-label="Izohlar" onClick={() => setCommunityPanel("comments")}>
                             <MessageCircle size={20} /> 42
                           </button>
                           <button aria-label="Saqlash">
@@ -827,13 +828,13 @@ export default function App() {
                     </div>
 
                     <aside className="community-side">
-                      <article className="new-post-panel">
+                      <article className={`new-post-panel${communityPanel === "compose" ? " mobile-open" : ""}`}>
                         <div className="panel-head">
-                          <button className="feed-icon ghost" aria-label="Yopish">
+                          <button className="feed-icon ghost" aria-label="Yopish" onClick={() => setCommunityPanel("feed")}>
                             <X size={22} />
                           </button>
                           <strong>Yangi post</strong>
-                          <button className="publish-btn">Joylash</button>
+                          <button className="publish-btn" onClick={() => { setCommunityPanel("feed"); toast.success("Post joylandi"); }}>Joylash</button>
                         </div>
                         <div className="post-author">
                           <span className="photo-avatar madina" />
@@ -890,7 +891,7 @@ export default function App() {
                           <button className="liked" aria-label="Yoqdi">
                             <Heart size={20} fill="currentColor" /> 98
                           </button>
-                          <button aria-label="Izohlar">
+                          <button aria-label="Izohlar" onClick={() => setCommunityPanel("comments")}>
                             <MessageCircle size={20} /> 16
                           </button>
                           <button aria-label="Ulashish">
@@ -920,10 +921,31 @@ export default function App() {
                     </aside>
                   </div>
 
+                  {communityPanel === "comments" && (
+                    <section className="community-comments-screen" aria-label="Post izohlari">
+                      <header>
+                        <button className="feed-icon ghost" aria-label="Orqaga" onClick={() => setCommunityPanel("feed")}><ChevronRight size={22} className="back-chevron" /></button>
+                        <strong>Izohlar</strong>
+                        <span />
+                      </header>
+                      <article className="comments-post-summary">
+                        <div className="post-author"><span className="photo-avatar madina" /><div><strong>Madina</strong><small>2 soat oldin</small></div></div>
+                        <p>Bugungi kitobdan eng yoqqan fikrim.</p>
+                        <div className="book-photo ikigai-photo compact-media" aria-label="Ikigai kitobi rasmi"><div className="book-prop"><span>IKIGAI</span><small>Yaponlarning uzoq va baxtli hayot siri</small></div></div>
+                        <div className="post-actions"><button className="liked"><Heart size={19} fill="currentColor" /> 124</button><button><MessageCircle size={19} /> {data.comments.length + 25}</button><button><BookOpen size={19} /></button></div>
+                      </article>
+                      <div className="community-comment-list">
+                        <div className="section-row tight"><h3>Izohlar</h3><small>Eng dolzarb</small></div>
+                        {data.comments.map((comment) => <article className="message" key={comment.id}><span className="avatar">{comment.name.slice(0, 1)}</span><div><div className="message-head"><strong>{comment.name}</strong><small>{comment.demo ? "2 soat oldin" : "Siz"}</small></div><p>{comment.text}</p><button className="text-btn">Javob berish</button></div></article>)}
+                      </div>
+                      <form className="composer comments-composer" onSubmit={submitComment}><span className="photo-avatar me">{data.name.slice(0, 1)}</span><textarea aria-label="Izoh yozing" placeholder="Izoh yozing..." value={message} maxLength={2000} onChange={(event) => setMessage(event.target.value)} /><button className="send-round" disabled={!message.trim()} aria-label="Izoh yuborish"><Send size={20} /></button></form>
+                    </section>
+                  )}
+
                   <button
                     className="floating-compose"
                     aria-label="Yangi post yozish"
-                    onClick={() => setModal("note")}
+                    onClick={() => setCommunityPanel("compose")}
                   >
                     <PenLine size={24} />
                   </button>
