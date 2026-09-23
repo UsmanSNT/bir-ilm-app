@@ -52,6 +52,7 @@ import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
 import MobileScreens from "./mobile-screens";
+import MobileLibrary from "./mobile-library";
 import {
   Book,
   CommunityComment,
@@ -532,7 +533,7 @@ export default function App() {
   return (
     <>
       <Toaster richColors position="top-center" />
-      <div className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}`}>
+      <div className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}${tab === "shelf" ? " show-mobile-shelf" : ""}`}>
         <aside className="desktop-rail">
           <Brand />
           <div className="rail-intro"><span>KITOB BILAN</span><strong>Har kuningiz<br/>mazmunli.</strong><p>O‘qing. Fikrlashing.<br/>Birga o‘sing.</p></div>
@@ -1004,7 +1005,18 @@ export default function App() {
               </TabsContent>
 
               <TabsContent value="shelf">
-                <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
+                <div className="desktop-shelf">
+                  <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
+                </div>
+                <MobileLibrary
+                  shelf={data.shelf}
+                  onToggleSave={(id) => {
+                    const saved = data.shelf.includes(id);
+                    update({ shelf: saved ? data.shelf.filter((item) => item !== id) : [...data.shelf, id] });
+                    toast.success(saved ? "Saqlangandan olindi" : "Saqlanganlarga qo‘shildi");
+                  }}
+                  onReadPage={(page, total) => updateProgress(page, total)}
+                />
               </TabsContent>
 
               <TabsContent value="leaders">
