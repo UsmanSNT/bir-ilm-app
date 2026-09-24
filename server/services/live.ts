@@ -6,6 +6,7 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
+import { ensureUser } from "./social";
 import type {
   CreateLiveSessionInput,
   LiveSession,
@@ -26,6 +27,7 @@ export async function createLiveSession(
   input: CreateLiveSessionInput,
 ): Promise<LiveSession> {
   const id = sessionId();
+  await ensureUser(db, moderatorId);
   await db.insert(schema.liveSessions).values({
     id,
     bookTitle: input.bookTitle,
@@ -101,6 +103,7 @@ export async function joinSession(
   name: string,
   role: LiveRole = "listener",
 ): Promise<LiveParticipant> {
+  await ensureUser(db, userId, name);
   await db
     .insert(schema.liveParticipants)
     .values({ sessionId, userId, name, role })
