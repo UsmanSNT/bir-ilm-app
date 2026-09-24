@@ -93,6 +93,57 @@ export const comments = sqliteTable(
   ],
 );
 
+// ── Jonli suhbat ────────────────────────────────────────────────────
+
+export const liveSessions = sqliteTable("live_sessions", {
+  id: text("id").primaryKey(),
+  /** Kitob nomi — suhbat mavzusi. */
+  bookTitle: text("book_title").notNull(),
+  /** Suhbat sarlavhasi. */
+  title: text("title").notNull(),
+  /** planned → live → ended */
+  status: text("status", { enum: ["planned", "live", "ended"] }).notNull().default("planned"),
+  /** Rejalashtirilgan vaqt (ISO 8601). */
+  scheduledAt: text("scheduled_at").notNull(),
+  /** Boshlangan vaqt (moderator "boshlash" bosganda). */
+  startedAt: text("started_at"),
+  /** Tugagan vaqt. */
+  endedAt: text("ended_at"),
+  /** Moderator userId. */
+  moderatorId: text("moderator_id").notNull().references(() => users.id),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [
+  index("idx_live_sessions_status").on(t.status, t.scheduledAt),
+]);
+
+export const liveParticipants = sqliteTable("live_participants", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sessionId: text("session_id").notNull().references(() => liveSessions.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull().default("Kitobxon"),
+  /** listener | speaker | moderator */
+  role: text("role", { enum: ["listener", "speaker", "moderator"] }).notNull().default("listener"),
+  /** Qo'l ko'tarilganmi? */
+  handRaised: integer("hand_raised", { mode: "boolean" }).notNull().default(false),
+  joinedAt: text("joined_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [
+  uniqueIndex("idx_live_part_session_user").on(t.sessionId, t.userId),
+  index("idx_live_part_session").on(t.sessionId),
+]);
+
+export const liveMessages = sqliteTable("live_messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sessionId: text("session_id").notNull().references(() => liveSessions.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userName: text("user_name").notNull(),
+  body: text("body").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [
+  index("idx_live_msg_session").on(t.sessionId, t.createdAt),
+]);
+
+// ── Foydalanuvchi faolligi ──────────────────────────────────────────
+
 export const userActivity = sqliteTable(
   "user_activity",
   {
