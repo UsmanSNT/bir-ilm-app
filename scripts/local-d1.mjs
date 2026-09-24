@@ -1,11 +1,15 @@
 import { DatabaseSync } from "node:sqlite";
+import { dirname } from "node:path";
 import { mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // Node-only preview adapter for machines where the native Workers runtime cannot run.
+// Set BIR_ILM_DB_PATH to override the database location (e.g. for a dedicated server).
 const root = new URL("../", import.meta.url);
-mkdirSync(new URL(".sites-runtime/", root), { recursive: true });
-export const sqlite = new DatabaseSync(fileURLToPath(new URL(".sites-runtime/node-preview.sqlite", root)));
+const dbPath = process.env.BIR_ILM_DB_PATH
+  || fileURLToPath(new URL(".sites-runtime/node-preview.sqlite", root));
+mkdirSync(dirname(dbPath), { recursive: true });
+export const sqlite = new DatabaseSync(dbPath);
 sqlite.exec("PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
 sqlite.exec("CREATE TABLE IF NOT EXISTS _preview_migrations (name TEXT PRIMARY KEY)");
 for (const name of readdirSync(new URL("drizzle/", root)).filter(n => n.endsWith(".sql")).sort()) {

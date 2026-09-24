@@ -8,4 +8,7 @@ registerHooks({ resolve(specifier, context, next) {
 } });
 process.chdir(fileURLToPath(new URL("../", import.meta.url)));
 const { startProdServer } = await import("../node_modules/vinext/dist/server/prod-server.js");
-await startProdServer({ port: Number(process.env.PREVIEW_PORT ?? 8787), host: "127.0.0.1" });
+await startProdServer({
+  port: Number(process.env.PREVIEW_PORT ?? 8787),
+  host: process.env.PREVIEW_HOST ?? "127.0.0.1",
+});
