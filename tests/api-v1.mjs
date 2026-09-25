@@ -131,6 +131,7 @@ async function webClient() {
 
   return {
     userId: payload.data.userId,
+    cookie,
     call: (handler, path, options = {}) =>
       call(handler, path, {
         ...options,
@@ -585,6 +586,62 @@ try {
     assert.ok(found.data.some((u) => u.id === member.userId && u.role === "moderator"));
 
     console.log("PASS: faqat admin suhbat yaratadi va rol beradi; admin o'zini tushira olmaydi.");
+  }
+
+  // --- Login: Telegram imzosi, mehmonni bog'lash, ikkinchi qurilma, chiqish -----
+  {
+    process.env.TELEGRAM_BOT_TOKEN = "123456:TEST-TOKEN";
+    process.env.TELEGRAM_BOT_USERNAME = "birilm_test_bot";
+    process.env.PUBLIC_URL = ORIGIN;
+    const { createHash, createHmac } = await import("node:crypto");
+    const tgCallback = await load("app/api/auth/telegram/callback/route.ts");
+    const logout = await load("app/api/auth/logout/route.ts");
+
+    const signed = (fields) => {
+      const check = Object.keys(fields).sort().map((k) => `${k}=${fields[k]}`).join("\n");
+      const secret = createHash("sha256").update(process.env.TELEGRAM_BOT_TOKEN).digest();
+      return new URLSearchParams({ ...fields, hash: createHmac("sha256", secret).update(check).digest("hex") });
+    };
+    const tgUser = { id: "777000111", first_name: "Test", last_name: "Kitobxon", auth_date: String(Math.floor(Date.now() / 1000)) };
+    const loginAs = async (cookie, params) => {
+      const res = await tgCallback.GET(request(`/api/auth/telegram/callback?${params}`, { headers: cookie ? { Cookie: cookie } : {} }));
+      assert.equal(res.status, 302);
+      const location = new URL(res.headers.get("location"));
+      const session = res.headers.getSetCookie().find((c) => c.startsWith("bir_reader=") && !c.startsWith("bir_reader=;"));
+      return { result: location.searchParams.get("login"), cookie: session?.split(";")[0] };
+    };
+    const viewerFor = async (cookie) =>
+      (await (await session.GET(request("/api/v1/auth/session", { headers: { Cookie: cookie } }))).json()).data;
+
+    // Mehmon post yozgan, keyin Telegram bilan kiradi — post va akkaunt saqlanib qoladi.
+    const guest = await webClient();
+    const first = await loginAs(guest.cookie, signed(tgUser));
+    assert.equal(first.result, "ok");
+    const me = await viewerFor(first.cookie);
+    assert.equal(me.userId, guest.userId, "Birinchi kirishda mehmon akkaunt saqlanishi kerak");
+    assert.deepEqual(me.accounts, [{ provider: "telegram", label: "Test Kitobxon" }]);
+    assert.equal(me.name, "Test Kitobxon");
+
+    // Ikkinchi qurilma (cookie'siz) o'sha Telegram bilan kirsa — o'sha akkaunt va o'sha rol.
+    sqlite.prepare("UPDATE users SET role = 'moderator' WHERE id = ?").run(guest.userId);
+    const second = await loginAs(null, signed({ ...tgUser, auth_date: String(Math.floor(Date.now() / 1000)) }));
+    const other = await viewerFor(second.cookie);
+    assert.equal(other.userId, guest.userId);
+    assert.equal(other.role, "moderator");
+
+    // Soxta imzo va eskirgan ma'lumot rad etiladi.
+    const forged = signed(tgUser);
+    forged.set("id", "999");
+    assert.equal((await loginAs(null, forged)).result, "error");
+    assert.equal((await loginAs(null, signed({ ...tgUser, auth_date: "1000" }))).result, "error");
+
+    // Chiqish: sessiya o'chadi, eski token endi o'sha akkauntni ochmaydi.
+    const out = await logout.POST(request("/api/auth/logout", { method: "POST", headers: { Cookie: second.cookie, Origin: ORIGIN } }));
+    assert.equal(out.status, 200);
+    const afterLogout = await viewerFor(second.cookie);
+    assert.notEqual(afterLogout.userId, guest.userId);
+    createdUsers.push(afterLogout.userId);
+    console.log("PASS: Telegram login mehmonni saqlaydi, boshqa qurilmada rol bilan kiradi, soxta imzo rad etiladi.");
   }
 
   console.log("\nHAMMASI O'TDI: /api/v1 va eski API web va mobil uchun bir xil ishlaydi.");

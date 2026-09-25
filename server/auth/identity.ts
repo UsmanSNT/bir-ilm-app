@@ -17,6 +17,8 @@ import {
   CLIENT_PLATFORM_HEADER,
   type ClientPlatform,
 } from "@/shared/contract";
+import { tryGetDb } from "@/server/db/client";
+import { userIdForToken } from "./sessions";
 
 /** Token bir yil amal qiladi; har so'rovda cookie yangilanmaydi. */
 export const TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
@@ -75,13 +77,13 @@ export function readPlatform(request: Request): ClientPlatform {
 export async function resolveIdentity(request: Request): Promise<Identity> {
   const existing = readToken(request);
   const token = existing && AUTH_TOKEN_PATTERN.test(existing) ? existing : generateToken();
+  const isNew = token !== existing;
 
-  return {
-    userId: await deriveUserId(token),
-    token,
-    isNew: token !== existing,
-    platform: readPlatform(request),
-  };
+  // Login qilgan token `user_sessions` orqali o'z akkauntiga bog'langan; yangi token esa har doim mehmon.
+  const db = isNew ? null : await tryGetDb();
+  const userId = db ? await userIdForToken(db, token) : await deriveUserId(token);
+
+  return { userId, token, isNew, platform: readPlatform(request) };
 }
 
 /**

@@ -43,9 +43,35 @@ export const users = sqliteTable("users", {
   bio: text("bio").notNull().default(""),
   /** user | moderator | admin */
   role: text("role", { enum: ["user", "moderator", "admin"] }).notNull().default("user"),
+  avatarUrl: text("avatar_url"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+/**
+ * Kirish (login) sessiyalari: token xeshi → foydalanuvchi.
+ * Bu yerda bo'lmagan token eski mehmon tartibida `reader_<xesh>` bo'lib qoladi.
+ */
+export const userSessions = sqliteTable("user_sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_sessions_user").on(t.userId)]);
+
+/** Google / Telegram hisoblari — bitta foydalanuvchiga bir nechtasi bog'lanishi mumkin. */
+export const authAccounts = sqliteTable("auth_accounts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  provider: text("provider", { enum: ["google", "telegram"] }).notNull(),
+  /** Provayderdagi doimiy ID (Google `sub`, Telegram `id`). */
+  subject: text("subject").notNull(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  email: text("email"),
+  displayName: text("display_name").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [
+  uniqueIndex("idx_auth_provider_subject").on(t.provider, t.subject),
+  index("idx_auth_user").on(t.userId),
+]);
 
 export const books = sqliteTable("books", {
   id: text("id").primaryKey(),

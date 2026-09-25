@@ -8,7 +8,7 @@
  */
 import { WebSocketServer, WebSocket } from "ws";
 import type { Database } from "@/server/db/client";
-import { deriveUserId } from "@/server/auth/identity";
+import { userIdForToken } from "@/server/auth/sessions";
 import * as live from "@/server/services/live";
 import { getUserRole } from "@/server/services/roles";
 import { closeMediaRoom, issueMediaToken, mediaEnabled, removeFromMedia, syncMediaRole } from "@/server/services/media";
@@ -106,7 +106,7 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
   switch (msg.type) {
     case "join": {
       // Token'dan userId olish
-      client.userId = await deriveUserId(msg.token);
+      client.userId = await userIdForToken(db, msg.token);
 
       // Foydalanuvchi nomini users jadvalidan olish
       const { schema } = await import("@/server/db/client");

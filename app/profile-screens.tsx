@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, Mail, MessageCircle, NotebookPen, Settings, ShieldCheck, Sparkles, Trophy, UserRound, Users } from "lucide-react";
+import { ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, LogOut, Mail, MessageCircle, NotebookPen, Settings, ShieldCheck, Sparkles, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
 import { USER_ROLE_LABELS } from "@/shared/contract/roles";
 import AdminPanel from "./admin-panel";
+import LoginCard from "./login-card";
 import ReadingDashboard from "./reading-dashboard";
 import type { SocialData } from "./social-types";
 
@@ -40,6 +41,11 @@ export default function ProfileScreens(p: Props) {
     if (document.execCommand("copy")) done();
     area.remove();
   };
+  const signOut = async () => {
+    if (!window.confirm("Hisobdan chiqasizmi? Qayta kirish uchun Google yoki Telegram kerak bo‘ladi.")) return;
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
+    window.location.assign("/");
+  };
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/social?scope=mine", { signal: controller.signal }).then(async response => {
@@ -64,6 +70,7 @@ export default function ProfileScreens(p: Props) {
 
     {screen === "profile" && <>
       <div className="p-identity"><div className="p-avatar">{p.name.trim().slice(0, 1).toUpperCase() || "K"}<span><BookOpen size={13} /></span></div><div><span className="p-eyebrow">BIR ILM KITOBXONI{role !== "user" && <span className={`p-role-badge role-${role}`}>{role === "admin" ? <Crown size={11} /> : <ShieldCheck size={11} />}{USER_ROLE_LABELS[role]}</span>}</span><h2>{p.name || "Kitobxon"}</h2><p>{social?.profile?.bio || "Har kuni bir sahifa oldinga."}</p><button className="p-link" onClick={p.onEdit}>Profilni tahrirlash <ArrowRight size={15} /></button></div></div>
+      {viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
       <div className="p-stats"><button onClick={() => { setActivity("Obunalar"); open("activity"); }}><strong>{count(social?.followers)}</strong><span>Obunachilar</span></button><button onClick={() => { setActivity("Obunalar"); open("activity"); }}><strong>{count(social?.following.length)}</strong><span>Obunalar</span></button><button onClick={() => open("posts")}><strong>{count(social?.profile?.posts)}</strong><span>Postlar</span></button></div>
       <div className="p-columns"><div>
         <div className="p-section-title"><h2><BookOpen size={19} />Mutolaa</h2><button className="p-link" onClick={() => p.onNavigate("shelf")}>Javonim <ArrowRight size={15} /></button></div>
@@ -87,7 +94,8 @@ export default function ProfileScreens(p: Props) {
 
     {screen === "settings" && <div className="p-settings">
       <p className="p-settings-intro">O‘zingizga mos mutolaa muhiti.</p>
-      <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={p.onEdit} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} /><Row icon={<Copy />} title={copied ? "Nusxa olindi" : "Hisob ID"} value={viewer ? `${viewer.userId.slice(7, 15)}… · ${USER_ROLE_LABELS[role]}` : "—"} onClick={copyId} /></div>
+      <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={p.onEdit} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} /><Row icon={<Copy />} title={copied ? "Nusxa olindi" : "Hisob ID"} value={viewer ? `${viewer.userId.slice(7, 15)}… · ${USER_ROLE_LABELS[role]}` : "—"} onClick={copyId} />{viewer?.accounts.map(a => <div key={a.provider} className="p-row p-static"><span className="p-row-icon"><ShieldCheck /></span><span>{a.provider === "google" ? "Google" : "Telegram"}</span><small>{a.label}</small></div>)}{viewer && viewer.accounts.length > 0 && <Row icon={<LogOut />} title="Chiqish" onClick={signOut} />}</div>
+      {viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
       <h2>Ilova</h2><div className="p-menu"><Row icon={<Bell />} title="Bildirishnomalar" onClick={p.onNotifications} /><div className="p-row p-static"><span className="p-row-icon"><Globe /></span><span>Til</span><small>O‘zbekcha</small></div><Row icon={<BookOpen />} title="Mutolaa rejasi" onClick={p.onProgress} /></div>
       <h2>Yordam</h2><div className="p-menu"><Row icon={<CircleHelp />} title="Ko‘p so‘raladigan savollar" onClick={() => open("faq")} /><Row icon={<Info />} title="Loyiha haqida" onClick={() => open("about")} /></div>
       <div className="p-settings-brand"><BookOpen size={23} /><strong>BIR ILM</strong><span>Bir hafta. Bir kitob. Bir qadam oldinga.</span><small>Ilova versiyasi 0.1.0</small></div>

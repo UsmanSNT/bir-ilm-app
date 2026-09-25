@@ -350,6 +350,16 @@ export default function App() {
     window.scrollTo({ top: 0 });
   };
 
+  // Google/Telegram'dan qaytganda natijani ko'rsatib, manzilni tozalaymiz.
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const result = query.get("login");
+    if (!result) return;
+    if (result === "ok") toast.success("Hisobingizga kirdingiz");
+    else toast.error(query.get("message") || "Kirib bo‘lmadi. Qayta urinib ko‘ring.");
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
+
   useEffect(() => {
     queueMicrotask(() => {
       setData(getInitialState());

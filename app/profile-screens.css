@@ -133,6 +133,19 @@ button.p-row:hover { background: #f5f9f6; }
 }
 @media (prefers-reduced-motion: no-preference) { .p-row, .p-icon, .p-primary { transition: background .18s; } }
 
+/* Kirish (login) */
+.login-card { display: flex; gap: 12px; align-items: flex-start; margin: 4px 0 18px; padding: 15px; border: 1px solid #d9eadf; border-radius: 14px; background: linear-gradient(110deg, #f1f8f3, #f7faf8); }
+.login-card-icon { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: #dff0e5; color: var(--p-green); }
+.login-card > div { min-width: 0; flex: 1; }
+.login-card strong { font-size: 14px; }
+.login-card p { color: var(--p-muted); font-size: 12px; line-height: 1.6; margin: 3px 0 11px !important; }
+.login-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.login-google { display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 16px; border: 1px solid #dadce0; border-radius: 10px; background: #fff; color: #1f1f1f; font-size: 13px; font-weight: 600; text-decoration: none; }
+.login-google:hover { background: #f7f8f8; }
+.login-telegram { min-height: 40px; display: flex; align-items: center; }
+.login-soon { margin: 0 !important; font-style: italic; }
+.p-settings .login-card { margin-top: 14px; }
+
 /* Rollar va boshqaruv paneli */
 .p-role-badge { display: inline-flex; align-items: center; gap: 3px; margin-left: 7px; padding: 2px 7px; border-radius: 20px; font-size: 9px; letter-spacing: .4px; vertical-align: 1px; }
 .role-admin.p-role-badge { background: #fbf1d6; color: #8a6511; }

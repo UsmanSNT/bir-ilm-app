@@ -49,4 +49,15 @@ export type Viewer = {
   posts: number;
   followers: number;
   role: UserRole;
+  avatarUrl: string | null;
+  /** Bog'langan Google/Telegram hisoblari. Bo'sh bo'lsa — mehmon. */
+  accounts: LinkedAccount[];
+  /** Serverda sozlangan kirish usullari. */
+  loginProviders: { google: boolean; telegramBot: string | null };
+};
+
+export type LinkedAccount = {
+  provider: "google" | "telegram";
+  /** Email (Google) yoki ism (Telegram). */
+  label: string;
 };
