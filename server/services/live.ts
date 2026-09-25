@@ -129,6 +129,10 @@ export async function leaveSession(
     );
 }
 
+export async function clearAllParticipants(db: Database): Promise<void> {
+  await db.delete(schema.liveParticipants);
+}
+
 export async function getParticipants(
   db: Database,
   sessionId: string,
@@ -199,7 +203,7 @@ export async function addMessage(
     userId: row.userId,
     userName: row.userName,
     body: row.body,
-    createdAt: row.createdAt,
+    createdAt: sqliteUtcToIso(row.createdAt),
   };
 }
 
@@ -218,8 +222,13 @@ export async function getRecentMessages(
     userId: r.userId,
     userName: r.userName,
     body: r.body,
-    createdAt: r.createdAt,
+    createdAt: sqliteUtcToIso(r.createdAt),
   }));
+}
+
+// SQLite CURRENT_TIMESTAMP is UTC but lacks a zone marker, so browsers would parse it as local time.
+function sqliteUtcToIso(value: string): string {
+  return value.includes("T") ? value : `${value.replace(" ", "T")}Z`;
 }
 
 export async function getParticipantCount(

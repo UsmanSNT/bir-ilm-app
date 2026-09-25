@@ -36,6 +36,9 @@ function send(ws: WebSocket, msg: WsServerMessage) {
 }
 
 export function startWsServer(db: Database, port = 8788) {
+  // Participant rows only reflect open sockets; after a restart none remain.
+  live.clearAllParticipants(db).catch((err) => console.error("[ws] participant cleanup failed", err));
+
   const wss = new WebSocketServer({ port, host: "0.0.0.0" });
 
   wss.on("connection", (ws) => {

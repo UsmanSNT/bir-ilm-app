@@ -10,7 +10,7 @@ import {
   MessageCircle,
   Mic,
   MicOff,
-  Monitor,
+  MonitorUp,
   Plus,
   Radio,
   Send,
@@ -63,7 +63,18 @@ function avatarColor(name: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-type ViewMode = "video" | "audio";
+function Avatar({ name, className }: { name: string; className?: string }) {
+  return (
+    <span
+      className={`live-avatar-circle ${className ?? ""}`}
+      style={{ background: avatarColor(name) }}
+    >
+      {name.charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+type View = "video" | "screen" | "audio";
 
 // ── Main Component ──────────────────────────────────────────────────
 
@@ -85,10 +96,10 @@ export default function LiveSession({
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [participantCount, setParticipantCount] = useState(0);
   const [handRaised, setHandRaised] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("video");
-  const [micOn, setMicOn] = useState(false);
-  const [camOn, setCamOn] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [view, setView] = useState<View>("video");
+  const [micOn, setMicOn] = useState(true);
+  const [cameraOn, setCameraOn] = useState(true);
   const [draft, setDraft] = useState("");
 
   const clientRef = useRef<LiveClient | null>(null);
@@ -121,11 +132,11 @@ export default function LiveSession({
     setActiveSessionId(sessionId);
     setMessages([]);
     setParticipants([]);
-    setChatOpen(false);
-    setViewMode("video");
+    setCommentsOpen(false);
+    setView("video");
     setHandRaised(false);
-    setMicOn(false);
-    setCamOn(false);
+    setMicOn(true);
+    setCameraOn(true);
 
     client.on("state", setConnState);
 
@@ -198,7 +209,7 @@ export default function LiveSession({
     loadSessions();
   }
 
-  function sendChat() {
+  function sendComment() {
     const body = draft.trim();
     if (!body) return;
     clientRef.current?.sendChat(body);
@@ -211,198 +222,187 @@ export default function LiveSession({
     clientRef.current?.toggleHand(next);
   }
 
-  // ── Derived data ───────────────────────────────────────────────────
+  const allParticipants = participants;
+  const speakers = allParticipants.filter((p) => p.role !== "listener");
+  const listenersList = allParticipants.filter((p) => p.role === "listener");
 
-  const speakers = participants.filter((p) => p.role !== "listener");
-  const listeners = participants.filter((p) => p.role === "listener");
+  const controls = [
+    { label: "Mikrofon", icon: micOn ? Mic : MicOff, active: micOn, action: () => setMicOn(!micOn) },
+    { label: "Kamera", icon: cameraOn ? Camera : CameraOff, active: cameraOn, action: () => setCameraOn(!cameraOn) },
+    { label: "Ekran ulashish", icon: MonitorUp, active: view === "screen", action: () => setView(view === "screen" ? "video" : "screen") },
+    { label: "Qo'l ko'tarish", icon: Hand, active: handRaised, action: toggleHand },
+    { label: "Izohlar", icon: MessageCircle, active: commentsOpen, action: () => setCommentsOpen(!commentsOpen) },
+  ];
 
   // ── Active session overlay ─────────────────────────────────────────
 
   if (activeSessionId && connState !== "idle") {
+    const bookTitle = sessionData?.bookTitle ?? "Yuklanmoqda...";
+    const sessionTitle = sessionData?.title ?? "";
+
     return (
-      <div className="live-overlay" role="dialog" aria-modal="true">
+      <div className="live-overlay" role="dialog" aria-modal="true" aria-label={`${bookTitle} jonli suhbat`}>
         <div className="live-window">
-          {/* ── Header ── */}
           <header className="live-topbar">
-            <button
-              className="live-plain-btn"
-              aria-label="Orqaga"
-              onClick={leaveSession}
-            >
+            <button className="live-plain-btn" aria-label="Suhbat oynasini yopish" onClick={leaveSession}>
               <ArrowLeft size={22} />
             </button>
             <div className="live-room-title">
-              <strong>{sessionData?.bookTitle ?? "Yuklanmoqda..."}</strong>
-              <span>{sessionData?.title}</span>
+              <strong>{bookTitle}</strong>
+              <span>{sessionTitle}</span>
             </div>
             {sessionData?.status === "live" && (
-              <span className="live-indicator">
-                <i /> LIVE
-              </span>
+              <span className="live-indicator"><i /> LIVE</span>
             )}
-            <span className="live-count">
-              <Users size={14} /> {participantCount}
-            </span>
+            <span className="live-count"><Users size={14} /> {participantCount}</span>
             <time>{timeStr(new Date().toISOString())}</time>
           </header>
 
-          {/* ── Main content area ── */}
           <div className="live-main">
+            {/* Ulanmoqda / Xatolik */}
             {connState === "connecting" && (
               <div className="live-audio-view">
-                <p
-                  className="muted"
-                  style={{ textAlign: "center", padding: "3rem" }}
-                >
+                <p className="muted" style={{ textAlign: "center", padding: "3rem" }}>
                   Ulanmoqda...
                 </p>
               </div>
             )}
-
             {connState === "error" && (
               <div className="live-audio-view">
-                <p
-                  className="muted"
-                  style={{
-                    textAlign: "center",
-                    padding: "3rem",
-                    color: "#e5484d",
-                  }}
-                >
+                <p className="muted" style={{ textAlign: "center", padding: "3rem", color: "#e5484d" }}>
                   Ulanish uzildi. Qayta ulanmoqda...
                 </p>
               </div>
             )}
 
-            {connState === "joined" && viewMode === "video" && (
+            {/* ── Video ko'rinishi ── */}
+            {connState === "joined" && view === "video" && (
               <div className="live-video-view">
-                {/* 2×2 video grid — speakers fill tiles, then listeners */}
                 <div className="live-video-grid">
-                  {[...speakers, ...listeners].slice(0, 4).map((p) => (
+                  {allParticipants.slice(0, 4).map((p) => (
                     <div
                       key={p.userId}
                       className={`live-video-tile${p.role === "moderator" ? " speaking" : ""}`}
                     >
-                      <div
-                        className="live-tile-avatar"
-                        style={{ background: avatarColor(p.name) }}
-                      >
+                      <div className="live-tile-avatar" style={{ background: avatarColor(p.name) }}>
                         {p.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="live-video-label">
-                        <span>{p.name}</span>
-                        {p.handRaised && <Hand size={14} color="#ffb800" />}
+                        <strong>{p.name}</strong>
+                        {p.handRaised ? (
+                          <Hand size={14} color="#ffb800" />
+                        ) : p.role === "moderator" ? (
+                          <span className="live-level">▂▅▃</span>
+                        ) : (
+                          <MicOff size={15} />
+                        )}
                       </div>
                     </div>
                   ))}
-                  {/* Fill empty slots */}
-                  {Array.from({
-                    length: Math.max(0, 4 - speakers.length - listeners.length),
-                  }).map((_, i) => (
+                  {Array.from({ length: Math.max(0, 4 - allParticipants.length) }).map((_, i) => (
                     <div key={`empty-${i}`} className="live-video-tile" />
                   ))}
                 </div>
-
-                {/* Listener avatar strip */}
                 <div className="live-avatar-strip">
-                  {[...speakers, ...listeners].slice(4, 9).map((p) => (
-                    <span
-                      key={p.userId}
-                      className="live-avatar-circle"
-                      style={{
-                        width: 40,
-                        fontSize: 16,
-                        background: avatarColor(p.name),
-                      }}
-                      title={p.name}
-                    >
-                      {p.name.charAt(0).toUpperCase()}
-                    </span>
+                  {allParticipants.slice(4, 9).map((p) => (
+                    <Avatar key={p.userId} name={p.name} />
                   ))}
                   {participantCount > 9 && (
-                    <span className="live-more">
-                      +{participantCount - 9}
-                    </span>
+                    <span className="live-more">+{participantCount - 9}</span>
                   )}
                 </div>
               </div>
             )}
 
-            {connState === "joined" && viewMode === "audio" && (
-              <div className="live-audio-view">
-                {speakers.length > 0 && (
-                  <>
-                    <h3>
-                      So'zlovchilar ({speakers.length})
-                    </h3>
-                    <div className="live-speakers">
-                      {speakers.map((p) => (
-                        <div key={p.userId}>
-                          <span
-                            className="live-avatar-circle"
-                            style={{ background: avatarColor(p.name) }}
-                          >
-                            {p.name.charAt(0).toUpperCase()}
-                          </span>
-                          <strong>{p.name}</strong>
-                          {p.role === "moderator" && <small>Boshlovchi</small>}
-                        </div>
-                      ))}
+            {/* ── Ekran ulashish ko'rinishi ── */}
+            {connState === "joined" && view === "screen" && (
+              <div className="live-screen-view">
+                <div className="live-share-banner">
+                  <MonitorUp size={17} />
+                  {speakers.length > 0 && <Avatar name={speakers[0].name} />}
+                  {speakers.length > 0 ? `${speakers[0].name} ekranini ulashmoqda` : "Ekran ulashish"}
+                </div>
+                <div className="live-shared-slide">
+                  <div className="live-slide-heading">
+                    {bookTitle.toUpperCase()}
+                    <small>{sessionTitle}</small>
+                  </div>
+                  <div className="live-slide-body">
+                    <div className="live-book-cover">
+                      <strong>{bookTitle.split(" ").slice(0, 2).join(" ").toUpperCase()}</strong>
+                      <small>{sessionTitle}</small>
+                      <span>{bookTitle}</span>
                     </div>
-                  </>
-                )}
-                <h3>Tinglovchilar ({listeners.length})</h3>
-                <div className="live-listeners">
-                  {listeners.map((p) => (
+                    <ol>
+                      <li><strong>Muhokama</strong><small>Kitob haqida fikr almashish</small></li>
+                      <li><strong>Savollar</strong><small>Qatnashchilar savollari</small></li>
+                      <li><strong>Xulosa</strong><small>Asosiy xulosalar</small></li>
+                    </ol>
+                  </div>
+                </div>
+                <div className="live-speaker-strip">
+                  {allParticipants.slice(0, 4).map((p) => (
                     <div key={p.userId}>
-                      <span
-                        className="live-avatar-circle"
-                        style={{ background: avatarColor(p.name) }}
-                      >
+                      <div className="live-tile-avatar" style={{ background: avatarColor(p.name), width: "100%", height: "100%", borderRadius: 5, fontSize: 24 }}>
                         {p.name.charAt(0).toUpperCase()}
-                      </span>
-                      <strong>{p.name}</strong>
-                      {p.handRaised && <Hand size={14} />}
+                      </div>
+                      <span>{p.name}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* ── Chat panel overlay ── */}
-            {chatOpen && (
+            {/* ── Ovozli ko'rinish ── */}
+            {connState === "joined" && view === "audio" && (
+              <div className="live-audio-view">
+                <h3>Gapirayotganlar ({speakers.length})</h3>
+                <div className="live-speakers">
+                  {speakers.map((p) => (
+                    <div key={p.userId}>
+                      <Avatar name={p.name} />
+                      <strong>{p.name}</strong>
+                      {p.role === "moderator" && <small>Boshlovchi</small>}
+                    </div>
+                  ))}
+                  {speakers.length === 0 && (
+                    <p className="muted" style={{ fontSize: 12 }}>Hali so'zlovchi yo'q</p>
+                  )}
+                </div>
+                <h3>Tinglovchilar ({listenersList.length})</h3>
+                <div className="live-listeners">
+                  {listenersList.map((p) => (
+                    <div key={p.userId}>
+                      <Avatar name={p.name} />
+                      <strong>{p.name}</strong>
+                      {p.handRaised ? <Hand size={13} /> : <MicOff size={13} />}
+                    </div>
+                  ))}
+                </div>
+                <span className="live-queue">
+                  <Hand size={16} /> {handRaised ? "Navbatdasiz" : "Qo'l ko'tarib navbatga turing"}
+                </span>
+              </div>
+            )}
+
+            {/* ── Izohlar paneli ── */}
+            {commentsOpen && (
               <aside className="live-comments">
                 <div className="live-comments-head">
-                  <strong>Jonli chat</strong>
-                  <button
-                    className="live-plain-btn"
-                    aria-label="Chatni yopish"
-                    onClick={() => setChatOpen(false)}
-                  >
+                  <strong>Jonli izohlar</strong>
+                  <button className="live-plain-btn" aria-label="Izohlarni yopish" onClick={() => setCommentsOpen(false)}>
                     <X size={20} />
                   </button>
                 </div>
                 <div className="live-comment-list">
                   {messages.length === 0 && (
-                    <p
-                      className="muted"
-                      style={{
-                        textAlign: "center",
-                        padding: "2rem",
-                        fontSize: 13,
-                      }}
-                    >
-                      Hali xabarlar yo'q. Birinchi bo'ling!
+                    <p className="muted" style={{ textAlign: "center", padding: "2rem", fontSize: 13 }}>
+                      Hali izohlar yo'q. Birinchi bo'ling!
                     </p>
                   )}
                   {messages.map((msg) => (
                     <div className="live-comment" key={msg.id}>
-                      <span
-                        className="live-avatar-circle"
-                        style={{ background: avatarColor(msg.userName) }}
-                      >
-                        {msg.userName.charAt(0).toUpperCase()}
-                      </span>
+                      <Avatar name={msg.userName} />
                       <div>
                         <strong>{msg.userName}</strong>
                         <time>{timeStr(msg.createdAt)}</time>
@@ -412,24 +412,15 @@ export default function LiveSession({
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
-                <form
-                  className="live-comment-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    sendChat();
-                  }}
-                >
+                <form className="live-comment-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
                   <input
-                    aria-label="Xabar yozing"
-                    placeholder="Xabar yozing..."
+                    aria-label="Izoh yozing"
+                    placeholder="Izoh yozing..."
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     maxLength={500}
                   />
-                  <button
-                    aria-label="Xabar yuborish"
-                    disabled={!draft.trim()}
-                  >
+                  <button aria-label="Izoh yuborish" disabled={!draft.trim()}>
                     <Send size={18} />
                   </button>
                 </form>
@@ -437,104 +428,44 @@ export default function LiveSession({
             )}
           </div>
 
-          {/* ── Controls ── */}
+          {/* ── Boshqaruv paneli ── */}
           <footer className="live-controls">
-            <div className="live-view-switch">
-              <button
-                className={viewMode === "video" ? "selected" : ""}
-                onClick={() => setViewMode("video")}
-              >
-                Video
-              </button>
-              <button
-                className={viewMode === "audio" ? "selected" : ""}
-                onClick={() => setViewMode("audio")}
-              >
-                Ovozli
-              </button>
+            <div className="live-view-switch" role="group" aria-label="Suhbat ko'rinishi">
+              <button className={view === "video" ? "selected" : ""} onClick={() => setView("video")}>Video</button>
+              <button className={view === "audio" ? "selected" : ""} onClick={() => setView("audio")}>Ovozli</button>
             </div>
             <div className="live-control-actions">
-              <button
-                className={micOn ? "active" : ""}
-                onClick={() => setMicOn(!micOn)}
-                aria-label="Mikrofon"
-              >
-                <span>{micOn ? <Mic size={20} /> : <MicOff size={20} />}</span>
-                <small>Mikrofon</small>
-              </button>
-              <button
-                className={camOn ? "active" : ""}
-                onClick={() => setCamOn(!camOn)}
-                aria-label="Kamera"
-              >
-                <span>
-                  {camOn ? <Camera size={20} /> : <CameraOff size={20} />}
-                </span>
-                <small>Kamera</small>
-              </button>
-              <button aria-label="Ekran ulashish">
-                <span>
-                  <Monitor size={20} />
-                </span>
-                <small>Ekran</small>
-              </button>
-              <button
-                className={handRaised ? "active" : ""}
-                onClick={toggleHand}
-                aria-label="Qo'l ko'tarish"
-              >
-                <span>
-                  <Hand size={20} />
-                </span>
-                <small>Qo'l ko'tarish</small>
-              </button>
-              <button
-                className={chatOpen ? "active" : ""}
-                onClick={() => setChatOpen(!chatOpen)}
-                aria-label="Izohlar"
-              >
-                <span>
-                  <MessageCircle size={20} />
-                </span>
-                <small>Izohlar</small>
-              </button>
-              <button
-                className="live-hangup"
-                onClick={leaveSession}
-                aria-label="Chiqish"
-              >
-                <span>
-                  <LogOut size={20} />
-                </span>
+              {controls.map(({ label, icon: Icon, active, action }) => (
+                <button className={active ? "active" : ""} key={label} onClick={action} aria-label={label} title={label}>
+                  <span><Icon size={20} /></span>
+                  <small>{label}</small>
+                </button>
+              ))}
+              <button className="live-hangup" onClick={leaveSession} aria-label="Suhbatdan chiqish" title="Suhbatdan chiqish">
+                <span><LogOut size={20} /></span>
                 <small>Chiqish</small>
               </button>
             </div>
-            <p className="live-demo-note">
-              Kelajakda ovozli va video uzatilmaydi.
-            </p>
           </footer>
+          <p className="live-demo-note">Ko'rinish sinovi: ovoz va video uzatilmaydi.</p>
         </div>
       </div>
     );
   }
 
-  // ── Session list ───────────────────────────────────────────────────
+  // ── Suhbatlar ro'yxati ─────────────────────────────────────────────
 
   return (
     <>
       <section className="live-card">
         <div className="live-heading">
-          <span className="live-icon">
-            <Radio size={24} />
-          </span>
+          <span className="live-icon"><Radio size={24} /></span>
           <div>
             <span className="eyebrow">JONLI SUHBATLAR</span>
             <h3>Kitob muhokamalariga qo'shiling</h3>
           </div>
         </div>
-        <p className="session-status">
-          Kitob haqida jonli fikr almashing — real vaqtda chat.
-        </p>
+        <p className="session-status">Kitob haqida jonli fikr almashing — real vaqtda chat.</p>
         <button className="button" onClick={() => setShowCreate(true)}>
           <Plus size={16} /> Yangi suhbat yaratish
         </button>
@@ -550,27 +481,19 @@ export default function LiveSession({
         <section className="live-card" key={s.id}>
           <div className="live-heading">
             {s.status === "live" && (
-              <span className="live-indicator">
-                <i /> LIVE
-              </span>
+              <span className="live-indicator"><i /> LIVE</span>
             )}
             <div>
               <span className="eyebrow">{s.bookTitle}</span>
               <h3>{s.title}</h3>
             </div>
           </div>
-          <p className="session-date">
-            {dateStr(s.scheduledAt)} · {timeStr(s.scheduledAt)}
-          </p>
+          <p className="session-date">{dateStr(s.scheduledAt)} · {timeStr(s.scheduledAt)}</p>
           <p className="session-status">
             {STATUS_LABELS[s.status] ?? s.status}
             {s.participantCount > 0 && ` · ${s.participantCount} qatnashchi`}
           </p>
-          <button
-            className="button"
-            onClick={() => joinSession(s.id)}
-            disabled={s.status === "ended"}
-          >
+          <button className="button" onClick={() => joinSession(s.id)} disabled={s.status === "ended"}>
             {s.status === "ended" ? "Tugagan" : "Qo'shilish"}
           </button>
         </section>
@@ -590,7 +513,7 @@ export default function LiveSession({
   );
 }
 
-// ── Create session dialog ────────────────────────────────────────────
+// ── Yangi suhbat yaratish dialogi ────────────────────────────────────
 
 function CreateSessionDialog({
   name,
@@ -641,64 +564,31 @@ function CreateSessionDialog({
         </header>
         <form
           onSubmit={handleSubmit}
-          style={{
-            padding: "1.5rem",
-            display: "flex",
-            flexDirection: "column",
-            gap: "1rem",
-          }}
+          style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}
         >
-          <label
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.25rem",
-            }}
-          >
-            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>
-              Kitob nomi
-            </span>
+          <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Kitob nomi</span>
             <input
               value={bookTitle}
               onChange={(e) => setBookTitle(e.target.value)}
               placeholder="Atom odatlar"
               maxLength={160}
               required
-              style={{
-                padding: "0.5rem 0.75rem",
-                borderRadius: 8,
-                border: "1px solid var(--border)",
-                fontSize: "0.9rem",
-              }}
+              style={{ padding: "0.5rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)", fontSize: "0.9rem" }}
             />
           </label>
-          <label
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.25rem",
-            }}
-          >
-            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>
-              Suhbat sarlavhasi
-            </span>
+          <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Suhbat sarlavhasi</span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Birga tahlil qilamiz"
               maxLength={200}
               required
-              style={{
-                padding: "0.5rem 0.75rem",
-                borderRadius: 8,
-                border: "1px solid var(--border)",
-                fontSize: "0.9rem",
-              }}
+              style={{ padding: "0.5rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)", fontSize: "0.9rem" }}
             />
           </label>
-          {error && (
-            <p style={{ color: "#e5484d", fontSize: "0.85rem" }}>{error}</p>
-          )}
+          {error && <p style={{ color: "#e5484d", fontSize: "0.85rem" }}>{error}</p>}
           <button className="button" type="submit" disabled={submitting}>
             {submitting ? "Yaratilmoqda..." : "Yaratish"}
           </button>
