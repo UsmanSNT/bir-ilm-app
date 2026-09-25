@@ -15,6 +15,7 @@ import {
   Plus,
   Radio,
   Send,
+  Settings2,
   ShieldCheck,
   Square,
   Trash2,
@@ -139,6 +140,7 @@ export default function LiveSession({
   const [selected, setSelected] = useState<LiveParticipant | null>(null);
   const [notice, setNotice] = useState("");
   const [media, setMedia] = useState<LiveMedia | null>(null);
+  const [devicesOpen, setDevicesOpen] = useState(false);
 
   const av = useLiveMedia(activeSessionId ? media : null, setNotice);
   const sharerId = av.screenSharer?.userId ?? null;
@@ -336,6 +338,11 @@ export default function LiveSession({
   const selectable = (p: LiveParticipant) => canMod && p.userId !== me?.userId;
   const pick = (p: LiveParticipant) => selectable(p) && setSelected(p);
 
+  function openDevices() {
+    setDevicesOpen(true);
+    av.loadDevices();
+  }
+
   // Tinglovchi so'z berilmaguncha mikrofon, kamera va ekranni yoqa olmaydi (ruxsat LiveKit serverida).
   const publishLocked = av.status !== "connected" || !av.canPublish;
   const lockedHint = av.status !== "connected" ? "Ovoz/video serveriga ulanilmagan" : "So'z berilganda yoqiladi";
@@ -343,6 +350,7 @@ export default function LiveSession({
     { label: "Mikrofon", icon: av.micOn ? Mic : MicOff, active: av.micOn, disabled: publishLocked, pending: av.busy === "mic", action: av.toggleMic },
     { label: "Kamera", icon: av.cameraOn ? Camera : CameraOff, active: av.cameraOn, disabled: publishLocked, pending: av.busy === "camera", action: av.toggleCamera },
     { label: "Ekran ulashish", icon: MonitorUp, active: av.screenOn, disabled: publishLocked, pending: av.busy === "screen", action: av.toggleScreen },
+    { label: "Qurilma", icon: Settings2, active: devicesOpen, disabled: publishLocked, pending: false, action: openDevices },
     ...(canMod
       ? []
       : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, disabled: false, pending: false, action: toggleHand }]),
@@ -586,6 +594,40 @@ export default function LiveSession({
                 <Volume2 size={16} /> Ovozni eshitish uchun bosing
               </button>
             )}
+            {/* ── Kamera va mikrofonni tanlash ── */}
+            {devicesOpen && (
+              <div className="live-sheet-backdrop" onClick={() => setDevicesOpen(false)}>
+                <div className="live-sheet live-devices" role="dialog" aria-label="Qurilmalarni tanlash" onClick={(e) => e.stopPropagation()}>
+                  <h3><Camera size={16} /> Kamera</h3>
+                  {av.devices.cameras.length === 0 && <p className="muted">Kamera topilmadi.</p>}
+                  {av.devices.cameras.map((d, i) => (
+                    <button
+                      key={d.deviceId || i}
+                      className={d.deviceId === av.activeCameraId ? "on" : ""}
+                      onClick={() => av.selectCamera(d.deviceId)}
+                    >
+                      {d.label || `Kamera ${i + 1}`}
+                    </button>
+                  ))}
+                  <h3><Mic size={16} /> Mikrofon</h3>
+                  {av.devices.mics.length === 0 && <p className="muted">Mikrofon topilmadi.</p>}
+                  {av.devices.mics.map((d, i) => (
+                    <button
+                      key={d.deviceId || i}
+                      className={d.deviceId === av.activeMicId ? "on" : ""}
+                      onClick={() => av.selectMic(d.deviceId)}
+                    >
+                      {d.label || `Mikrofon ${i + 1}`}
+                    </button>
+                  ))}
+                  {av.devices.cameras.some((d) => !d.label) && (
+                    <p className="live-devices-hint">Nomlar ko&apos;rinishi uchun avval kamera yoki mikrofonni bir marta yoqing.</p>
+                  )}
+                  <button className="ghost" onClick={() => setDevicesOpen(false)}>Yopish</button>
+                </div>
+              </div>
+            )}
+
             {notice && <div className="live-toast" role="status">{notice}</div>}
           </div>
 

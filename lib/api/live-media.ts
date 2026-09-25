@@ -45,7 +45,15 @@ export type LiveMediaApi = {
   toggleCamera: () => Promise<void>;
   toggleScreen: () => Promise<void>;
   startAudio: () => Promise<void>;
+  devices: LocalDevices;
+  activeCameraId: string | undefined;
+  activeMicId: string | undefined;
+  loadDevices: () => Promise<void>;
+  selectCamera: (deviceId: string) => Promise<void>;
+  selectMic: (deviceId: string) => Promise<void>;
 };
+
+export type LocalDevices = { cameras: MediaDeviceInfo[]; mics: MediaDeviceInfo[] };
 
 const EMPTY: ParticipantMedia = { micOn: false, speaking: false };
 
@@ -181,6 +189,20 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
     }
   }
 
+  // Brauzer ruxsatidan oldin qurilma nomlari bo'sh keladi, shuning uchun ro'yxat menyu ochilganda yangilanadi.
+  const [devices, setDevices] = useState<LocalDevices>({ cameras: [], mics: [] });
+  const loadDevices = useCallback(async () => {
+    try {
+      const [cameras, mics] = await Promise.all([
+        Room.getLocalDevices("videoinput", false),
+        Room.getLocalDevices("audioinput", false),
+      ]);
+      setDevices({ cameras, mics });
+    } catch {
+      setDevices({ cameras: [], mics: [] });
+    }
+  }, []);
+
   // Kamera yoqilishi bir necha soniya olishi mumkin; shu vaqtda qayta bosish ikkinchi trek ochib yuborardi.
   const [busy, setBusy] = useState<Busy>(null);
   const busyRef = useRef<Busy>(null);
@@ -219,5 +241,11 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
     toggleCamera: () => run("camera", (r) => r.localParticipant.setCameraEnabled(!r.localParticipant.isCameraEnabled)),
     toggleScreen: () => run("screen", (r) => r.localParticipant.setScreenShareEnabled(!r.localParticipant.isScreenShareEnabled, { audio: true }), true),
     startAudio: () => run("audio", (r) => r.startAudio()),
+    devices,
+    activeCameraId: room?.getActiveDevice("videoinput"),
+    activeMicId: room?.getActiveDevice("audioinput"),
+    loadDevices,
+    selectCamera: (id: string) => run("camera", (r) => r.switchActiveDevice("videoinput", id)),
+    selectMic: (id: string) => run("mic", (r) => r.switchActiveDevice("audioinput", id)),
   };
 }

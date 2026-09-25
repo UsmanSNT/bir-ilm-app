@@ -2232,6 +2232,7 @@ input {
 .live-room.has-stage .live-audio-view{padding:14px 17px}.live-room.has-stage .live-speakers{margin-bottom:18px;flex-wrap:wrap;justify-content:flex-start;gap:14px}.live-room.has-stage .live-speakers .live-avatar-circle{width:52px;font-size:20px}.live-room.has-stage .live-listeners .live-avatar-circle{width:42px;font-size:17px}
 .live-person-icons{display:flex;align-items:center;gap:4px;min-height:18px}.live-person-icons svg{color:#5d6b75}
 .live-control-actions button.pending span{animation:live-pending 1s ease-in-out infinite}@keyframes live-pending{50%{opacity:.45}}
+.live-devices{max-height:80%;overflow-y:auto}.live-devices h3{display:flex;align-items:center;gap:6px;font-size:13px;margin:8px 2px 2px;color:#34434d}.live-devices p{font-size:12px;margin:2px}.live-devices button{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.live-devices button.on{background:#08724f;color:#fff}.live-devices-hint{color:#74828d!important;font-size:11px!important}
 @media(max-width:500px){.live-overlay{padding:0}.live-window{width:100%;height:100dvh;border:0;border-radius:0;box-shadow:none}.live-video-view{padding:5px}.live-shared-slide{padding:14px 9px}}
 
 @media (max-width: 700px) {
