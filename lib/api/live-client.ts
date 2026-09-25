@@ -11,6 +11,7 @@ import type {
   WsClientMessage,
   WsServerMessage,
 } from "@/shared/contract/live";
+import type { UserRole } from "@/shared/contract/roles";
 import { API_PREFIX } from "./config";
 
 export type LiveConnectionState = "idle" | "connecting" | "joined" | "error";
@@ -21,8 +22,11 @@ export type LiveEventMap = {
     session: LiveSession;
     participants: LiveParticipant[];
     recentMessages: LiveMessage[];
+    you: { userId: string; role: UserRole };
   };
   chat: LiveMessage;
+  message_deleted: { messageId: number };
+  kicked: undefined;
   participant_joined: { participant: LiveParticipant; count: number };
   participant_left: { userId: string; count: number };
   hand_update: { userId: string; raised: boolean };
@@ -137,7 +141,20 @@ export class LiveClient {
           session: msg.session,
           participants: msg.participants,
           recentMessages: msg.recentMessages,
+          you: msg.you,
         });
+        break;
+      case "message_deleted":
+        this.emit("message_deleted", { messageId: msg.messageId });
+        break;
+      case "kicked":
+        // Qayta ulanib qolmasligi uchun avval sessiyani unutamiz.
+        this.clearReconnect();
+        this.sessionId = null;
+        this.setState("idle");
+        this.ws?.close();
+        this.ws = null;
+        this.emit("kicked", undefined);
         break;
       case "error":
         this.emit("error", msg.message);
@@ -198,6 +215,14 @@ export class LiveClient {
 
   revokeSpeaker(targetUserId: string) {
     this.send({ type: "mod:revoke_speaker", targetUserId });
+  }
+
+  kick(targetUserId: string) {
+    this.send({ type: "mod:kick", targetUserId });
+  }
+
+  deleteMessage(messageId: number) {
+    this.send({ type: "mod:delete_message", messageId });
   }
 
   startSession() {

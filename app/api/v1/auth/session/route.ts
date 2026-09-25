@@ -12,6 +12,7 @@
 import { defineRoute } from "@/server/http/handler";
 import { TOKEN_MAX_AGE_SECONDS } from "@/server/auth/identity";
 import { ensureUser, getProfile } from "@/server/services/social";
+import { getUserRole } from "@/server/services/roles";
 import { createSessionSchema, type CreateSessionInput, type Session, type Viewer } from "@/shared/contract";
 
 export const runtime = "edge";
@@ -36,7 +37,10 @@ export const POST = defineRoute<CreateSessionInput, Session>({
 export const GET = defineRoute<undefined, Viewer>({
   handler: async ({ db, identity }) => {
     await ensureUser(db, identity.userId);
-    const profile = await getProfile(db, identity.userId);
+    const [profile, role] = await Promise.all([
+      getProfile(db, identity.userId),
+      getUserRole(db, identity.userId),
+    ]);
 
     return {
       userId: identity.userId,
@@ -44,6 +48,7 @@ export const GET = defineRoute<undefined, Viewer>({
       bio: profile?.bio ?? "",
       posts: profile?.posts ?? 0,
       followers: profile?.followers ?? 0,
+      role,
     };
   },
 });

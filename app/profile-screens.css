@@ -132,3 +132,35 @@ button.p-row:hover { background: #f5f9f6; }
   .p-settings .p-menu { border-radius: 12px; }
 }
 @media (prefers-reduced-motion: no-preference) { .p-row, .p-icon, .p-primary { transition: background .18s; } }
+
+/* Rollar va boshqaruv paneli */
+.p-role-badge { display: inline-flex; align-items: center; gap: 3px; margin-left: 7px; padding: 2px 7px; border-radius: 20px; font-size: 9px; letter-spacing: .4px; vertical-align: 1px; }
+.role-admin.p-role-badge { background: #fbf1d6; color: #8a6511; }
+.role-moderator.p-role-badge { background: #e3f1ea; color: #0b6a4c; }
+.p-admin-entry { border-color: #ecdfb6; background: #fffbef; }
+.p-admin-entry .p-row { background: transparent; }
+.p-admin-entry .p-row-icon { color: #a57b12; }
+.admin-panel { max-width: 640px; margin: 0 auto; padding-bottom: 12px; }
+.admin-intro { color: var(--p-muted); font-size: 12px; line-height: 1.7; text-align: center; padding: 2px 6px 16px; }
+.admin-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.admin-counts span { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border-radius: 12px; background: #f5f8f6; color: var(--p-muted); font-size: 10px; }
+.admin-counts b { color: var(--p-ink); font-size: 18px; }
+.admin-counts .role-admin svg { color: #a57b12; }
+.admin-counts .role-moderator svg { color: var(--p-green); }
+.admin-search { display: flex; align-items: center; gap: 8px; padding: 0 13px; border: 1px solid #e3eae5; border-radius: 12px; background: #fafcfa; color: #8a978f; }
+.admin-search input { flex: 1; min-width: 0; border: 0; background: none; outline: 0; padding: 12px 0; font: inherit; font-size: 13px; color: var(--p-ink); }
+.admin-error { margin-top: 10px !important; padding: 10px 12px; border-radius: 10px; background: #fdeeee; color: #b4232f; font-size: 12px; }
+.admin-empty { text-align: center; color: var(--p-muted); font-size: 12px; padding: 26px 0; }
+.admin-users { list-style: none; margin: 10px 0 0; padding: 0; }
+.admin-users li { display: flex; align-items: center; gap: 11px; padding: 13px 2px; border-bottom: 1px solid #edf1ed; flex-wrap: wrap; }
+.admin-avatar { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #e6f0e8; color: #2c7853; font-family: Georgia, serif; font-size: 18px; }
+.admin-user-info { flex: 1; min-width: 120px; display: flex; flex-direction: column; }
+.admin-user-info strong { font-size: 13px; overflow-wrap: anywhere; }
+.admin-user-info small { color: #9aa59f; font-size: 10px; font-family: ui-monospace, monospace; }
+.admin-role-switch { display: flex; padding: 3px; border-radius: 10px; background: #f0f3f1; }
+.admin-role-switch button { border: 0; background: none; padding: 6px 9px; border-radius: 8px; font-size: 11px; color: #6c7973; cursor: pointer; }
+.admin-role-switch button.on { background: #fff; color: var(--p-ink); font-weight: 650; box-shadow: 0 1px 3px #0f2a1f1f; }
+.admin-role-switch button.on.role-admin { color: #8a6511; }
+.admin-role-switch button.on.role-moderator { color: var(--p-green); }
+.admin-role-switch button:disabled:not(.on) { opacity: .45; cursor: default; }
+@media (max-width: 420px) { .admin-role-switch { width: calc(100% - 51px); margin-left: 51px; } .admin-role-switch button { flex: 1; } }

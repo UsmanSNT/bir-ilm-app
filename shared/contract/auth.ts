@@ -11,6 +11,7 @@
  */
 import { z } from "zod";
 import { CLIENT_PLATFORMS } from "./common";
+import type { UserRole } from "./roles";
 
 /** Xom token: 32 bayt tasodifiy son, hex ko'rinishda. */
 export const AUTH_TOKEN_PATTERN = /^[a-f0-9]{64}$/;
@@ -47,4 +48,5 @@ export type Viewer = {
   bio: string;
   posts: number;
   followers: number;
+  role: UserRole;
 };

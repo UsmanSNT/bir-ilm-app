@@ -41,6 +41,8 @@ export const users = sqliteTable("users", {
   name: text("name").notNull().default("Kitobxon"),
   email: text("email"),
   bio: text("bio").notNull().default(""),
+  /** user | moderator | admin */
+  role: text("role", { enum: ["user", "moderator", "admin"] }).notNull().default("user"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

@@ -72,26 +72,23 @@ export async function listLiveSessions(
   return rows.map((r) => ({ ...r, participantCount: countMap.get(r.id) ?? 0 }));
 }
 
-export async function startLiveSession(
-  db: Database,
-  id: string,
-  moderatorId: string,
-): Promise<void> {
+// Ruxsat chaqiruvchida (WS) tekshiriladi: faqat admin boshlaydi va tugatadi.
+export async function startLiveSession(db: Database, id: string): Promise<string> {
+  const startedAt = new Date().toISOString();
   await db
     .update(schema.liveSessions)
-    .set({ status: "live", startedAt: new Date().toISOString() })
-    .where(and(eq(schema.liveSessions.id, id), eq(schema.liveSessions.moderatorId, moderatorId)));
+    .set({ status: "live", startedAt })
+    .where(eq(schema.liveSessions.id, id));
+  return startedAt;
 }
 
-export async function endLiveSession(
-  db: Database,
-  id: string,
-  moderatorId: string,
-): Promise<void> {
+export async function endLiveSession(db: Database, id: string): Promise<string> {
+  const endedAt = new Date().toISOString();
   await db
     .update(schema.liveSessions)
-    .set({ status: "ended", endedAt: new Date().toISOString() })
-    .where(and(eq(schema.liveSessions.id, id), eq(schema.liveSessions.moderatorId, moderatorId)));
+    .set({ status: "ended", endedAt })
+    .where(eq(schema.liveSessions.id, id));
+  return endedAt;
 }
 
 // ── Qatnashchilar ───────────────────────────────────────────────────
@@ -205,6 +202,18 @@ export async function addMessage(
     body: row.body,
     createdAt: sqliteUtcToIso(row.createdAt),
   };
+}
+
+export async function deleteMessage(
+  db: Database,
+  sessionId: string,
+  messageId: number,
+): Promise<boolean> {
+  const deleted = await db
+    .delete(schema.liveMessages)
+    .where(and(eq(schema.liveMessages.id, messageId), eq(schema.liveMessages.sessionId, sessionId)))
+    .returning({ id: schema.liveMessages.id });
+  return deleted.length > 0;
 }
 
 export async function getRecentMessages(

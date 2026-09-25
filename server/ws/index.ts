@@ -10,7 +10,9 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { Database } from "@/server/db/client";
 import { deriveUserId } from "@/server/auth/identity";
 import * as live from "@/server/services/live";
+import { getUserRole } from "@/server/services/roles";
 import type { WsClientMessage, WsServerMessage, LiveRole } from "@/shared/contract/live";
+import { canModerate } from "@/shared/contract/roles";
 
 type Client = {
   ws: WebSocket;
@@ -92,6 +94,10 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         send(client.ws, { type: "error", message: "Suhbat topilmadi." });
         return;
       }
+      if (kickedFrom(msg.sessionId).has(client.userId)) {
+        send(client.ws, { type: "kicked" });
+        return;
+      }
 
       // Oldingi sessiyadan chiqish
       if (client.sessionId && client.sessionId !== msg.sessionId) {
@@ -106,8 +112,10 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
 
       client.sessionId = msg.sessionId;
 
-      // Rol aniqlash: moderator yoki oddiy tinglovchi
-      const role: LiveRole = session.moderatorId === client.userId ? "moderator" : "listener";
+      // Admin va moderatorlar har qanday suhbatda boshqaruvchi bo'ladi.
+      const globalRole = user?.role ?? "user";
+      const role: LiveRole =
+        canModerate(globalRole) || session.moderatorId === client.userId ? "moderator" : "listener";
       const participant = await live.joinSession(db, msg.sessionId, client.userId, client.userName, role);
 
       // Boshqalarga xabar
@@ -129,6 +137,7 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         session: updatedSession!,
         participants,
         recentMessages,
+        you: { userId: client.userId, role: globalRole },
       });
       return;
     }
@@ -166,54 +175,79 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
       return;
     }
 
-    // ── Moderator buyruqlari ──────────────────────────────────────
+    // ── Moderator buyruqlari (moderator yoki admin) ───────────────
 
-    case "mod:grant_speaker": {
-      if (!client.sessionId) return;
-      const session = await live.getLiveSession(db, client.sessionId);
-      if (!session || session.moderatorId !== client.userId) {
-        send(client.ws, { type: "error", message: "Sizda ruxsat yo'q." });
-        return;
-      }
-      await live.setRole(db, client.sessionId, msg.targetUserId, "speaker");
-      broadcastToSession(client.sessionId, {
-        type: "role_update",
-        userId: msg.targetUserId,
-        role: "speaker",
-      });
-      return;
-    }
-
+    case "mod:grant_speaker":
     case "mod:revoke_speaker": {
-      if (!client.sessionId) return;
-      const session = await live.getLiveSession(db, client.sessionId);
-      if (!session || session.moderatorId !== client.userId) {
-        send(client.ws, { type: "error", message: "Sizda ruxsat yo'q." });
+      if (!client.sessionId || !(await ensureModerator(db, client))) return;
+      const role: LiveRole = msg.type === "mod:grant_speaker" ? "speaker" : "listener";
+      await live.setRole(db, client.sessionId, msg.targetUserId, role);
+      broadcastToSession(client.sessionId, { type: "role_update", userId: msg.targetUserId, role });
+      return;
+    }
+
+    case "mod:kick": {
+      if (!client.sessionId || !(await ensureModerator(db, client))) return;
+      if (msg.targetUserId === client.userId) return;
+      const targetRole = await getUserRole(db, msg.targetUserId);
+      if (targetRole === "admin") {
+        send(client.ws, { type: "error", message: "Adminni chiqarib bo'lmaydi." });
         return;
       }
-      await live.setRole(db, client.sessionId, msg.targetUserId, "listener");
-      broadcastToSession(client.sessionId, {
-        type: "role_update",
-        userId: msg.targetUserId,
-        role: "listener",
-      });
+      const sessionId = client.sessionId;
+      kickedFrom(sessionId).add(msg.targetUserId);
+      await live.leaveSession(db, sessionId, msg.targetUserId);
+      for (const other of clients.values()) {
+        if (other.sessionId === sessionId && other.userId === msg.targetUserId) {
+          send(other.ws, { type: "kicked" });
+          other.sessionId = null;
+        }
+      }
+      const count = await live.getParticipantCount(db, sessionId);
+      broadcastToSession(sessionId, { type: "participant_left", userId: msg.targetUserId, count });
       return;
     }
 
-    case "mod:start": {
-      if (!client.sessionId) return;
-      await live.startLiveSession(db, client.sessionId, client.userId);
-      const now = new Date().toISOString();
-      broadcastToSession(client.sessionId, { type: "session_started", startedAt: now });
+    case "mod:delete_message": {
+      if (!client.sessionId || !(await ensureModerator(db, client))) return;
+      if (await live.deleteMessage(db, client.sessionId, msg.messageId)) {
+        broadcastToSession(client.sessionId, { type: "message_deleted", messageId: msg.messageId });
+      }
       return;
     }
 
+    // ── Faqat admin: suhbatni boshlash va tugatish ────────────────
+
+    case "mod:start":
     case "mod:end": {
       if (!client.sessionId) return;
-      await live.endLiveSession(db, client.sessionId, client.userId);
-      const now = new Date().toISOString();
-      broadcastToSession(client.sessionId, { type: "session_ended", endedAt: now });
+      if ((await getUserRole(db, client.userId)) !== "admin") {
+        send(client.ws, { type: "error", message: "Suhbatni faqat admin boshlaydi va tugatadi." });
+        return;
+      }
+      if (msg.type === "mod:start") {
+        const startedAt = await live.startLiveSession(db, client.sessionId);
+        broadcastToSession(client.sessionId, { type: "session_started", startedAt });
+      } else {
+        const endedAt = await live.endLiveSession(db, client.sessionId);
+        broadcastToSession(client.sessionId, { type: "session_ended", endedAt });
+      }
       return;
     }
   }
+}
+
+// Rol har buyruqda bazadan o'qiladi, shuning uchun admin rolni olib qo'ysa darhol kuchga kiradi.
+async function ensureModerator(db: Database, client: Client): Promise<boolean> {
+  if (canModerate(await getUserRole(db, client.userId))) return true;
+  send(client.ws, { type: "error", message: "Sizda ruxsat yo'q." });
+  return false;
+}
+
+// Chiqarilganlar faqat server xotirasida: server qayta ishga tushsa, qayta kira oladi.
+const kicked = new Map<string, Set<string>>();
+function kickedFrom(sessionId: string): Set<string> {
+  let set = kicked.get(sessionId);
+  if (!set) kicked.set(sessionId, (set = new Set()));
+  return set;
 }

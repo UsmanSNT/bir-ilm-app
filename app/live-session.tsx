@@ -11,9 +11,14 @@ import {
   Mic,
   MicOff,
   MonitorUp,
+  Play,
   Plus,
   Radio,
   Send,
+  ShieldCheck,
+  Square,
+  Trash2,
+  UserMinus,
   Users,
   X,
 } from "lucide-react";
@@ -23,11 +28,13 @@ import {
   createLiveSession,
   type LiveConnectionState,
 } from "@/lib/api/live-client";
+import { useViewer } from "@/lib/api/roles-client";
 import type {
   LiveSession as LiveSessionType,
   LiveParticipant,
   LiveMessage,
 } from "@/shared/contract/live";
+import { canModerate, type UserRole } from "@/shared/contract/roles";
 
 function timeStr(iso: string) {
   return new Date(iso).toLocaleTimeString("uz-UZ", {
@@ -75,6 +82,7 @@ function Avatar({ name, className }: { name: string; className?: string }) {
 }
 
 type View = "video" | "screen" | "audio";
+type Me = { userId: string; role: UserRole };
 
 // ── Main Component ──────────────────────────────────────────────────
 
@@ -85,13 +93,18 @@ export default function LiveSession({
   date: number;
   onComments: () => void;
 }) {
+  const viewer = useViewer();
+  const isAdmin = viewer?.role === "admin";
+
   const [sessions, setSessions] = useState<LiveSessionType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [listNotice, setListNotice] = useState("");
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [connState, setConnState] = useState<LiveConnectionState>("idle");
   const [sessionData, setSessionData] = useState<LiveSessionType | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const [participants, setParticipants] = useState<LiveParticipant[]>([]);
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [participantCount, setParticipantCount] = useState(0);
@@ -101,8 +114,11 @@ export default function LiveSession({
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
   const [draft, setDraft] = useState("");
+  const [selected, setSelected] = useState<LiveParticipant | null>(null);
+  const [notice, setNotice] = useState("");
 
   const clientRef = useRef<LiveClient | null>(null);
+  const meRef = useRef<Me | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const loadSessions = useCallback(async () => {
@@ -124,15 +140,23 @@ export default function LiveSession({
     return () => clientRef.current?.dispose();
   }, []);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(""), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   function joinSession(sessionId: string) {
     clientRef.current?.dispose();
     const client = new LiveClient();
     clientRef.current = client;
 
     setActiveSessionId(sessionId);
+    setListNotice("");
     setMessages([]);
     setParticipants([]);
     setCommentsOpen(false);
+    setSelected(null);
     setView("video");
     setHandRaised(false);
     setMicOn(true);
@@ -145,10 +169,16 @@ export default function LiveSession({
       setParticipants(data.participants);
       setMessages(data.recentMessages);
       setParticipantCount(data.session.participantCount);
+      meRef.current = data.you;
+      setMe(data.you);
     });
 
     client.on("chat", (msg) => {
       setMessages((prev) => [...prev, msg]);
+    });
+
+    client.on("message_deleted", ({ messageId }) => {
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
     });
 
     client.on("participant_joined", ({ participant, count }) => {
@@ -161,6 +191,7 @@ export default function LiveSession({
 
     client.on("participant_left", ({ userId, count }) => {
       setParticipants((prev) => prev.filter((p) => p.userId !== userId));
+      setSelected((prev) => (prev?.userId === userId ? null : prev));
       setParticipantCount(count);
     });
 
@@ -176,16 +207,21 @@ export default function LiveSession({
       setParticipants((prev) =>
         prev.map((p) =>
           p.userId === userId
-            ? { ...p, role: role as LiveParticipant["role"] }
+            ? { ...p, role: role as LiveParticipant["role"], handRaised: false }
             : p,
         ),
       );
+      if (meRef.current?.userId === userId) {
+        setHandRaised(false);
+        setNotice(role === "speaker" ? "Sizga so'z berildi" : "So'z navbatingiz tugadi");
+      }
     });
 
     client.on("session_started", ({ startedAt }) => {
       setSessionData((prev) =>
         prev ? { ...prev, status: "live", startedAt } : prev,
       );
+      setNotice("Suhbat boshlandi");
     });
 
     client.on("session_ended", ({ endedAt }) => {
@@ -194,8 +230,15 @@ export default function LiveSession({
       );
     });
 
+    client.on("kicked", () => {
+      setActiveSessionId(null);
+      setSessionData(null);
+      setListNotice("Moderator sizni suhbatdan chiqardi.");
+      loadSessions();
+    });
+
     client.on("error", (msg) => {
-      console.error("[live]", msg);
+      setNotice(msg);
     });
 
     client.join(sessionId);
@@ -205,6 +248,7 @@ export default function LiveSession({
     clientRef.current?.leave();
     setActiveSessionId(null);
     setSessionData(null);
+    setMe(null);
     setConnState("idle");
     loadSessions();
   }
@@ -222,15 +266,35 @@ export default function LiveSession({
     clientRef.current?.toggleHand(next);
   }
 
+  function modAction(action: "grant" | "revoke" | "kick", target: LiveParticipant) {
+    const client = clientRef.current;
+    if (!client) return;
+    if (action === "grant") client.grantSpeaker(target.userId);
+    if (action === "revoke") client.revokeSpeaker(target.userId);
+    if (action === "kick") client.kick(target.userId);
+    setSelected(null);
+  }
+
+  const canMod = canModerate(me?.role);
+  const roomAdmin = me?.role === "admin";
+  const status = sessionData?.status ?? "planned";
+
   const allParticipants = participants;
   const speakers = allParticipants.filter((p) => p.role !== "listener");
   const listenersList = allParticipants.filter((p) => p.role === "listener");
+  const handQueue = listenersList.filter((p) => p.handRaised);
+
+  // Faqat moderator boshqa qatnashchini tanlay oladi (o'zini emas).
+  const selectable = (p: LiveParticipant) => canMod && p.userId !== me?.userId;
+  const pick = (p: LiveParticipant) => selectable(p) && setSelected(p);
 
   const controls = [
     { label: "Mikrofon", icon: micOn ? Mic : MicOff, active: micOn, action: () => setMicOn(!micOn) },
     { label: "Kamera", icon: cameraOn ? Camera : CameraOff, active: cameraOn, action: () => setCameraOn(!cameraOn) },
     { label: "Ekran ulashish", icon: MonitorUp, active: view === "screen", action: () => setView(view === "screen" ? "video" : "screen") },
-    { label: "Qo'l ko'tarish", icon: Hand, active: handRaised, action: toggleHand },
+    ...(canMod
+      ? []
+      : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, action: toggleHand }]),
     { label: "Izohlar", icon: MessageCircle, active: commentsOpen, action: () => setCommentsOpen(!commentsOpen) },
   ];
 
@@ -251,12 +315,37 @@ export default function LiveSession({
               <strong>{bookTitle}</strong>
               <span>{sessionTitle}</span>
             </div>
-            {sessionData?.status === "live" && (
+            {status === "live" && (
               <span className="live-indicator"><i /> LIVE</span>
             )}
+            {roomAdmin && status === "planned" && (
+              <button className="live-admin-btn start" onClick={() => clientRef.current?.startSession()}>
+                <Play size={13} /> Boshlash
+              </button>
+            )}
+            {roomAdmin && status === "live" && (
+              <button className="live-admin-btn end" onClick={() => clientRef.current?.endSession()}>
+                <Square size={12} /> Tugatish
+              </button>
+            )}
             <span className="live-count"><Users size={14} /> {participantCount}</span>
-            <time>{timeStr(new Date().toISOString())}</time>
           </header>
+
+          {connState === "joined" && status !== "live" && (
+            <div className={`live-status-banner ${status}`}>
+              {status === "planned"
+                ? roomAdmin
+                  ? "Suhbat hali boshlanmagan. Tayyor bo'lsangiz, \"Boshlash\"ni bosing."
+                  : "Suhbat hali boshlanmagan. Admin boshlashini kuting."
+                : "Suhbat tugadi. Izohlarni o'qishingiz mumkin."}
+            </div>
+          )}
+          {canMod && connState === "joined" && (
+            <div className="live-mod-hint">
+              <ShieldCheck size={14} />
+              {roomAdmin ? "Admin" : "Moderator"} — qatnashchini bosib, so'z bering yoki chiqaring
+            </div>
+          )}
 
           <div className="live-main">
             {/* Ulanmoqda / Xatolik */}
@@ -282,16 +371,17 @@ export default function LiveSession({
                   {allParticipants.slice(0, 4).map((p) => (
                     <div
                       key={p.userId}
-                      className={`live-video-tile${p.role === "moderator" ? " speaking" : ""}`}
+                      className={`live-video-tile${p.role === "moderator" ? " speaking" : ""}${selectable(p) ? " selectable" : ""}`}
+                      onClick={() => pick(p)}
                     >
                       <div className="live-tile-avatar" style={{ background: avatarColor(p.name) }}>
                         {p.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="live-video-label">
-                        <strong>{p.name}</strong>
+                        <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
                         {p.handRaised ? (
                           <Hand size={14} color="#ffb800" />
-                        ) : p.role === "moderator" ? (
+                        ) : p.role !== "listener" ? (
                           <span className="live-level">▂▅▃</span>
                         ) : (
                           <MicOff size={15} />
@@ -305,7 +395,9 @@ export default function LiveSession({
                 </div>
                 <div className="live-avatar-strip">
                   {allParticipants.slice(4, 9).map((p) => (
-                    <Avatar key={p.userId} name={p.name} />
+                    <button key={p.userId} className="live-avatar-btn" onClick={() => pick(p)} disabled={!selectable(p)}>
+                      <Avatar name={p.name} />
+                    </button>
                   ))}
                   {participantCount > 9 && (
                     <span className="live-more">+{participantCount - 9}</span>
@@ -342,7 +434,7 @@ export default function LiveSession({
                 </div>
                 <div className="live-speaker-strip">
                   {allParticipants.slice(0, 4).map((p) => (
-                    <div key={p.userId}>
+                    <div key={p.userId} onClick={() => pick(p)}>
                       <div className="live-tile-avatar" style={{ background: avatarColor(p.name), width: "100%", height: "100%", borderRadius: 5, fontSize: 24 }}>
                         {p.name.charAt(0).toUpperCase()}
                       </div>
@@ -356,10 +448,22 @@ export default function LiveSession({
             {/* ── Ovozli ko'rinish ── */}
             {connState === "joined" && view === "audio" && (
               <div className="live-audio-view">
+                {canMod && handQueue.length > 0 && (
+                  <section className="live-hand-queue">
+                    <h3><Hand size={15} /> Navbatda ({handQueue.length})</h3>
+                    {handQueue.map((p) => (
+                      <div key={p.userId}>
+                        <Avatar name={p.name} />
+                        <strong>{p.name}</strong>
+                        <button onClick={() => modAction("grant", p)}>So'z berish</button>
+                      </div>
+                    ))}
+                  </section>
+                )}
                 <h3>Gapirayotganlar ({speakers.length})</h3>
                 <div className="live-speakers">
                   {speakers.map((p) => (
-                    <div key={p.userId}>
+                    <div key={p.userId} onClick={() => pick(p)} className={selectable(p) ? "selectable" : ""}>
                       <Avatar name={p.name} />
                       <strong>{p.name}</strong>
                       {p.role === "moderator" && <small>Boshlovchi</small>}
@@ -372,16 +476,18 @@ export default function LiveSession({
                 <h3>Tinglovchilar ({listenersList.length})</h3>
                 <div className="live-listeners">
                   {listenersList.map((p) => (
-                    <div key={p.userId}>
+                    <div key={p.userId} onClick={() => pick(p)} className={selectable(p) ? "selectable" : ""}>
                       <Avatar name={p.name} />
                       <strong>{p.name}</strong>
                       {p.handRaised ? <Hand size={13} /> : <MicOff size={13} />}
                     </div>
                   ))}
                 </div>
-                <span className="live-queue">
-                  <Hand size={16} /> {handRaised ? "Navbatdasiz" : "Qo'l ko'tarib navbatga turing"}
-                </span>
+                {!canMod && (
+                  <span className="live-queue">
+                    <Hand size={16} /> {handRaised ? "Navbatdasiz" : "Qo'l ko'tarib navbatga turing"}
+                  </span>
+                )}
               </div>
             )}
 
@@ -408,24 +514,68 @@ export default function LiveSession({
                         <time>{timeStr(msg.createdAt)}</time>
                         <p>{msg.body}</p>
                       </div>
+                      {canMod && (
+                        <button
+                          className="live-comment-delete"
+                          aria-label="Izohni o'chirish"
+                          title="Izohni o'chirish"
+                          onClick={() => clientRef.current?.deleteMessage(msg.id)}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
-                <form className="live-comment-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
-                  <input
-                    aria-label="Izoh yozing"
-                    placeholder="Izoh yozing..."
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    maxLength={500}
-                  />
-                  <button aria-label="Izoh yuborish" disabled={!draft.trim()}>
-                    <Send size={18} />
-                  </button>
-                </form>
+                {status === "ended" ? (
+                  <p className="live-comments-closed">Suhbat tugagan — izoh yozib bo'lmaydi.</p>
+                ) : (
+                  <form className="live-comment-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
+                    <input
+                      aria-label="Izoh yozing"
+                      placeholder="Izoh yozing..."
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      maxLength={500}
+                    />
+                    <button aria-label="Izoh yuborish" disabled={!draft.trim()}>
+                      <Send size={18} />
+                    </button>
+                  </form>
+                )}
               </aside>
             )}
+
+            {/* ── Moderator: qatnashchi bilan amallar ── */}
+            {selected && (
+              <div className="live-sheet-backdrop" onClick={() => setSelected(null)}>
+                <div className="live-sheet" role="dialog" aria-label={`${selected.name} bilan amallar`} onClick={(e) => e.stopPropagation()}>
+                  <div className="live-sheet-head">
+                    <Avatar name={selected.name} />
+                    <div>
+                      <strong>{selected.name}</strong>
+                      <small>
+                        {selected.role === "moderator" ? "Boshlovchi" : selected.role === "speaker" ? "So'zlovchi" : "Tinglovchi"}
+                        {selected.handRaised ? " · qo'l ko'targan" : ""}
+                      </small>
+                    </div>
+                  </div>
+                  {selected.role === "listener" && (
+                    <button onClick={() => modAction("grant", selected)}><Mic size={17} /> So'z berish</button>
+                  )}
+                  {selected.role === "speaker" && (
+                    <button onClick={() => modAction("revoke", selected)}><MicOff size={17} /> So'zni olish</button>
+                  )}
+                  {selected.role !== "moderator" && (
+                    <button className="danger" onClick={() => modAction("kick", selected)}><UserMinus size={17} /> Suhbatdan chiqarish</button>
+                  )}
+                  <button className="ghost" onClick={() => setSelected(null)}>Bekor qilish</button>
+                </div>
+              </div>
+            )}
+
+            {notice && <div className="live-toast" role="status">{notice}</div>}
           </div>
 
           {/* ── Boshqaruv paneli ── */}
@@ -465,16 +615,24 @@ export default function LiveSession({
             <h3>Kitob muhokamalariga qo'shiling</h3>
           </div>
         </div>
-        <p className="session-status">Kitob haqida jonli fikr almashing — real vaqtda chat.</p>
-        <button className="button" onClick={() => setShowCreate(true)}>
-          <Plus size={16} /> Yangi suhbat yaratish
-        </button>
+        <p className="session-status">
+          {isAdmin
+            ? "Siz adminsiz: yangi suhbat e'lon qiling va uni boshlang."
+            : "Suhbatlarni admin e'lon qiladi. Vaqti kelganda qo'shiling."}
+        </p>
+        {isAdmin && (
+          <button className="button" onClick={() => setShowCreate(true)}>
+            <Plus size={16} /> Yangi suhbat yaratish
+          </button>
+        )}
       </section>
+
+      {listNotice && <p className="live-list-notice">{listNotice}</p>}
 
       {loading && <p className="muted">Yuklanmoqda...</p>}
 
       {!loading && sessions.length === 0 && (
-        <p className="muted">Hozircha suhbatlar yo'q. Yangisini yarating!</p>
+        <p className="muted">Hozircha rejalashtirilgan suhbat yo'q.</p>
       )}
 
       {sessions.map((s) => (
@@ -494,12 +652,12 @@ export default function LiveSession({
             {s.participantCount > 0 && ` · ${s.participantCount} qatnashchi`}
           </p>
           <button className="button" onClick={() => joinSession(s.id)} disabled={s.status === "ended"}>
-            {s.status === "ended" ? "Tugagan" : "Qo'shilish"}
+            {s.status === "ended" ? "Tugagan" : isAdmin && s.status === "planned" ? "Kirish va boshlash" : "Qo'shilish"}
           </button>
         </section>
       ))}
 
-      {showCreate && (
+      {showCreate && isAdmin && (
         <CreateSessionDialog
           name={name}
           onClose={() => setShowCreate(false)}
@@ -513,10 +671,14 @@ export default function LiveSession({
   );
 }
 
-// ── Yangi suhbat yaratish dialogi ────────────────────────────────────
+// ── Yangi suhbat yaratish dialogi (faqat admin) ─────────────────────
+
+function toLocalInput(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 function CreateSessionDialog({
-  name,
   onClose,
   onCreated,
 }: {
@@ -526,6 +688,7 @@ function CreateSessionDialog({
 }) {
   const [bookTitle, setBookTitle] = useState("");
   const [title, setTitle] = useState("");
+  const [when, setWhen] = useState(() => toLocalInput(new Date()));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -539,7 +702,7 @@ function CreateSessionDialog({
     const session = await createLiveSession({
       bookTitle: bookTitle.trim(),
       title: title.trim(),
-      scheduledAt: new Date().toISOString(),
+      scheduledAt: new Date(when).toISOString(),
     });
 
     setSubmitting(false);
@@ -551,46 +714,40 @@ function CreateSessionDialog({
     }
   }
 
+  const fieldStyle = { padding: "0.5rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)", fontSize: "0.9rem" };
+  const labelStyle = { display: "flex", flexDirection: "column" as const, gap: "0.25rem" };
+
   return (
     <div className="live-overlay" role="dialog" aria-modal="true">
       <div className="live-window" style={{ maxWidth: 420 }}>
         <header className="live-topbar">
-          <button className="live-plain-btn" onClick={onClose}>
+          <button className="live-plain-btn" aria-label="Yopish" onClick={onClose}>
             <ArrowLeft size={22} />
           </button>
           <div className="live-room-title">
             <strong>Yangi suhbat</strong>
+            <span>Faqat admin e'lon qiladi</span>
           </div>
         </header>
         <form
           onSubmit={handleSubmit}
           style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}
         >
-          <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <label style={labelStyle}>
             <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Kitob nomi</span>
-            <input
-              value={bookTitle}
-              onChange={(e) => setBookTitle(e.target.value)}
-              placeholder="Atom odatlar"
-              maxLength={160}
-              required
-              style={{ padding: "0.5rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)", fontSize: "0.9rem" }}
-            />
+            <input value={bookTitle} onChange={(e) => setBookTitle(e.target.value)} placeholder="Atom odatlar" maxLength={160} required style={fieldStyle} />
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <label style={labelStyle}>
             <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Suhbat sarlavhasi</span>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Birga tahlil qilamiz"
-              maxLength={200}
-              required
-              style={{ padding: "0.5rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)", fontSize: "0.9rem" }}
-            />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Birga tahlil qilamiz" maxLength={200} required style={fieldStyle} />
+          </label>
+          <label style={labelStyle}>
+            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Qachon</span>
+            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} required style={fieldStyle} />
           </label>
           {error && <p style={{ color: "#e5484d", fontSize: "0.85rem" }}>{error}</p>}
           <button className="button" type="submit" disabled={submitting}>
-            {submitting ? "Yaratilmoqda..." : "Yaratish"}
+            {submitting ? "Yaratilmoqda..." : "E'lon qilish"}
           </button>
         </form>
       </div>

@@ -73,6 +73,9 @@ const books = await load("app/api/v1/books/route.ts");
 const progress = await load("app/api/v1/progress/route.ts");
 const leaderboard = await load("app/api/v1/leaderboard/route.ts");
 const health = await load("app/api/v1/health/route.ts");
+const live = await load("app/api/v1/live/route.ts");
+const adminUsers = await load("app/api/v1/admin/users/route.ts");
+const adminUser = await load("app/api/v1/admin/users/[id]/route.ts");
 
 // Eski (v1 dan oldingi) route'lar — mobil qobiq ular bilan ham ishlashi kerak.
 const legacySocial = await load("app/api/social/route.ts");
@@ -535,6 +538,55 @@ try {
     console.log("PASS: eski API native qobiqdan ham ishlaydi (Bearer + CORS).");
   }
 
+  // --- Rollar: faqat admin suhbat yaratadi va rol beradi ---------------------
+  {
+    const admin = await webClient();
+    const member = await webClient();
+    const newSession = {
+      bookTitle: "Atom odatlar",
+      title: "Rol testi",
+      scheduledAt: new Date().toISOString(),
+    };
+
+    const { payload: me } = await member.call(session.GET, "/api/v1/auth/session");
+    assert.equal(me.data.role, "user", "Yangi foydalanuvchi oddiy user bo'lishi kerak");
+
+    await member.call(live.POST, "/api/v1/live", { method: "POST", body: newSession, expect: 403 });
+    await member.call(adminUsers.GET, "/api/v1/admin/users", { expect: 403 });
+    await member.call(adminUser.PATCH, `/api/v1/admin/users/${member.userId}`, {
+      method: "PATCH",
+      body: { role: "admin" },
+      params: { id: member.userId },
+      expect: 403,
+    });
+
+    sqlite.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(admin.userId);
+
+    await admin.call(live.POST, "/api/v1/live", { method: "POST", body: newSession, expect: 201 });
+
+    const { payload: promoted } = await admin.call(adminUser.PATCH, `/api/v1/admin/users/${member.userId}`, {
+      method: "PATCH",
+      body: { role: "moderator" },
+      params: { id: member.userId },
+    });
+    assert.equal(promoted.data.role, "moderator");
+
+    // Moderator ham suhbat yarata olmaydi — bu faqat admin ishi.
+    await member.call(live.POST, "/api/v1/live", { method: "POST", body: newSession, expect: 403 });
+
+    await admin.call(adminUser.PATCH, `/api/v1/admin/users/${admin.userId}`, {
+      method: "PATCH",
+      body: { role: "user" },
+      params: { id: admin.userId },
+      expect: 400,
+    });
+
+    const { payload: found } = await admin.call(adminUsers.GET, `/api/v1/admin/users?q=${member.userId.slice(0, 20)}`);
+    assert.ok(found.data.some((u) => u.id === member.userId && u.role === "moderator"));
+
+    console.log("PASS: faqat admin suhbat yaratadi va rol beradi; admin o'zini tushira olmaydi.");
+  }
+
   console.log("\nHAMMASI O'TDI: /api/v1 va eski API web va mobil uchun bir xil ishlaydi.");
 } finally {
   if (createdUsers.length) {
@@ -558,6 +610,7 @@ try {
     sqlite.prepare(`DELETE FROM reading_progress WHERE user_id IN (${placeholders})`).run(...unique);
     sqlite.prepare(`DELETE FROM comments WHERE user_id IN (${placeholders})`).run(...unique);
     sqlite.prepare(`DELETE FROM user_activity WHERE user_id IN (${placeholders})`).run(...unique);
+    sqlite.prepare(`DELETE FROM live_sessions WHERE moderator_id IN (${placeholders})`).run(...unique);
     sqlite.prepare(`DELETE FROM users WHERE id IN (${placeholders})`).run(...unique);
 
     console.log(`Tozalandi: ${unique.length} ta test foydalanuvchisi.`);

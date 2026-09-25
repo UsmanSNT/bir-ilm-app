@@ -1,5 +1,6 @@
 /** Jonli suhbat shartnomasi — web, Android va iOS uchun. */
 import { z } from "zod";
+import type { UserRole } from "./roles";
 
 export const LIVE_SESSION_STATUSES = ["planned", "live", "ended"] as const;
 export type LiveSessionStatus = (typeof LIVE_SESSION_STATUSES)[number];
@@ -64,17 +65,28 @@ export type WsClientMessage =
   | { type: "hand"; raised: boolean }
   | { type: "mod:grant_speaker"; targetUserId: string }
   | { type: "mod:revoke_speaker"; targetUserId: string }
+  | { type: "mod:kick"; targetUserId: string }
+  | { type: "mod:delete_message"; messageId: number }
   | { type: "mod:start" }
   | { type: "mod:end" };
 
 /** Serverdan mijozga. */
 export type WsServerMessage =
-  | { type: "joined"; session: LiveSession; participants: LiveParticipant[]; recentMessages: LiveMessage[] }
+  | {
+      type: "joined";
+      session: LiveSession;
+      participants: LiveParticipant[];
+      recentMessages: LiveMessage[];
+      /** Ulangan foydalanuvchining o'zi. */
+      you: { userId: string; role: UserRole };
+    }
   | { type: "error"; message: string }
   | { type: "participant_joined"; participant: LiveParticipant; count: number }
   | { type: "participant_left"; userId: string; count: number }
   | { type: "chat"; message: LiveMessage }
   | { type: "hand_update"; userId: string; raised: boolean }
   | { type: "role_update"; userId: string; role: LiveRole }
+  | { type: "message_deleted"; messageId: number }
+  | { type: "kicked" }
   | { type: "session_started"; startedAt: string }
   | { type: "session_ended"; endedAt: string };
