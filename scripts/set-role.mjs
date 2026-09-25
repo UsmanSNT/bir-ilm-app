@@ -19,9 +19,13 @@ if (!ROLES.includes(role)) {
   process.exit(1);
 }
 
-const result = sqlite.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, target);
-if (result.changes === 0) {
-  console.error(`Foydalanuvchi topilmadi: ${target}`);
+// Ilova sozlamalarida ID'ning faqat boshi ko'rinadi, shuning uchun noyob prefiks ham qabul qilinadi.
+const prefix = target.startsWith("reader_") ? target : `reader_${target}`;
+const matches = sqlite.prepare("SELECT id, name FROM users WHERE id LIKE ? || '%'").all(prefix);
+if (matches.length !== 1) {
+  console.error(matches.length === 0 ? `Foydalanuvchi topilmadi: ${target}` : `Bir nechta mos keldi, ID'ni uzunroq yozing: ${target}`);
   process.exit(1);
 }
-console.log(`${target} → ${role}`);
+const { id, name } = matches[0];
+sqlite.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, id);
+console.log(`${name} (${id}) → ${role}`);

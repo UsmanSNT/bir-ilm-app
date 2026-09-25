@@ -28,7 +28,18 @@ export default function ProfileScreens(p: Props) {
   const [copied, setCopied] = useState(false);
   const viewer = useViewer();
   const role = viewer?.role ?? "user";
-  const copyId = () => { if (viewer) navigator.clipboard?.writeText(viewer.userId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {}); };
+  const copyId = () => {
+    if (!viewer) return;
+    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 2000); };
+    // navigator.clipboard faqat HTTPS'da bor; oddiy HTTP uchun eski usul.
+    if (navigator.clipboard) { navigator.clipboard.writeText(viewer.userId).then(done).catch(() => {}); return; }
+    const area = document.createElement("textarea");
+    area.value = viewer.userId;
+    document.body.appendChild(area);
+    area.select();
+    if (document.execCommand("copy")) done();
+    area.remove();
+  };
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/social?scope=mine", { signal: controller.signal }).then(async response => {
