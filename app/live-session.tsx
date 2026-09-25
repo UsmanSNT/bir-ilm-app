@@ -107,7 +107,6 @@ function VideoTrackView({ track, mirror = false, fit = "cover" }: { track: Track
   );
 }
 
-type View = "video" | "screen" | "audio";
 type Me = { userId: string; role: UserRole };
 
 // ── Main Component ──────────────────────────────────────────────────
@@ -136,7 +135,6 @@ export default function LiveSession({
   const [participantCount, setParticipantCount] = useState(0);
   const [handRaised, setHandRaised] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [view, setView] = useState<View>("video");
   const [draft, setDraft] = useState("");
   const [selected, setSelected] = useState<LiveParticipant | null>(null);
   const [notice, setNotice] = useState("");
@@ -144,26 +142,6 @@ export default function LiveSession({
 
   const av = useLiveMedia(activeSessionId ? media : null, setNotice);
   const sharerId = av.screenSharer?.userId ?? null;
-
-  // Kimdir ekran ulasha boshlasa, hamma avtomatik ekran ko'rinishiga o'tadi.
-  const [lastSharer, setLastSharer] = useState<string | null>(null);
-  if (sharerId !== lastSharer) {
-    setLastSharer(sharerId);
-    if (sharerId) setView("screen");
-    else if (view === "screen") setView("video");
-  }
-
-  // Ovozli ko'rinishdagi odam birinchi kamera yonganda videoga o'tadi (ekran ulashilmayotgan bo'lsa).
-  const cameraOwner = participants.find((p) => av.byUser(p.userId).camera)?.userId ?? null;
-  const [lastCameraOwner, setLastCameraOwner] = useState<string | null>(null);
-  if (cameraOwner !== lastCameraOwner) {
-    setLastCameraOwner(cameraOwner);
-    if (cameraOwner && !lastCameraOwner && view === "audio" && !sharerId) {
-      setView("video");
-      const who = participants.find((p) => p.userId === cameraOwner)?.name ?? "Qatnashchi";
-      setNotice(`${who} kamerasini yoqdi`);
-    }
-  }
 
   const clientRef = useRef<LiveClient | null>(null);
   const meRef = useRef<Me | null>(null);
@@ -205,7 +183,6 @@ export default function LiveSession({
     setParticipants([]);
     setCommentsOpen(false);
     setSelected(null);
-    setView("video");
     setHandRaised(false);
     setMedia(null);
 
@@ -332,11 +309,25 @@ export default function LiveSession({
   const sharerName = sharerId ? participants.find((p) => p.userId === sharerId)?.name ?? "Qatnashchi" : null;
 
   const allParticipants = participants;
-  // Katakchalar 4 ta: kamerasi yoqilganlar, keyin so'zi borlar birinchi ko'rinsin.
-  // Gapirish bo'yicha tartiblanmaydi — aks holda katakchalar har gapda sakrab turardi.
-  const stageScore = (p: LiveParticipant) =>
-    (av.byUser(p.userId).camera ? 2 : 0) + (p.role !== "listener" ? 1 : 0);
-  const onStage = [...participants].sort((a, b) => stageScore(b) - stageScore(a));
+  // Sahna o'zi paydo bo'ladi: taqdimot bo'lsa ekran, kamera yoqilgan bo'lsa videolar, aks holda faqat ovozli ro'yxat.
+  const cameraPeople = participants.filter((p) => av.byUser(p.userId).camera);
+  const stage: "screen" | "cameras" | null = sharerId ? "screen" : cameraPeople.length > 0 ? "cameras" : null;
+  const cameraTile = (p: LiveParticipant) => {
+    const m = av.byUser(p.userId);
+    return (
+      <div
+        key={p.userId}
+        className={`live-video-tile${m.speaking ? " speaking" : ""}${selectable(p) ? " selectable" : ""}`}
+        onClick={() => pick(p)}
+      >
+        {m.camera && <VideoTrackView track={m.camera} mirror={p.userId === me?.userId} />}
+        <div className="live-video-label">
+          <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
+          {m.speaking ? <span className="live-level">▂▅▃</span> : m.micOn ? <Mic size={14} /> : <MicOff size={14} />}
+        </div>
+      </div>
+    );
+  };
   const speakers = allParticipants.filter((p) => p.role !== "listener");
   const listenersList = allParticipants.filter((p) => p.role === "listener");
   const handQueue = listenersList.filter((p) => p.handRaised);
@@ -349,13 +340,13 @@ export default function LiveSession({
   const publishLocked = av.status !== "connected" || !av.canPublish;
   const lockedHint = av.status !== "connected" ? "Ovoz/video serveriga ulanilmagan" : "So'z berilganda yoqiladi";
   const controls = [
-    { label: "Mikrofon", icon: av.micOn ? Mic : MicOff, active: av.micOn, disabled: publishLocked, action: av.toggleMic },
-    { label: "Kamera", icon: av.cameraOn ? Camera : CameraOff, active: av.cameraOn, disabled: publishLocked, action: av.toggleCamera },
-    { label: "Ekran ulashish", icon: MonitorUp, active: av.screenOn, disabled: publishLocked, action: av.toggleScreen },
+    { label: "Mikrofon", icon: av.micOn ? Mic : MicOff, active: av.micOn, disabled: publishLocked, pending: av.busy === "mic", action: av.toggleMic },
+    { label: "Kamera", icon: av.cameraOn ? Camera : CameraOff, active: av.cameraOn, disabled: publishLocked, pending: av.busy === "camera", action: av.toggleCamera },
+    { label: "Ekran ulashish", icon: MonitorUp, active: av.screenOn, disabled: publishLocked, pending: av.busy === "screen", action: av.toggleScreen },
     ...(canMod
       ? []
-      : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, disabled: false, action: toggleHand }]),
-    { label: "Izohlar", icon: MessageCircle, active: commentsOpen, disabled: false, action: () => setCommentsOpen(!commentsOpen) },
+      : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, disabled: false, pending: false, action: toggleHand }]),
+    { label: "Izohlar", icon: MessageCircle, active: commentsOpen, disabled: false, pending: false, action: () => setCommentsOpen(!commentsOpen) },
   ];
 
   // ── Active session overlay ─────────────────────────────────────────
@@ -424,152 +415,85 @@ export default function LiveSession({
               </div>
             )}
 
-            {/* ── Video ko'rinishi ── */}
-            {connState === "joined" && view === "video" && (
-              <div className="live-video-view">
-                <div className="live-video-grid">
-                  {onStage.slice(0, 4).map((p) => {
-                    const m = av.byUser(p.userId);
-                    return (
-                      <div
-                        key={p.userId}
-                        className={`live-video-tile${m.speaking ? " speaking" : ""}${selectable(p) ? " selectable" : ""}`}
-                        onClick={() => pick(p)}
-                      >
-                        {m.camera ? (
-                          <VideoTrackView track={m.camera} mirror={p.userId === me?.userId} />
-                        ) : (
-                          <div className="live-tile-avatar" style={{ background: avatarColor(p.name) }}>
-                            {p.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <div className="live-video-label">
-                          <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
-                          {p.handRaised ? (
-                            <Hand size={14} color="#ffb800" />
-                          ) : m.speaking ? (
-                            <span className="live-level">▂▅▃</span>
-                          ) : m.micOn ? (
-                            <Mic size={15} />
-                          ) : (
-                            <MicOff size={15} />
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {Array.from({ length: Math.max(0, 4 - onStage.length) }).map((_, i) => (
-                    <div key={`empty-${i}`} className="live-video-tile" />
-                  ))}
-                </div>
-                <div className="live-avatar-strip">
-                  {onStage.slice(4, 9).map((p) => (
-                    <button key={p.userId} className="live-avatar-btn" onClick={() => pick(p)} disabled={!selectable(p)}>
-                      <Avatar name={p.name} />
-                    </button>
-                  ))}
-                  {participantCount > 9 && (
-                    <span className="live-more">+{participantCount - 9}</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ── Ekran ulashish ko'rinishi ── */}
-            {connState === "joined" && view === "screen" && (
-              <div className="live-screen-view">
-                <div className="live-share-banner">
-                  <MonitorUp size={17} />
-                  {sharerName && <Avatar name={sharerName} />}
-                  {sharerName ? `${sharerName} ekranini ulashmoqda` : "Hozir hech kim ekran ulashmayapti"}
-                </div>
-                {av.screenSharer ? (
-                  <div className="live-shared-screen">
-                    <VideoTrackView track={av.screenSharer.track} fit="contain" />
-                  </div>
-                ) : (
-                <div className="live-shared-slide">
-                  <div className="live-slide-heading">
-                    {bookTitle.toUpperCase()}
-                    <small>{sessionTitle}</small>
-                  </div>
-                  <div className="live-slide-body">
-                    <div className="live-book-cover">
-                      <strong>{bookTitle.split(" ").slice(0, 2).join(" ").toUpperCase()}</strong>
-                      <small>{sessionTitle}</small>
-                      <span>{bookTitle}</span>
+            {/* ── Yagona xona: ovozli asos + kerak bo'lsa video/taqdimot sahnasi ── */}
+            {connState === "joined" && (
+              <div className={`live-room${stage ? " has-stage" : ""}`}>
+                {stage === "screen" && av.screenSharer && (
+                  <section className="live-stage live-stage-screen">
+                    <div className="live-share-banner">
+                      <MonitorUp size={17} />
+                      {sharerName && <Avatar name={sharerName} />}
+                      {sharerName} ekranini ulashmoqda
                     </div>
-                    <ol>
-                      <li><strong>Muhokama</strong><small>Kitob haqida fikr almashish</small></li>
-                      <li><strong>Savollar</strong><small>Qatnashchilar savollari</small></li>
-                      <li><strong>Xulosa</strong><small>Asosiy xulosalar</small></li>
-                    </ol>
-                  </div>
-                </div>
-                )}
-                <div className="live-speaker-strip">
-                  {onStage.slice(0, 4).map((p) => {
-                    const m = av.byUser(p.userId);
-                    return (
-                      <div key={p.userId} onClick={() => pick(p)} className={m.speaking ? "speaking" : ""}>
-                        {m.camera ? (
-                          <VideoTrackView track={m.camera} mirror={p.userId === me?.userId} />
-                        ) : (
-                          <div className="live-tile-avatar" style={{ background: avatarColor(p.name), width: "100%", height: "100%", borderRadius: 5, fontSize: 24 }}>
-                            {p.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <span>{p.name}</span>
+                    <div className="live-shared-screen">
+                      <VideoTrackView track={av.screenSharer.track} fit="contain" />
+                    </div>
+                    {cameraPeople.length > 0 && (
+                      <div className="live-camera-strip">
+                        {cameraPeople.map(cameraTile)}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ── Ovozli ko'rinish ── */}
-            {connState === "joined" && view === "audio" && (
-              <div className="live-audio-view">
-                {canMod && handQueue.length > 0 && (
-                  <section className="live-hand-queue">
-                    <h3><Hand size={15} /> Navbatda ({handQueue.length})</h3>
-                    {handQueue.map((p) => (
-                      <div key={p.userId}>
-                        <Avatar name={p.name} />
-                        <strong>{p.name}</strong>
-                        <button onClick={() => modAction("grant", p)}>So'z berish</button>
-                      </div>
-                    ))}
+                    )}
                   </section>
                 )}
-                <h3>Gapirayotganlar ({speakers.length})</h3>
-                <div className="live-speakers">
-                  {speakers.map((p) => (
-                    <div key={p.userId} onClick={() => pick(p)} className={`${selectable(p) ? "selectable" : ""}${av.byUser(p.userId).speaking ? " speaking" : ""}`}>
-                      <Avatar name={p.name} />
-                      <strong>{p.name}</strong>
-                      {p.role === "moderator" ? <small>Boshlovchi</small> : !av.byUser(p.userId).micOn && <MicOff size={13} />}
-                    </div>
-                  ))}
-                  {speakers.length === 0 && (
-                    <p className="muted" style={{ fontSize: 12 }}>Hali so'zlovchi yo'q</p>
-                  )}
-                </div>
-                <h3>Tinglovchilar ({listenersList.length})</h3>
-                <div className="live-listeners">
-                  {listenersList.map((p) => (
-                    <div key={p.userId} onClick={() => pick(p)} className={selectable(p) ? "selectable" : ""}>
-                      <Avatar name={p.name} />
-                      <strong>{p.name}</strong>
-                      {p.handRaised ? <Hand size={13} /> : <MicOff size={13} />}
-                    </div>
-                  ))}
-                </div>
-                {!canMod && (
-                  <span className="live-queue">
-                    <Hand size={16} /> {handRaised ? "Navbatdasiz" : "Qo'l ko'tarib navbatga turing"}
-                  </span>
+
+                {stage === "cameras" && (
+                  <section className={`live-stage live-camera-grid n${Math.min(cameraPeople.length, 4)}`}>
+                    {cameraPeople.slice(0, 4).map(cameraTile)}
+                    {cameraPeople.length > 4 && (
+                      <span className="live-more-cams">+{cameraPeople.length - 4} kamera</span>
+                    )}
+                  </section>
                 )}
+
+                <section className="live-audio-view">
+                  {canMod && handQueue.length > 0 && (
+                    <div className="live-hand-queue">
+                      <h3><Hand size={15} /> Navbatda ({handQueue.length})</h3>
+                      {handQueue.map((p) => (
+                        <div key={p.userId}>
+                          <Avatar name={p.name} />
+                          <strong>{p.name}</strong>
+                          <button onClick={() => modAction("grant", p)}>So'z berish</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <h3>Gapirayotganlar ({speakers.length})</h3>
+                  <div className="live-speakers">
+                    {speakers.map((p) => {
+                      const m = av.byUser(p.userId);
+                      return (
+                        <div key={p.userId} onClick={() => pick(p)} className={`${selectable(p) ? "selectable" : ""}${m.speaking ? " speaking" : ""}`}>
+                          <Avatar name={p.name} />
+                          <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
+                          <span className="live-person-icons">
+                            {p.role === "moderator" && <small>Boshlovchi</small>}
+                            {m.camera && <Camera size={13} />}
+                            {!m.micOn && <MicOff size={13} />}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {speakers.length === 0 && (
+                      <p className="muted" style={{ fontSize: 12 }}>Hali so'zlovchi yo'q</p>
+                    )}
+                  </div>
+                  <h3>Tinglovchilar ({listenersList.length})</h3>
+                  <div className="live-listeners">
+                    {listenersList.map((p) => (
+                      <div key={p.userId} onClick={() => pick(p)} className={selectable(p) ? "selectable" : ""}>
+                        <Avatar name={p.name} />
+                        <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
+                        {p.handRaised ? <Hand size={13} /> : <MicOff size={13} />}
+                      </div>
+                    ))}
+                  </div>
+                  {!canMod && (
+                    <span className="live-queue">
+                      <Hand size={16} /> {handRaised ? "Navbatdasiz" : "Qo'l ko'tarib navbatga turing"}
+                    </span>
+                  )}
+                </section>
               </div>
             )}
 
@@ -667,22 +591,16 @@ export default function LiveSession({
 
           {/* ── Boshqaruv paneli ── */}
           <footer className="live-controls">
-            <div className="live-view-switch" role="group" aria-label="Suhbat ko'rinishi">
-              <button className={view === "video" ? "selected" : ""} onClick={() => setView("video")}>Video</button>
-              {sharerId && (
-                <button className={view === "screen" ? "selected" : ""} onClick={() => setView("screen")}>Ekran</button>
-              )}
-              <button className={view === "audio" ? "selected" : ""} onClick={() => setView("audio")}>Ovozli</button>
-            </div>
             <div className="live-control-actions">
-              {controls.map(({ label, icon: Icon, active, disabled, action }) => (
+              {controls.map(({ label, icon: Icon, active, disabled, pending, action }) => (
                 <button
-                  className={active ? "active" : ""}
+                  className={`${active ? "active" : ""}${pending ? " pending" : ""}`}
                   key={label}
                   onClick={action}
-                  disabled={disabled}
+                  disabled={disabled || pending}
                   aria-label={label}
-                  title={disabled ? lockedHint : label}
+                  aria-busy={pending}
+                  title={disabled ? lockedHint : pending ? "Yoqilmoqda…" : label}
                 >
                   <span><Icon size={20} /></span>
                   <small>{label}</small>

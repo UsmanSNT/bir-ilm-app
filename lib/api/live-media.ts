@@ -12,12 +12,14 @@ import {
   Room,
   RoomEvent,
   Track,
+  VideoPresets,
   type Participant,
   type RemoteTrack,
 } from "livekit-client";
 import type { LiveMedia } from "@/shared/contract/live";
 
 export type MediaStatus = "off" | "connecting" | "connected" | "error";
+type Busy = "mic" | "camera" | "screen" | "audio" | null;
 
 export type ParticipantMedia = {
   camera?: Track;
@@ -34,6 +36,8 @@ export type LiveMediaApi = {
   screenOn: boolean;
   /** Brauzer ovozni avtomatik ijro etishni blokladi — foydalanuvchi bosishi kerak. */
   audioBlocked: boolean;
+  /** Hozir yoqilayotgan/o'chirilayotgan qurilma — tugma qulflanadi. */
+  busy: Busy;
   byUser: (userId: string) => ParticipantMedia;
   /** Hozir ekran ulashayotgan qatnashchi (bo'lsa). */
   screenSharer: { userId: string; track: Track } | null;
@@ -45,9 +49,13 @@ export type LiveMediaApi = {
 
 const EMPTY: ParticipantMedia = { micOn: false, speaking: false };
 
+// Tez-tez bosilganda bir manbadan ikki trek paydo bo'lishi mumkin — eng oxirgi faolini olamiz.
 function trackOf(p: Participant, source: Track.Source): Track | undefined {
-  const pub = p.getTrackPublication(source);
-  return pub && !pub.isMuted ? pub.track : undefined;
+  let found: Track | undefined;
+  for (const pub of p.trackPublications.values()) {
+    if (pub.source === source && !pub.isMuted && pub.track) found = pub.track;
+  }
+  return found;
 }
 
 function explain(error: unknown): string {
@@ -84,7 +92,13 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
     host.hidden = true;
     document.body.appendChild(host);
 
-    const room = new Room({ adaptiveStream: true, dynacast: true });
+    const room = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+      audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      // Mobil internetda 720p yuklash qiyin; suhbat uchun 540p yetarli.
+      videoCaptureDefaults: { resolution: VideoPresets.h540.resolution },
+    });
     roomRef.current = room;
     setRoom(room);
 
@@ -167,19 +181,28 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
     }
   }
 
-  const run = useCallback(async (action: (r: Room) => Promise<unknown>, silentDenied = false) => {
+  // Kamera yoqilishi bir necha soniya olishi mumkin; shu vaqtda qayta bosish ikkinchi trek ochib yuborardi.
+  const [busy, setBusy] = useState<Busy>(null);
+  const busyRef = useRef<Busy>(null);
+  const run = useCallback(async (kind: NonNullable<Busy>, action: (r: Room) => Promise<unknown>, silentDenied = false) => {
+    if (busyRef.current) return;
     const r = roomRef.current;
     if (!r || r.state !== ConnectionState.Connected) {
       onErrorRef.current("Ovoz/video serveriga hali ulanilmagan.");
       return;
     }
+    busyRef.current = kind;
+    setBusy(kind);
     try {
       await action(r);
     } catch (e) {
       // Ekran tanlash oynasini yopish ham NotAllowedError beradi — bu xato emas.
       if (!(silentDenied && e instanceof Error && e.name === "NotAllowedError")) onErrorRef.current(explain(e));
+    } finally {
+      busyRef.current = null;
+      setBusy(null);
+      refresh();
     }
-    refresh();
   }, []);
 
   return {
@@ -189,11 +212,12 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
     cameraOn: Boolean(local?.isCameraEnabled),
     screenOn: Boolean(local?.isScreenShareEnabled),
     audioBlocked: Boolean(room && status === "connected" && !room.canPlaybackAudio),
+    busy,
     byUser,
     screenSharer,
-    toggleMic: () => run((r) => r.localParticipant.setMicrophoneEnabled(!r.localParticipant.isMicrophoneEnabled)),
-    toggleCamera: () => run((r) => r.localParticipant.setCameraEnabled(!r.localParticipant.isCameraEnabled)),
-    toggleScreen: () => run((r) => r.localParticipant.setScreenShareEnabled(!r.localParticipant.isScreenShareEnabled, { audio: true }), true),
-    startAudio: () => run((r) => r.startAudio()),
+    toggleMic: () => run("mic", (r) => r.localParticipant.setMicrophoneEnabled(!r.localParticipant.isMicrophoneEnabled)),
+    toggleCamera: () => run("camera", (r) => r.localParticipant.setCameraEnabled(!r.localParticipant.isCameraEnabled)),
+    toggleScreen: () => run("screen", (r) => r.localParticipant.setScreenShareEnabled(!r.localParticipant.isScreenShareEnabled, { audio: true }), true),
+    startAudio: () => run("audio", (r) => r.startAudio()),
   };
 }
