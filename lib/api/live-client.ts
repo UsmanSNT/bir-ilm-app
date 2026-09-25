@@ -49,8 +49,9 @@ function resolveWsUrl(): string {
   if (typeof globalThis.location !== "undefined") {
     const loc = globalThis.location;
     const proto = loc.protocol === "https:" ? "wss:" : "ws:";
-    const host = loc.hostname;
-    return `${proto}//${host}:8788`;
+    // Domen orqali (80/443) chat ham shu manzildan, teskari proksi yo'li bilan o'tadi.
+    if (!loc.port) return `${proto}//${loc.host}/live-ws`;
+    return `${proto}//${loc.hostname}:8788`;
   }
 
   return "ws://localhost:8788";
