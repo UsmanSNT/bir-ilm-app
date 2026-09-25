@@ -153,6 +153,18 @@ export default function LiveSession({
     else if (view === "screen") setView("video");
   }
 
+  // Ovozli ko'rinishdagi odam birinchi kamera yonganda videoga o'tadi (ekran ulashilmayotgan bo'lsa).
+  const cameraOwner = participants.find((p) => av.byUser(p.userId).camera)?.userId ?? null;
+  const [lastCameraOwner, setLastCameraOwner] = useState<string | null>(null);
+  if (cameraOwner !== lastCameraOwner) {
+    setLastCameraOwner(cameraOwner);
+    if (cameraOwner && !lastCameraOwner && view === "audio" && !sharerId) {
+      setView("video");
+      const who = participants.find((p) => p.userId === cameraOwner)?.name ?? "Qatnashchi";
+      setNotice(`${who} kamerasini yoqdi`);
+    }
+  }
+
   const clientRef = useRef<LiveClient | null>(null);
   const meRef = useRef<Me | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -320,6 +332,11 @@ export default function LiveSession({
   const sharerName = sharerId ? participants.find((p) => p.userId === sharerId)?.name ?? "Qatnashchi" : null;
 
   const allParticipants = participants;
+  // Katakchalar 4 ta: kamerasi yoqilganlar, keyin so'zi borlar birinchi ko'rinsin.
+  // Gapirish bo'yicha tartiblanmaydi — aks holda katakchalar har gapda sakrab turardi.
+  const stageScore = (p: LiveParticipant) =>
+    (av.byUser(p.userId).camera ? 2 : 0) + (p.role !== "listener" ? 1 : 0);
+  const onStage = [...participants].sort((a, b) => stageScore(b) - stageScore(a));
   const speakers = allParticipants.filter((p) => p.role !== "listener");
   const listenersList = allParticipants.filter((p) => p.role === "listener");
   const handQueue = listenersList.filter((p) => p.handRaised);
@@ -411,7 +428,7 @@ export default function LiveSession({
             {connState === "joined" && view === "video" && (
               <div className="live-video-view">
                 <div className="live-video-grid">
-                  {allParticipants.slice(0, 4).map((p) => {
+                  {onStage.slice(0, 4).map((p) => {
                     const m = av.byUser(p.userId);
                     return (
                       <div
@@ -441,12 +458,12 @@ export default function LiveSession({
                       </div>
                     );
                   })}
-                  {Array.from({ length: Math.max(0, 4 - allParticipants.length) }).map((_, i) => (
+                  {Array.from({ length: Math.max(0, 4 - onStage.length) }).map((_, i) => (
                     <div key={`empty-${i}`} className="live-video-tile" />
                   ))}
                 </div>
                 <div className="live-avatar-strip">
-                  {allParticipants.slice(4, 9).map((p) => (
+                  {onStage.slice(4, 9).map((p) => (
                     <button key={p.userId} className="live-avatar-btn" onClick={() => pick(p)} disabled={!selectable(p)}>
                       <Avatar name={p.name} />
                     </button>
@@ -491,7 +508,7 @@ export default function LiveSession({
                 </div>
                 )}
                 <div className="live-speaker-strip">
-                  {allParticipants.slice(0, 4).map((p) => {
+                  {onStage.slice(0, 4).map((p) => {
                     const m = av.byUser(p.userId);
                     return (
                       <div key={p.userId} onClick={() => pick(p)} className={m.speaking ? "speaking" : ""}>
