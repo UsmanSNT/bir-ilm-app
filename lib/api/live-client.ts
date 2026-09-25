@@ -8,6 +8,7 @@ import type {
   LiveSession,
   LiveParticipant,
   LiveMessage,
+  LiveMedia,
   WsClientMessage,
   WsServerMessage,
 } from "@/shared/contract/live";
@@ -23,6 +24,7 @@ export type LiveEventMap = {
     participants: LiveParticipant[];
     recentMessages: LiveMessage[];
     you: { userId: string; role: UserRole };
+    media: LiveMedia | null;
   };
   chat: LiveMessage;
   message_deleted: { messageId: number };
@@ -142,6 +144,7 @@ export class LiveClient {
           participants: msg.participants,
           recentMessages: msg.recentMessages,
           you: msg.you,
+          media: msg.media,
         });
         break;
       case "message_deleted":

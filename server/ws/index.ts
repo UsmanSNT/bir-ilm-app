@@ -11,6 +11,7 @@ import type { Database } from "@/server/db/client";
 import { deriveUserId } from "@/server/auth/identity";
 import * as live from "@/server/services/live";
 import { getUserRole } from "@/server/services/roles";
+import { closeMediaRoom, issueMediaToken, mediaEnabled, removeFromMedia, syncMediaRole } from "@/server/services/media";
 import type { WsClientMessage, WsServerMessage, LiveRole } from "@/shared/contract/live";
 import { canModerate } from "@/shared/contract/roles";
 
@@ -37,6 +38,40 @@ function send(ws: WebSocket, msg: WsServerMessage) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
 
+// Internet bir lahza uzilsa, so'zlovchi rolini yo'qotmasligi uchun chiqishni biroz kutamiz.
+const DEPARTURE_GRACE_MS = 15_000;
+const pendingDepartures = new Map<string, ReturnType<typeof setTimeout>>();
+const departureKey = (sessionId: string, userId: string) => `${sessionId}|${userId}`;
+
+function isConnected(sessionId: string, userId: string) {
+  for (const c of clients.values()) if (c.sessionId === sessionId && c.userId === userId) return true;
+  return false;
+}
+
+function cancelDeparture(sessionId: string, userId: string) {
+  const key = departureKey(sessionId, userId);
+  clearTimeout(pendingDepartures.get(key));
+  pendingDepartures.delete(key);
+}
+
+async function depart(db: Database, sessionId: string, userId: string) {
+  cancelDeparture(sessionId, userId);
+  if (isConnected(sessionId, userId)) return;
+  await live.leaveSession(db, sessionId, userId);
+  const count = await live.getParticipantCount(db, sessionId);
+  broadcastToSession(sessionId, { type: "participant_left", userId, count });
+}
+
+function scheduleDeparture(db: Database, sessionId: string, userId: string) {
+  cancelDeparture(sessionId, userId);
+  pendingDepartures.set(
+    departureKey(sessionId, userId),
+    setTimeout(() => {
+      depart(db, sessionId, userId).catch((err) => console.error("[ws] departure failed", err));
+    }, DEPARTURE_GRACE_MS),
+  );
+}
+
 export function startWsServer(db: Database, port = 8788) {
   // Participant rows only reflect open sockets; after a restart none remain.
   live.clearAllParticipants(db).catch((err) => console.error("[ws] participant cleanup failed", err));
@@ -56,21 +91,14 @@ export function startWsServer(db: Database, port = 8788) {
       }
     });
 
-    ws.on("close", async () => {
-      if (client.sessionId) {
-        await live.leaveSession(db, client.sessionId, client.userId);
-        const count = await live.getParticipantCount(db, client.sessionId);
-        broadcastToSession(client.sessionId, {
-          type: "participant_left",
-          userId: client.userId,
-          count,
-        });
-      }
+    ws.on("close", () => {
       clients.delete(ws);
+      if (client.sessionId) scheduleDeparture(db, client.sessionId, client.userId);
     });
   });
 
   console.log(`[ws] WebSocket server: ws://0.0.0.0:${port}`);
+  console.log(mediaEnabled ? "[ws] Ovoz/video: LiveKit ulangan" : "[ws] Ovoz/video: o'chiq (LIVEKIT_* sozlanmagan)");
   return wss;
 }
 
@@ -100,22 +128,19 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
       }
 
       // Oldingi sessiyadan chiqish
-      if (client.sessionId && client.sessionId !== msg.sessionId) {
-        await live.leaveSession(db, client.sessionId, client.userId);
-        const oldCount = await live.getParticipantCount(db, client.sessionId);
-        broadcastToSession(client.sessionId, {
-          type: "participant_left",
-          userId: client.userId,
-          count: oldCount,
-        });
-      }
-
+      const previous = client.sessionId;
       client.sessionId = msg.sessionId;
+      if (previous && previous !== msg.sessionId) await depart(db, previous, client.userId);
+      cancelDeparture(msg.sessionId, client.userId);
 
-      // Admin va moderatorlar har qanday suhbatda boshqaruvchi bo'ladi.
+      // Admin va moderatorlar har qanday suhbatda boshqaruvchi bo'ladi. Qayta ulangan
+      // so'zlovchi esa so'zini saqlab qoladi.
       const globalRole = user?.role ?? "user";
+      const existing = (await live.getParticipants(db, msg.sessionId)).find((p) => p.userId === client.userId);
       const role: LiveRole =
-        canModerate(globalRole) || session.moderatorId === client.userId ? "moderator" : "listener";
+        canModerate(globalRole) || session.moderatorId === client.userId
+          ? "moderator"
+          : existing?.role === "speaker" ? "speaker" : "listener";
       const participant = await live.joinSession(db, msg.sessionId, client.userId, client.userName, role);
 
       // Boshqalarga xabar
@@ -132,26 +157,25 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         live.getRecentMessages(db, msg.sessionId),
       ]);
       const updatedSession = await live.getLiveSession(db, msg.sessionId);
+      const media = updatedSession!.status === "ended"
+        ? null
+        : await issueMediaToken(msg.sessionId, client.userId, client.userName, role);
       send(client.ws, {
         type: "joined",
         session: updatedSession!,
         participants,
         recentMessages,
         you: { userId: client.userId, role: globalRole },
+        media,
       });
       return;
     }
 
     case "leave": {
       if (!client.sessionId) return;
-      await live.leaveSession(db, client.sessionId, client.userId);
-      const count = await live.getParticipantCount(db, client.sessionId);
-      broadcastToSession(client.sessionId, {
-        type: "participant_left",
-        userId: client.userId,
-        count,
-      });
+      const sessionId = client.sessionId;
       client.sessionId = null;
+      await depart(db, sessionId, client.userId);
       return;
     }
 
@@ -180,8 +204,11 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
     case "mod:grant_speaker":
     case "mod:revoke_speaker": {
       if (!client.sessionId || !(await ensureModerator(db, client))) return;
+      const target = (await live.getParticipants(db, client.sessionId)).find((p) => p.userId === msg.targetUserId);
+      if (!target || target.role === "moderator") return;
       const role: LiveRole = msg.type === "mod:grant_speaker" ? "speaker" : "listener";
       await live.setRole(db, client.sessionId, msg.targetUserId, role);
+      await syncMediaRole(client.sessionId, msg.targetUserId, role);
       broadcastToSession(client.sessionId, { type: "role_update", userId: msg.targetUserId, role });
       return;
     }
@@ -196,7 +223,9 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
       }
       const sessionId = client.sessionId;
       kickedFrom(sessionId).add(msg.targetUserId);
+      cancelDeparture(sessionId, msg.targetUserId);
       await live.leaveSession(db, sessionId, msg.targetUserId);
+      await removeFromMedia(sessionId, msg.targetUserId);
       for (const other of clients.values()) {
         if (other.sessionId === sessionId && other.userId === msg.targetUserId) {
           send(other.ws, { type: "kicked" });
@@ -231,6 +260,7 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
       } else {
         const endedAt = await live.endLiveSession(db, client.sessionId);
         broadcastToSession(client.sessionId, { type: "session_ended", endedAt });
+        await closeMediaRoom(client.sessionId);
       }
       return;
     }

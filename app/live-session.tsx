@@ -20,8 +20,11 @@ import {
   Trash2,
   UserMinus,
   Users,
+  Volume2,
   X,
 } from "lucide-react";
+import type { Track } from "livekit-client";
+import { useLiveMedia } from "@/lib/api/live-media";
 import {
   LiveClient,
   fetchLiveSessions,
@@ -33,6 +36,7 @@ import type {
   LiveSession as LiveSessionType,
   LiveParticipant,
   LiveMessage,
+  LiveMedia,
 } from "@/shared/contract/live";
 import { canModerate, type UserRole } from "@/shared/contract/roles";
 
@@ -81,6 +85,28 @@ function Avatar({ name, className }: { name: string; className?: string }) {
   );
 }
 
+function VideoTrackView({ track, mirror = false, fit = "cover" }: { track: Track; mirror?: boolean; fit?: "cover" | "contain" }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    track.attach(el);
+    return () => {
+      track.detach(el);
+    };
+  }, [track]);
+  return (
+    <video
+      ref={ref}
+      className="live-video-el"
+      autoPlay
+      playsInline
+      muted
+      style={{ objectFit: fit, transform: mirror ? "scaleX(-1)" : undefined }}
+    />
+  );
+}
+
 type View = "video" | "screen" | "audio";
 type Me = { userId: string; role: UserRole };
 
@@ -111,11 +137,21 @@ export default function LiveSession({
   const [handRaised, setHandRaised] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [view, setView] = useState<View>("video");
-  const [micOn, setMicOn] = useState(true);
-  const [cameraOn, setCameraOn] = useState(true);
   const [draft, setDraft] = useState("");
   const [selected, setSelected] = useState<LiveParticipant | null>(null);
   const [notice, setNotice] = useState("");
+  const [media, setMedia] = useState<LiveMedia | null>(null);
+
+  const av = useLiveMedia(activeSessionId ? media : null, setNotice);
+  const sharerId = av.screenSharer?.userId ?? null;
+
+  // Kimdir ekran ulasha boshlasa, hamma avtomatik ekran ko'rinishiga o'tadi.
+  const [lastSharer, setLastSharer] = useState<string | null>(null);
+  if (sharerId !== lastSharer) {
+    setLastSharer(sharerId);
+    if (sharerId) setView("screen");
+    else if (view === "screen") setView("video");
+  }
 
   const clientRef = useRef<LiveClient | null>(null);
   const meRef = useRef<Me | null>(null);
@@ -159,12 +195,12 @@ export default function LiveSession({
     setSelected(null);
     setView("video");
     setHandRaised(false);
-    setMicOn(true);
-    setCameraOn(true);
+    setMedia(null);
 
     client.on("state", setConnState);
 
     client.on("joined", (data) => {
+      setMedia(data.media);
       setSessionData(data.session);
       setParticipants(data.participants);
       setMessages(data.recentMessages);
@@ -228,11 +264,13 @@ export default function LiveSession({
       setSessionData((prev) =>
         prev ? { ...prev, status: "ended", endedAt } : prev,
       );
+      setMedia(null);
     });
 
     client.on("kicked", () => {
       setActiveSessionId(null);
       setSessionData(null);
+      setMedia(null);
       setListNotice("Moderator sizni suhbatdan chiqardi.");
       loadSessions();
     });
@@ -249,6 +287,7 @@ export default function LiveSession({
     setActiveSessionId(null);
     setSessionData(null);
     setMe(null);
+    setMedia(null);
     setConnState("idle");
     loadSessions();
   }
@@ -278,6 +317,7 @@ export default function LiveSession({
   const canMod = canModerate(me?.role);
   const roomAdmin = me?.role === "admin";
   const status = sessionData?.status ?? "planned";
+  const sharerName = sharerId ? participants.find((p) => p.userId === sharerId)?.name ?? "Qatnashchi" : null;
 
   const allParticipants = participants;
   const speakers = allParticipants.filter((p) => p.role !== "listener");
@@ -288,14 +328,17 @@ export default function LiveSession({
   const selectable = (p: LiveParticipant) => canMod && p.userId !== me?.userId;
   const pick = (p: LiveParticipant) => selectable(p) && setSelected(p);
 
+  // Tinglovchi so'z berilmaguncha mikrofon, kamera va ekranni yoqa olmaydi (ruxsat LiveKit serverida).
+  const publishLocked = av.status !== "connected" || !av.canPublish;
+  const lockedHint = av.status !== "connected" ? "Ovoz/video serveriga ulanilmagan" : "So'z berilganda yoqiladi";
   const controls = [
-    { label: "Mikrofon", icon: micOn ? Mic : MicOff, active: micOn, action: () => setMicOn(!micOn) },
-    { label: "Kamera", icon: cameraOn ? Camera : CameraOff, active: cameraOn, action: () => setCameraOn(!cameraOn) },
-    { label: "Ekran ulashish", icon: MonitorUp, active: view === "screen", action: () => setView(view === "screen" ? "video" : "screen") },
+    { label: "Mikrofon", icon: av.micOn ? Mic : MicOff, active: av.micOn, disabled: publishLocked, action: av.toggleMic },
+    { label: "Kamera", icon: av.cameraOn ? Camera : CameraOff, active: av.cameraOn, disabled: publishLocked, action: av.toggleCamera },
+    { label: "Ekran ulashish", icon: MonitorUp, active: av.screenOn, disabled: publishLocked, action: av.toggleScreen },
     ...(canMod
       ? []
-      : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, action: toggleHand }]),
-    { label: "Izohlar", icon: MessageCircle, active: commentsOpen, action: () => setCommentsOpen(!commentsOpen) },
+      : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, disabled: false, action: toggleHand }]),
+    { label: "Izohlar", icon: MessageCircle, active: commentsOpen, disabled: false, action: () => setCommentsOpen(!commentsOpen) },
   ];
 
   // ── Active session overlay ─────────────────────────────────────────
@@ -368,27 +411,36 @@ export default function LiveSession({
             {connState === "joined" && view === "video" && (
               <div className="live-video-view">
                 <div className="live-video-grid">
-                  {allParticipants.slice(0, 4).map((p) => (
-                    <div
-                      key={p.userId}
-                      className={`live-video-tile${p.role === "moderator" ? " speaking" : ""}${selectable(p) ? " selectable" : ""}`}
-                      onClick={() => pick(p)}
-                    >
-                      <div className="live-tile-avatar" style={{ background: avatarColor(p.name) }}>
-                        {p.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="live-video-label">
-                        <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
-                        {p.handRaised ? (
-                          <Hand size={14} color="#ffb800" />
-                        ) : p.role !== "listener" ? (
-                          <span className="live-level">▂▅▃</span>
+                  {allParticipants.slice(0, 4).map((p) => {
+                    const m = av.byUser(p.userId);
+                    return (
+                      <div
+                        key={p.userId}
+                        className={`live-video-tile${m.speaking ? " speaking" : ""}${selectable(p) ? " selectable" : ""}`}
+                        onClick={() => pick(p)}
+                      >
+                        {m.camera ? (
+                          <VideoTrackView track={m.camera} mirror={p.userId === me?.userId} />
                         ) : (
-                          <MicOff size={15} />
+                          <div className="live-tile-avatar" style={{ background: avatarColor(p.name) }}>
+                            {p.name.charAt(0).toUpperCase()}
+                          </div>
                         )}
+                        <div className="live-video-label">
+                          <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
+                          {p.handRaised ? (
+                            <Hand size={14} color="#ffb800" />
+                          ) : m.speaking ? (
+                            <span className="live-level">▂▅▃</span>
+                          ) : m.micOn ? (
+                            <Mic size={15} />
+                          ) : (
+                            <MicOff size={15} />
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {Array.from({ length: Math.max(0, 4 - allParticipants.length) }).map((_, i) => (
                     <div key={`empty-${i}`} className="live-video-tile" />
                   ))}
@@ -411,9 +463,14 @@ export default function LiveSession({
               <div className="live-screen-view">
                 <div className="live-share-banner">
                   <MonitorUp size={17} />
-                  {speakers.length > 0 && <Avatar name={speakers[0].name} />}
-                  {speakers.length > 0 ? `${speakers[0].name} ekranini ulashmoqda` : "Ekran ulashish"}
+                  {sharerName && <Avatar name={sharerName} />}
+                  {sharerName ? `${sharerName} ekranini ulashmoqda` : "Hozir hech kim ekran ulashmayapti"}
                 </div>
+                {av.screenSharer ? (
+                  <div className="live-shared-screen">
+                    <VideoTrackView track={av.screenSharer.track} fit="contain" />
+                  </div>
+                ) : (
                 <div className="live-shared-slide">
                   <div className="live-slide-heading">
                     {bookTitle.toUpperCase()}
@@ -432,15 +489,23 @@ export default function LiveSession({
                     </ol>
                   </div>
                 </div>
+                )}
                 <div className="live-speaker-strip">
-                  {allParticipants.slice(0, 4).map((p) => (
-                    <div key={p.userId} onClick={() => pick(p)}>
-                      <div className="live-tile-avatar" style={{ background: avatarColor(p.name), width: "100%", height: "100%", borderRadius: 5, fontSize: 24 }}>
-                        {p.name.charAt(0).toUpperCase()}
+                  {allParticipants.slice(0, 4).map((p) => {
+                    const m = av.byUser(p.userId);
+                    return (
+                      <div key={p.userId} onClick={() => pick(p)} className={m.speaking ? "speaking" : ""}>
+                        {m.camera ? (
+                          <VideoTrackView track={m.camera} mirror={p.userId === me?.userId} />
+                        ) : (
+                          <div className="live-tile-avatar" style={{ background: avatarColor(p.name), width: "100%", height: "100%", borderRadius: 5, fontSize: 24 }}>
+                            {p.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span>{p.name}</span>
                       </div>
-                      <span>{p.name}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -463,10 +528,10 @@ export default function LiveSession({
                 <h3>Gapirayotganlar ({speakers.length})</h3>
                 <div className="live-speakers">
                   {speakers.map((p) => (
-                    <div key={p.userId} onClick={() => pick(p)} className={selectable(p) ? "selectable" : ""}>
+                    <div key={p.userId} onClick={() => pick(p)} className={`${selectable(p) ? "selectable" : ""}${av.byUser(p.userId).speaking ? " speaking" : ""}`}>
                       <Avatar name={p.name} />
                       <strong>{p.name}</strong>
-                      {p.role === "moderator" && <small>Boshlovchi</small>}
+                      {p.role === "moderator" ? <small>Boshlovchi</small> : !av.byUser(p.userId).micOn && <MicOff size={13} />}
                     </div>
                   ))}
                   {speakers.length === 0 && (
@@ -575,6 +640,11 @@ export default function LiveSession({
               </div>
             )}
 
+            {av.audioBlocked && (
+              <button className="live-audio-unlock" onClick={av.startAudio}>
+                <Volume2 size={16} /> Ovozni eshitish uchun bosing
+              </button>
+            )}
             {notice && <div className="live-toast" role="status">{notice}</div>}
           </div>
 
@@ -582,11 +652,21 @@ export default function LiveSession({
           <footer className="live-controls">
             <div className="live-view-switch" role="group" aria-label="Suhbat ko'rinishi">
               <button className={view === "video" ? "selected" : ""} onClick={() => setView("video")}>Video</button>
+              {sharerId && (
+                <button className={view === "screen" ? "selected" : ""} onClick={() => setView("screen")}>Ekran</button>
+              )}
               <button className={view === "audio" ? "selected" : ""} onClick={() => setView("audio")}>Ovozli</button>
             </div>
             <div className="live-control-actions">
-              {controls.map(({ label, icon: Icon, active, action }) => (
-                <button className={active ? "active" : ""} key={label} onClick={action} aria-label={label} title={label}>
+              {controls.map(({ label, icon: Icon, active, disabled, action }) => (
+                <button
+                  className={active ? "active" : ""}
+                  key={label}
+                  onClick={action}
+                  disabled={disabled}
+                  aria-label={label}
+                  title={disabled ? lockedHint : label}
+                >
                   <span><Icon size={20} /></span>
                   <small>{label}</small>
                 </button>
@@ -597,7 +677,13 @@ export default function LiveSession({
               </button>
             </div>
           </footer>
-          <p className="live-demo-note">Ko'rinish sinovi: ovoz va video uzatilmaydi.</p>
+          <p className={`live-demo-note media-${media ? av.status : "none"}`}>
+            {!media
+              ? "Ovoz va video serveri sozlanmagan — faqat izohlar ishlaydi."
+              : av.status === "connected"
+                ? av.canPublish ? "Ovoz/video ulangan." : "Ovoz/video ulangan. Gapirish uchun qo'l ko'taring."
+                : av.status === "error" ? "Ovoz/video serveriga ulanib bo'lmadi." : "Ovoz/video ulanmoqda…"}
+          </p>
         </div>
       </div>
     );

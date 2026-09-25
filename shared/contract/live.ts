@@ -55,6 +55,13 @@ export type LiveMessage = {
   createdAt: string;
 };
 
+export type LiveMedia = {
+  /** LiveKit serveri manzili (ws:// yoki wss://). */
+  url: string;
+  /** Shu xona va shu foydalanuvchi uchun qisqa muddatli ruxsat. */
+  token: string;
+};
+
 // ── WebSocket xabar tiplari ─────────────────────────────────────────
 
 /** Mijozdan serverga. */
@@ -79,6 +86,8 @@ export type WsServerMessage =
       recentMessages: LiveMessage[];
       /** Ulangan foydalanuvchining o'zi. */
       you: { userId: string; role: UserRole };
+      /** Ovoz/video serveriga ulanish. `null` — media server sozlanmagan yoki suhbat tugagan. */
+      media: LiveMedia | null;
     }
   | { type: "error"; message: string }
   | { type: "participant_joined"; participant: LiveParticipant; count: number }
