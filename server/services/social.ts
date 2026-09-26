@@ -23,6 +23,8 @@ import type {
   UpdateProfileInput,
 } from "@/shared/contract";
 import { decodeCursor, encodeCursor } from "./cursor";
+import { createCommunityPost, removePost, requireSignedIn } from "./community";
+import { plainToDoc } from "@/shared/contract";
 
 const { users, readingPosts, postReplies, readerFollows, focusSessions } = schema;
 
@@ -190,10 +192,16 @@ export async function createPost(
 ): Promise<Post> {
   await ensureUser(db, userId);
 
-  const [created] = await db
-    .insert(readingPosts)
-    .values({ id: crypto.randomUUID(), userId, book: input.book, body: input.body })
-    .returning();
+  // Community qoidalari (faqat ro'yxatdan o'tganlar, cheklovlar) bitta joyda.
+  const { id } = await createCommunityPost(db, userId, {
+    format: "post",
+    kind: "post",
+    title: "",
+    book: input.book,
+    content: plainToDoc(input.body),
+    attachments: [],
+  });
+  const created = (await db.query.readingPosts.findFirst({ where: eq(readingPosts.id, id) }))!;
 
   return {
     id: created.id,
@@ -219,11 +227,7 @@ export async function deletePost(db: Database, userId: string, postId: string): 
     if (actor?.role !== "admin" && actor?.role !== "moderator") throw forbidden("Bu post sizniki emas.");
   }
 
-  // `post_replies` da ON DELETE CASCADE bor, lekin D1 da foreign key majburlash
-  // o'chirilgan bo'lishi mumkin — izohlarni aniq o'chiramiz.
-  await db.delete(postReplies).where(eq(postReplies.postId, postId));
-  await db.delete(schema.postReports).where(eq(schema.postReports.postId, postId));
-  await db.delete(readingPosts).where(eq(readingPosts.id, postId));
+  await removePost(db, postId);
 }
 
 export async function createReply(
@@ -233,6 +237,7 @@ export async function createReply(
   input: CreateReplyInput,
 ): Promise<Reply> {
   await ensureUser(db, userId);
+  await requireSignedIn(db, userId, "Izoh yozish");
 
   const post = await db
     .select({ id: readingPosts.id })

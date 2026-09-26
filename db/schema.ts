@@ -8,6 +8,17 @@ export const readingPosts = sqliteTable("reading_posts", {
   body: text("body").notNull(),
   /** post — oddiy post; announcement — admin/moderator e'loni (bosh sahifadagi yangiliklarda). */
   kind: text("kind", { enum: ["post", "announcement"] }).notNull().default("post"),
+  /** post — lentadagi qisqa post; article — sarlavhali uzun maqola (alohida o'qish oynasida). */
+  format: text("format", { enum: ["post", "article"] }).notNull().default("post"),
+  /** Maqola yoki e'lon sarlavhasi (oddiy postda bo'sh bo'lishi mumkin). */
+  title: text("title").notNull().default(""),
+  /**
+   * Formatlangan matn — `shared/contract/community.ts` dagi bloklar (JSON).
+   * null — eski post: `body` oddiy matn sifatida ko'rsatiladi.
+   * `body` doim to'ldiriladi (matnli nusxa: qidiruv, e'lonlar, eski mijozlar uchun).
+   */
+  content: text("content"),
+  editedAt: text("edited_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [
   index("idx_posts_kind").on(t.kind, t.createdAt),
@@ -35,6 +46,42 @@ export const postReports = sqliteTable("post_reports", {
   reason: text("reason").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [uniqueIndex("idx_reports_post_user").on(t.postId, t.userId)]);
+
+/**
+ * Post rasmlari va videolari. Avval yuklanadi (post_id = null), post joylanganda
+ * unga bog'lanadi. Fayl: BIR_ILM_MEDIA_DIR/posts/<id>.<kengaytma>.
+ */
+export const postMedia = sqliteTable("post_media", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  postId: text("post_id").references(() => readingPosts.id, { onDelete: "set null" }),
+  kind: text("kind", { enum: ["image", "video"] }).notNull(),
+  mime: text("mime").notNull(),
+  /** Fayl nomi; yuklash tugamaguncha null. */
+  file: text("file"),
+  bytes: integer("bytes").notNull(),
+  width: integer("width").notNull().default(0),
+  height: integer("height").notNull().default(0),
+  seconds: integer("seconds").notNull().default(0),
+  /** attachment — post tepasidagi albom; inline — matn ichidagi rasm/video. */
+  role: text("role", { enum: ["attachment", "inline"] }).notNull().default("attachment"),
+  position: integer("position").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [
+  index("idx_post_media_post").on(t.postId, t.position),
+  index("idx_post_media_user").on(t.userId, t.createdAt),
+]);
+
+/** Reaksiya: bir foydalanuvchi bir postga bitta (Telegram kabi — bosilsa almashadi). */
+export const postReactions = sqliteTable("post_reactions", {
+  postId: text("post_id").notNull().references(() => readingPosts.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  emoji: text("emoji").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [
+  uniqueIndex("idx_reactions_post_user").on(t.postId, t.userId),
+  index("idx_reactions_post").on(t.postId, t.emoji),
+]);
 
 export const readerFollows = sqliteTable("reader_follows", {
   followerId: text("follower_id").notNull().references(() => users.id, { onDelete: "cascade" }),

@@ -11,6 +11,8 @@ async function reader(name) {
   assert.match(response.headers.get("set-cookie"), /HttpOnly/);
   const initial = await response.json();
   ids.push(initial.userId);
+  // Community'da faqat ro'yxatdan o'tganlar yozadi — Google hisobini bog'laymiz.
+  sqlite.prepare("INSERT OR IGNORE INTO auth_accounts (provider, subject, user_id, display_name) VALUES ('google', ?, ?, 'Test')").run(`test-${initial.userId}`, initial.userId);
   return {
     id: initial.userId,
     get: async (query = "") => {

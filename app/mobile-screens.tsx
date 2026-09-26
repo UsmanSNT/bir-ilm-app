@@ -610,9 +610,9 @@ export function useAnnouncements(): Announcement[] {
   useEffect(() => {
     const ctrl = new AbortController();
     fetch("/api/social?scope=announcements", { signal: ctrl.signal })
-      .then((r) => (r.ok ? (r.json() as Promise<{ posts?: { id: string; book: string; body: string; createdAt: string }[] }>) : null))
+      .then((r) => (r.ok ? (r.json() as Promise<{ posts?: { id: string; title?: string; book: string; body: string; createdAt: string }[] }>) : null))
       .then((data) => {
-        setItems((data?.posts ?? []).map((p) => ({ id: p.id, title: p.book, body: p.body, time: relativeTime(p.createdAt) })));
+        setItems((data?.posts ?? []).map((p) => ({ id: p.id, title: p.title || p.book, body: p.body, time: relativeTime(p.createdAt) })));
       })
       .catch(() => {});
     return () => ctrl.abort();

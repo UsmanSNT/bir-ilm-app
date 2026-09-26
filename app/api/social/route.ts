@@ -3,6 +3,11 @@ import type { ReadingPost, PostReply, Reader } from "@/app/social-types";
 import { resolveIdentity, sessionCookie } from "@/server/auth/identity";
 import { corsHeaders, isAllowedOrigin, parseAllowedOrigins, preflightResponse } from "@/server/http/cors";
 import { canModerate, type UserRole } from "@/shared/contract/roles";
+import { COMMUNITY_LIMITS, plainToDoc, readingMinutes } from "@/shared/contract/community";
+import { tryGetDb } from "@/server/db/client";
+import { isSignedIn } from "@/server/services/accounts";
+import { ApiException } from "@/server/http/errors";
+import { createCommunityPost, loadPostExtras, parseContent, removePost, requireSignedIn } from "@/server/services/community";
 
 export const runtime = "edge";
 
@@ -41,6 +46,32 @@ async function identity(request: Request) {
   return { id: resolved.userId, headers };
 }
 
+type PostRow = Omit<ReadingPost, "replies" | "content" | "media" | "attachments" | "reactions" | "myReaction" | "readMinutes" | "truncated"> & { content: string | null };
+
+/**
+ * Formatlangan matn, rasm/video va reaksiyalarni qo'shadi. Lentada maqolaning
+ * to'liq matni yuborilmaydi (faqat boshi) — u `?post=<id>` bilan alohida olinadi.
+ */
+async function decorate(rows: PostRow[], viewerId: string, full: boolean): Promise<Omit<ReadingPost, "replies">[]> {
+  const orm = await tryGetDb();
+  const extras = orm ? await loadPostExtras(orm, rows.map(r => r.id), viewerId) : null;
+  return rows.map(row => {
+    const truncated = !full && row.format === "article";
+    const content = truncated ? null : parseContent(row.content);
+    return {
+      ...row,
+      body: truncated && row.body.length > COMMUNITY_LIMITS.excerpt ? `${row.body.slice(0, COMMUNITY_LIMITS.excerpt).trimEnd()}…` : row.body,
+      content,
+      truncated,
+      readMinutes: readingMinutes(row.body),
+      media: extras?.media.get(row.id) ?? [],
+      attachments: extras?.attachments.get(row.id) ?? [],
+      reactions: extras?.reactions.get(row.id) ?? [],
+      myReaction: extras?.mine.get(row.id) ?? null,
+    };
+  });
+}
+
 /** Native ilovalar uchun CORS preflight. */
 export function OPTIONS(request: Request) {
   return preflightResponse(corsContext(request));
@@ -58,6 +89,7 @@ export async function GET(request: Request) {
     const scope = query.get("scope");
     const author = query.get("author");
     const before = query.get("before");
+    const single = query.get("post");
     const conditions = ["1=1"];
     const args: string[] = [];
     if (scope === "following") { conditions.push("p.user_id IN (SELECT followed_id FROM reader_follows WHERE follower_id=?)"); args.push(id); }
@@ -69,8 +101,10 @@ export async function GET(request: Request) {
     }
     if (author) { conditions.push("p.user_id=?"); args.push(author); }
     if (before) { conditions.push("p.rowid < (SELECT rowid FROM reading_posts WHERE id=?)"); args.push(before); }
+    if (single) { conditions.push("p.id=?"); args.push(single); }
     const reportsColumn = moderator ? "(SELECT count(*) FROM post_reports r WHERE r.post_id=p.id)" : "0";
-    const posts = (await db.prepare(`SELECT p.id, p.user_id AS userId, u.name, p.book, p.body, p.kind, p.created_at AS createdAt, ${reportsColumn} AS reports FROM reading_posts p JOIN users u ON u.id=p.user_id WHERE ${conditions.join(" AND ")} ORDER BY p.rowid DESC LIMIT 20`).bind(...args).all<Omit<ReadingPost, "replies">>()).results;
+    const rows = (await db.prepare(`SELECT p.id, p.user_id AS userId, u.name, u.avatar_url AS avatarUrl, p.book, p.body, p.kind, p.format, p.title, p.content, p.edited_at AS editedAt, p.created_at AS createdAt, ${reportsColumn} AS reports FROM reading_posts p JOIN users u ON u.id=p.user_id WHERE ${conditions.join(" AND ")} ORDER BY p.rowid DESC LIMIT 20`).bind(...args).all<PostRow>()).results;
+    const posts = await decorate(rows, id, Boolean(single));
     const replies: PostReply[] = [];
     if (posts.length) {
       const result = await db.prepare(`SELECT r.id, r.post_id AS postId, r.user_id AS userId, u.name, r.body, r.created_at AS createdAt FROM post_replies r JOIN users u ON u.id=r.user_id WHERE r.post_id IN (${posts.map(() => "?").join(",")}) ORDER BY r.rowid ASC`).bind(...posts.map(p => p.id)).all<PostReply>();
@@ -83,11 +117,13 @@ export async function GET(request: Request) {
       ? (await db.prepare("SELECT count(DISTINCT post_id) AS n FROM post_reports").first<{ n: number }>())?.n ?? 0
       : 0;
     const profile = await db.prepare(`${profileQuery} WHERE u.id=?`).bind(id).first<Reader>();
+    const orm = await tryGetDb();
+    const signedIn = orm ? await isSignedIn(orm, id) : false;
     const authorProfile = author ? await db.prepare(`${profileQuery} WHERE u.id=?`).bind(author).first<Reader>() : null;
     const following = (await db.prepare("SELECT followed_id AS id FROM reader_follows WHERE follower_id=?").bind(id).all<{id: string}>()).results.map(r => r.id);
     const followers = await db.prepare("SELECT count(*) AS total FROM reader_follows WHERE followed_id=?").bind(id).first<{total: number}>();
     const focus = await db.prepare("SELECT COALESCE(sum(minutes),0) AS minutes, count(*) AS sessions FROM focus_sessions WHERE user_id=?").bind(id).first<{minutes: number; sessions: number}>();
-    return Response.json({ userId: id, role, profile, authorProfile, posts: posts.map(p => ({ ...p, replies: replies.filter(r => r.postId === p.id) })), readers, following, followers: followers?.total ?? 0, focusMinutes: focus?.minutes ?? 0, sessions: focus?.sessions ?? 0, reportedPosts }, { headers });
+    return Response.json({ userId: id, role, signedIn, profile, authorProfile, posts: posts.map(p => ({ ...p, replies: replies.filter(r => r.postId === p.id) })), readers, following, followers: followers?.total ?? 0, focusMinutes: focus?.minutes ?? 0, sessions: focus?.sessions ?? 0, reportedPosts }, { headers });
   } catch {
     return Response.json({ error: "Lenta yuklanmadi. Qayta urinib ko'ring." }, { status: 503, headers });
   }
@@ -108,6 +144,7 @@ export async function POST(request: Request) {
   } catch { return Response.json({ error: "So'rov noto'g'ri." }, { status: 400, headers }); }
   const value = (key: string, max: number) => typeof payload[key] === "string" ? (payload[key] as string).trim().slice(0, max) : "";
   const fail = (error: string, status = 400) => Response.json({ error }, { status, headers });
+  const orm = async () => { const db = await tryGetDb(); if (!db) throw Error("DB unavailable"); return db; };
   try {
     const db = env.DB;
     if (!db) throw Error("DB unavailable");
@@ -128,11 +165,18 @@ export async function POST(request: Request) {
         break;
       }
       case "post": {
-        const book = value("book", 160), body = value("body", 2000);
+        // Eski oddiy matnli shakl (eski ilova versiyalari). Yangi UI /api/v1/community/posts ga yozadi.
+        const book = value("book", 160), body = value("body", COMMUNITY_LIMITS.postText);
         const kind = payload.kind === "announcement" ? "announcement" : "post";
-        if (kind === "announcement" && !moderator) return fail("E'lonni faqat admin yoki moderator joylaydi.", 403);
-        if (!book || !body) return fail(kind === "announcement" ? "E'lon sarlavhasi va matnini yozing." : "Kitob nomi va fikringizni yozing.");
-        await db.prepare("INSERT INTO reading_posts (id,user_id,book,body,kind) VALUES (?,?,?,?,?)").bind(crypto.randomUUID(), id, book, body, kind).run();
+        if (!body) return fail("Fikringizni yozing.");
+        await createCommunityPost(await orm(), id, {
+          format: "post",
+          kind,
+          title: kind === "announcement" ? book : "",
+          book: kind === "announcement" ? "" : book,
+          content: plainToDoc(body),
+          attachments: [],
+        });
         break;
       }
       case "report": {
@@ -156,6 +200,7 @@ export async function POST(request: Request) {
         break;
       }
       case "reply": {
+        await requireSignedIn(await orm(), id, "Izoh yozish");
         const postId = value("postId", 64), body = value("body", 1000);
         if (!body) return fail("Izohni yozing.");
         if (!await db.prepare("SELECT id FROM reading_posts WHERE id=?").bind(postId).first()) return fail("Post topilmadi.", 404);
@@ -172,13 +217,8 @@ export async function POST(request: Request) {
       case "delete": {
         const postId = value("postId", 64);
         // Muallif o'z postini, admin/moderator esa istalgan postni o'chiradi.
-        const owner = moderator ? "" : " AND user_id=?";
-        const bind = moderator ? [postId] : [postId, id];
-        await db.batch([
-          db.prepare(`DELETE FROM post_replies WHERE post_id IN (SELECT id FROM reading_posts WHERE id=?${owner})`).bind(...bind),
-          db.prepare(`DELETE FROM post_reports WHERE post_id IN (SELECT id FROM reading_posts WHERE id=?${owner})`).bind(...bind),
-          db.prepare(`DELETE FROM reading_posts WHERE id=?${owner}`).bind(...bind),
-        ]);
+        const post = await db.prepare("SELECT user_id AS userId FROM reading_posts WHERE id=?").bind(postId).first<{ userId: string }>();
+        if (post && (moderator || post.userId === id)) await removePost(await orm(), postId);
         break;
       }
       case "focus": {
@@ -191,5 +231,8 @@ export async function POST(request: Request) {
       default: return fail("Noma'lum amal.");
     }
     return Response.json({ ok: true }, { headers });
-  } catch { return fail("Saqlanmadi. Qayta urinib ko'ring.", 503); }
+  } catch (error) {
+    if (error instanceof ApiException) return Response.json({ error: error.message, code: error.code }, { status: error.status, headers });
+    return fail("Saqlanmadi. Qayta urinib ko'ring.", 503);
+  }
 }

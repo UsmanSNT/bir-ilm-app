@@ -116,6 +116,26 @@ o'zgartirish ilovani buzmaydi.
 | `GET` / `POST` | `/api/v1/books/{id}/comments` | Kitob muhokamasi |
 | `GET` / `PUT` | `/api/v1/progress` | O'qish jarayoni |
 | `GET` | `/api/v1/leaderboard` | Reyting |
+| `POST` | `/api/v1/community/posts` | Formatlangan post yoki maqola (faqat ro'yxatdan o'tganlar) |
+| `PUT` | `/api/v1/community/posts/{id}` | O'z postini tahrirlash |
+| `POST` | `/api/v1/community/reactions` | Reaksiya: qo'yish / almashtirish / olib tashlash |
+| `POST` | `/api/v1/media` | Rasm/video yuklashni boshlash |
+| `GET` / `PUT` | `/api/v1/media/{id}` | Bo'laklab yuklash (`X-Upload-Offset`) va davom ettirish |
+| `GET` | `/media/posts/{fayl}` | Post rasmi/videosi (Range bilan) |
+| `GET` | `/p/{id}` | Ulashiladigan havola: Open Graph preview, so'ng `/?post={id}` |
+
+### Community
+
+- **Yozish faqat ro'yxatdan o'tganlarga** (Google/Telegram bog'langan yoki admin/moderator):
+  post, izoh, reaksiya, fayl yuklash. Mehmon faqat o'qiydi — server `401 unauthorized` qaytaradi.
+- **Matn HTML emas** — bloklar (JSON) sifatida saqlanadi: `shared/contract/community.ts`
+  (paragraf, sarlavha, iqtibos, kod, ro'yxat, rasm/video, ajratgich; belgilar: qalin, kursiv,
+  tagiga/ustidan chizilgan, monospace, spoiler, havola). Server zod bilan tekshiradi,
+  mijoz React elementlariga aylantiradi — XSS imkonsiz. `body` ustunida matnli nusxa
+  (spoiler ▒ bilan yashirilgan) saqlanadi: e'lonlar, qidiruv va eski mijozlar uchun.
+- **Fayllar**: `BIR_ILM_MEDIA_DIR/posts/<uuid>.<ext>`, turi sehrli baytlar bo'yicha tekshiriladi.
+  24 soatda postga bog'lanmagan yuklamalar keyingi yuklashda tozalanadi; post o'chsa fayllar ham o'chadi.
+- Lentada (`/api/social`) maqolaning faqat boshi keladi, to'liq matn `/api/social?post=<id>` bilan.
 
 ## 5. Yangi endpoint qanday qo'shiladi
 

@@ -80,6 +80,13 @@ const adminUser = await load("app/api/v1/admin/users/[id]/route.ts");
 // Eski (v1 dan oldingi) route'lar — mobil qobiq ular bilan ham ishlashi kerak.
 const legacySocial = await load("app/api/social/route.ts");
 const legacyAppState = await load("app/api/app-state/route.ts");
+const mediaStart = await load("app/api/v1/media/route.ts");
+const mediaChunk = await load("app/api/v1/media/[id]/route.ts");
+const mediaFile = await load("app/media/posts/[file]/route.ts");
+const communityPosts = await load("app/api/v1/community/posts/route.ts");
+const communityPost = await load("app/api/v1/community/posts/[id]/route.ts");
+const reactions = await load("app/api/v1/community/reactions/route.ts");
+const sharePage = await load("app/p/[id]/route.ts");
 
 const ORIGIN = "http://127.0.0.1:8787";
 const createdUsers = [];
@@ -111,6 +118,13 @@ async function call(handler, path, { params, expect = 200, ...options } = {}) {
   );
 
   return { response, payload };
+}
+
+/** Google hisobini bog'laydi — Community'da yozish faqat ro'yxatdan o'tganlarga. */
+function signIn(userId) {
+  sqlite
+    .prepare("INSERT OR IGNORE INTO auth_accounts (provider, subject, user_id, display_name) VALUES ('google', ?, ?, 'Test')")
+    .run(`test-${userId}`, userId);
 }
 
 /** Web mijoz: cookie bilan, xuddi brauzerdek. */
@@ -189,6 +203,7 @@ try {
   // --- 2. Platformalar aro bir xil shaxs ----------------------------------
   {
     const android = await nativeClient("android");
+    signIn(android.userId);
 
     // AYNAN o'sha tokenni cookie sifatida yuboramiz — web tashuvchisi.
     const { payload: viaCookie } = await call(session.GET, "/api/v1/auth/session", {
@@ -220,6 +235,16 @@ try {
   const alisher = await webClient();
   const zuhra = await webClient();
   {
+    // Mehmon post yoza olmaydi.
+    const { payload: denied } = await alisher.call(posts.POST, "/api/v1/posts", {
+      method: "POST",
+      body: { book: "O'tkan kunlar", body: "Mehmon fikri." },
+      expect: 401,
+    });
+    assert.equal(denied.error.code, "unauthorized");
+    signIn(alisher.userId);
+    signIn(zuhra.userId);
+
     await alisher.call(profile.PATCH, "/api/v1/profile", {
       method: "PATCH",
       body: { name: "Alisher", bio: "Tarixiy romanlar." },
@@ -504,6 +529,7 @@ try {
     );
 
     // Yozuv ham native origindan o'tishi kerak (ilgari 403 bo'lardi).
+    signIn(android.userId);
     const writeResponse = await legacySocial.POST(
       request("/api/social", {
         method: "POST",
@@ -666,6 +692,7 @@ try {
     const reporter = await webClient();
     const mod = await webClient();
     sqlite.prepare("UPDATE users SET role = 'moderator' WHERE id = ?").run(mod.userId);
+    signIn(author.userId);
     const social = (client, method, body, query = "") =>
       legacySocial[method](request(`/api/social${query}`, {
         method,
@@ -678,7 +705,7 @@ try {
     assert.equal((await json(await social(author, "POST", { type: "post", kind: "announcement", book: "E'lon", body: "Soxta" }))).status, 403);
     assert.equal((await social(mod, "POST", { type: "post", kind: "announcement", book: "Yakshanba suhbati", body: "18:00 da" })).status, 200);
     const news = (await json(await social(author, "GET", undefined, "?scope=announcements"))).body;
-    assert.ok(news.posts.some((p) => p.kind === "announcement" && p.book === "Yakshanba suhbati"));
+    assert.ok(news.posts.some((p) => p.kind === "announcement" && p.title === "Yakshanba suhbati" && p.body === "18:00 da"));
 
     // Oddiy post → shikoyat → faqat moderator ko'radi → moderator o'chiradi.
     await social(author, "POST", { type: "post", book: "Test kitob", body: "Nomaqbul matn" });
@@ -897,6 +924,126 @@ try {
     console.log("PASS: Ilovada Telegram bilan kirish: PKCE bilan himoyalangan, mehmon akkaunti saqlanadi, kodni boshqa ilova ishlata olmaydi.");
   }
 
+  // --- Community: faqat ro'yxatdan o'tganlar, rasm/video, maqola, reaksiya, ulashish ---
+  {
+    const guest = await webClient();
+    const writer = await webClient();
+    const other = await webClient();
+    signIn(writer.userId);
+    signIn(other.userId);
+
+    const raw = (handler, path, { method = "GET", body, headers = {}, params } = {}) =>
+      handler(new Request(`${ORIGIN}${path}`, { method, body, headers: { Origin: ORIGIN, ...headers } }), params ? { params: Promise.resolve(params) } : undefined);
+    const upload = async (client, bytes, type, expectChunk = 200) => {
+      const { payload } = await client.call(mediaStart.POST, "/api/v1/media", { method: "POST", body: { type, bytes: bytes.length, width: 1, height: 1 }, expect: 201 });
+      const res = await raw(mediaChunk.PUT, `/api/v1/media/${payload.data.id}`, {
+        method: "PUT", body: bytes, headers: { Cookie: client.cookie, "X-Upload-Offset": "0" }, params: { id: payload.data.id },
+      });
+      const body = await res.json();
+      assert.equal(res.status, expectChunk, JSON.stringify(body));
+      return { id: payload.data.id, body };
+    };
+    const PNG = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64"));
+    const social = (client, method, body, query = "") =>
+      legacySocial[method](request(`/api/social${query}`, { method, body, headers: { Cookie: client.cookie, Origin: ORIGIN } }));
+
+    // Mehmon faqat o'qiydi.
+    await guest.call(communityPosts.POST, "/api/v1/community/posts", { method: "POST", body: { content: [{ type: "p", c: [{ t: "salom" }] }] }, expect: 401 });
+    await guest.call(mediaStart.POST, "/api/v1/media", { method: "POST", body: { type: "image/png", bytes: 10 }, expect: 401 });
+    assert.equal((await social(guest, "POST", { type: "post", book: "x", body: "y" })).status, 401);
+    const guestView = await (await social(guest, "GET")).json();
+    assert.equal(guestView.signedIn, false);
+
+    // Yuklash: sehrli baytlar tekshiriladi, fayl Range bilan beriladi.
+    await upload(writer, Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8]), "image/png", 415);
+    const image = await upload(writer, PNG, "image/png");
+    assert.equal(image.body.data.done, true);
+    const file = image.body.data.media.url.split("/").pop();
+    const served = await mediaFile.GET(request(`/media/posts/${file}`), { params: Promise.resolve({ file }) });
+    assert.equal(served.status, 200);
+    assert.equal(served.headers.get("content-type"), "image/png");
+    assert.equal(served.headers.get("x-content-type-options"), "nosniff");
+    assert.equal((await served.arrayBuffer()).byteLength, PNG.length);
+    const inline = await upload(writer, PNG, "image/png");
+
+    // Maqola: sarlavha majburiy, xavfli havola rad etiladi.
+    const content = [
+      { type: "h", level: 2, c: [{ t: "Kirish" }] },
+      { type: "p", c: [{ t: "Qalin ", m: ["b"] }, { t: "va " }, { t: "yashirin", m: ["spoiler"] }, { t: " havola", href: "https://birilm.uz" }] },
+      { type: "media", id: inline.id, caption: "Rasm izohi" },
+      { type: "list", ordered: false, items: [[{ t: "bir" }], [{ t: "ikki" }]] },
+      { type: "p", c: [{ t: "   " }] },
+    ];
+    await writer.call(communityPosts.POST, "/api/v1/community/posts", { method: "POST", body: { format: "article", content, attachments: [image.id] }, expect: 422 });
+    const { payload: evil } = await writer.call(communityPosts.POST, "/api/v1/community/posts", {
+      method: "POST", body: { format: "article", title: "T", content: [{ type: "p", c: [{ t: "x", href: "javascript:alert(1)" }] }] }, expect: 422,
+    });
+    assert.equal(evil.error.code, "validation_failed");
+    await writer.call(communityPosts.POST, "/api/v1/community/posts", { method: "POST", body: { content: [{ type: "p", c: [{ t: "<script>", m: ["x"] }] }] }, expect: 422 });
+    // Boshqa odamning faylini o'z postiga qo'sha olmaydi.
+    await other.call(communityPosts.POST, "/api/v1/community/posts", { method: "POST", body: { content: [{ type: "p", c: [{ t: "o'g'irlik" }] }], attachments: [image.id] }, expect: 400 });
+
+    const { payload: created } = await writer.call(communityPosts.POST, "/api/v1/community/posts", {
+      method: "POST", body: { format: "article", title: "Kitob & <maqola>", book: "O'tkan kunlar", content, attachments: [image.id] }, expect: 201,
+    });
+    const postId = created.data.id;
+
+    // Lentada maqolaning faqat boshi, `?post=` bilan to'liq matn.
+    const listed = (await (await social(guest, "GET", undefined, `?author=${writer.userId}`)).json()).posts.find((p) => p.id === postId);
+    assert.equal(listed.format, "article");
+    assert.equal(listed.truncated, true);
+    assert.equal(listed.content, null);
+    assert.deepEqual(listed.attachments, [image.id]);
+    assert.equal(listed.media.length, 2);
+    const full = (await (await social(guest, "GET", undefined, `?post=${postId}`)).json()).posts[0];
+    assert.equal(full.truncated, false);
+    assert.equal(full.content.length, 4, "Bo'sh paragraf olib tashlanishi kerak");
+    assert.equal(full.content[1].c[2].m[0], "spoiler");
+    assert.match(full.body, /Kirish[\s\S]*• bir/);
+    assert.ok(!full.body.includes("yashirin") && full.body.includes("▒▒▒"), "Spoiler matnli nusxada yashirilishi kerak");
+
+    // Reaksiya: bitta foydalanuvchi — bitta reaksiya, almashtirish va olib tashlash.
+    await guest.call(reactions.POST, "/api/v1/community/reactions", { method: "POST", body: { postId, emoji: "🔥" }, expect: 401 });
+    await other.call(reactions.POST, "/api/v1/community/reactions", { method: "POST", body: { postId, emoji: "💩" }, expect: 422 });
+    await writer.call(reactions.POST, "/api/v1/community/reactions", { method: "POST", body: { postId, emoji: "🔥" } });
+    await other.call(reactions.POST, "/api/v1/community/reactions", { method: "POST", body: { postId, emoji: "🔥" } });
+    const { payload: switched } = await other.call(reactions.POST, "/api/v1/community/reactions", { method: "POST", body: { postId, emoji: "❤️" } });
+    assert.deepEqual(switched.data.reactions.map((r) => [r.emoji, r.count]).sort(), [["❤️", 1], ["🔥", 1]]);
+    assert.equal(switched.data.mine, "❤️");
+    const { payload: cleared } = await other.call(reactions.POST, "/api/v1/community/reactions", { method: "POST", body: { postId, emoji: null } });
+    assert.deepEqual(cleared.data.reactions, [{ emoji: "🔥", count: 1 }]);
+    assert.equal((await (await social(writer, "GET", undefined, `?post=${postId}`)).json()).posts[0].myReaction, "🔥");
+
+    // Izoh: mehmon yoza olmaydi, ro'yxatdan o'tgan yozadi.
+    assert.equal((await social(guest, "POST", { type: "reply", postId, body: "mehmon" })).status, 401);
+    assert.equal((await social(other, "POST", { type: "reply", postId, body: "Ajoyib maqola" })).status, 200);
+
+    // Ulashish sahifasi: Open Graph, matn escape qilingan.
+    const share = await sharePage.GET(request(`/p/${postId}`), { params: Promise.resolve({ id: postId }) });
+    const html = await share.text();
+    assert.match(html, /property="og:title" content="Kitob &amp; &lt;maqola&gt;"/);
+    assert.match(html, new RegExp(`og:image" content="[^"]+/media/posts/${file}`));
+    assert.doesNotMatch(html, /<maqola>/);
+    assert.equal((await sharePage.GET(request("/p/yoq"), { params: Promise.resolve({ id: "yoq" }) })).status, 302);
+
+    // Tahrirlash: faqat muallif; olib tashlangan fayl diskdan ham o'chadi.
+    await other.call(communityPost.PUT, `/api/v1/community/posts/${postId}`, { method: "PUT", params: { id: postId }, body: { format: "post", content: [{ type: "p", c: [{ t: "buzildi" }] }] }, expect: 403 });
+    await writer.call(communityPost.PUT, `/api/v1/community/posts/${postId}`, {
+      method: "PUT", params: { id: postId }, body: { format: "post", content: [{ type: "p", c: [{ t: "Qisqa post" }] }, { type: "media", id: inline.id }] },
+    });
+    const edited = (await (await social(guest, "GET", undefined, `?post=${postId}`)).json()).posts[0];
+    assert.ok(edited.editedAt);
+    assert.equal(edited.format, "post");
+    assert.deepEqual(edited.attachments, []);
+    assert.equal((await mediaFile.GET(request(`/media/posts/${file}`), { params: Promise.resolve({ file }) })).status, 404, "Olib tashlangan rasm diskdan o'chishi kerak");
+
+    // O'chirish: post bilan birga fayllar va reaksiyalar ham ketadi.
+    assert.equal((await social(writer, "POST", { type: "delete", postId })).status, 200);
+    assert.equal(sqlite.prepare("SELECT count(*) AS n FROM post_media WHERE id = ?").get(inline.id).n, 0);
+    assert.equal(sqlite.prepare("SELECT count(*) AS n FROM post_reactions WHERE post_id = ?").get(postId).n, 0);
+    console.log("PASS: Community: mehmon faqat o'qiydi; rasm/video tekshirib yuklanadi; maqola, format, reaksiya, tahrir, ulashish va o'chirish ishlaydi.");
+  }
+
   console.log("\nHAMMASI O'TDI: /api/v1 va eski API web va mobil uchun bir xil ishlaydi.");
 } finally {
   if (createdUsers.length) {
@@ -910,7 +1057,11 @@ try {
         `DELETE FROM post_replies WHERE user_id IN (${placeholders}) OR post_id IN (SELECT id FROM reading_posts WHERE user_id IN (${placeholders}))`,
       )
       .run(...unique, ...unique);
+    sqlite.prepare(`DELETE FROM post_reactions WHERE user_id IN (${placeholders}) OR post_id IN (SELECT id FROM reading_posts WHERE user_id IN (${placeholders}))`).run(...unique, ...unique);
+    sqlite.prepare(`DELETE FROM post_reports WHERE user_id IN (${placeholders}) OR post_id IN (SELECT id FROM reading_posts WHERE user_id IN (${placeholders}))`).run(...unique, ...unique);
+    sqlite.prepare(`DELETE FROM post_media WHERE user_id IN (${placeholders})`).run(...unique);
     sqlite.prepare(`DELETE FROM reading_posts WHERE user_id IN (${placeholders})`).run(...unique);
+    sqlite.prepare(`DELETE FROM auth_accounts WHERE user_id IN (${placeholders})`).run(...unique);
     sqlite.prepare(`DELETE FROM login_codes WHERE user_id IN (${placeholders})`).run(...unique);
     sqlite
       .prepare(
