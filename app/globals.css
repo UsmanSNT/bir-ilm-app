@@ -2367,3 +2367,13 @@ input {
     bottom: calc(84px + env(safe-area-inset-bottom));
   }
 }
+
+/* Postlar: e'lon, shikoyat, moderatsiya */
+.reading-post.is-announcement{border-color:#e9d9a8;background:linear-gradient(180deg,#fffbef,#fff)}
+.post-badge{display:inline-flex;align-items:center;gap:5px;margin:2px 0 6px;padding:3px 9px;border-radius:20px;background:#fbf1d6;color:#8a6511;font-size:11px;font-weight:600}
+.post-reports{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 8px;padding:7px 10px;border-radius:10px;background:#fdeeee;color:#b4232f;font-size:12px}.post-reports .text-btn{margin-left:auto}
+.announce-toggle{display:flex;align-items:center;gap:7px;padding:9px 11px;border:1px solid #ecdfb6;border-radius:10px;background:#fffbef;color:#7a5a0c;font-size:13px;font-weight:600;cursor:pointer}.announce-toggle input{width:16px;height:16px}
+.report-form{flex-wrap:wrap}.report-form input{flex:1;min-width:160px;padding:7px 10px;border:1px solid #e3e8ec;border-radius:8px;font:inherit;font-size:13px}
+.post-reply{position:relative}.reply-delete{position:absolute;top:4px;right:4px;width:26px;height:26px}
+.feed-tabs [role=tab] svg{margin-right:4px;vertical-align:-2px}
+.m-news-empty{color:#7a8781;font-size:13px;padding:14px 4px;margin:0}

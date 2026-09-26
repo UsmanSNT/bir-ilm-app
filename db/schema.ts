@@ -6,8 +6,11 @@ export const readingPosts = sqliteTable("reading_posts", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   book: text("book").notNull(),
   body: text("body").notNull(),
+  /** post — oddiy post; announcement — admin/moderator e'loni (bosh sahifadagi yangiliklarda). */
+  kind: text("kind", { enum: ["post", "announcement"] }).notNull().default("post"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [
+  index("idx_posts_kind").on(t.kind, t.createdAt),
   index("idx_posts_created").on(t.createdAt),
   index("idx_posts_user").on(t.userId),
   // Lenta (created_at, id) juftligi bo'yicha tartiblanadi va shu juftlik
@@ -23,6 +26,15 @@ export const postReplies = sqliteTable("post_replies", {
   body: text("body").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_replies_post").on(t.postId, t.createdAt)]);
+
+/** Postga shikoyat: bir foydalanuvchi bir postga bir marta. */
+export const postReports = sqliteTable("post_reports", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  postId: text("post_id").notNull().references(() => readingPosts.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reason: text("reason").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [uniqueIndex("idx_reports_post_user").on(t.postId, t.userId)]);
 
 export const readerFollows = sqliteTable("reader_follows", {
   followerId: text("follower_id").notNull().references(() => users.id, { onDelete: "cascade" }),

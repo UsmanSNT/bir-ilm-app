@@ -1,13 +1,14 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { BookOpen, MessageCircle, Send, UserPlus, UserCheck, Flame, Clock, Users, Trash2, RefreshCw, X, NotebookPen, Pencil, Save } from "lucide-react";
+import { BookOpen, MessageCircle, Send, UserPlus, UserCheck, Flame, Clock, Users, Trash2, RefreshCw, X, NotebookPen, Pencil, Save, Flag, Megaphone, ShieldCheck } from "lucide-react";
+import { canModerate } from "@/shared/contract/roles";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { SocialData, ReadingPost } from "./social-types";
 
-const empty: SocialData = { userId: "", posts: [], readers: [], following: [], followers: 0, focusMinutes: 0, sessions: 0, profile: null, authorProfile: null };
+const empty: SocialData = { userId: "", role: "user", reportedPosts: 0, posts: [], readers: [], following: [], followers: 0, focusMinutes: 0, sessions: 0, profile: null, authorProfile: null };
 
 export default function ReadingDashboard({ name, pages, shelfCount, streak, mode }: { name: string; pages: number; shelfCount: number; streak: number; mode: "feed" | "profile" }) {
   const [data, setData] = useState<SocialData>(empty);
@@ -25,6 +26,10 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
   const [editingProfile, setEditingProfile] = useState(false);
   const [writingPost, setWritingPost] = useState(false);
   const [bio, setBio] = useState("");
+  const [announce, setAnnounce] = useState(false);
+  const [reportId, setReportId] = useState("");
+  const [reportReason, setReportReason] = useState("");
+  const moderator = canModerate(data.role);
 
   const reload = useCallback(async (signal?: AbortSignal, before?: string) => {
     const query = new URLSearchParams({ scope });
@@ -82,10 +87,11 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
     if (busy) return;
     setBusy(true);
     try {
-      await write({ type: "post", book, body });
+      await write({ type: "post", book, body, kind: announce ? "announcement" : "post" });
       setBook(""); setBody(""); setWritingPost(false);
-      toast.success("Postingiz joylandi.");
-      if (scope === "mine" && !author) {
+      toast.success(announce ? "E'lon joylandi — bosh sahifadagi yangiliklarda ko'rinadi." : "Postingiz joylandi.");
+      setAnnounce(false);
+      if (mode === "feed" || (scope === "mine" && !author)) {
         try { await reload(); } catch { setError("Post saqlandi. Lentani yangilang."); }
       } else { setScope("mine"); setAuthor(""); }
     } catch (e) { toast.error(e instanceof Error ? e.message : "Post saqlanmadi."); }
@@ -103,18 +109,24 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
     {data.following.includes(id) ? <UserCheck size={17} /> : <UserPlus size={17} />}{data.following.includes(id) ? "Obunadasiz" : "Obuna"}
   </button>;
 
-  const postView = (post: ReadingPost) => <article className="reading-post" key={post.id}>
+  const canDelete = (ownerId: string) => ownerId === data.userId || moderator;
+  const postView = (post: ReadingPost) => <article className={`reading-post${post.kind === "announcement" ? " is-announcement" : ""}`} key={post.id}>
     <header className="post-header">
       <span className="reader-avatar" aria-hidden="true">{post.name.slice(0,1).toUpperCase()}</span>
       <div className="post-author"><button className="author-link" onClick={() => { setAuthor(post.userId); setScope("all"); }}>{post.name}{post.userId === data.userId ? " (siz)" : ""}</button><time dateTime={post.createdAt}>{new Date(post.createdAt.replace(" ","T") + (post.createdAt.endsWith("Z") ? "" : "Z")).toLocaleDateString("uz-UZ", { day: "numeric", month: "short" })}</time></div>
-      {post.userId !== data.userId ? followButton(post.userId) : <button className="icon-btn" title="Postni o'chirish" aria-label="Postni o'chirish" disabled={busy} onClick={() => setDeleteId(post.id)}><Trash2 size={17}/></button>}
+      {post.userId !== data.userId && followButton(post.userId)}
+      {post.userId !== data.userId && <button className="icon-btn" title="Shikoyat qilish" aria-label="Shikoyat qilish" disabled={busy} onClick={() => { setReportId(post.id); setReportReason(""); }}><Flag size={16}/></button>}
+      {canDelete(post.userId) && <button className="icon-btn" title="Postni o'chirish" aria-label="Postni o'chirish" disabled={busy} onClick={() => setDeleteId(post.id)}><Trash2 size={17}/></button>}
     </header>
-    <div className="post-book"><BookOpen size={17}/><strong>{post.book}</strong></div>
+    {post.kind === "announcement" && <div className="post-badge"><Megaphone size={14}/>E&apos;lon</div>}
+    {moderator && post.reports > 0 && <div className="post-reports"><Flag size={14}/>{post.reports} ta shikoyat<button className="text-btn" disabled={busy} onClick={() => void action({ type: "dismissReports", postId: post.id }, () => toast.success("Shikoyat yopildi — post qoldi."))}>Shikoyatni yopish</button></div>}
+    <div className="post-book">{post.kind === "announcement" ? <Megaphone size={17}/> : <BookOpen size={17}/>}<strong>{post.book}</strong></div>
     <p className="post-body">{post.body}</p>
-    {deleteId === post.id && <div className="delete-confirm"><span>Post va izohlar o&apos;chirilsinmi?</span><button className="text-btn" disabled={busy} onClick={() => void action({ type: "delete", postId: post.id }, () => setDeleteId(""))}>O&apos;chirish</button><button className="text-btn" onClick={() => setDeleteId("")}>Bekor qilish</button></div>}
+    {deleteId === post.id && <div className="delete-confirm"><span>{post.userId === data.userId ? "Post va izohlar o'chirilsinmi?" : "Moderator sifatida bu postni o'chirasizmi?"}</span><button className="text-btn" disabled={busy} onClick={() => void action({ type: "delete", postId: post.id }, () => setDeleteId(""))}>O&apos;chirish</button><button className="text-btn" onClick={() => setDeleteId("")}>Bekor qilish</button></div>}
+    {reportId === post.id && <form className="delete-confirm report-form" onSubmit={e => { e.preventDefault(); void action({ type: "report", postId: post.id, reason: reportReason }, () => { setReportId(""); toast.success("Shikoyatingiz moderatorlarga yuborildi."); }); }}><input aria-label="Shikoyat sababi" placeholder="Sabab (ixtiyoriy): haqorat, spam..." maxLength={300} value={reportReason} onChange={e => setReportReason(e.target.value)}/><button className="text-btn" disabled={busy}>Yuborish</button><button type="button" className="text-btn" onClick={() => setReportId("")}>Bekor qilish</button></form>}
     <button className="reply-toggle" aria-expanded={openReply === post.id} onClick={() => setOpenReply(openReply === post.id ? "" : post.id)}><MessageCircle size={18}/>{post.replies.length ? `${post.replies.length} ta fikr` : "Fikr bildirish"}</button>
     {openReply === post.id && <div className="post-replies">
-      {post.replies.map(reply => <div className="post-reply" key={reply.id}><strong>{reply.name}</strong><p>{reply.body}</p></div>)}
+      {post.replies.map(reply => <div className="post-reply" key={reply.id}><strong>{reply.name}</strong><p>{reply.body}</p>{canDelete(reply.userId) && <button className="icon-btn reply-delete" title="Izohni o'chirish" aria-label="Izohni o'chirish" disabled={busy} onClick={() => void action({ type: "deleteReply", replyId: reply.id })}><Trash2 size={14}/></button>}</div>)}
       <form className="reply-form" onSubmit={e => { e.preventDefault(); void action({ type: "reply", postId: post.id, body: drafts[post.id] }, () => setDrafts(v => ({ ...v, [post.id]: "" }))); }}>
         <textarea aria-label={`${post.name} postiga izoh`} placeholder="Siz qanday fikrdasiz?" rows={2} maxLength={1000} required value={drafts[post.id] || ""} onChange={e => setDrafts(v => ({ ...v, [post.id]: e.target.value }))}/>
         <button className="icon-btn" title="Izoh yuborish" aria-label="Izoh yuborish" disabled={busy || !drafts[post.id]?.trim()}><Send size={19}/></button>
@@ -138,22 +150,23 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
     <div className="social-layout">
       <div className="social-main">
         <div className="section-row"><h2>{mode === "profile" ? scope === "mine" ? "Mening postlarim" : scope === "following" ? "Obunalarim postlari" : "Barcha postlar" : "Kitobxonlar davrasi"}</h2><button className="icon-btn" aria-label="Lentani yangilash" title="Yangilash" disabled={loading || busy} onClick={() => void refresh()}><RefreshCw size={19}/></button></div>
-        {mode === "profile" && <>
-        <button className="button" disabled={!data.userId} onClick={() => setWritingPost(true)}><NotebookPen size={18}/>Post yozish</button>
+        <>
+        <button className="button" disabled={!data.userId} onClick={() => setWritingPost(true)}><NotebookPen size={18}/>{moderator ? "Post yoki e'lon yozish" : "Post yozish"}</button>
         <Dialog open={writingPost} onOpenChange={open => { if (!busy) setWritingPost(open); }}>
-        <DialogContent className="post-editor"><DialogTitle>Post yozish</DialogTitle><DialogDescription>Kitob haqidagi taassurotlaringiz</DialogDescription>
+        <DialogContent className="post-editor"><DialogTitle>{announce ? "E'lon yozish" : "Post yozish"}</DialogTitle><DialogDescription>{announce ? "Bosh sahifadagi yangiliklarda hammaga ko'rinadi" : "Kitob haqidagi taassurotlaringiz"}</DialogDescription>
         <form className="post-compose" onSubmit={e => void publish(e)}>
-          <input aria-label="Kitob nomi" placeholder="Qaysi kitobni o'qidingiz?" maxLength={160} required value={book} onChange={e => setBook(e.target.value)}/>
+          {moderator && <label className="announce-toggle"><input type="checkbox" checked={announce} onChange={e => setAnnounce(e.target.checked)}/><Megaphone size={16}/>E&apos;lon sifatida joylash</label>}
+          <input aria-label={announce ? "E'lon sarlavhasi" : "Kitob nomi"} placeholder={announce ? "E'lon sarlavhasi" : "Qaysi kitobni o'qidingiz?"} maxLength={160} required value={book} onChange={e => setBook(e.target.value)}/>
           <textarea aria-label="Post matni" placeholder="Taassurot, iqtibos yoki kichik xulosangiz..." maxLength={2000} rows={3} required value={body} onChange={e => setBody(e.target.value)}/>
           <div className="compose-footer"><span>{body.length}/2000</span><button className="button" disabled={busy || !data.userId || !book.trim() || !body.trim()}><Send size={17}/>{busy ? "Kutilmoqda..." : "Joylash"}</button></div>
         </form>
         </DialogContent></Dialog>
-        <Tabs value={scope} onValueChange={v => { setScope(v); setAuthor(""); }}><TabsList className="feed-tabs" aria-label="Lenta filtri"><TabsTrigger value="all">Barchasi</TabsTrigger><TabsTrigger value="following">Obunalarim</TabsTrigger><TabsTrigger value="mine">Postlarim</TabsTrigger></TabsList></Tabs>
-        </>}
+        <Tabs value={scope} onValueChange={v => { setScope(v); setAuthor(""); }}><TabsList className="feed-tabs" aria-label="Lenta filtri"><TabsTrigger value="all">Barchasi</TabsTrigger><TabsTrigger value="following">Obunalarim</TabsTrigger>{mode === "profile" ? <TabsTrigger value="mine">Postlarim</TabsTrigger> : <TabsTrigger value="announcements">E&apos;lonlar</TabsTrigger>}{moderator && mode === "feed" && <TabsTrigger value="reported"><ShieldCheck size={14}/>Shikoyatlar{data.reportedPosts ? ` (${data.reportedPosts})` : ""}</TabsTrigger>}</TabsList></Tabs>
+        </>
         {author && <div className="author-filter"><span>{data.readers.find(r => r.id === author)?.name || "Kitobxon"} postlari</span><button className="icon-btn" title="Filtrni tozalash" aria-label="Filtrni tozalash" onClick={() => setAuthor("")}><X size={17}/></button></div>}
         {author && data.authorProfile && <section className="public-profile"><h3>{data.authorProfile.name}</h3><p>{data.authorProfile.bio || "Hali o'zi haqida ma'lumot kiritmagan."}</p><span>{data.authorProfile.posts} post · {data.authorProfile.followers} kuzatuvchi</span>{author !== data.userId && followButton(author)}</section>}
         {error && <div className="feed-error" role="alert">{error}<button className="text-btn" disabled={loading} onClick={() => void refresh()}>Qayta urinish</button></div>}
-        {loading ? <p className="feed-empty" role="status">Lenta yuklanmoqda...</p> : data.posts.length ? data.posts.map(postView) : !error && <div className="feed-empty"><BookOpen size={28}/><h3>{mode === "feed" ? "Hozircha postlar yo'q" : scope === "following" ? "Fikirdoshlaringizni toping" : "Hozircha postlar yo'q"}</h3><p>{mode === "feed" ? "Kitobxonlarning yangi postlari shu yerda ko'rinadi." : scope === "following" ? "Obuna bo'lgan kitobxonlaringizning postlari shu yerda ko'rinadi." : "O'qigan kitobingizdan sizga eng ta'sir qilgan fikrni ulashing."}</p></div>}
+        {loading ? <p className="feed-empty" role="status">Lenta yuklanmoqda...</p> : data.posts.length ? data.posts.map(postView) : !error && <div className="feed-empty"><BookOpen size={28}/><h3>{scope === "reported" ? "Ko'rib chiqiladigan shikoyat yo'q" : scope === "announcements" ? "Hozircha e'lonlar yo'q" : mode === "feed" ? "Hozircha postlar yo'q" : scope === "following" ? "Fikirdoshlaringizni toping" : "Hozircha postlar yo'q"}</h3><p>{mode === "feed" ? "Kitobxonlarning yangi postlari shu yerda ko'rinadi." : scope === "following" ? "Obuna bo'lgan kitobxonlaringizning postlari shu yerda ko'rinadi." : "O'qigan kitobingizdan sizga eng ta'sir qilgan fikrni ulashing."}</p></div>}
         {more && !loading && <button className="text-btn load-more" onClick={() => void refresh(data.posts.at(-1)?.id)}>Yana ko&apos;rsatish</button>}
       </div>
       {mode === "profile" && <aside className="social-aside">

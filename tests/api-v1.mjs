@@ -588,6 +588,64 @@ try {
     console.log("PASS: faqat admin suhbat yaratadi va rol beradi; admin o'zini tushira olmaydi.");
   }
 
+  // --- Postlar: e'lon, shikoyat, moderator o'chirishi, ism saqlanishi ----------
+  {
+    const author = await webClient();
+    const reporter = await webClient();
+    const mod = await webClient();
+    sqlite.prepare("UPDATE users SET role = 'moderator' WHERE id = ?").run(mod.userId);
+    const social = (client, method, body, query = "") =>
+      legacySocial[method](request(`/api/social${query}`, {
+        method,
+        body,
+        headers: { Cookie: client.cookie, Origin: ORIGIN },
+      }));
+    const json = async (res) => ({ status: res.status, body: await res.json() });
+
+    // Oddiy foydalanuvchi e'lon joylay olmaydi, moderator joylaydi.
+    assert.equal((await json(await social(author, "POST", { type: "post", kind: "announcement", book: "E'lon", body: "Soxta" }))).status, 403);
+    assert.equal((await social(mod, "POST", { type: "post", kind: "announcement", book: "Yakshanba suhbati", body: "18:00 da" })).status, 200);
+    const news = (await json(await social(author, "GET", undefined, "?scope=announcements"))).body;
+    assert.ok(news.posts.some((p) => p.kind === "announcement" && p.book === "Yakshanba suhbati"));
+
+    // Oddiy post → shikoyat → faqat moderator ko'radi → moderator o'chiradi.
+    await social(author, "POST", { type: "post", book: "Test kitob", body: "Nomaqbul matn" });
+    const mine = (await json(await social(author, "GET", undefined, "?scope=mine"))).body.posts[0];
+    assert.equal((await social(reporter, "POST", { type: "report", postId: mine.id, reason: "spam" })).status, 200);
+    assert.equal((await social(author, "GET", undefined, "?scope=reported")).status, 403);
+    const reported = (await json(await social(mod, "GET", undefined, "?scope=reported"))).body;
+    assert.equal(reported.reportedPosts >= 1, true);
+    assert.equal(reported.posts.find((p) => p.id === mine.id)?.reports, 1);
+    await social(reporter, "POST", { type: "delete", postId: mine.id });
+    assert.ok((await json(await social(author, "GET", undefined, "?scope=mine"))).body.posts.some((p) => p.id === mine.id), "Begona odam postni o'chira olmasligi kerak");
+    await social(mod, "POST", { type: "delete", postId: mine.id });
+    assert.ok(!(await json(await social(author, "GET", undefined, "?scope=mine"))).body.posts.some((p) => p.id === mine.id), "Moderator postni o'chira olishi kerak");
+
+    // Haqiqiy ism brauzerdagi standart "Kitobxon" bilan bosib ketilmaydi.
+    sqlite.prepare("UPDATE users SET name = 'Haqiqiy Ism' WHERE id = ?").run(author.userId);
+    await social(author, "POST", { type: "profile", name: "Kitobxon", bio: "salom" });
+    assert.equal(sqlite.prepare("SELECT name FROM users WHERE id = ?").get(author.userId).name, "Haqiqiy Ism");
+
+    sqlite.prepare("DELETE FROM reading_posts WHERE user_id IN (?, ?, ?)").run(author.userId, reporter.userId, mod.userId);
+    console.log("PASS: e'lon faqat moderatorda, shikoyat moderatorga boradi, moderator o'chiradi, ism saqlanadi.");
+  }
+
+  // --- app-state: foydalanuvchi so'rovdagi userId'dan emas, tokendan aniqlanadi ---
+  {
+    const victim = await webClient();
+    const attacker = await webClient();
+    const res = await legacyAppState.POST(request("/api/app-state", {
+      method: "POST",
+      body: { type: "comment", userId: victim.userId, name: "Buzg'unchi", text: "soxta izoh" },
+      headers: { Cookie: attacker.cookie, Origin: ORIGIN },
+    }));
+    assert.equal(res.status, 201);
+    const row = sqlite.prepare("SELECT user_id FROM comments WHERE body = 'soxta izoh'").get();
+    assert.equal(row.user_id, attacker.userId, "Izoh hujumchining o'z akkauntiga yozilishi kerak");
+    sqlite.prepare("DELETE FROM comments WHERE body = 'soxta izoh'").run();
+    console.log("PASS: app-state boshqa foydalanuvchi nomidan yozishga yo'l qo'ymaydi.");
+  }
+
   // --- Login: Telegram imzosi, mehmonni bog'lash, ikkinchi qurilma, chiqish -----
   {
     process.env.TELEGRAM_BOT_TOKEN = "123456:TEST-TOKEN";

@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { LIVE_ROOM, quizLeaders, quizzes, wisdom, type Quiz } from "./quiz-data";
+import { LIVE_ROOM, quizzes, wisdom, type Quiz } from "./quiz-data";
 
 type Save = {
   joined: boolean;
@@ -186,6 +186,7 @@ export default function MobileScreens({
   const [picked, setPicked] = useState("");
   const [correct, setCorrect] = useState(0);
   const [finished, setFinished] = useState(false);
+  const announcements = useAnnouncements();
 
   const secs = Math.max(0, Math.floor((session - now) / 1000));
   const days = String(Math.floor(secs / 86400)).padStart(2, "0");
@@ -201,7 +202,6 @@ export default function MobileScreens({
     const mine = Object.values(save.scores);
     const mineScore = mine.length ? Math.max(...mine) : 0;
     const rows = [
-      ...quizLeaders,
       ...(mineScore ? [{ id: "me", name: name || "Siz", score: mineScore }] : []),
     ].sort((a, b) => b.score - a.score);
     return showLeaders ? rows : rows.slice(0, 3);
@@ -281,29 +281,7 @@ export default function MobileScreens({
     toast.success("Jonli viktorinaga qo‘shildingiz. Soat 20:00 da boshlanadi.");
   }
 
-  const news = [
-    {
-      id: "talk",
-      title: "Yakshanba birga muhokama qilamiz",
-      body: "Atom odatlar kitobi yuzasidan navbatdagi jonli suhbatimizda barchangizni kutamiz!",
-      time: "2 soat oldin",
-      open: () => setReminder(true),
-    },
-    {
-      id: "quiz",
-      title: "Jonli viktorina bugun soat 20:00",
-      body: "Kitob bilimdoni: Atom odatlar bo‘yicha savollar. Xona kodi bilan ham qo‘shilish mumkin.",
-      time: "5 soat oldin",
-      open: openQuizzes,
-    },
-    {
-      id: "habit",
-      title: "Kun hikmati yangilandi",
-      body: "Har kuni bitta sahifa ham yetarli. Muhimi, mutolaani uzmaslik.",
-      time: "Kecha",
-      open: goHome,
-    },
-  ];
+  const news = announcements.map((item) => ({ ...item, open: () => { setScreen("news"); window.scrollTo({ top: 0 }); } }));
 
   return (
     <div className="mobile-home">
@@ -380,6 +358,7 @@ export default function MobileScreens({
             </button>
           </div>
           <div className="m-news-carousel" aria-label="Bir ilm yangiliklari">
+            {!news.length && <p className="m-news-empty">Hozircha e‘lonlar yo‘q.</p>}
             {news.map((item) => <NewsCard key={item.id} item={item} />)}
           </div>
         </div>
@@ -389,6 +368,7 @@ export default function MobileScreens({
         <div className="m-screen">
           <Subhead title="Yangiliklar" onBack={goHome} />
           <div className="m-stack">
+            {!news.length && <p className="m-news-empty">Hozircha e‘lonlar yo‘q. Admin e‘lon joylaganda shu yerda ko‘rinadi.</p>}
             {news.map((item) => (
               <NewsCard key={item.id} item={item} />
             ))}
@@ -605,4 +585,29 @@ function NewsCard({
       </span>
     </button>
   );
+}
+
+type Announcement = { id: string; title: string; body: string; time: string };
+function relativeTime(iso: string): string {
+  const when = new Date(iso.replace(" ", "T") + (iso.endsWith("Z") ? "" : "Z")).getTime();
+  const minutes = Math.max(0, Math.round((Date.now() - when) / 60000));
+  if (minutes < 60) return minutes <= 1 ? "Hozirgina" : `${minutes} daqiqa oldin`;
+  if (minutes < 24 * 60) return `${Math.round(minutes / 60)} soat oldin`;
+  return new Date(when).toLocaleDateString("uz-UZ", { day: "numeric", month: "short" });
+}
+
+// Bosh sahifadagi yangiliklar — admin/moderator joylagan e'lonlar.
+function useAnnouncements(): Announcement[] {
+  const [items, setItems] = useState<Announcement[]>([]);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch("/api/social?scope=announcements", { signal: ctrl.signal })
+      .then((r) => (r.ok ? (r.json() as Promise<{ posts?: { id: string; book: string; body: string; createdAt: string }[] }>) : null))
+      .then((data) => {
+        setItems((data?.posts ?? []).map((p) => ({ id: p.id, title: p.book, body: p.body, time: relativeTime(p.createdAt) })));
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, []);
+  return items;
 }

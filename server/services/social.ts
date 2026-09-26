@@ -214,11 +214,15 @@ export async function deletePost(db: Database, userId: string, postId: string): 
     .limit(1);
 
   if (!owner.length) throw notFound("Post topilmadi.");
-  if (owner[0].userId !== userId) throw forbidden("Bu post sizniki emas.");
+  if (owner[0].userId !== userId) {
+    const actor = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { role: true } });
+    if (actor?.role !== "admin" && actor?.role !== "moderator") throw forbidden("Bu post sizniki emas.");
+  }
 
   // `post_replies` da ON DELETE CASCADE bor, lekin D1 da foreign key majburlash
   // o'chirilgan bo'lishi mumkin — izohlarni aniq o'chiramiz.
   await db.delete(postReplies).where(eq(postReplies.postId, postId));
+  await db.delete(schema.postReports).where(eq(schema.postReports.postId, postId));
   await db.delete(readingPosts).where(eq(readingPosts.id, postId));
 }
 
