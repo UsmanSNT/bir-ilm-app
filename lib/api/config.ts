@@ -82,6 +82,15 @@ export function detectPlatform(): ClientPlatform {
  * ilova ichidagi sahifa `capacitor://localhost` da ishlaydi va serverni
  * o'zi bilmaydi.
  */
+/**
+ * Server beradigan nisbiy media manzili (`/media/books/...`). Ilova ichida sahifa
+ * `https://localhost` dan ochiladi, shuning uchun server manzilini qo'shamiz.
+ */
+export function absoluteUrl<T extends string | null>(path: T): T {
+  if (!path || !path.startsWith("/") || detectPlatform() === "web") return path;
+  return `${resolveBaseUrl()}${path}` as T;
+}
+
 export function resolveBaseUrl(platform: ClientPlatform = detectPlatform()): string {
   const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
 

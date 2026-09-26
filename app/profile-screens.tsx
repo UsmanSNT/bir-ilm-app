@@ -9,6 +9,7 @@ import { USER_ROLE_LABELS } from "@/shared/contract/roles";
 import AdminPanel from "./admin-panel";
 import LoginCard from "./login-card";
 import { LinkDeviceDialog } from "./device-link";
+import { nativeAuth } from "@/lib/api/native-auth";
 import ReadingDashboard from "./reading-dashboard";
 import type { SocialData } from "./social-types";
 
@@ -50,6 +51,7 @@ export default function ProfileScreens(p: Props) {
   const signOut = async () => {
     if (!window.confirm("Hisobdan chiqasizmi? Qayta kirish uchun Google yoki Telegram kerak bo‘ladi.")) return;
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
+    await nativeAuth()?.logout();
     window.location.assign("/");
   };
   useEffect(() => {

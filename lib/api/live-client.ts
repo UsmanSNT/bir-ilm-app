@@ -13,7 +13,7 @@ import type {
   WsServerMessage,
 } from "@/shared/contract/live";
 import type { UserRole } from "@/shared/contract/roles";
-import { API_PREFIX } from "./config";
+import { API_PREFIX, detectPlatform, resolveBaseUrl } from "./config";
 
 export type LiveConnectionState = "idle" | "connecting" | "joined" | "error";
 
@@ -45,6 +45,11 @@ function resolveWsUrl(): string {
     globalThis as { process?: { env?: Record<string, string | undefined> } }
   ).process?.env?.NEXT_PUBLIC_WS_URL;
   if (configured) return configured.replace(/\/+$/, "");
+
+  // Ilovada sahifa `https://localhost` dan ochiladi — chat serverning o'zida.
+  if (detectPlatform() !== "web") {
+    return `${resolveBaseUrl().replace(/^http/, "ws")}/live-ws`;
+  }
 
   if (typeof globalThis.location !== "undefined") {
     const loc = globalThis.location;

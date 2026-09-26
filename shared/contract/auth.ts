@@ -73,3 +73,22 @@ export const redeemLinkCodeSchema = z.object({
   wantToken: z.boolean().default(false),
 });
 export type RedeemLinkCodeInput = z.infer<typeof redeemLinkCodeSchema>;
+
+/**
+ * Ilovada Google/Telegram bilan kirish (PKCE): ilova tasodifiy `verifier` yaratadi,
+ * serverga faqat uning SHA-256 xeshini (`challenge`) yuboradi va qaytgan havolani
+ * telefon brauzerida ochadi. Brauzer `uz.birilm.app://auth?code=…` ga qaytaradi,
+ * ilova `code` + `verifier` bilan tokenni oladi.
+ */
+export const startAppLoginSchema = z.object({
+  provider: z.enum(["google", "telegram"]),
+  challenge: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type StartAppLoginInput = z.infer<typeof startAppLoginSchema>;
+export type AppLoginStart = { url: string };
+
+export const finishAppLoginSchema = z.object({
+  code: z.string().regex(/^[a-f0-9]{64}$/),
+  verifier: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type FinishAppLoginInput = z.infer<typeof finishAppLoginSchema>;

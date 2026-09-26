@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { KeyRound, Smartphone } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { createLinkCode, redeemLinkCode } from "@/lib/api/roles-client";
+import { nativeAuth } from "@/lib/api/native-auth";
 import type { LinkCode } from "@/shared/contract";
 
 /** Kirgan qurilmada: boshqa telefon/kompyuterni shu akkauntga ulash uchun kod. */
@@ -71,7 +72,9 @@ export function CodeLoginForm() {
     setBusy(true);
     setError("");
     try {
-      await redeemLinkCode(code);
+      const native = nativeAuth();
+      const session = await redeemLinkCode(code, Boolean(native));
+      if (native && session.token) return await native.adoptToken(session.token);
       // Yangi sessiya cookie'si bilan hamma bo'limlar qayta yuklansin.
       location.assign("/?login=ok");
     } catch (e) {

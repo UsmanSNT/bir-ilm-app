@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { LogIn } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { LogIn, Send } from "lucide-react";
+import { toast } from "sonner";
+import { LOGIN_RESULT_EVENT, nativeAuth } from "@/lib/api/native-auth";
 import type { Viewer } from "@/shared/contract";
 import { CodeLoginForm } from "./device-link";
 
@@ -29,6 +31,30 @@ function TelegramButton({ bot }: { bot: string }) {
 export default function LoginCard({ viewer, title = "Hisobingizni saqlang", text }: { viewer: Viewer; title?: string; text?: string }) {
   const { google, telegramBot } = viewer.loginProviders;
   const available = google || telegramBot;
+  const native = nativeAuth();
+  const [busy, setBusy] = useState(false);
+
+  // Ilovada kirish brauzerda tugaydi; xato bo'lsa ilova shu hodisani yuboradi.
+  useEffect(() => {
+    const onResult = (event: Event) => {
+      setBusy(false);
+      toast.error(String((event as CustomEvent<string>).detail));
+    };
+    window.addEventListener(LOGIN_RESULT_EVENT, onResult);
+    return () => window.removeEventListener(LOGIN_RESULT_EVENT, onResult);
+  }, []);
+
+  const startNative = async (provider: "google" | "telegram") => {
+    if (!native) return;
+    setBusy(true);
+    try {
+      await native.login(provider);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Kirishni boshlab bo'lmadi.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <section className="login-card" aria-label="Hisobga kirish">
@@ -39,7 +65,12 @@ export default function LoginCard({ viewer, title = "Hisobingizni saqlang", text
         {available ? (
           <div className="login-buttons">
             {google && (
-              <a className="login-google" href="/api/auth/google">
+              <a
+                className="login-google"
+                href="/api/auth/google"
+                aria-disabled={busy}
+                onClick={native ? (e) => { e.preventDefault(); void startNative("google"); } : undefined}
+              >
                 <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
                   <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.2l7.8 6.1C12.3 13.6 17.7 9.5 24 9.5z" />
                   <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z" />
@@ -49,7 +80,11 @@ export default function LoginCard({ viewer, title = "Hisobingizni saqlang", text
                 Google bilan kirish
               </a>
             )}
-            {telegramBot && <TelegramButton bot={telegramBot} />}
+            {telegramBot && (native ? (
+              <button type="button" className="login-telegram-native" disabled={busy} onClick={() => void startNative("telegram")}>
+                <Send size={17} /> Telegram bilan kirish
+              </button>
+            ) : <TelegramButton bot={telegramBot} />)}
           </div>
         ) : (
           <p className="login-soon">Kirish tugmalari tez orada yoqiladi.</p>

@@ -71,6 +71,13 @@
       "when": 1790384116595,
       "tag": "0009_login_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790393891898,
+      "tag": "0010_app_login",
+      "breakpoints": true
     }
   ]
 }

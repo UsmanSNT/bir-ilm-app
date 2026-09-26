@@ -813,6 +813,90 @@ try {
     console.log("PASS: Kod bilan ulash: admin rolini boshqa qurilmaga beradi, bir martalik, mehmonga berilmaydi, taxmin cheklanadi.");
   }
 
+  // --- Ilovada Telegram bilan kirish (brauzer → uz.birilm.app://auth → token) ----
+  {
+    const { createHash, createHmac, randomBytes } = await import("node:crypto");
+    const appLogin = await load("app/api/v1/auth/app-login/route.ts");
+    const appRedeem = await load("app/api/v1/auth/app-login/redeem/route.ts");
+    const tgStart = await load("app/api/auth/telegram/route.ts");
+    const tgCallback = await load("app/api/auth/telegram/callback/route.ts");
+    const sha = (text) => createHash("sha256").update(text).digest("hex");
+    const signed = (fields) => {
+      const check = Object.keys(fields).sort().map((k) => `${k}=${fields[k]}`).join("\n");
+      const secret = createHash("sha256").update(process.env.TELEGRAM_BOT_TOKEN).digest();
+      return new URLSearchParams({ ...fields, hash: createHmac("sha256", secret).update(check).digest("hex") });
+    };
+    const tgUser = { id: "777000222", first_name: "Ilova", auth_date: String(Math.floor(Date.now() / 1000)) };
+
+    // Ilova mehmoni kirishni boshlaydi: serverga faqat verifier xeshi ketadi.
+    const app = await nativeClient("android");
+    const verifier = randomBytes(32).toString("hex");
+    const { payload: started } = await app.call(appLogin.POST, "/api/v1/auth/app-login", {
+      method: "POST", body: { provider: "telegram", challenge: sha(verifier) }, expect: 201,
+    });
+    const startUrl = new URL(started.data.url);
+    assert.equal(startUrl.pathname, "/api/auth/telegram");
+
+    // Telefon brauzeri: widget sahifasi oqimni cookie'ga yozadi.
+    const page = await tgStart.GET(request(startUrl.pathname + startUrl.search));
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /telegram-widget\.js/);
+    const flowCookie = page.headers.getSetCookie().find((c) => c.startsWith("bir_app_flow="))?.split(";")[0];
+    assert.ok(flowCookie, "Oqim cookie'si o'rnatilishi kerak");
+
+    // Telegram tasdiqlaydi → sahifa ilovaga kod bilan qaytaradi, brauzerga sessiya yozilmaydi.
+    const back = await tgCallback.GET(request(`/api/auth/telegram/callback?${signed(tgUser)}`, { headers: { Cookie: flowCookie } }));
+    const html = await back.text();
+    const code = /uz\.birilm\.app:\/\/auth\?code=([a-f0-9]{64})/.exec(html)?.[1];
+    assert.ok(code, "Ilovaga qaytish havolasi bo'lishi kerak");
+    assert.ok(!back.headers.getSetCookie().some((c) => c.startsWith("bir_reader=")), "Brauzerga sessiya yozilmasin");
+
+    // Boshqa ilova (verifiersiz yoki boshqa token bilan) kodni ishlata olmaydi.
+    const thief = await nativeClient("android");
+    await thief.call(appRedeem.POST, "/api/v1/auth/app-login/redeem", {
+      method: "POST", body: { code, verifier }, headers: { "X-Forwarded-For": "198.51.100.1" }, expect: 400,
+    });
+
+    // Kod bir martalik bo'lgani uchun o'g'ri urinishidan keyin u yaroqsiz — yangi oqim bilan to'g'ri yo'l.
+    const verifier2 = randomBytes(32).toString("hex");
+    const { payload: again } = await app.call(appLogin.POST, "/api/v1/auth/app-login", {
+      method: "POST", body: { provider: "telegram", challenge: sha(verifier2) }, expect: 201,
+    });
+    const again2 = new URL(again.data.url);
+    const page2 = await tgStart.GET(request(again2.pathname + again2.search));
+    const flow2 = page2.headers.getSetCookie().find((c) => c.startsWith("bir_app_flow="))?.split(";")[0];
+    const back2 = await tgCallback.GET(request(`/api/auth/telegram/callback?${signed(tgUser)}`, { headers: { Cookie: flow2 } }));
+    const code2 = /code=([a-f0-9]{64})/.exec(await back2.text())?.[1];
+    await app.call(appRedeem.POST, "/api/v1/auth/app-login/redeem", {
+      method: "POST", body: { code: code2, verifier: randomBytes(32).toString("hex") }, headers: { "X-Forwarded-For": "198.51.100.2" }, expect: 400,
+    });
+
+    const verifier3 = randomBytes(32).toString("hex");
+    const { payload: third } = await app.call(appLogin.POST, "/api/v1/auth/app-login", {
+      method: "POST", body: { provider: "telegram", challenge: sha(verifier3) }, expect: 201,
+    });
+    const u3 = new URL(third.data.url);
+    const flow3 = (await tgStart.GET(request(u3.pathname + u3.search))).headers.getSetCookie().find((c) => c.startsWith("bir_app_flow="))?.split(";")[0];
+    const code3 = /code=([a-f0-9]{64})/.exec(await (await tgCallback.GET(request(`/api/auth/telegram/callback?${signed(tgUser)}`, { headers: { Cookie: flow3 } }))).text())?.[1];
+    const { payload: redeemed } = await app.call(appRedeem.POST, "/api/v1/auth/app-login/redeem", {
+      method: "POST", body: { code: code3, verifier: verifier3 }, headers: { "X-Forwarded-For": "198.51.100.3" },
+    });
+    assert.equal(redeemed.data.userId, app.userId, "Ilovadagi mehmon akkaunti saqlanishi kerak");
+    assert.match(redeemed.data.token, /^[a-f0-9]{64}$/);
+
+    const viewer = (await (await session.GET(request("/api/v1/auth/session", {
+      headers: { Authorization: `Bearer ${redeemed.data.token}`, "X-Client-Platform": "android" },
+    }))).json()).data;
+    assert.equal(viewer.userId, app.userId);
+    assert.deepEqual(viewer.accounts, [{ provider: "telegram", label: "Ilova" }]);
+    assert.equal(viewer.signedIn, true);
+
+    // Eskirgan/soxta oqim bilan ochilgan sahifa xato ko'rsatadi.
+    const stale = await tgStart.GET(request(`/api/auth/telegram?flow=${"0".repeat(64)}`));
+    assert.match(await stale.text(), /eskirgan/);
+    console.log("PASS: Ilovada Telegram bilan kirish: PKCE bilan himoyalangan, mehmon akkaunti saqlanadi, kodni boshqa ilova ishlata olmaydi.");
+  }
+
   console.log("\nHAMMASI O'TDI: /api/v1 va eski API web va mobil uchun bir xil ishlaydi.");
 } finally {
   if (createdUsers.length) {

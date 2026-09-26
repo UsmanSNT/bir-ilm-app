@@ -19,6 +19,7 @@ import Page from "@/app/page";
 import { configureApiClient } from "@/lib/api";
 import { installApiBridge } from "./api-bridge";
 import { capacitorStorage } from "./native-storage";
+import { setupNativeAuth } from "./native-auth";
 import { isNative, setupNativeShell } from "./native-shell";
 
 const container = document.getElementById("root");
@@ -32,6 +33,9 @@ if (isNative()) {
   // Ko'prikni render'dan OLDIN o'rnatamiz, aks holda komponentlar
   // ulanishida yuboriladigan birinchi so'rovlar ushlanmay qoladi.
   installApiBridge();
+
+  // Google/Telegram telefon brauzerida ochiladi va `uz.birilm.app://auth` orqali qaytadi.
+  setupNativeAuth(capacitorStorage());
 }
 
 createRoot(container).render(<Page />);

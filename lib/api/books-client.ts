@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BOOK_LIMITS, type Book, type CreateBookInput, type UpdateBookInput } from "@/shared/contract";
-import { API_PREFIX } from "./config";
+import { API_PREFIX, absoluteUrl } from "./config";
 
 type Envelope<T> = { ok?: boolean; data?: T; error?: { message?: string; received?: number } };
 
@@ -28,12 +28,10 @@ export function useCatalog(): Catalog & { reload: () => void } {
   const [state, setState] = useState<Catalog>({ items: [], active: null, loading: true, error: "" });
   const reload = useCallback(() => {
     call<{ items: Book[]; activeBookId: string | null }>("/books")
-      .then((data) => setState({
-        items: data.items,
-        active: data.items.find((b) => b.id === data.activeBookId) ?? null,
-        loading: false,
-        error: "",
-      }))
+      .then((data) => {
+        const items = data.items.map((b) => ({ ...b, coverUrl: absoluteUrl(b.coverUrl), audioUrl: absoluteUrl(b.audioUrl) }));
+        setState({ items, active: items.find((b) => b.id === data.activeBookId) ?? null, loading: false, error: "" });
+      })
       .catch((e: Error) => setState((s) => ({ ...s, loading: false, error: e.message })));
   }, []);
   useEffect(() => {

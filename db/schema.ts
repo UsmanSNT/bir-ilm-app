@@ -70,12 +70,22 @@ export const userSessions = sqliteTable("user_sessions", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_sessions_user").on(t.userId)]);
 
-/** Boshqa qurilmani ulash kodlari: 6 xonali, 10 daqiqa, bir marta. Faqat xeshi saqlanadi. */
+/**
+ * Bir martalik kirish kodlari (faqat xeshi saqlanadi):
+ *   link    — boshqa qurilmani ulash, 6 xonali, 10 daqiqa;
+ *   flow    — ilova brauzerda Google/Telegram oqimini boshladi (qaysi ilova foydalanuvchisi uchun);
+ *   handoff — brauzer kirishni tugatdi, ilova tokenni `challenge` tasdig'i bilan oladi.
+ */
 export const loginCodes = sqliteTable("login_codes", {
   codeHash: text("code_hash").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   expiresAt: text("expires_at").notNull(),
-}, (t) => [index("idx_login_codes_user").on(t.userId)]);
+  kind: text("kind", { enum: ["link", "flow", "handoff"] }).notNull().default("link"),
+  /** Ilova oqimi: SHA-256(verifier) — kodni ushlab olgan boshqa ilova uni ishlata olmaydi. */
+  challenge: text("challenge"),
+  /** handoff: tasdiqlangan Google/Telegram profili (JSON) — akkaunt ilova kodni qaytarganda bog'lanadi. */
+  payload: text("payload"),
+},(t) => [index("idx_login_codes_user").on(t.userId)]);
 
 /** Google / Telegram hisoblari — bitta foydalanuvchiga bir nechtasi bog'lanishi mumkin. */
 export const authAccounts = sqliteTable("auth_accounts", {
