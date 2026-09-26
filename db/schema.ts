@@ -92,8 +92,17 @@ export const books = sqliteTable("books", {
   summary: text("summary").notNull().default(""),
   color: text("color").notNull().default("#0f4f45"),
   pages: integer("pages").notNull().default(320),
+  /** Haftaning kitobi (bosh sahifa va profilda ko'rinadi). Bir vaqtda bittasi. */
   active: integer("active", { mode: "boolean" }).notNull().default(false),
+  /** Media fayllar nomi (BIR_ILM_MEDIA_DIR/books/<id>/ ichida); null — yuklanmagan. */
+  coverFile: text("cover_file"),
+  audioFile: text("audio_file"),
+  audioMime: text("audio_mime"),
+  audioBytes: integer("audio_bytes").notNull().default(0),
+  audioSeconds: integer("audio_seconds").notNull().default(0),
+  createdBy: text("created_by"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const readingProgress = sqliteTable(

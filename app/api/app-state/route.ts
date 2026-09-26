@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
-import { activeBookId, books } from "@/app/app-data";
+// Eski (v1 dan oldingi) izohlar va jarayon bitta "haftalik kitob" kaliti ostida saqlanadi.
+const activeBookId = "atomic-habits";
 import { resolveIdentity, sessionCookie, type Identity } from "@/server/auth/identity";
 import { corsHeaders, isAllowedOrigin, parseAllowedOrigins, preflightResponse } from "@/server/http/cors";
 
@@ -75,7 +76,7 @@ type LeaderboardRow = {
 };
 
 function emptyPayload(mode: "local" | "seed") {
-  return { mode, activeBookId, books, comments: [], leaderboard: [] };
+  return { mode, activeBookId, comments: [], leaderboard: [] };
 }
 
 function cleanText(value: unknown, fallback: string, limit: number) {
@@ -200,7 +201,6 @@ async function handleGet(): Promise<Response> {
     return Response.json({
       mode: "server",
       activeBookId,
-      books,
       comments: comments.filter((comment) => !comment.demo),
       leaderboard,
     });
@@ -267,7 +267,7 @@ async function handlePost(request: Request, identity: Identity): Promise<Respons
     }
 
     if (type === "progress") {
-      const total = boundedInt(payload.total, books[0]?.pages ?? 320, 1, 5000);
+      const total = boundedInt(payload.total, 320, 1, 5000);
       const page = boundedInt(payload.page, 0, 0, total);
 
       await db

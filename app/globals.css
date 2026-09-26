@@ -2377,3 +2377,47 @@ input {
 .post-reply{position:relative}.reply-delete{position:absolute;top:4px;right:4px;width:26px;height:26px}
 .feed-tabs [role=tab] svg{margin-right:4px;vertical-align:-2px}
 .m-news-empty{color:#7a8781;font-size:13px;padding:14px 4px;margin:0}
+
+/* Kitoblar: muqova rasmlari, muharrir, pleer */
+.lib-cover.has-image,.m-cover.has-image,.discovery-cover.has-image,.p-book-image{padding:0;overflow:hidden;position:relative}
+.lib-cover img,.m-cover img,.discovery-cover img,.p-book-image img,.book-detail-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.lib-cover:not(.has-image){color:#fff;display:flex;flex-direction:column;justify-content:flex-end;padding:8px;text-align:left}
+.lib-cover:not(.has-image) span{font-weight:700;font-size:12px;line-height:1.2}
+.lib-head .lib-add{width:34px;height:34px;border-radius:50%;background:#0b6148;color:#fff;display:grid;place-items:center;border:0}
+.lib-week{display:inline-block;margin-left:4px;padding:2px 7px;border-radius:10px;background:#fbf1d6;color:#8a6511;font-size:10px;font-weight:600}
+.lib-summary{color:#5c6b64;font-size:13px;line-height:1.7;margin:18px 4px 0;text-align:left;white-space:pre-line}
+.lib-empty .button{margin-top:10px;display:inline-flex;gap:6px;align-items:center}
+.catalog-add{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:10px;padding:9px 14px;background:#0b6148;color:#fff;font-weight:600;cursor:pointer}
+.catalog-edit{font-size:12px;margin-top:4px}
+.book-detail-head{display:flex;gap:14px;align-items:center;margin-bottom:8px}
+.book-detail-cover{flex:none;width:72px;height:104px;border-radius:6px;overflow:hidden;color:#fff;font-weight:700;font-size:12px;display:flex;align-items:flex-end;padding:6px;box-shadow:0 6px 16px #0002}
+.book-detail-cover:has(img){padding:0}
+.book-detail-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.book-detail-actions .button{display:inline-flex;align-items:center;gap:6px}
+.book-detail-actions .secondary{background:#eef5f1;color:#0b6148}
+.book-editor form{display:flex;flex-direction:column;gap:12px}
+.book-editor-top{display:flex;gap:14px}
+.book-editor-cover{position:relative;flex:none;width:96px;height:138px;border-radius:8px;overflow:hidden;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 16px #0002}
+.book-editor-cover span{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px}
+.book-editor-cover img{width:100%;height:100%;object-fit:cover}
+.book-editor-cover input,.book-editor-audio input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.book-editor-fields{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.book-editor input:not([type=file]):not([type=checkbox]),.book-editor textarea{width:100%;padding:9px 11px;border:1px solid #dfe6e2;border-radius:9px;font:inherit;font-size:14px;resize:vertical}
+.book-editor-colors{display:flex;flex-wrap:wrap;gap:6px}
+.book-editor-colors button{width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #d5dcd8;cursor:pointer}
+.book-editor-colors button[aria-checked=true]{box-shadow:0 0 0 2px #0b6148}
+.book-editor-audio{position:relative;display:flex;align-items:center;gap:10px;padding:12px;border:1px dashed #b9cfc3;border-radius:10px;background:#f6faf7;color:#0b6148;cursor:pointer}
+.book-editor-audio span{flex:1;min-width:0;display:flex;flex-direction:column}
+.book-editor-audio strong{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.book-editor-audio small{color:#6b7a73;font-size:11px}
+.book-editor-active{display:flex;align-items:center;gap:7px;font-size:13px;color:#7a5a0c;cursor:pointer}
+.book-editor-progress{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#34434d}
+.book-editor-progress .bar{height:6px;border-radius:6px;background:#e5ece8;overflow:hidden}
+.book-editor-progress .bar i{display:block;height:100%;background:#0b6148;transition:width .3s}
+.book-editor-progress .text-btn{align-self:flex-start;display:inline-flex;gap:4px;align-items:center}
+.book-editor-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.book-editor-actions button{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:9px;padding:9px 14px;font-weight:600;cursor:pointer}
+.book-editor-actions .danger{margin-right:auto;background:#fdeeee;color:#b4232f}
+.book-editor-actions .ghost{background:none;color:#5c6b75}
+.m-week-cover{border:0;background:none;padding:0;cursor:pointer}
+.m-cover.has-image>span,.m-cover.has-image>strong,.m-cover.has-image>em{display:none}.m-cover.has-image>.m-live{display:inline-block;position:absolute;top:6px;left:6px;z-index:1}

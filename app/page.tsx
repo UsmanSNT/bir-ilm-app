@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   Bell,
@@ -10,28 +10,15 @@ import {
   Database,
   Flame,
   Headphones,
-  Heart,
   Home,
-  ImageIcon,
   Medal,
-  MessageCircle,
   MessageSquare,
   MonitorSmartphone,
-  MoreHorizontal,
-  PenLine,
-  Play,
-  Search,
-  Send,
   Settings,
-  Share2,
   Smartphone,
-  Trophy,
-  Upload,
   Users,
   UserRound,
-  Video,
   Wifi,
-  X,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -48,15 +35,11 @@ import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
-import MobileScreens from "./mobile-screens";
+import MobileScreens, { useAnnouncements } from "./mobile-screens";
 import MobileLibrary from "./mobile-library";
 import ProfileScreens from "./profile-screens";
-import {
-  Book,
-  CommunityComment,
-  LeaderboardMember,
-  books,
-} from "./app-data";
+import { type CommunityComment, type LeaderboardMember } from "./app-data";
+import type { Book } from "@/shared/contract";
 
 type BackendMode = "local" | "server" | "seed";
 
@@ -76,12 +59,6 @@ type State = {
   lastActiveDate: string;
 };
 
-type Recording = {
-  id: string;
-  title: string;
-  file: Blob;
-  url?: string;
-};
 
 type AppStatePayload = {
   type?: "comment" | "progress" | "profile";
@@ -101,8 +78,8 @@ const nav = [
 const initial: State = {
   name: "Kitobxon",
   page: 0,
-  total: books[0]?.pages ?? 320,
-  shelf: [books[0]?.id ?? "atomic-habits"],
+  total: 320,
+  shelf: [],
   note: "",
   reading: false,
   talk: false,
@@ -140,8 +117,8 @@ function normalizeSavedState(
   const shelf = Array.isArray(saved.shelf)
     ? saved.shelf
         .map((item) => {
-          if (typeof item === "number") return books[item]?.id;
-          if (typeof item === "string") return item;
+          // Faqat serverdagi kitoblar (book_...) qoladi — eski namuna kitob IDlari tashlanadi.
+          if (typeof item === "string" && item.startsWith("book_")) return item;
           return null;
         })
         .filter((item): item is string => Boolean(item))
@@ -168,35 +145,6 @@ function getInitialState() {
   }
 }
 
-function audioDB(
-  action: "all" | "put" | "delete",
-  value?: Recording | string,
-): Promise<Recording[]> {
-  return new Promise((resolve, reject) => {
-    const open = indexedDB.open("bir-ilm-audio", 1);
-    open.onupgradeneeded = () => {
-      open.result.createObjectStore("audio", { keyPath: "id" });
-    };
-    open.onerror = () => reject(open.error);
-    open.onsuccess = () => {
-      const db = open.result;
-      const tx = db.transaction("audio", action === "all" ? "readonly" : "readwrite");
-      const store = tx.objectStore("audio");
-      const request =
-        action === "all"
-          ? store.getAll()
-          : action === "put"
-            ? store.put(value)
-            : store.delete(value as string);
-
-      tx.oncomplete = () => {
-        resolve(action === "all" ? (request.result as Recording[]) : []);
-        db.close();
-      };
-      tx.onerror = () => reject(tx.error);
-    };
-  });
-}
 
 function Brand() {
   return (
@@ -266,21 +214,12 @@ export default function App() {
   const [now, setNow] = useState(0);
   const [session, setSession] = useState(0);
   const [modal, setModal] = useState("");
-  const [selected, setSelected] = useState<Book>(books[0]);
-  const [audio, setAudio] = useState<Recording[]>([]);
-  const [audioTitle, setAudioTitle] = useState("Atom odatlar muhokamasi");
-  const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<Book | null>(null);
   const [backendMode, setBackendMode] = useState<BackendMode>("local");
   const [serverLeaders, setServerLeaders] = useState<LeaderboardMember[]>([]);
+  const announcements = useAnnouncements();
 
   const pct = Math.round((data.page / Math.max(1, data.total)) * 100);
-  const secs = Math.max(0, Math.floor((session - now) / 1000));
-  const timer = `${Math.floor(secs / 86400)} kun ${String(
-    Math.floor(secs / 3600) % 24,
-  ).padStart(2, "0")}:${String(Math.floor(secs / 60) % 60).padStart(
-    2,
-    "0",
-  )}:${String(secs % 60).padStart(2, "0")}`;
   const leaders = useMemo(
     () => mergeLeaders(data, serverLeaders),
     [data, serverLeaders],
@@ -382,11 +321,6 @@ export default function App() {
       })
       .catch(() => setBackendMode("local"));
 
-    audioDB("all")
-      .then((rows) =>
-        setAudio(rows.map((row) => ({ ...row, url: URL.createObjectURL(row.file) }))),
-      )
-      .catch(() => toast.error("Audio xotirasi mavjud emas"));
 
     const tick = setInterval(() => {
       setNow(Date.now());
@@ -454,31 +388,6 @@ export default function App() {
     void syncState({ type: "progress", page: next.page, total: next.total }, next);
   }
 
-  async function upload(file?: File) {
-    if (!file) return;
-    if (!file.type.startsWith("audio/") || file.size > 50 * 1024 * 1024) {
-      toast.error("50 MB gacha audio tanlang");
-      return;
-    }
-
-    setBusy(true);
-    const row = {
-      id: crypto.randomUUID(),
-      title: audioTitle.trim() || file.name,
-      file,
-    };
-
-    try {
-      await audioDB("put", row);
-      setAudio((items) => [...items, { ...row, url: URL.createObjectURL(file) }]);
-      touchActivity(15);
-      toast.success("Audio qurilmaga saqlandi");
-    } catch {
-      toast.error("Audio saqlanmadi");
-    } finally {
-      setBusy(false);
-    }
-  }
 
 
   if (!ready) {
@@ -560,8 +469,8 @@ export default function App() {
                   onContinue={() => setModal("progress")}
                   onOpenTimer={() => window.dispatchEvent(new Event("bir-open-pomodoro"))}
                   onOpenNotifications={() => setModal("notifications")}
-                  onOpenBook={() => {
-                    setSelected(books[0]);
+                  onOpenBook={(book) => {
+                    setSelected(book);
                     setModal("book");
                   }}
                   onAddReminder={() => {
@@ -598,76 +507,6 @@ export default function App() {
 
               <TabsContent value="talks">
                 <LiveSession name={data.name} date={session} onComments={() => go("community")} />
-                <div className="section-row">
-                  <h3>O&apos;tgan kitoblar suhbatlari</h3>
-                  <Headphones size={22} />
-                </div>
-                <p className="muted">
-                  Suhbat yozuvlari serverga ko&apos;chirilganda Android, iOS va web bir xil
-                  ro&apos;yxatni ko&apos;radi. Hozir qurilmadagi audioni qo&apos;shib tinglash mumkin.
-                </p>
-                <div className="card upload-card">
-                  <label>
-                    Kitob yoki suhbat nomi
-                    <input
-                      value={audioTitle}
-                      maxLength={100}
-                      onChange={(event) => setAudioTitle(event.target.value)}
-                    />
-                  </label>
-                  <label className="button upload">
-                    <Upload size={18} />
-                    {busy ? "Saqlanmoqda..." : "Audio qo'shish"}
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      disabled={busy}
-                      onChange={(event) => {
-                        void upload(event.target.files?.[0]);
-                        event.target.value = "";
-                      }}
-                    />
-                  </label>
-                  <small>50 MB gacha · Brauzer qo&apos;llaydigan audio formatlari</small>
-                </div>
-
-                {audio.map((recording) => (
-                  <article className="card audio-card" key={recording.id}>
-                    <div className="section-row">
-                      <h3>{recording.title}</h3>
-                      <button
-                        className="icon-btn"
-                        aria-label={`${recording.title} audiosini o'chirish`}
-                        onClick={async () => {
-                          try {
-                            await audioDB("delete", recording.id);
-                            URL.revokeObjectURL(recording.url!);
-                            setAudio((items) => items.filter((item) => item.id !== recording.id));
-                            toast.success("Audio o'chirildi");
-                          } catch {
-                            toast.error("O'chirib bo'lmadi");
-                          }
-                        }}
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-                    <audio
-                      controls
-                      preload="metadata"
-                      src={recording.url}
-                      onError={() => toast.error("Brauzer bu audio formatini ocha olmadi")}
-                    />
-                  </article>
-                ))}
-
-                {!audio.length && (
-                  <div className="empty">
-                    <Headphones size={34} />
-                    <h3>Hozircha audio yo&apos;q</h3>
-                    <p>Birinchi suhbat yozuvini yuqoridan qo&apos;shing.</p>
-                  </div>
-                )}
               </TabsContent>
 
               <TabsContent value="shelf">
@@ -681,7 +520,6 @@ export default function App() {
                     update({ shelf: saved ? data.shelf.filter((item) => item !== id) : [...data.shelf, id] });
                     toast.success(saved ? "Saqlangandan olindi" : "Saqlanganlarga qo‘shildi");
                   }}
-                  onReadPage={(page, total) => updateProgress(page, total)}
                 />
               </TabsContent>
 
@@ -794,7 +632,7 @@ export default function App() {
               : ({
                   progress: "O'qish progressi",
                   note: "Muhim fikringiz",
-                  book: selected.title,
+                  book: selected?.title ?? "Kitob",
                   profile: "Profil",
                   notifications: "Bildirishnomalar",
                   about: "App holati",
@@ -902,60 +740,48 @@ export default function App() {
                 </label>
               )}
 
-              {modal === "book" && (
+              {modal === "book" && selected && (
                 <>
-                  <p className="muted">{selected.author}</p>
-                  <p>{selected.summary}</p>
-                  <p className="book-detail-meta"><BookOpen size={18}/> {selected.pages} sahifa</p>
-                  <p className="small-note">Bu kitob haqida ma’lumot. To‘liq matn va audio hali joylanmagan.</p>
-                  <button
-                    className="button"
-                    onClick={() => {
-                      const isSaved = data.shelf.includes(selected.id);
-                      update({
-                        shelf: isSaved
-                          ? data.shelf.filter((id) => id !== selected.id)
-                          : [...data.shelf, selected.id],
-                      });
-                      touchActivity(8);
-                      toast.success(isSaved ? "Javondan olindi" : "Javonga qo'shildi");
-                    }}
-                  >
-                    {data.shelf.includes(selected.id) ? "Javondan olish" : "Javonga qo'shish"}
-                  </button>
+                  <div className="book-detail-head">
+                    <span className="book-detail-cover" style={{ backgroundColor: selected.color }}>{selected.coverUrl ? <img src={selected.coverUrl} alt="" /> : selected.title}</span>
+                    <div>
+                      <p className="muted">{selected.author}</p>
+                      <p className="book-detail-meta"><Headphones size={18}/> {selected.audioUrl ? (selected.audioSeconds ? `${Math.floor(selected.audioSeconds / 3600)} soat ${Math.round((selected.audioSeconds % 3600) / 60)} daqiqa` : "Audiokitob") : "Audio tez orada"}</p>
+                    </div>
+                  </div>
+                  {selected.summary && <p>{selected.summary}</p>}
+                  <div className="book-detail-actions">
+                    {selected.audioUrl && <button className="button" onClick={() => { setModal(""); go("shelf"); }}><Headphones size={17}/> Javonimda tinglash</button>}
+                    <button
+                      className="button secondary"
+                      onClick={() => {
+                        const isSaved = data.shelf.includes(selected.id);
+                        update({ shelf: isSaved ? data.shelf.filter((id) => id !== selected.id) : [...data.shelf, selected.id] });
+                        touchActivity(8);
+                        toast.success(isSaved ? "Javondan olindi" : "Javonga qo'shildi");
+                      }}
+                    >
+                      {data.shelf.includes(selected.id) ? "Javondan olish" : "Javonga qo'shish"}
+                    </button>
+                  </div>
                 </>
               )}
 
               {modal === "notifications" && (
                 <>
                   <div className="notification-center">
-                    <button type="button" className="notification-item" onClick={() => { setModal(""); go("talks"); }}>
-                      <span className="notification-icon"><MessageSquare size={19} /></span>
-                      <span className="notification-copy">
-                        <strong>Yakshanba birga muhokama qilamiz</strong>
-                        <small>Atom odatlar bo‘yicha jonli suhbatga qo‘shiling.</small>
-                        <time>2 soat oldin</time>
-                      </span>
-                      <ChevronRight size={18} />
-                    </button>
-                    <button type="button" className="notification-item" onClick={() => { setModal(""); go("home"); }}>
-                      <span className="notification-icon notification-icon-gold"><Trophy size={19} /></span>
-                      <span className="notification-copy">
-                        <strong>Jonli viktorina bugun soat 20:00</strong>
-                        <small>“Kitob bilimdoni” xonasi ishtirokchilarni kutmoqda.</small>
-                        <time>5 soat oldin</time>
-                      </span>
-                      <ChevronRight size={18} />
-                    </button>
-                    <button type="button" className="notification-item" onClick={() => setModal("")}>
-                      <span className="notification-icon notification-icon-blue"><BookOpen size={19} /></span>
-                      <span className="notification-copy">
-                        <strong>Kun hikmati yangilandi</strong>
-                        <small>Bugungi yangi fikrni o‘qib, mutolaani davom ettiring.</small>
-                        <time>Kecha</time>
-                      </span>
-                      <ChevronRight size={18} />
-                    </button>
+                    {!announcements.length && <p className="muted">Yangi bildirishnoma yo‘q. Admin e‘lon joylaganda shu yerda ko‘rinadi.</p>}
+                    {announcements.slice(0, 5).map((item) => (
+                      <button type="button" className="notification-item" key={item.id} onClick={() => { setModal(""); go("community"); }}>
+                        <span className="notification-icon"><MessageSquare size={19} /></span>
+                        <span className="notification-copy">
+                          <strong>{item.title}</strong>
+                          <small>{item.body.slice(0, 90)}{item.body.length > 90 ? "…" : ""}</small>
+                          <time>{item.time}</time>
+                        </span>
+                        <ChevronRight size={18} />
+                      </button>
+                    ))}
                   </div>
 
                   <h3 className="notification-settings-title">Eslatma sozlamalari</h3>

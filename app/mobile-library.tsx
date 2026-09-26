@@ -1,76 +1,43 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import {
-  BookOpen,
-  Bookmark,
-  ChevronLeft,
-  Download,
-  Headphones,
-  List,
-  Moon,
-  Pause,
-  Play,
-  Search,
-  SkipBack,
-  SkipForward,
-  SunMedium,
-  Type,
-} from "lucide-react";
+import { Bookmark, ChevronLeft, Headphones, Moon, Pause, Pencil, Play, Plus, Search, SkipBack, SkipForward } from "lucide-react";
 import { toast } from "sonner";
-import { books } from "./app-data";
-import {
-  clock,
-  lengthLabel,
-  library,
-  seedDownloads,
-  seedProgress,
-  type LibraryMeta,
-  type Spot,
-} from "./library-data";
+import { useCatalog } from "@/lib/api/books-client";
+import { useViewer } from "@/lib/api/roles-client";
+import { canModerate } from "@/shared/contract/roles";
+import type { Book } from "@/shared/contract";
+import BookEditor from "./book-editor";
 
 type Save = {
-  downloads: string[];
-  progress: Record<string, Spot>;
+  /** Har kitob uchun tinglangan joy (soniya). */
+  progress: Record<string, number>;
   finished: string[];
   speed: number;
+  last: string | null;
 };
 
-type Live = Spot & { id: string; playing: boolean; speed: number; sleepUntil: number | null };
+type Screen = "catalog" | "mine" | "player";
+type MineTab = "saved" | "finished";
 
-type Screen = "catalog" | "mine" | "player" | "reader";
-type MineTab = "saved" | "downloaded" | "finished";
-type Filter = "all" | "audio" | "text";
-type Sort = "recent" | "title" | "progress";
-
-const KEY = "bir-ilm-library-v1";
+const KEY = "bir-ilm-library-v2";
 const speeds = [1, 1.25, 1.5, 2];
-
-const seed: Save = {
-  downloads: seedDownloads,
-  progress: seedProgress,
-  finished: [],
-  speed: 1,
-};
+const empty: Save = { progress: {}, finished: [], speed: 1, last: null };
 
 function parseSave(raw: string): Save {
-  if (!raw) return seed;
+  if (!raw) return empty;
   try {
     const parsed = JSON.parse(raw) as Partial<Save>;
-    const progress: Record<string, Spot> = { ...seed.progress };
-    if (parsed.progress && typeof parsed.progress === "object") {
-      for (const [id, spot] of Object.entries(parsed.progress)) {
-        if (spot && Number.isFinite(spot.chapter) && Number.isFinite(spot.at)) progress[id] = spot;
-      }
-    }
+    const progress: Record<string, number> = {};
+    for (const [id, at] of Object.entries(parsed.progress ?? {})) if (Number.isFinite(at)) progress[id] = at as number;
     return {
-      downloads: Array.isArray(parsed.downloads) ? parsed.downloads.filter((id) => typeof id === "string") : seed.downloads,
       progress,
       finished: Array.isArray(parsed.finished) ? parsed.finished.filter((id) => typeof id === "string") : [],
       speed: typeof parsed.speed === "number" && speeds.includes(parsed.speed) ? parsed.speed : 1,
+      last: typeof parsed.last === "string" ? parsed.last : null,
     };
   } catch {
-    return seed;
+    return empty;
   }
 }
 
@@ -87,266 +54,173 @@ function readSnapshot() {
   }
 }
 
-function writeSave(next: Save) {
+function writeSave(patch: Partial<Save>) {
+  const next = { ...parseSave(readSnapshot()), ...patch };
   try {
     localStorage.setItem(KEY, JSON.stringify(next));
   } catch {
-    /* Qurilma xotirasi to‘lsa tinglash shu sessiyada davom etadi. */
+    /* Qurilma xotirasi to'lsa tinglash shu sessiyada davom etadi. */
   }
   window.dispatchEvent(new Event("bir-library-save"));
 }
 
-function metaById(id: string) {
-  return library.find((item) => item.id === id);
+export function clock(seconds: number) {
+  const safe = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(safe / 3600);
+  const m = Math.floor((safe % 3600) / 60);
+  const s = String(safe % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }
 
-function bookById(id: string) {
-  return books.find((item) => item.id === id);
+function lengthLabel(seconds: number) {
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.round((seconds % 3600) / 60);
+  return hours <= 0 ? `${Math.max(1, mins)} daq` : `${hours}s ${mins} daq`;
 }
 
-function spotOf(save: Save, id: string): Spot {
-  return save.progress[id] ?? { chapter: 0, at: 0 };
-}
+type Live = { id: string; playing: boolean; at: number; duration: number; speed: number; sleepUntil: number | null; sleepMinutes: number | null };
 
-export default function MobileLibrary({
-  shelf,
-  onToggleSave,
-  onReadPage,
-}: {
-  shelf: string[];
-  onToggleSave: (id: string) => void;
-  onReadPage: (page: number, total: number) => void;
-}) {
+export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]; onToggleSave: (id: string) => void }) {
+  const catalog = useCatalog();
+  const viewer = useViewer();
+  const editor = canModerate(viewer?.role);
   const raw = useSyncExternalStore(subscribe, readSnapshot, () => "");
   const save = useMemo(() => parseSave(raw), [raw]);
   const [screen, setScreen] = useState<Screen>("catalog");
-  const [mine, setMine] = useState<MineTab>("downloaded");
-  const [filter, setFilter] = useState<Filter>("all");
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<Sort>("recent");
-  const [showFresh, setShowFresh] = useState(false);
-  const [activeId, setActiveId] = useState("atomic-habits");
-  const [live, setLive] = useState<Live | null>(null);
-  const liveRef = useRef<Live | null>(null);
-  liveRef.current = live;
-  const [font, setFont] = useState(18);
-  const [brightness, setBrightness] = useState(1);
-  const [showLight, setShowLight] = useState(false);
-  const [showContents, setShowContents] = useState(false);
   const [returnTo, setReturnTo] = useState<Screen>("catalog");
+  const [mine, setMine] = useState<MineTab>("saved");
+  const [query, setQuery] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [live, setLive] = useState<Live | null>(null);
+  const [editing, setEditing] = useState<{ book: Book | null } | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const active = metaById(activeId) ?? library[0];
-  const activeBook = bookById(active.id);
+  const byId = (id: string | null) => catalog.items.find((b) => b.id === id) ?? null;
+  const active = byId(activeId);
 
+  // Bitta audio element: sahifa ichida kitoblar almashsa ham shu ishlatiladi.
   useEffect(() => {
-    if (!live?.playing) return;
-    const timer = window.setInterval(() => {
-      setLive((prev) => {
-        if (!prev?.playing) return prev;
-        const item = metaById(prev.id);
-        const chapter = item?.chapters[prev.chapter];
-        if (!item || !chapter || chapter.seconds <= 0) return { ...prev, playing: false };
-        if (prev.sleepUntil && Date.now() >= prev.sleepUntil) {
-          toast("Uyqu taymeri tugadi");
-          return { ...prev, playing: false, sleepUntil: null };
-        }
-        let at = prev.at + 0.25 * prev.speed;
-        let chapterIndex = prev.chapter;
-        if (at >= chapter.seconds) {
-          if (chapterIndex + 1 < item.chapters.length) {
-            chapterIndex += 1;
-            at = 0;
-          } else {
-            return { ...prev, at: chapter.seconds, playing: false };
-          }
-        }
-        return { ...prev, at, chapter: chapterIndex };
-      });
-    }, 250);
-    const persist = window.setInterval(() => {
-      const prev = liveRef.current;
-      if (!prev) return;
-      const current = parseSave(readSnapshot());
-      writeSave({
-        ...current,
-        speed: prev.speed,
-        progress: { ...current.progress, [prev.id]: { chapter: prev.chapter, at: prev.at } },
-      });
-    }, 1000);
-    return () => {
-      window.clearInterval(timer);
-      window.clearInterval(persist);
+    const el = new Audio();
+    el.preload = "metadata";
+    audioRef.current = el;
+    let lastSaved = 0;
+    const sync = () => setLive((prev) => (prev ? { ...prev, at: el.currentTime, duration: Number.isFinite(el.duration) ? el.duration : prev.duration, playing: !el.paused } : prev));
+    const onTime = () => {
+      sync();
+      const id = el.dataset.book;
+      if (id && Date.now() - lastSaved > 3000) {
+        lastSaved = Date.now();
+        writeSave({ progress: { ...parseSave(readSnapshot()).progress, [id]: el.currentTime }, last: id });
+      }
     };
-  }, [live?.playing, live?.id]);
+    const onEnded = () => {
+      const id = el.dataset.book;
+      sync();
+      if (id) {
+        const current = parseSave(readSnapshot());
+        writeSave({ finished: current.finished.includes(id) ? current.finished : [...current.finished, id], progress: { ...current.progress, [id]: 0 } });
+        toast.success("Kitob tugadi — «Tugatilgan»larga qo‘shildi");
+      }
+    };
+    const onError = () => {
+      if (el.src) toast.error("Audio ochilmadi. Internetni tekshiring yoki keyinroq urinib ko‘ring.");
+      sync();
+    };
+    el.addEventListener("timeupdate", onTime);
+    el.addEventListener("play", sync);
+    el.addEventListener("pause", sync);
+    el.addEventListener("loadedmetadata", sync);
+    el.addEventListener("ended", onEnded);
+    el.addEventListener("error", onError);
+    return () => {
+      const id = el.dataset.book;
+      if (id && el.currentTime) writeSave({ progress: { ...parseSave(readSnapshot()).progress, [id]: el.currentTime } });
+      el.pause();
+      el.removeAttribute("src");
+      el.load();
+    };
+  }, []);
 
+  // Uyqu taymeri.
   useEffect(() => {
-    if (!live || live.playing) return;
-    const current = parseSave(readSnapshot());
-    writeSave({
-      ...current,
-      speed: live.speed,
-      progress: { ...current.progress, [live.id]: { chapter: live.chapter, at: live.at } },
-    });
-  }, [live]);
+    if (!live?.sleepUntil) return;
+    const timer = window.setInterval(() => {
+      if (live.sleepUntil && Date.now() >= live.sleepUntil) {
+        audioRef.current?.pause();
+        setLive((prev) => (prev ? { ...prev, sleepUntil: null, sleepMinutes: null } : prev));
+        toast("Uyqu taymeri tugadi");
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [live?.sleepUntil]);
 
-  function place(id: string): Spot {
-    if (live?.id === id) return { chapter: live.chapter, at: live.at };
-    return spotOf(save, id);
-  }
-
-  function openPlayer(id: string, from: Screen = screen) {
-    const item = metaById(id);
-    if (!item?.audio) {
-      toast("Bu kitobning audio nusxasi yo‘q");
-      openReader(id, from);
-      return;
-    }
-    const spot = place(id);
+  function openBook(id: string, from: Screen = screen) {
     setReturnTo(from);
     setActiveId(id);
-    setLive({
-      id,
-      chapter: spot.chapter,
-      at: spot.at,
-      playing: true,
-      speed: live?.speed ?? save.speed,
-      sleepUntil: live?.id === id ? live.sleepUntil : null,
-    });
     setScreen("player");
     window.scrollTo({ top: 0 });
   }
 
-  function openReader(id: string, from: Screen = screen) {
-    const item = metaById(id);
-    if (!item?.text) {
-      toast("Bu kitobning matn nusxasi yo‘q");
+  function play(id: string) {
+    const book = byId(id);
+    const el = audioRef.current;
+    if (!book || !el) return;
+    if (!book.audioUrl) {
+      toast("Bu kitobning audiosi hali yuklanmagan");
       return;
     }
-    setReturnTo(from);
-    setActiveId(id);
-    setShowContents(false);
-    setScreen("reader");
-    const book = bookById(id);
-    const spot = place(id);
-    if (id === "atomic-habits" && book && item.chapters[spot.chapter]) onReadPage(item.chapters[spot.chapter].page, book.pages);
-    window.scrollTo({ top: 0 });
+    if (el.dataset.book !== id) {
+      el.dataset.book = id;
+      el.src = book.audioUrl;
+      el.currentTime = save.progress[id] ?? 0;
+      setLive({ id, playing: false, at: save.progress[id] ?? 0, duration: book.audioSeconds, speed: save.speed, sleepUntil: null, sleepMinutes: null });
+    }
+    el.playbackRate = live?.speed ?? save.speed;
+    void el.play().catch(() => toast.error("Ijro etib bo‘lmadi. Qayta bosing."));
+    writeSave({ last: id });
   }
 
-  function toggleDownload() {
-    const has = save.downloads.includes(active.id);
-    writeSave({
-      ...save,
-      downloads: has ? save.downloads.filter((id) => id !== active.id) : [...save.downloads, active.id],
-    });
-    toast.success(has ? "Yuklama olib tashlandi" : "Kitob yuklanganlarga qo‘shildi");
+  function toggle(id: string) {
+    const el = audioRef.current;
+    if (el && el.dataset.book === id && !el.paused) el.pause();
+    else play(id);
   }
 
-  function toggleBookmark() {
-    onToggleSave(active.id);
+  function seek(at: number) {
+    const el = audioRef.current;
+    if (!el || !active || el.dataset.book !== active.id) {
+      if (active) writeSave({ progress: { ...save.progress, [active.id]: at } });
+      return;
+    }
+    el.currentTime = Math.max(0, Math.min(at, el.duration || at));
   }
 
   function cycleSpeed() {
     const current = live?.speed ?? save.speed;
     const next = speeds[(speeds.indexOf(current) + 1) % speeds.length];
+    if (audioRef.current) audioRef.current.playbackRate = next;
     setLive((prev) => (prev ? { ...prev, speed: next } : prev));
-    writeSave({ ...parseSave(readSnapshot()), speed: next });
+    writeSave({ speed: next });
   }
 
   function cycleSleep() {
     setLive((prev) => {
       if (!prev) return prev;
       const choices = [null, 15, 30, 45] as const;
-      const left = prev.sleepUntil ? Math.max(1, Math.round((prev.sleepUntil - Date.now()) / 60000)) : 0;
-      const index = left >= 40 ? 3 : left >= 20 ? 2 : left > 0 ? 1 : 0;
-      const pick = choices[(index + 1) % choices.length];
+      const pick = choices[(choices.indexOf(prev.sleepMinutes as (typeof choices)[number]) + 1) % choices.length];
       toast(pick ? `Uyqu taymeri: ${pick} daqiqa` : "Uyqu taymeri o‘chirildi");
-      return { ...prev, sleepUntil: pick ? Date.now() + pick * 60000 : null };
+      return { ...prev, sleepUntil: pick ? Date.now() + pick * 60000 : null, sleepMinutes: pick };
     });
   }
 
-  function seek(at: number) {
-    setLive((prev) => (prev ? { ...prev, at } : prev));
-  }
+  const position = (book: Book) => (live?.id === book.id ? live.at : save.progress[book.id] ?? 0);
+  const lengthOf = (book: Book) => (live?.id === book.id && live.duration ? live.duration : book.audioSeconds);
+  const playingNow = (id: string) => Boolean(live?.playing && live.id === id);
 
-  function skip(delta: number) {
-    setLive((prev) => {
-      if (!prev) return prev;
-      const item = metaById(prev.id);
-      const chapter = item?.chapters[prev.chapter];
-      if (!chapter) return prev;
-      return { ...prev, at: Math.min(chapter.seconds, Math.max(0, prev.at + delta)) };
-    });
-  }
-
-  function chooseChapter(index: number, play: boolean) {
-    setLive((prev) => {
-      const base = prev ?? {
-        id: active.id,
-        chapter: 0,
-        at: 0,
-        playing: play,
-        speed: save.speed,
-        sleepUntil: null,
-      };
-      return { ...base, id: active.id, chapter: index, at: 0, playing: play };
-    });
-    setShowContents(false);
-    if (!play && active.id === "atomic-habits") {
-      const book = bookById(active.id);
-      const next = active.chapters[index];
-      if (book && next) onReadPage(next.page, book.pages);
-    }
-  }
-
-  function markFinished() {
-    if (save.finished.includes(active.id)) {
-      toast("Bu kitob allaqachon tugatilgan");
-      return;
-    }
-    writeSave({ ...parseSave(readSnapshot()), finished: [...save.finished, active.id] });
-    toast.success("Tugatilganlarga qo‘shildi");
-    setMine("finished");
-    setScreen("mine");
-  }
-
-  const queryText = query.trim().toLocaleLowerCase();
-  const matches = (item: LibraryMeta) => {
-    const book = bookById(item.id);
-    if (!book) return false;
-    if (filter === "audio" && !item.audio) return false;
-    if (filter === "text" && !item.text) return false;
-    if (!queryText) return true;
-    return `${book.title} ${book.author}`.toLocaleLowerCase().includes(queryText);
-  };
-
-  const highlights = library.filter((item) => item.highlight && matches(item));
-  const fresh = library.filter((item) => item.fresh && matches(item));
-  const searched = library.filter(matches);
-
-  const mineItems = library
-    .filter((item) => {
-      if (mine === "saved") return shelf.includes(item.id);
-      if (mine === "downloaded") return save.downloads.includes(item.id);
-      return save.finished.includes(item.id);
-    })
-    .sort((a, b) => {
-      if (sort === "title") return (bookById(a.id)?.title ?? "").localeCompare(bookById(b.id)?.title ?? "");
-      if (sort === "progress") {
-        const ratio = (item: LibraryMeta) => {
-          const spot = place(item.id);
-          const chapter = item.chapters[spot.chapter];
-          return chapter?.seconds ? spot.at / chapter.seconds : 0;
-        };
-        return ratio(b) - ratio(a);
-      }
-      return save.downloads.indexOf(a.id) - save.downloads.indexOf(b.id);
-    });
-
-  const downloadCount = save.downloads.length;
-  const downloadSize = library.filter((item) => save.downloads.includes(item.id)).reduce((sum, item) => sum + item.sizeMb, 0);
-  const chapter = active.chapters[(live?.id === active.id ? live.chapter : place(active.id).chapter)] ?? active.chapters[0];
-  const at = live?.id === active.id ? live.at : place(active.id).at;
-  const playing = Boolean(live?.playing && live.id === active.id);
+  const text = query.trim().toLocaleLowerCase();
+  const found = catalog.items.filter((b) => !text || `${b.title} ${b.author}`.toLocaleLowerCase().includes(text));
+  const lastBook = byId(save.last);
+  const mineItems = catalog.items.filter((b) => (mine === "saved" ? shelf.includes(b.id) : save.finished.includes(b.id)));
 
   return (
     <div className="mobile-library">
@@ -354,59 +228,48 @@ export default function MobileLibrary({
         <div className="lib-screen">
           <header className="lib-head">
             <h1>Kutubxona</h1>
-            <button type="button" onClick={() => { setMine("downloaded"); setScreen("mine"); }}>Kitoblarim</button>
-            <button type="button" aria-label="Qidiruv" onClick={() => document.getElementById("library-search")?.focus()}>
-              <Search size={20} />
-            </button>
+            <button type="button" onClick={() => setScreen("mine")}>Kitoblarim</button>
+            {editor && (
+              <button type="button" className="lib-add" aria-label="Kitob qo‘shish" onClick={() => setEditing({ book: null })}>
+                <Plus size={18} />
+              </button>
+            )}
           </header>
           <label className="lib-search">
             <Search size={18} />
-            <input
-              id="library-search"
-              value={query}
-              placeholder="Kitob yoki muallif"
-              onChange={(event) => setQuery(event.target.value)}
-            />
-            {query && (
-              <button type="button" aria-label="Qidiruvni tozalash" onClick={() => setQuery("")}>
-                ×
-              </button>
-            )}
+            <input value={query} placeholder="Kitob yoki muallif" onChange={(event) => setQuery(event.target.value)} />
+            {query && <button type="button" aria-label="Qidiruvni tozalash" onClick={() => setQuery("")}>×</button>}
           </label>
-          <div className="lib-filters" role="tablist" aria-label="Kitob turi">
-            {([
-              ["all", "Barchasi"],
-              ["audio", "Audio"],
-              ["text", "Elektron"],
-            ] as const).map(([id, label]) => (
-              <button key={id} type="button" role="tab" aria-selected={filter === id} className={filter === id ? "is-on" : ""} onClick={() => setFilter(id)}>
-                {label}
-              </button>
-            ))}
-          </div>
 
-          {!query && filter === "all" && <Continue item={library[0]} spot={place(library[0].id)} onPlay={() => openPlayer(library[0].id)} onAll={() => { setMine("downloaded"); setScreen("mine"); }} />}
-
-          <BookShelf
-            items={query || filter !== "all" ? searched : highlights}
-            onOpen={(id) => openReader(id)}
-            onPlay={(id) => openPlayer(id)}
-          />
-          {!searched.length && <p className="lib-empty">Bu so‘rov bo‘yicha kitob topilmadi.</p>}
-
-          {!query && filter === "all" && (
-            <>
-              <div className="lib-section">
-                <h2>Yangilar</h2>
-                <button type="button" onClick={() => setShowFresh((value) => !value)}>{showFresh ? "Yig‘ish" : "Barchasini ko‘rish"}</button>
-              </div>
-              <BookShelf
-                items={showFresh ? fresh : fresh.slice(0, 3)}
-                onOpen={(id) => openReader(id)}
-                onPlay={(id) => openPlayer(id)}
-              />
-            </>
+          {!query && lastBook && lastBook.audioUrl && (
+            <section className="lib-continue">
+              <div className="lib-section"><h2>Tinglashni davom ettirish</h2></div>
+              <article>
+                <Cover book={lastBook} size="sm" />
+                <span>
+                  <strong>{lastBook.title}</strong>
+                  <small>{lastBook.author}</small>
+                  <em>{clock(position(lastBook))} / {clock(lengthOf(lastBook))}</em>
+                </span>
+                <button type="button" className="lib-round" aria-label={playingNow(lastBook.id) ? "Pauza" : "Davom ettirish"} onClick={() => toggle(lastBook.id)}>
+                  {playingNow(lastBook.id) ? <Pause size={18} /> : <Play size={18} />}
+                </button>
+              </article>
+            </section>
           )}
+
+          {catalog.loading ? (
+            <p className="lib-empty">Kitoblar yuklanmoqda…</p>
+          ) : (
+            <BookShelf items={found} onOpen={(id) => openBook(id)} onPlay={(id) => { play(id); openBook(id); }} />
+          )}
+          {!catalog.loading && !catalog.items.length && (
+            <div className="lib-empty">
+              <p>Hozircha kutubxonada kitob yo‘q.</p>
+              {editor && <button type="button" className="button" onClick={() => setEditing({ book: null })}><Plus size={16} /> Birinchi kitobni qo‘shish</button>}
+            </div>
+          )}
+          {!catalog.loading && catalog.items.length > 0 && !found.length && <p className="lib-empty">Bu so‘rov bo‘yicha kitob topilmadi.</p>}
         </div>
       )}
 
@@ -418,184 +281,83 @@ export default function MobileLibrary({
             <span />
           </header>
           <div className="lib-mine-tabs" role="tablist">
-            {([
-              ["saved", "Saqlangan"],
-              ["downloaded", "Yuklangan"],
-              ["finished", "Tugatilgan"],
-            ] as const).map(([id, label]) => (
-              <button key={id} type="button" role="tab" aria-selected={mine === id} className={mine === id ? "is-on" : ""} onClick={() => setMine(id)}>
-                {label}
-              </button>
+            {([["saved", "Saqlangan"], ["finished", "Tugatilgan"]] as const).map(([id, label]) => (
+              <button key={id} type="button" role="tab" aria-selected={mine === id} className={mine === id ? "is-on" : ""} onClick={() => setMine(id)}>{label}</button>
             ))}
           </div>
-          <div className="lib-mine-meta">
-            <span>{mine === "downloaded" ? `${downloadCount} kitob · ${downloadSize} MB` : `${mineItems.length} kitob`}</span>
-            <label>
-              Saralash
-              <select aria-label="Saralash" value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
-                <option value="recent">So‘nggi</option>
-                <option value="title">Nom</option>
-                <option value="progress">Jarayon</option>
-              </select>
-            </label>
-          </div>
           <div className="lib-list">
-            {mineItems.map((item) => {
-              const book = bookById(item.id);
-              const spot = place(item.id);
-              const current = item.chapters[spot.chapter] ?? item.chapters[0];
-              const ratio = current?.seconds ? Math.min(100, (spot.at / current.seconds) * 100) : 0;
-              if (!book) return null;
+            {mineItems.map((book) => {
+              const length = lengthOf(book);
+              const ratio = length ? Math.min(100, (position(book) / length) * 100) : 0;
               return (
-                <article key={item.id} className="lib-row">
-                  <button type="button" className="lib-row-main" onClick={() => openReader(item.id, "mine")}>
-                    <Cover id={item.id} />
+                <article key={book.id} className="lib-row">
+                  <button type="button" className="lib-row-main" onClick={() => openBook(book.id, "mine")}>
+                    <Cover book={book} />
                     <span>
                       <strong>{book.title}</strong>
                       <small>{book.author}</small>
-                      {item.audio && current?.seconds ? (
+                      {book.audioUrl ? (
                         <>
                           <span className="lib-bar" aria-hidden="true"><i style={{ width: `${ratio}%` }} /></span>
-                          <em>{clock(spot.at)} / {clock(current.seconds)}</em>
+                          <em>{clock(position(book))} / {clock(length)}</em>
                         </>
-                      ) : <em>Elektron matn</em>}
+                      ) : <em>Audio hali yuklanmagan</em>}
                     </span>
                   </button>
-                  {item.audio && (
-                    <button type="button" className="lib-round" aria-label={`${book.title}ni tinglash`} onClick={() => openPlayer(item.id, "mine")}>
-                      <Headphones size={16} />
+                  {book.audioUrl && (
+                    <button type="button" className="lib-round" aria-label={`${book.title}ni tinglash`} onClick={() => toggle(book.id)}>
+                      {playingNow(book.id) ? <Pause size={16} /> : <Headphones size={16} />}
                     </button>
                   )}
                 </article>
               );
             })}
           </div>
-          {!mineItems.length && <p className="lib-empty">{mine === "saved" ? "Saqlangan kitob yo‘q. Pleyerdagi xatcho‘p bilan qo‘shing." : mine === "finished" ? "Tugatilgan kitoblar shu yerda ko‘rinadi." : "Yuklangan kitob yo‘q."}</p>}
+          {!mineItems.length && <p className="lib-empty">{mine === "saved" ? "Saqlangan kitob yo‘q. Kitob sahifasidagi xatcho‘p bilan qo‘shing." : "Oxirigacha tinglangan kitoblar shu yerda ko‘rinadi."}</p>}
         </div>
       )}
 
-      {screen === "player" && activeBook && (
+      {screen === "player" && active && (
         <div className="lib-screen lib-player">
           <header className="lib-head">
             <button type="button" aria-label="Orqaga" onClick={() => setScreen(returnTo)}><ChevronLeft size={22} /></button>
             <h1>Audio kitob</h1>
-            <button type="button" aria-label={save.downloads.includes(active.id) ? "Yuklamani olish" : "Yuklab olish"} aria-pressed={save.downloads.includes(active.id)} onClick={toggleDownload}>
-              <Download size={18} />
-            </button>
-            <button type="button" aria-label={shelf.includes(active.id) ? "Saqlangandan olish" : "Saqlash"} aria-pressed={shelf.includes(active.id)} onClick={toggleBookmark}>
+            {editor && <button type="button" aria-label="Kitobni tahrirlash" onClick={() => setEditing({ book: active })}><Pencil size={17} /></button>}
+            <button type="button" aria-label={shelf.includes(active.id) ? "Saqlangandan olish" : "Saqlash"} aria-pressed={shelf.includes(active.id)} onClick={() => onToggleSave(active.id)}>
               <Bookmark size={18} fill={shelf.includes(active.id) ? "currentColor" : "none"} />
             </button>
           </header>
-          <Cover id={active.id} size="lg" />
-          <h2>{activeBook.title}</h2>
-          <p>{activeBook.author}</p>
-          <p className="lib-chapter">{active.chapters[live?.id === active.id ? live.chapter : place(active.id).chapter]?.title}</p>
-          <label className="lib-scrub">
-            <span className="lib-sr">Joyini tanlash</span>
-            <input
-              type="range"
-              min={0}
-              max={chapter?.seconds || 1}
-              value={Math.min(at, chapter?.seconds || 0)}
-              onChange={(event) => seek(Number(event.target.value))}
-            />
-          </label>
-          <div className="lib-times"><span>{clock(at)}</span><span>{clock(chapter?.seconds || 0)}</span></div>
-          <div className="lib-transport">
-            <button type="button" aria-label="15 soniya orqaga" onClick={() => skip(-15)}><SkipBack size={18} /><b>15</b></button>
-            <button type="button" className="lib-play" aria-label={playing ? "Pauza" : "Ijro"} onClick={() => setLive((prev) => prev ? { ...prev, playing: !prev.playing } : { id: active.id, ...place(active.id), playing: true, speed: save.speed, sleepUntil: null })}>
-              {playing ? <Pause size={28} /> : <Play size={28} />}
-            </button>
-            <button type="button" aria-label="15 soniya oldinga" onClick={() => skip(15)}><SkipForward size={18} /><b>15</b></button>
-          </div>
-          <div className="lib-tools">
-            <button type="button" onClick={cycleSpeed}><b>{live?.speed ?? save.speed}x</b><small>Tezlik</small></button>
-            <button type="button" onClick={cycleSleep}><Moon size={16} /><small>Uyqu taymeri</small></button>
-            <button type="button" onClick={() => document.getElementById("chapter-list")?.scrollIntoView({ behavior: "smooth" })}><List size={16} /><small>Boblar ro‘yxati</small></button>
-          </div>
-          <h3 id="chapter-list">Boblar</h3>
-          <ol className="lib-chapters">
-            {active.chapters.map((item, index) => {
-              const currentIndex = live?.id === active.id ? live.chapter : place(active.id).chapter;
-              const on = index === currentIndex;
-              return (
-                <li key={item.title}>
-                  <button type="button" className={on ? "is-on" : ""} onClick={() => chooseChapter(index, true)}>
-                    <span>{index + 1}. {item.title}</span>
-                    <em>{clock(item.seconds)}{on ? " ▮▮" : ""}</em>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
+          <Cover book={active} size="lg" />
+          <h2>{active.title}</h2>
+          <p>{active.author}</p>
+          {active.audioUrl ? (
+            <>
+              <label className="lib-scrub">
+                <span className="lib-sr">Joyini tanlash</span>
+                <input type="range" min={0} max={Math.max(1, lengthOf(active))} step={1} value={Math.min(position(active), lengthOf(active))} onChange={(event) => seek(Number(event.target.value))} />
+              </label>
+              <div className="lib-times"><span>{clock(position(active))}</span><span>{clock(lengthOf(active))}</span></div>
+              <div className="lib-transport">
+                <button type="button" aria-label="15 soniya orqaga" onClick={() => seek(position(active) - 15)}><SkipBack size={18} /><b>15</b></button>
+                <button type="button" className="lib-play" aria-label={playingNow(active.id) ? "Pauza" : "Ijro"} onClick={() => toggle(active.id)}>
+                  {playingNow(active.id) ? <Pause size={28} /> : <Play size={28} />}
+                </button>
+                <button type="button" aria-label="15 soniya oldinga" onClick={() => seek(position(active) + 15)}><SkipForward size={18} /><b>15</b></button>
+              </div>
+              <div className="lib-tools">
+                <button type="button" onClick={cycleSpeed}><b>{live?.speed ?? save.speed}x</b><small>Tezlik</small></button>
+                <button type="button" onClick={cycleSleep} disabled={live?.id !== active.id}><Moon size={16} /><small>{live?.sleepMinutes ? `${live.sleepMinutes} daq` : "Uyqu taymeri"}</small></button>
+              </div>
+            </>
+          ) : (
+            <p className="lib-empty">Bu kitobning audiosi hali yuklanmagan.{editor ? " Tahrirlash (qalam) tugmasi orqali qo‘shing." : ""}</p>
+          )}
+          {active.summary && <p className="lib-summary">{active.summary}</p>}
         </div>
       )}
 
-      {screen === "reader" && activeBook && (
-        <div className="lib-screen lib-reader" style={{ fontSize: font }}>
-          <header className="lib-head">
-            <button type="button" aria-label="Orqaga" onClick={() => setScreen(returnTo)}><ChevronLeft size={22} /></button>
-            <h1>{activeBook.title}</h1>
-            <button type="button" aria-label="Shrift" onClick={() => setFont((value) => value >= 22 ? 16 : value + 2)}><Type size={18} /></button>
-            <button type="button" aria-label={shelf.includes(active.id) ? "Saqlangandan olish" : "Saqlash"} aria-pressed={shelf.includes(active.id)} onClick={toggleBookmark}>
-              <Bookmark size={18} fill={shelf.includes(active.id) ? "currentColor" : "none"} />
-            </button>
-          </header>
-          <article style={{ filter: `brightness(${brightness})` }}>
-            <p className="lib-sample">Namunaviy matn</p>
-            <p className="lib-ch-no">{(live?.id === active.id ? live.chapter : place(active.id).chapter) + 1}-bob</p>
-            <h2>{chapter?.title}</h2>
-            {active.sample.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-            <button className="lib-finish" type="button" onClick={markFinished}>Tugatildi deb belgilash</button>
-          </article>
-          {showLight && (
-            <label className="lib-light">
-              <SunMedium size={16} />
-              <input type="range" min={0.7} max={1} step={0.02} value={brightness} aria-label="Yorug‘lik" onChange={(event) => setBrightness(Number(event.target.value))} />
-            </label>
-          )}
-          {showContents && (
-            <ol className="lib-contents">
-              {active.chapters.map((item, index) => (
-                <li key={item.title}>
-                  <button type="button" onClick={() => chooseChapter(index, false)}>{index + 1}. {item.title}</button>
-                </li>
-              ))}
-            </ol>
-          )}
-          <div className="lib-readbar">
-            <button type="button" onClick={() => { setShowLight((value) => !value); setShowContents(false); }}><SunMedium size={16} /><small>Yorug‘lik</small></button>
-            <button type="button" onClick={() => setFont((value) => value >= 22 ? 16 : value + 2)}><Type size={16} /><small>Shrift</small></button>
-            <button type="button" onClick={() => { setShowContents((value) => !value); setShowLight(false); }}><List size={16} /><small>Mundarija</small></button>
-            <button type="button" onClick={() => openPlayer(active.id, "reader")}><Headphones size={16} /><small>Audio tinglash</small></button>
-            <span>{chapter?.page ?? 1} / {activeBook.pages}</span>
-          </div>
-        </div>
-      )}
+      <BookEditor open={Boolean(editing)} book={editing?.book ?? null} onClose={() => setEditing(null)} />
     </div>
-  );
-}
-
-function Continue({ item, spot, onPlay, onAll }: { item: LibraryMeta; spot: Spot; onPlay: () => void; onAll: () => void }) {
-  const book = bookById(item.id);
-  const chapter = item.chapters[spot.chapter];
-  if (!book || !chapter) return null;
-  return (
-    <section className="lib-continue">
-      <div className="lib-section">
-        <h2>Tinglashni davom ettirish</h2>
-        <button type="button" onClick={onAll}>Barchasini ko‘rish</button>
-      </div>
-      <article>
-        <Cover id={item.id} size="sm" />
-        <span>
-          <strong>{book.title}</strong>
-          <small>{book.author}</small>
-          <em>{clock(spot.at)} / {clock(chapter.seconds)}</em>
-        </span>
-        <button type="button" className="lib-round" aria-label="Davom ettirish" onClick={onPlay}><Play size={18} /></button>
-      </article>
-    </section>
   );
 }
 
@@ -605,28 +367,19 @@ function chunkRows<T>(items: T[], size: number) {
   return rows;
 }
 
-function BookShelf({
-  items,
-  onOpen,
-  onPlay,
-}: {
-  items: LibraryMeta[];
-  onOpen: (id: string) => void;
-  onPlay: (id: string) => void;
-}) {
+function BookShelf({ items, onOpen, onPlay }: { items: Book[]; onOpen: (id: string) => void; onPlay: (id: string) => void }) {
   if (!items.length) return null;
   return (
     <div className="lib-shelves">
       {chunkRows(items, 3).map((row) => (
-        <section className="lib-shelf" key={row.map((item) => item.id).join("-")}>
+        <section className="lib-shelf" key={row.map((book) => book.id).join("-")}>
           <div className="lib-shelf-books">
             {[0, 1, 2].map((slot) => {
-              const item = row[slot];
-              const book = item ? bookById(item.id) : null;
-              if (!item || !book) return <span key={slot} />;
+              const book = row[slot];
+              if (!book) return <span key={slot} />;
               return (
-                <button key={item.id} type="button" className="lib-stood" aria-label={`${book.title}ni o‘qish`} onClick={() => onOpen(item.id)}>
-                  <Cover id={item.id} />
+                <button key={book.id} type="button" className="lib-stood" aria-label={`${book.title} haqida`} onClick={() => onOpen(book.id)}>
+                  <Cover book={book} />
                 </button>
               );
             })}
@@ -634,25 +387,20 @@ function BookShelf({
           <div className="lib-plank" aria-hidden="true" />
           <div className="lib-shelf-captions">
             {[0, 1, 2].map((slot) => {
-              const item = row[slot];
-              const book = item ? bookById(item.id) : null;
-              if (!item || !book) return <span key={slot} />;
+              const book = row[slot];
+              if (!book) return <span key={slot} />;
               return (
-                <div key={item.id}>
-                  <button type="button" className="lib-card-title" onClick={() => onOpen(item.id)}>{book.title}</button>
+                <div key={book.id}>
+                  <button type="button" className="lib-card-title" onClick={() => onOpen(book.id)}>{book.title}</button>
                   <p>{book.author}</p>
                   <div className="lib-formats" aria-label={`${book.title} formatlari`}>
-                    {item.audio && (
-                      <button type="button" className="lib-format lib-format-audio" aria-label={`${book.title} audiokitobi, ${lengthLabel(item.totalSeconds)}`} onClick={() => onPlay(item.id)}>
+                    {book.audioUrl && (
+                      <button type="button" className="lib-format lib-format-audio" aria-label={`${book.title} audiokitobi, ${lengthLabel(book.audioSeconds)}`} onClick={() => onPlay(book.id)}>
                         <Headphones size={14} />
-                        <span>{lengthLabel(item.totalSeconds)}</span>
+                        <span>{book.audioSeconds ? lengthLabel(book.audioSeconds) : "Audio"}</span>
                       </button>
                     )}
-                    {item.text && (
-                      <button type="button" className="lib-format" aria-label={`${book.title} elektron kitobi`} onClick={() => onOpen(item.id)}>
-                        <BookOpen size={14} />
-                      </button>
-                    )}
+                    {book.active && <span className="lib-week">Hafta kitobi</span>}
                   </div>
                 </div>
               );
@@ -664,76 +412,16 @@ function BookShelf({
   );
 }
 
-function Cover({ id, size = "md" }: { id: string; size?: "sm" | "md" | "lg" }) {
-  const book = bookById(id);
+/** Muqova: yuklangan rasm bo'lsa rasm, bo'lmasa kitob rangida nom yozilgan muqova. */
+export function Cover({ book, size = "md" }: { book: Book; size?: "sm" | "md" | "lg" }) {
   return (
-    <div className={`lib-cover lib-cover-${size} cover-${id}`} aria-hidden="true">
-      {size === "md" && <CoverArt id={id} />}
-      <span>{book?.title}</span>
-      {size === "lg" && <small>{book?.author}</small>}
+    <div className={`lib-cover lib-cover-${size}${book.coverUrl ? " has-image" : ""}`} style={{ backgroundColor: book.color }} aria-hidden="true">
+      {book.coverUrl ? <img src={book.coverUrl} alt="" loading="lazy" /> : (
+        <>
+          <span>{book.title}</span>
+          {size === "lg" && <small>{book.author}</small>}
+        </>
+      )}
     </div>
   );
-}
-
-function CoverArt({ id }: { id: string }) {
-  if (id === "otkan-kunlar") {
-    return (
-      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
-        <rect width="90" height="78" fill="#8ec6ea" />
-        <rect y="78" width="90" height="52" fill="#7daa55" />
-        <circle cx="70" cy="28" r="10" fill="#f6e7b2" />
-        <path d="M8 92c8-16 14-16 22 0 6-18 16-20 24 0 8-14 16-14 28 2v36H8z" fill="#2f6b38" />
-        <path d="M18 86c6-12 10-12 16 2 5-14 12-14 18 4v38H18z" fill="#3e8144" />
-      </svg>
-    );
-  }
-  if (id === "dunyoning-ishlari") {
-    return (
-      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
-        <rect width="90" height="130" fill="#b7d4e4" />
-        <path d="M0 78 L28 36 L46 62 L68 28 L90 70 V130 H0z" fill="#6d8ea3" />
-        <path d="M0 92 L24 58 L42 78 L90 48 V130 H0z" fill="#d7e4ea" />
-        <path d="M0 108h90v22H0z" fill="#8fb4c4" />
-      </svg>
-    );
-  }
-  if (id === "alchemist") {
-    return (
-      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
-        <rect width="90" height="130" fill="#e8834a" />
-        <circle cx="64" cy="36" r="12" fill="#f6d27a" />
-        <path d="M0 78c18 10 28-8 46 2 16 8 28-6 44 4v46H0z" fill="#d86a32" />
-        <path d="M0 100c20 8 34-6 52 2 14 6 24-4 38 6v22H0z" fill="#c45a28" />
-      </svg>
-    );
-  }
-  if (id === "kecha-va-kunduz") {
-    return (
-      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
-        <rect width="90" height="70" fill="#e7a15a" />
-        <circle cx="46" cy="58" r="14" fill="#f3d7a2" />
-        <rect y="70" width="90" height="60" fill="#2c5878" />
-        <path d="M20 92h50M16 104h58M24 116h42" stroke="#d7e6ef" strokeWidth="2" />
-      </svg>
-    );
-  }
-  if (id === "mehrobdan-chayon") {
-    return (
-      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
-        <rect width="90" height="130" fill="#c4513d" />
-        <circle cx="62" cy="34" r="16" fill="#e7b089" />
-        <path d="M45 130 V62 M45 78 L28 96 M45 70 L66 90 M45 92 L30 112 M45 88 L64 112" stroke="#4a1816" strokeWidth="4" fill="none" />
-        <rect y="108" width="90" height="22" fill="#6d2a22" />
-      </svg>
-    );
-  }
-  if (id === "ikigai" || id === "deep-work" || id === "money-psychology" || id === "1984") {
-    return (
-      <svg className="lib-art" viewBox="0 0 90 130" preserveAspectRatio="xMidYMid slice">
-        <rect width="90" height="130" fill={id === "ikigai" ? "#c4b483" : id === "deep-work" ? "#2f8f78" : id === "1984" ? "#6a9aaf" : "#6d7c8a"} />
-        <rect x="14" y="28" width="62" height="74" rx="2" fill="rgba(255,255,255,.16)" />
-      </svg>
-    );
-  }
-  return null;
 }

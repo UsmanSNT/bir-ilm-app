@@ -83,6 +83,7 @@ const legacyAppState = await load("app/api/app-state/route.ts");
 
 const ORIGIN = "http://127.0.0.1:8787";
 const createdUsers = [];
+const createdBooks = [];
 
 function request(path, { method = "GET", body, headers = {} } = {}) {
   return new Request(`${ORIGIN}${path}`, {
@@ -347,9 +348,12 @@ try {
 
   // --- 7. Katalog va reyting serverda hisoblanadi --------------------------
   {
-    const { payload: catalog } = await alisher.call(books.GET, "/api/v1/books");
-    assert.ok(catalog.data.items.length > 0, "Katalog bo'sh bo'lmasligi kerak");
-    const bookId = catalog.data.activeBookId ?? catalog.data.items[0].id;
+    // Namuna katalog yo'q — kitobni admin qo'shadi.
+    const librarian = await webClient();
+    sqlite.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(librarian.userId);
+    const { payload: created } = await librarian.call(books.POST, "/api/v1/books", { method: "POST", body: { title: "Test kitob", author: "Muallif" }, expect: 201 });
+    const bookId = created.data.id;
+    createdBooks.push(bookId);
 
     await alisher.call(progress.PUT, "/api/v1/progress", {
       method: "PUT",
@@ -588,6 +592,74 @@ try {
     console.log("PASS: faqat admin suhbat yaratadi va rol beradi; admin o'zini tushira olmaydi.");
   }
 
+  // --- Kitoblar: faqat admin/moderator, bo'laklab yuklash, Range bilan tinglash --
+  {
+    const { mkdtemp, rm: rmDir, readdir: listDir } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const pathMod = await import("node:path");
+    process.env.BIR_ILM_MEDIA_DIR = await mkdtemp(pathMod.join(tmpdir(), "bir-ilm-media-"));
+    const bookItem = await load("app/api/v1/books/[id]/route.ts");
+    const bookMedia = await load("app/api/v1/books/[id]/media/route.ts");
+    const mediaFile = await load("app/media/books/[id]/[file]/route.ts");
+
+    const reader = await webClient();
+    const editor = await webClient();
+    sqlite.prepare("UPDATE users SET role = 'moderator' WHERE id = ?").run(editor.userId);
+    await reader.call(books.POST, "/api/v1/books", { method: "POST", body: { title: "X", author: "Y" }, expect: 403 });
+    const { payload: made } = await editor.call(books.POST, "/api/v1/books", {
+      method: "POST",
+      body: { title: "Alkimyogar", author: "Paulo Coelho", summary: "Orzular haqida" },
+      expect: 201,
+    });
+    const id = made.data.id;
+    createdBooks.push(id);
+
+    const put = (client, bytes, offset, total, type, extra = {}) =>
+      bookMedia.PUT(new Request(`${ORIGIN}/api/v1/books/${id}/media?kind=audio`, {
+        method: "PUT",
+        body: bytes,
+        headers: { Cookie: client.cookie, Origin: ORIGIN, "X-Upload-Offset": String(offset), "X-Upload-Total": String(total), "X-Upload-Type": type, ...extra },
+      }), { params: Promise.resolve({ id }) });
+    const audio = new Uint8Array(15).map((_, i) => i + 1);
+
+    assert.equal((await put(reader, audio.slice(0, 10), 0, 15, "audio/mpeg")).status, 403, "Oddiy foydalanuvchi yuklay olmaydi");
+    assert.equal((await put(editor, audio, 0, 15, "video/mp4")).status, 415, "Audio bo'lmagan fayl rad etiladi");
+    assert.equal((await put(editor, audio, 0, 2 * 1024 * 1024 * 1024, "audio/mpeg")).status, 413, "1 GB dan katta fayl rad etiladi");
+
+    const first = await (await put(editor, audio.slice(0, 10), 0, 15, "audio/mpeg")).json();
+    assert.deepEqual(first.data, { done: false, received: 10 });
+    const wrong = await put(editor, audio.slice(10), 7, 15, "audio/mpeg");
+    assert.equal(wrong.status, 409);
+    assert.equal((await wrong.json()).error.received, 10, "Server qayerdan davom etishni aytadi");
+    const status = await (await bookMedia.GET(new Request(`${ORIGIN}/api/v1/books/${id}/media?kind=audio`, { headers: { Cookie: editor.cookie } }), { params: Promise.resolve({ id }) })).json();
+    assert.equal(status.data.received, 10);
+    const done = await (await put(editor, audio.slice(10), 10, 15, "audio/mpeg", { "X-Audio-Seconds": "3725" })).json();
+    assert.equal(done.data.done, true);
+    assert.equal(done.data.book.audioSeconds, 3725);
+    assert.match(done.data.book.audioUrl, new RegExp(`^/media/books/${id}/audio\\.mp3\\?v=`));
+
+    // Tinglash: Range so'rovi faylning bir qismini beradi.
+    const media = (range) => mediaFile.GET(new Request(`${ORIGIN}/media/books/${id}/audio.mp3`, { headers: range ? { Range: range } : {} }), { params: Promise.resolve({ id, file: "audio.mp3" }) });
+    const partial = await media("bytes=5-9");
+    assert.equal(partial.status, 206);
+    assert.equal(partial.headers.get("content-range"), "bytes 5-9/15");
+    assert.deepEqual([...new Uint8Array(await partial.arrayBuffer())], [6, 7, 8, 9, 10]);
+    assert.equal((await media()).status, 200);
+    assert.equal((await mediaFile.GET(new Request(`${ORIGIN}/media/books/${id}/..%2F..%2Fsecret`), { params: Promise.resolve({ id, file: "../../secret" }) })).status, 404, "Papkadan chiqib ketish bloklanadi");
+
+    // Haftaning kitobi bitta; o'chirilganda fayllar ham ketadi.
+    await editor.call(bookItem.PATCH, `/api/v1/books/${id}`, { method: "PATCH", body: { active: true }, params: { id } });
+    const { payload: list } = await reader.call(books.GET, "/api/v1/books");
+    assert.equal(list.data.activeBookId, id);
+    assert.equal(list.data.items.filter((b) => b.active).length, 1);
+    await reader.call(bookItem.DELETE, `/api/v1/books/${id}`, { method: "DELETE", params: { id }, expect: 403 });
+    await editor.call(bookItem.DELETE, `/api/v1/books/${id}`, { method: "DELETE", params: { id } });
+    assert.deepEqual(await listDir(pathMod.join(process.env.BIR_ILM_MEDIA_DIR, "books")), [], "Kitob papkasi o'chishi kerak");
+
+    await rmDir(process.env.BIR_ILM_MEDIA_DIR, { recursive: true, force: true });
+    console.log("PASS: kitobni admin/moderator qo'shadi, audio bo'laklab yuklanadi va davom ettiriladi, Range bilan tinglanadi.");
+  }
+
   // --- Postlar: e'lon, shikoyat, moderator o'chirishi, ism saqlanishi ----------
   {
     const author = await webClient();
@@ -726,6 +798,7 @@ try {
     sqlite.prepare(`DELETE FROM comments WHERE user_id IN (${placeholders})`).run(...unique);
     sqlite.prepare(`DELETE FROM user_activity WHERE user_id IN (${placeholders})`).run(...unique);
     sqlite.prepare(`DELETE FROM live_sessions WHERE moderator_id IN (${placeholders})`).run(...unique);
+    for (const id of createdBooks) sqlite.prepare("DELETE FROM books WHERE id = ?").run(id);
     sqlite.prepare(`DELETE FROM users WHERE id IN (${placeholders})`).run(...unique);
 
     console.log(`Tozalandi: ${unique.length} ta test foydalanuvchisi.`);

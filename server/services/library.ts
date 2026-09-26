@@ -8,7 +8,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
-import { activeBookId as seedActiveBookId, books as seedBooks } from "@/app/app-data";
+import { listCatalog } from "./books";
 import type {
   Book,
   BookComment,
@@ -21,60 +21,15 @@ import { ensureUser } from "./social";
 
 const { books, comments, readingProgress, userActivity, users } = schema;
 
-/** Baza bo'sh bo'lganda ishlatiladigan zaxira katalog. */
-function fallbackCatalog(): Book[] {
-  return seedBooks.map((book) => ({
-    ...book,
-    active: book.id === seedActiveBookId,
-  }));
-}
-
+/** Katalog faqat bazadan: admin/moderator qo'shgan kitoblar (namuna kitoblar yo'q). */
 export async function listBooks(db: Database): Promise<Book[]> {
-  const rows = await db
-    .select({
-      id: books.id,
-      title: books.title,
-      author: books.author,
-      summary: books.summary,
-      color: books.color,
-      pages: books.pages,
-      active: books.active,
-    })
-    .from(books)
-    .orderBy(desc(books.active), books.createdAt);
-
-  return rows.length ? rows : fallbackCatalog();
+  return listCatalog(db);
 }
 
-/** Shu haftaning kitobi. */
-export async function getActiveBook(db: Database): Promise<Book> {
-  const catalog = await listBooks(db);
-  return catalog.find((book) => book.active) ?? catalog[0];
-}
-
-/**
- * Boshlang'ich katalogni bazaga yozadi. Takroriy chaqirilsa mavjud
- * yozuvlarni buzmaydi, shuning uchun joylashtirishda xavfsiz.
- */
-export async function seedCatalog(db: Database): Promise<{ inserted: number }> {
-  const catalog = fallbackCatalog();
-
-  for (const book of catalog) {
-    await db
-      .insert(books)
-      .values({
-        id: book.id,
-        title: book.title,
-        author: book.author,
-        summary: book.summary,
-        color: book.color,
-        pages: book.pages,
-        active: book.active,
-      })
-      .onConflictDoNothing();
-  }
-
-  return { inserted: catalog.length };
+/** Haftaning kitobi (belgilanmagan bo'lsa — eng yangisi, katalog bo'sh bo'lsa — null). */
+export async function getActiveBook(db: Database): Promise<Book | null> {
+  const catalog = await listCatalog(db);
+  return catalog.find((book) => book.active) ?? catalog[0] ?? null;
 }
 
 export async function listComments(

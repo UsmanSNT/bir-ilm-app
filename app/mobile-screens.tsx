@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { LIVE_ROOM, quizzes, wisdom, type Quiz } from "./quiz-data";
+import { useCatalog } from "@/lib/api/books-client";
+import type { Book } from "@/shared/contract";
 
 type Save = {
   joined: boolean;
@@ -75,15 +77,20 @@ function BookCover({
   tone,
   size = "md",
   live = false,
+  image = null,
+  color,
 }: {
   title: string;
   author: string;
   tone: "cream" | "rose" | "ink";
   size?: "sm" | "md" | "lg";
   live?: boolean;
+  image?: string | null;
+  color?: string;
 }) {
   return (
-    <div className={`m-cover m-cover-${tone} m-cover-${size}`}>
+    <div className={`m-cover m-cover-${tone} m-cover-${size}${image ? " has-image" : ""}`} style={color && !image ? { background: color, color: "#fff" } : undefined}>
+      {image && <img src={image} alt="" />}
       {live && <span className="m-live">LIVE</span>}
       <span>BIR ILM</span>
       <strong>{title}</strong>
@@ -170,7 +177,7 @@ export default function MobileScreens({
   onContinue: () => void;
   onOpenTimer: () => void;
   onOpenNotifications: () => void;
-  onOpenBook: () => void;
+  onOpenBook: (book: Book) => void;
   onAddReminder: () => void;
 }) {
   const [screen, setScreen] = useState<Screen>("home");
@@ -187,6 +194,7 @@ export default function MobileScreens({
   const [correct, setCorrect] = useState(0);
   const [finished, setFinished] = useState(false);
   const announcements = useAnnouncements();
+  const featured = useCatalog().active;
 
   const secs = Math.max(0, Math.floor((session - now) / 1000));
   const days = String(Math.floor(secs / 86400)).padStart(2, "0");
@@ -313,11 +321,11 @@ export default function MobileScreens({
           <section className="m-card m-week">
             <p className="m-kicker">Hafta kitobi</p>
             <div className="m-week-row">
-              <BookCover title="Atom odatlar" author="James Clear" tone="cream" />
+              {featured ? <button type="button" className="m-week-cover" onClick={() => onOpenBook(featured)} aria-label={`${featured.title} haqida`}><BookCover title={featured.title} author={featured.author} tone="cream" image={featured.coverUrl} color={featured.color} /></button> : <BookCover title="Tez orada" author="Bir Ilm" tone="cream" />}
               <div>
-                <h2>Atom odatlar</h2>
-                <p className="m-author">James Clear</p>
-                <p className="m-blurb">Dushanba e’lon qilindi · Shanba 22:00 KST suhbat</p>
+                <h2>{featured?.title ?? "Haftaning kitobi hali tanlanmagan"}</h2>
+                <p className="m-author">{featured?.author ?? "Admin tez orada e‘lon qiladi"}</p>
+                {featured?.summary && <p className="m-blurb">{featured.summary.slice(0, 90)}{featured.summary.length > 90 ? "…" : ""}</p>}
               </div>
             </div>
             <div className={`m-week-timeline ${week.progress >= 80 ? "is-finishing" : ""}`}>
@@ -391,11 +399,11 @@ export default function MobileScreens({
           {mode === "live" ? (
             <>
               <article className="m-card m-live-card">
-                <BookCover title="Atom odatlar" author="James Clear" tone="cream" live />
+                <BookCover title={featured?.title ?? "Bir Ilm"} author={featured?.author ?? ""} tone="cream" image={featured?.coverUrl} color={featured?.color} live />
                 <div>
                   <h2>Kitob bilimdoni</h2>
-                  <p className="m-author">Atom odatlar</p>
-                  <p className="m-quiet">James Clear</p>
+                  <p className="m-author">{featured?.title ?? "Kitob bilimdoni"}</p>
+                  <p className="m-quiet">{featured?.author ?? ""}</p>
                   <p className="m-meta">
                     <span><Clock size={14} /> Bugun, 20:00</span>
                     <span><Users size={14} /> {save.joined ? 25 : 24} ishtirokchi</span>
@@ -515,7 +523,7 @@ export default function MobileScreens({
               <X size={18} />
             </button>
             <h2 id="talk-reminder-title">Kitob suhbati yaqin!</h2>
-            <BookCover title="Atom odatlar" author="James Clear" tone="cream" size="lg" />
+            <BookCover title={featured?.title ?? "Bir Ilm"} author={featured?.author ?? ""} tone="cream" size="lg" image={featured?.coverUrl} color={featured?.color} />
             <p className="m-quote">Bugungi kichik qadam ertangi o‘zgarishning boshlanishi.</p>
             <div className="m-talk-box">
               <p className="m-kicker">Kitob muhokamasi</p>
@@ -542,7 +550,7 @@ export default function MobileScreens({
               type="button"
               onClick={() => {
                 setReminder(false);
-                onOpenBook();
+                if (featured) onOpenBook(featured);
               }}
             >
               Kitobni ko‘rish
@@ -597,7 +605,7 @@ function relativeTime(iso: string): string {
 }
 
 // Bosh sahifadagi yangiliklar — admin/moderator joylagan e'lonlar.
-function useAnnouncements(): Announcement[] {
+export function useAnnouncements(): Announcement[] {
   const [items, setItems] = useState<Announcement[]>([]);
   useEffect(() => {
     const ctrl = new AbortController();

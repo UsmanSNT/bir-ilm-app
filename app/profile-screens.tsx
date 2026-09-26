@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, LogOut, Mail, MessageCircle, NotebookPen, Settings, ShieldCheck, Sparkles, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
+import { useCatalog } from "@/lib/api/books-client";
+import type { Book } from "@/shared/contract";
 import { USER_ROLE_LABELS } from "@/shared/contract/roles";
 import AdminPanel from "./admin-panel";
 import LoginCard from "./login-card";
@@ -12,8 +14,9 @@ import type { SocialData } from "./social-types";
 type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onEdit: () => void; onProgress: () => void; onNotifications: () => void };
 type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin";
 
-function Cover({ small = false }: { small?: boolean }) {
-  return <span className={`p-book ${small ? "p-book-small" : ""}`} aria-label="Atom odatlar kitobi muqovasi"><small>№1 BESTSELLER</small><strong>Atom<br />odatlar</strong><span>Kichik odatlar.<br />Katta natijalar.</span><b>James Clear</b></span>;
+function Cover({ small = false, book }: { small?: boolean; book: Book | null }) {
+  if (book?.coverUrl) return <span className={`p-book p-book-image ${small ? "p-book-small" : ""}`} aria-hidden="true"><img src={book.coverUrl} alt="" /></span>;
+  return <span className={`p-book ${small ? "p-book-small" : ""}`} style={book ? { background: book.color, color: "#fff" } : undefined} aria-hidden="true"><small>BIR ILM</small><strong>{book?.title ?? "Tez orada"}</strong><span>{book ? "Hafta kitobi" : ""}</span><b>{book?.author ?? ""}</b></span>;
 }
 
 function Row({ icon, title, value, onClick }: { icon: ReactNode; title: string; value?: ReactNode; onClick: () => void }) {
@@ -28,6 +31,7 @@ export default function ProfileScreens(p: Props) {
   const [retry, setRetry] = useState(0);
   const [copied, setCopied] = useState(false);
   const viewer = useViewer();
+  const featured = useCatalog().active;
   const role = viewer?.role ?? "user";
   const copyId = () => {
     if (!viewer) return;
@@ -74,13 +78,13 @@ export default function ProfileScreens(p: Props) {
       <div className="p-stats"><button onClick={() => { setActivity("Obunalar"); open("activity"); }}><strong>{count(social?.followers)}</strong><span>Obunachilar</span></button><button onClick={() => { setActivity("Obunalar"); open("activity"); }}><strong>{count(social?.following.length)}</strong><span>Obunalar</span></button><button onClick={() => open("posts")}><strong>{count(social?.profile?.posts)}</strong><span>Postlar</span></button></div>
       <div className="p-columns"><div>
         <div className="p-section-title"><h2><BookOpen size={19} />Mutolaa</h2><button className="p-link" onClick={() => p.onNavigate("shelf")}>Javonim <ArrowRight size={15} /></button></div>
-        <button className="p-reading" onClick={p.onProgress}><Cover /><span className="p-reading-info"><small>HOZIRGI MUTOLAA</small><strong>Atom odatlar</strong><span>James Clear</span><span className="p-progress"><span><i style={{ width: `${percent}%` }} /></span><b>{percent}%</b></span><span className="p-page-count">{p.page} / {p.total} sahifa <ArrowRight size={14} /></span></span></button>
+        <button className="p-reading" onClick={p.onProgress}><Cover book={featured} /><span className="p-reading-info"><small>HOZIRGI MUTOLAA</small><strong>{featured?.title ?? "Haftaning kitobi hali yo‘q"}</strong><span>{featured?.author ?? ""}</span><span className="p-progress"><span><i style={{ width: `${percent}%` }} /></span><b>{percent}%</b></span><span className="p-page-count">{p.page} / {p.total} sahifa <ArrowRight size={14} /></span></span></button>
         <div className="p-reading-stats"><span><BookOpen size={17} /><b>{p.shelfCount}</b><small>Kitob</small></span><span><MessageCircle size={17} /><b>{count(social?.sessions)}</b><small>Fokus seansi</small></span><span><ChartNoAxesColumnIncreasing size={17} /><b>{p.streak}</b><small>Kunlik streak</small></span></div>
         {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /></div>}
         <div className="p-menu"><Row icon={<NotebookPen />} title="Mening postlarim" value={count(social?.profile?.posts)} onClick={() => open("posts")} /><Row icon={<MessageCircle />} title="Javoblar va faollik" value={replies.length || undefined} onClick={() => { setActivity("Javoblar"); open("activity"); }} /><Row icon={<Mail />} title="Xabarlar" onClick={() => open("messages")} /><Row icon={<Bookmark />} title="Saqlangan kitoblar" value={p.shelfCount} onClick={() => p.onNavigate("shelf")} /></div>
       </div><div>
         <div className="p-section-title"><h2><CalendarDays size={19} />Bo‘lib o‘tadigan suhbat</h2><button className="p-link" onClick={() => p.onNavigate("talks")}>Barchasi <ArrowRight size={15} /></button></div>
-        <button className="p-event" onClick={() => p.onNavigate("talks")}><Cover small /><span><small><CalendarDays size={13} /> Yakshanba, 18:00</small><strong>Atom odatlar</strong><span>Bir kitob, turli qarashlar.</span><b>Suhbatga o‘tish <ArrowRight size={14} /></b></span><ChevronRight size={18} /></button>
+        <button className="p-event" onClick={() => p.onNavigate("talks")}><Cover small book={featured} /><span><small><CalendarDays size={13} /> Jonli suhbatlar</small><strong>{featured?.title ?? "Kitob muhokamasi"}</strong><span>Bir kitob, turli qarashlar.</span><b>Suhbatga o‘tish <ArrowRight size={14} /></b></span><ChevronRight size={18} /></button>
         <button className="p-rank" onClick={() => p.onNavigate("leaders")}><span className="p-trophy"><Trophy size={22} /></span><span><strong>Birga o‘sish — yanada oson</strong><small>Faollar reytingidagi o‘rningiz</small></span><b>#{p.rank}</b></button>
         <div className="p-footer-note"><Sparkles size={16} /><p>Katta o‘zgarishlar<br /><strong>kichik odatlardan boshlanadi.</strong></p></div>
       </div></div>
@@ -104,7 +108,7 @@ export default function ProfileScreens(p: Props) {
     {screen === "posts" && <ReadingDashboard mode="profile" name={p.name} pages={p.page} shelfCount={p.shelfCount} streak={p.streak} />}
     {screen === "messages" && <div className="p-empty"><Mail /><h2>Yaxshi suhbat — bir xabardan</h2><p>Shaxsiy yozishmalar hali ishga tushirilmagan. Hozir kitobxonlar bilan hamjamiyatda fikr almashishingiz mumkin.</p><button className="p-primary" onClick={() => p.onNavigate("community")}>Hamjamiyatga o‘tish <ArrowRight size={16} /></button></div>}
     {screen === "privacy" && <div className="p-info"><ShieldCheck /><h2>Ma’lumotlaringiz haqida</h2><p>Mutolaa jarayoni va ilova sozlamalari ushbu brauzerda saqlanadi. Postlar, javoblar va obunalar xizmat bazasida saqlanadi.</p><p>Postlaringizni “Mening postlarim” bo‘limida boshqarishingiz mumkin. Brauzer ma’lumotlarini o‘chirish qurilmada saqlangan jarayonga kirishni yo‘qotishi mumkin.</p></div>}
-    {screen === "faq" && <div className="p-faq">{[["Mutolaa jarayonini qanday yangilayman?", "Shaxsiy sahifadagi Atom odatlar kartasini bosing va o‘qilgan sahifa sonini kiriting."], ["Kitobni qanday saqlayman?", "Javonim bo‘limida kitobni tanlab, javonga qo‘shish tugmasini bosing."], ["Suhbatga qanday qo‘shilaman?", "Suhbatlar bo‘limini oching. U yerda jonli suhbat va muhokamalarni topasiz."]].map(([question, answer]) => <details key={question}><summary>{question}</summary><p>{answer}</p></details>)}</div>}
+    {screen === "faq" && <div className="p-faq">{[["Mutolaa jarayonini qanday yangilayman?", "Shaxsiy sahifadagi «Hozirgi mutolaa» kartasini bosing va o‘qilgan sahifa sonini kiriting."], ["Kitobni qanday saqlayman?", "Javonim bo‘limida kitobni tanlab, javonga qo‘shish tugmasini bosing."], ["Suhbatga qanday qo‘shilaman?", "Suhbatlar bo‘limini oching. U yerda jonli suhbat va muhokamalarni topasiz."]].map(([question, answer]) => <details key={question}><summary>{question}</summary><p>{answer}</p></details>)}</div>}
     {screen === "about" && <div className="p-info"><BookOpen /><h2>Bir kitob atrofida birlashamiz.</h2><p>Bir Ilm — mutolaani kundalik odatga aylantirish, fikr almashish va birga o‘sish uchun kitobxonlar hamjamiyati.</p><p>Har hafta bitta kitob. Har kuni yangi fikr.</p></div>}
   </section>;
 }
