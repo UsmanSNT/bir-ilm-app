@@ -13,7 +13,9 @@ const db = new DatabaseSync(source.trim(), { readOnly: true });
 const pages = await backup(db, target);
 db.close();
 
-const check = new DatabaseSync(target, { readOnly: true });
+// Nusxa bitta mustaqil fayl bo'lsin (yonida -wal/-shm qolmasin).
+const check = new DatabaseSync(target);
+check.exec("PRAGMA journal_mode=DELETE");
 const ok = check.prepare("PRAGMA integrity_check").get();
 check.close();
 console.log(`Zaxira: ${target} (${pages} sahifa, tekshiruv: ${Object.values(ok)[0]})`);
