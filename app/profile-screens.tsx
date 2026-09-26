@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, LogOut, Mail, MessageCircle, NotebookPen, Settings, ShieldCheck, Sparkles, Trophy, UserRound, Users } from "lucide-react";
+import { ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, LogOut, Mail, MessageCircle, NotebookPen, Settings, ShieldCheck, Smartphone, Sparkles, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
 import { useCatalog } from "@/lib/api/books-client";
 import type { Book } from "@/shared/contract";
 import { USER_ROLE_LABELS } from "@/shared/contract/roles";
 import AdminPanel from "./admin-panel";
 import LoginCard from "./login-card";
+import { LinkDeviceDialog } from "./device-link";
 import ReadingDashboard from "./reading-dashboard";
 import type { SocialData } from "./social-types";
 
@@ -30,6 +31,7 @@ export default function ProfileScreens(p: Props) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [retry, setRetry] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
   const viewer = useViewer();
   const featured = useCatalog().active;
   const role = viewer?.role ?? "user";
@@ -98,8 +100,9 @@ export default function ProfileScreens(p: Props) {
 
     {screen === "settings" && <div className="p-settings">
       <p className="p-settings-intro">O‘zingizga mos mutolaa muhiti.</p>
-      <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={p.onEdit} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} /><Row icon={<Copy />} title={copied ? "Nusxa olindi" : "Hisob ID"} value={viewer ? `${viewer.userId.slice(7, 15)}… · ${USER_ROLE_LABELS[role]}` : "—"} onClick={copyId} />{viewer?.accounts.map(a => <div key={a.provider} className="p-row p-static"><span className="p-row-icon"><ShieldCheck /></span><span>{a.provider === "google" ? "Google" : "Telegram"}</span><small>{a.label}</small></div>)}{viewer && viewer.accounts.length > 0 && <Row icon={<LogOut />} title="Chiqish" onClick={signOut} />}</div>
+      <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={p.onEdit} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} /><Row icon={<Copy />} title={copied ? "Nusxa olindi" : "Hisob ID"} value={viewer ? `${viewer.userId.slice(7, 15)}… · ${USER_ROLE_LABELS[role]}` : "—"} onClick={copyId} />{viewer?.signedIn && <Row icon={<Smartphone />} title="Boshqa qurilmani ulash" value="Kod" onClick={() => setLinkOpen(true)} />}{viewer?.accounts.map(a => <div key={a.provider} className="p-row p-static"><span className="p-row-icon"><ShieldCheck /></span><span>{a.provider === "google" ? "Google" : "Telegram"}</span><small>{a.label}</small></div>)}{viewer && viewer.accounts.length > 0 && <Row icon={<LogOut />} title="Chiqish" onClick={signOut} />}</div>
       {viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
+      <LinkDeviceDialog open={linkOpen} onClose={() => setLinkOpen(false)} />
       <h2>Ilova</h2><div className="p-menu"><Row icon={<Bell />} title="Bildirishnomalar" onClick={p.onNotifications} /><div className="p-row p-static"><span className="p-row-icon"><Globe /></span><span>Til</span><small>O‘zbekcha</small></div><Row icon={<BookOpen />} title="Mutolaa rejasi" onClick={p.onProgress} /></div>
       <h2>Yordam</h2><div className="p-menu"><Row icon={<CircleHelp />} title="Ko‘p so‘raladigan savollar" onClick={() => open("faq")} /><Row icon={<Info />} title="Loyiha haqida" onClick={() => open("about")} /></div>
       <div className="p-settings-brand"><BookOpen size={23} /><strong>BIR ILM</strong><span>Bir hafta. Bir kitob. Bir qadam oldinga.</span><small>Ilova versiyasi 0.1.0</small></div>

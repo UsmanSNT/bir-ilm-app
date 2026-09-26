@@ -1,6 +1,6 @@
 /** Rol va admin boshqaruvi uchun REST yordamchilari. */
 import { useEffect, useState } from "react";
-import type { AdminUser, UserRole, Viewer } from "@/shared/contract";
+import type { AdminUser, LinkCode, UserRole, Viewer } from "@/shared/contract";
 import { API_PREFIX } from "./config";
 
 type Envelope<T> = { data?: T; error?: { message?: string } };
@@ -45,4 +45,14 @@ export function useViewer(): Viewer | null {
     };
   }, []);
   return viewer;
+}
+
+/** Boshqa qurilmani ulash uchun 6 xonali kod (faqat kirgan foydalanuvchiga). */
+export function createLinkCode(): Promise<LinkCode> {
+  return call<LinkCode>("/auth/link-code", { method: "POST" });
+}
+
+/** Kod bilan kirish: muvaffaqiyatli bo'lsa server yangi sessiya cookie'sini qo'yadi. */
+export async function redeemLinkCode(code: string): Promise<void> {
+  await call("/auth/link-code/redeem", { method: "POST", body: JSON.stringify({ code }) });
 }

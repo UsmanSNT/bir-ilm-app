@@ -505,7 +505,7 @@ export default function App() {
                 </section>
               </TabsContent>
 
-              <TabsContent value="talks">
+              <TabsContent value="talks" forceMount className="talks-tab">
                 <LiveSession name={data.name} date={session} onComments={() => go("community")} />
               </TabsContent>
 

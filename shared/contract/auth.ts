@@ -52,6 +52,8 @@ export type Viewer = {
   avatarUrl: string | null;
   /** Bog'langan Google/Telegram hisoblari. Bo'sh bo'lsa — mehmon. */
   accounts: LinkedAccount[];
+  /** Google/Telegram bog'langan yoki admin/moderator: jonli suhbatga kira oladi, boshqa qurilmani ulay oladi. */
+  signedIn: boolean;
   /** Serverda sozlangan kirish usullari. */
   loginProviders: { google: boolean; telegramBot: string | null };
 };
@@ -61,3 +63,13 @@ export type LinkedAccount = {
   /** Email (Google) yoki ism (Telegram). */
   label: string;
 };
+
+/** Boshqa qurilmani ulash: kirgan qurilma kod oladi, ikkinchisi uni kiritadi. */
+export type LinkCode = { code: string; expiresAt: string };
+
+export const redeemLinkCodeSchema = z.object({
+  code: z.string().trim().regex(/^\d{6}$/, "Kod 6 ta raqamdan iborat."),
+  /** Native ilova tokenni tanada oladi; web cookie oladi. */
+  wantToken: z.boolean().default(false),
+});
+export type RedeemLinkCodeInput = z.infer<typeof redeemLinkCodeSchema>;

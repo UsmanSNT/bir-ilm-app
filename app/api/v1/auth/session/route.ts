@@ -13,7 +13,7 @@ import { defineRoute } from "@/server/http/handler";
 import { TOKEN_MAX_AGE_SECONDS } from "@/server/auth/identity";
 import { ensureUser, getProfile } from "@/server/services/social";
 import { getUserRole } from "@/server/services/roles";
-import { listAccounts } from "@/server/services/accounts";
+import { isSignedIn, listAccounts } from "@/server/services/accounts";
 import { loginConfig } from "@/server/auth/providers";
 import { schema } from "@/server/db/client";
 import { eq } from "drizzle-orm";
@@ -41,11 +41,12 @@ export const POST = defineRoute<CreateSessionInput, Session>({
 export const GET = defineRoute<undefined, Viewer>({
   handler: async ({ db, identity, request }) => {
     await ensureUser(db, identity.userId);
-    const [profile, role, accounts, user] = await Promise.all([
+    const [profile, role, accounts, user, signedIn] = await Promise.all([
       getProfile(db, identity.userId),
       getUserRole(db, identity.userId),
       listAccounts(db, identity.userId),
       db.query.users.findFirst({ where: eq(schema.users.id, identity.userId), columns: { avatarUrl: true } }),
+      isSignedIn(db, identity.userId),
     ]);
     const config = loginConfig(request);
 
@@ -58,6 +59,7 @@ export const GET = defineRoute<undefined, Viewer>({
       role,
       avatarUrl: user?.avatarUrl ?? null,
       accounts,
+      signedIn,
       loginProviders: { google: Boolean(config.google), telegramBot: config.telegram?.username ?? null },
     };
   },

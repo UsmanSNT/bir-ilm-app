@@ -66,3 +66,15 @@ export async function listAccounts(db: Database, userId: string): Promise<Linked
   });
   return rows.map((r) => ({ provider: r.provider, label: r.email ?? r.displayName }));
 }
+
+/**
+ * Tizimga kirganmi: Google/Telegram bog'langan yoki admin/moderator roli berilgan.
+ * Kod bilan ulangan qurilma ham shu akkauntning o'zi, shuning uchun alohida tekshiruv kerak emas.
+ */
+export async function isSignedIn(db: Database, userId: string): Promise<boolean> {
+  const [account, user] = await Promise.all([
+    db.query.authAccounts.findFirst({ where: eq(authAccounts.userId, userId), columns: { id: true } }),
+    db.query.users.findFirst({ where: eq(users.id, userId), columns: { role: true } }),
+  ]);
+  return Boolean(account) || (user?.role ?? "user") !== "user";
+}

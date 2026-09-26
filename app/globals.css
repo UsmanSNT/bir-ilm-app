@@ -2421,3 +2421,32 @@ input {
 .book-editor-actions .ghost{background:none;color:#5c6b75}
 .m-week-cover{border:0;background:none;padding:0;cursor:pointer}
 .m-cover.has-image>span,.m-cover.has-image>strong,.m-cover.has-image>em{display:none}.m-cover.has-image>.m-live{display:inline-block;position:absolute;top:6px;left:6px;z-index:1}
+
+/* Jonli suhbat: boshqa bo'limga o'tganda ham ulanish saqlanadi; kichraytirilgan xona paneli. */
+.talks-tab[data-state="inactive"]{display:none}
+.live-minibar{position:fixed;right:20px;bottom:20px;z-index:990;display:flex;align-items:center;gap:6px;padding:6px;border-radius:999px;background:#0f4f45;color:#fff;box-shadow:0 10px 30px rgba(15,40,35,.28);max-width:calc(100vw - 32px)}
+.live-minibar button{border:0;background:transparent;color:inherit;cursor:pointer}
+.live-minibar-open{display:flex;align-items:center;gap:10px;min-width:0;padding:6px 10px;text-align:left}
+.live-minibar-open span{display:grid;min-width:0}
+.live-minibar-open strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-minibar-open small{font-size:12px;opacity:.8}
+.live-minibar-dot{width:10px;height:10px;border-radius:50%;background:#ff5a4f;flex:none;animation:live-minibar-pulse 1.6s ease-in-out infinite}
+.live-minibar-mic,.live-minibar-leave{width:38px;height:38px;border-radius:50%!important;display:grid;place-items:center;background:rgba(255,255,255,.14)!important;flex:none}
+.live-minibar-leave{background:#c2413a!important}
+.live-minibar-mic:disabled{opacity:.45;cursor:not-allowed}
+@keyframes live-minibar-pulse{50%{opacity:.35}}
+@media(max-width:768px){.live-minibar{left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));justify-content:space-between}}
+
+/* Kod bilan kirish va boshqa qurilmani ulash. */
+.login-code-toggle{margin-top:10px;display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:#0f4f45;font-weight:600;cursor:pointer;padding:4px 0}
+.login-code-form{margin-top:12px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.login-code-form label{display:flex;align-items:center;gap:8px;border:1px solid #cfd8d5;border-radius:10px;padding:0 10px;background:#fff}
+.login-code-form input{border:0;outline:0;background:transparent;height:40px;width:100%;font-size:18px;letter-spacing:.2em;font-variant-numeric:tabular-nums}
+.login-code-form .button{height:42px}
+.login-code-form small,.login-code-error{grid-column:1/-1;font-size:12px;color:#5d6b67;margin:0}
+.login-code-error{color:#b3261e}
+.device-link{max-width:380px}
+.device-link-code{display:block;text-align:center;font-size:40px;font-weight:700;letter-spacing:.12em;font-variant-numeric:tabular-nums;color:#0f4f45;padding:14px 0;border-radius:14px;background:#eef4f2;user-select:all}
+.device-link-code.expired{opacity:.35;text-decoration:line-through}
+.device-link-warn{font-size:12px;color:#8a5a00;background:#fff6e0;border-radius:10px;padding:8px 10px;margin:0}
+.device-link-error{color:#b3261e}

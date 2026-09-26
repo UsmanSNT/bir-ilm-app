@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   Camera,
@@ -33,6 +34,7 @@ import {
   type LiveConnectionState,
 } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
+import LoginCard from "./login-card";
 import type {
   LiveSession as LiveSessionType,
   LiveParticipant,
@@ -110,6 +112,15 @@ function VideoTrackView({ track, mirror = false, fit = "cover" }: { track: Track
 
 type Me = { userId: string; role: UserRole };
 
+// Qaysi suhbatda ekanimiz: sahifa yangilansa yoki yopilib qayta ochilsa, o'sha suhbatga qaytamiz.
+const ACTIVE_KEY = "bir-live-active";
+function rememberActive(id: string | null) {
+  try { if (id) localStorage.setItem(ACTIVE_KEY, id); else localStorage.removeItem(ACTIVE_KEY); } catch { /* shaxsiy rejim */ }
+}
+function readActive(): string | null {
+  try { return localStorage.getItem(ACTIVE_KEY); } catch { return null; }
+}
+
 // ── Main Component ──────────────────────────────────────────────────
 
 export default function LiveSession({
@@ -121,6 +132,8 @@ export default function LiveSession({
 }) {
   const viewer = useViewer();
   const isAdmin = viewer?.role === "admin";
+  // Viewer yuklanguncha tugmani bloklamaymiz; server baribir tekshiradi.
+  const signedIn = viewer?.signedIn ?? true;
 
   const [sessions, setSessions] = useState<LiveSessionType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,6 +154,8 @@ export default function LiveSession({
   const [notice, setNotice] = useState("");
   const [media, setMedia] = useState<LiveMedia | null>(null);
   const [devicesOpen, setDevicesOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+  const rejoinTried = useRef(false);
 
   const av = useLiveMedia(activeSessionId ? media : null, setNotice);
   const sharerId = av.screenSharer?.userId ?? null;
@@ -159,6 +174,17 @@ export default function LiveSession({
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
+
+  useEffect(() => {
+    if (loading || !viewer || rejoinTried.current || activeSessionId) return;
+    rejoinTried.current = true;
+    const saved = readActive();
+    const session = saved ? sessions.find((s) => s.id === saved) : null;
+    if (session && session.status !== "ended" && viewer.signedIn) joinSession(session.id);
+    else if (saved) rememberActive(null);
+    // joinSession barqaror emas, lekin bu effekt faqat bir marta ishlaydi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, viewer, sessions, activeSessionId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -180,6 +206,8 @@ export default function LiveSession({
     clientRef.current = client;
 
     setActiveSessionId(sessionId);
+    rememberActive(sessionId);
+    setMinimized(false);
     setListNotice("");
     setMessages([]);
     setParticipants([]);
@@ -188,9 +216,12 @@ export default function LiveSession({
     setHandRaised(false);
     setMedia(null);
 
+    // Server qo'shilishni rad etsa (suhbat yo'q, login kerak), xona ochiq qolib ketmasin.
+    let joined = false;
     client.on("state", setConnState);
 
     client.on("joined", (data) => {
+      joined = true;
       setMedia(data.media);
       setSessionData(data.session);
       setParticipants(data.participants);
@@ -256,9 +287,12 @@ export default function LiveSession({
         prev ? { ...prev, status: "ended", endedAt } : prev,
       );
       setMedia(null);
+      rememberActive(null);
     });
 
     client.on("kicked", () => {
+      rememberActive(null);
+      setMinimized(false);
       setActiveSessionId(null);
       setSessionData(null);
       setMedia(null);
@@ -267,6 +301,11 @@ export default function LiveSession({
     });
 
     client.on("error", (msg) => {
+      if (!joined) {
+        leaveSession();
+        setListNotice(msg);
+        return;
+      }
       setNotice(msg);
     });
 
@@ -274,6 +313,8 @@ export default function LiveSession({
   }
 
   function leaveSession() {
+    rememberActive(null);
+    setMinimized(false);
     clientRef.current?.leave();
     setActiveSessionId(null);
     setSessionData(null);
@@ -359,15 +400,17 @@ export default function LiveSession({
 
   // ── Active session overlay ─────────────────────────────────────────
 
-  if (activeSessionId && connState !== "idle") {
+  const roomOpen = Boolean(activeSessionId && connState !== "idle");
+  let overlay: React.ReactNode = null;
+  if (roomOpen && !minimized) {
     const bookTitle = sessionData?.bookTitle ?? "Yuklanmoqda...";
     const sessionTitle = sessionData?.title ?? "";
 
-    return (
+    overlay = createPortal(
       <div className="live-overlay" role="dialog" aria-modal="true" aria-label={`${bookTitle} jonli suhbat`}>
         <div className="live-window">
           <header className="live-topbar">
-            <button className="live-plain-btn" aria-label="Suhbat oynasini yopish" onClick={leaveSession}>
+            <button className="live-plain-btn" aria-label="Suhbat oynasini kichraytirish" title="Kichraytirish — suhbatda qolasiz" onClick={() => setMinimized(true)}>
               <ArrowLeft size={22} />
             </button>
             <div className="live-room-title">
@@ -663,8 +706,20 @@ export default function LiveSession({
           </p>
         </div>
       </div>
-    );
+      , document.body);
   }
+
+  const miniBar = roomOpen && minimized ? createPortal(
+    <div className="live-minibar" role="status">
+      <button type="button" className="live-minibar-open" onClick={() => setMinimized(false)}>
+        <span className="live-minibar-dot" aria-hidden="true" />
+        <span><strong>{sessionData?.bookTitle ?? "Jonli suhbat"}</strong><small>{av.micOn ? "Mikrofon yoqiq · " : ""}Qaytish uchun bosing</small></span>
+      </button>
+      <button type="button" className="live-minibar-mic" aria-label={av.micOn ? "Mikrofonni o'chirish" : "Mikrofonni yoqish"} disabled={!av.canPublish} onClick={av.toggleMic}>{av.micOn ? <Mic size={18} /> : <MicOff size={18} />}</button>
+      <button type="button" className="live-minibar-leave" aria-label="Suhbatdan chiqish" onClick={leaveSession}><LogOut size={18} /></button>
+    </div>,
+    document.body,
+  ) : null;
 
   // ── Suhbatlar ro'yxati ─────────────────────────────────────────────
 
@@ -690,6 +745,10 @@ export default function LiveSession({
         )}
       </section>
 
+      {viewer && !viewer.signedIn && (
+        <LoginCard viewer={viewer} title="Suhbatga qo'shilish uchun kiring" text="Jonli suhbatlarda faqat ro'yxatdan o'tgan kitobxonlar qatnashadi. Google yoki Telegram orqali kiring, yoki boshqa qurilmangizdagi kodni kiriting." />
+      )}
+
       {listNotice && <p className="live-list-notice">{listNotice}</p>}
 
       {loading && <p className="muted">Yuklanmoqda...</p>}
@@ -714,8 +773,8 @@ export default function LiveSession({
             {STATUS_LABELS[s.status] ?? s.status}
             {s.participantCount > 0 && ` · ${s.participantCount} qatnashchi`}
           </p>
-          <button className="button" onClick={() => joinSession(s.id)} disabled={s.status === "ended"}>
-            {s.status === "ended" ? "Tugagan" : isAdmin && s.status === "planned" ? "Kirish va boshlash" : "Qo'shilish"}
+          <button className="button" onClick={() => joinSession(s.id)} disabled={s.status === "ended" || !signedIn}>
+            {s.status === "ended" ? "Tugagan" : !signedIn ? "Avval tizimga kiring" : isAdmin && s.status === "planned" ? "Kirish va boshlash" : "Qo'shilish"}
           </button>
         </section>
       ))}
@@ -730,6 +789,8 @@ export default function LiveSession({
           }}
         />
       )}
+      {overlay}
+      {miniBar}
     </>
   );
 }

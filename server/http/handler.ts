@@ -24,6 +24,8 @@ export type RequestContext<TInput = undefined> = {
   input: TInput;
   /** Dinamik yo'l segmentlari, masalan `/posts/[id]` uchun `{ id: "..." }`. */
   params: Record<string, string>;
+  /** Javob sarlavhalari — masalan, login yangi cookie o'rnatishi uchun. */
+  responseHeaders: Headers;
 };
 
 /** Next.js route handler ikkinchi argumenti. */
@@ -83,7 +85,7 @@ export function defineRoute<TInput = undefined, TOutput = unknown>(
         : (undefined as TInput);
 
       const params = await resolveParams(segment);
-      const data = await options.handler({ request, db, identity, input, params });
+      const data = await options.handler({ request, db, identity, input, params, responseHeaders: headers });
       return jsonOk(data, { status: options.status ?? 200, headers });
     } catch (error) {
       return toErrorResponse(error, headers);

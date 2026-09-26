@@ -9,6 +9,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Database } from "@/server/db/client";
 import { userIdForToken } from "@/server/auth/sessions";
+import { isSignedIn } from "@/server/services/accounts";
 import * as live from "@/server/services/live";
 import { getUserRole } from "@/server/services/roles";
 import { closeMediaRoom, issueMediaToken, mediaEnabled, removeFromMedia, syncMediaRole } from "@/server/services/media";
@@ -38,8 +39,8 @@ function send(ws: WebSocket, msg: WsServerMessage) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
 
-// Internet bir lahza uzilsa, so'zlovchi rolini yo'qotmasligi uchun chiqishni biroz kutamiz.
-const DEPARTURE_GRACE_MS = 15_000;
+// Internet uzilsa yoki sahifa yangilansa, so'zlovchi rolini yo'qotmasligi uchun chiqishni bir daqiqa kutamiz.
+const DEPARTURE_GRACE_MS = 60_000;
 const pendingDepartures = new Map<string, ReturnType<typeof setTimeout>>();
 const departureKey = (sessionId: string, userId: string) => `${sessionId}|${userId}`;
 
@@ -115,6 +116,12 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         where: eq(schema.users.id, client.userId),
       });
       client.userName = user?.name ?? "Kitobxon";
+
+      // Jonli suhbat faqat ro'yxatdan o'tganlar uchun (LIVE_REQUIRE_LOGIN=0 — o'chirish, masalan sinovda).
+      if (process.env.LIVE_REQUIRE_LOGIN !== "0" && !(await isSignedIn(db, client.userId))) {
+        send(client.ws, { type: "error", message: "Suhbatga qo'shilish uchun avval Google yoki Telegram orqali kiring." });
+        return;
+      }
 
       // Sessiyani tekshirish
       const session = await live.getLiveSession(db, msg.sessionId);

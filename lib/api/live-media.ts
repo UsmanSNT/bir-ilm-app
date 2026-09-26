@@ -57,6 +57,27 @@ export type LocalDevices = { cameras: MediaDeviceInfo[]; mics: MediaDeviceInfo[]
 
 const EMPTY: ParticipantMedia = { micOn: false, speaking: false };
 
+const CAMERA_KEY = "bir-live-camera";
+const MIC_KEY = "bir-live-mic";
+// Windows ko'pincha Phone Link / OBS kabi virtual kamerani birinchi qo'yadi — ular faqat logotip ko'rsatadi.
+const VIRTUAL_CAMERA = /virtual|phone link|link to windows|obs|snap camera|manycam|droidcam|epoccam|iriun|xsplit/i;
+
+function rememberDevice(key: string, id: string) {
+  try { localStorage.setItem(key, id); } catch { /* shaxsiy rejimda saqlanmasa ham ishlaydi */ }
+}
+
+/** Kamera: avval foydalanuvchi tanlagani, bo'lmasa virtual bo'lmagan birinchi kamera. */
+async function pickCamera(): Promise<string | undefined> {
+  const cameras = await Room.getLocalDevices("videoinput", false).catch(() => [] as MediaDeviceInfo[]);
+  let saved: string | null = null;
+  try { saved = localStorage.getItem(CAMERA_KEY); } catch { /* yo'q */ }
+  if (saved && cameras.some((c) => c.deviceId === saved)) return saved;
+  const labelled = cameras.filter((c) => c.label);
+  if (!labelled.length) return undefined;
+  const real = labelled.find((c) => !VIRTUAL_CAMERA.test(c.label));
+  return real?.deviceId;
+}
+
 // Tez-tez bosilganda bir manbadan ikki trek paydo bo'lishi mumkin — eng oxirgi faolini olamiz.
 function trackOf(p: Participant, source: Track.Source): Track | undefined {
   let found: Track | undefined;
@@ -238,14 +259,23 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
     byUser,
     screenSharer,
     toggleMic: () => run("mic", (r) => r.localParticipant.setMicrophoneEnabled(!r.localParticipant.isMicrophoneEnabled)),
-    toggleCamera: () => run("camera", (r) => r.localParticipant.setCameraEnabled(!r.localParticipant.isCameraEnabled)),
+    toggleCamera: () => run("camera", async (r) => {
+      if (r.localParticipant.isCameraEnabled) return r.localParticipant.setCameraEnabled(false);
+      const deviceId = await pickCamera();
+      await r.localParticipant.setCameraEnabled(true, deviceId ? { deviceId } : undefined);
+      // Ruxsatdan keyin nomlar ko'rinadi: virtual kameraga tushgan bo'lsa, haqiqiysiga o'tamiz.
+      if (!deviceId) {
+        const better = await pickCamera();
+        if (better && better !== r.getActiveDevice("videoinput")) await r.switchActiveDevice("videoinput", better);
+      }
+    }),
     toggleScreen: () => run("screen", (r) => r.localParticipant.setScreenShareEnabled(!r.localParticipant.isScreenShareEnabled, { audio: true }), true),
     startAudio: () => run("audio", (r) => r.startAudio()),
     devices,
     activeCameraId: room?.getActiveDevice("videoinput"),
     activeMicId: room?.getActiveDevice("audioinput"),
     loadDevices,
-    selectCamera: (id: string) => run("camera", (r) => r.switchActiveDevice("videoinput", id)),
-    selectMic: (id: string) => run("mic", (r) => r.switchActiveDevice("audioinput", id)),
+    selectCamera: (id: string) => run("camera", (r) => { rememberDevice(CAMERA_KEY, id); return r.switchActiveDevice("videoinput", id); }),
+    selectMic: (id: string) => run("mic", (r) => { rememberDevice(MIC_KEY, id); return r.switchActiveDevice("audioinput", id); }),
   };
 }

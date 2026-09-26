@@ -774,6 +774,45 @@ try {
     console.log("PASS: Telegram login mehmonni saqlaydi, boshqa qurilmada rol bilan kiradi, soxta imzo rad etiladi.");
   }
 
+  // --- Boshqa qurilmani kod bilan ulash ---------------------------------------
+  {
+    const linkCode = await load("app/api/v1/auth/link-code/route.ts");
+    const redeem = await load("app/api/v1/auth/link-code/redeem/route.ts");
+    const viewerOf = async (cookie) =>
+      (await (await session.GET(request("/api/v1/auth/session", { headers: { Cookie: cookie } }))).json()).data;
+    const tryCode = (code, headers) =>
+      redeem.POST(request("/api/v1/auth/link-code/redeem", { method: "POST", body: { code }, headers: { Origin: ORIGIN, ...headers } }));
+
+    // Mehmon kod ololmaydi — aks holda login talabini chetlab o'tardi.
+    const guest = await webClient();
+    await guest.call(linkCode.POST, "/api/v1/auth/link-code", { method: "POST", expect: 403 });
+    assert.equal((await viewerOf(guest.cookie)).signedIn, false);
+
+    // Admin (Google/Telegram'siz ham) kod oladi; ikkinchi qurilma o'sha akkauntga admin bo'lib kiradi.
+    const admin = await webClient();
+    sqlite.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(admin.userId);
+    const { payload } = await admin.call(linkCode.POST, "/api/v1/auth/link-code", { method: "POST", expect: 201 });
+    assert.match(payload.data.code, /^\d{6}$/);
+
+    const device = await webClient();
+    const ok = await tryCode(payload.data.code, { Cookie: device.cookie, "X-Forwarded-For": "203.0.113.7" });
+    assert.equal(ok.status, 200);
+    const cookies = ok.headers.getSetCookie();
+    assert.equal(cookies.length, 1, "Faqat yangi sessiya cookie'si");
+    const linked = await viewerOf(cookies[0].split(";")[0]);
+    assert.equal(linked.userId, admin.userId);
+    assert.equal(linked.role, "admin");
+    assert.equal(linked.signedIn, true);
+
+    // Kod bir marta ishlaydi; begona Origin rad etiladi; ko'p xato urinish bloklanadi.
+    assert.equal((await tryCode(payload.data.code, { "X-Forwarded-For": "203.0.113.8" })).status, 400);
+    assert.equal((await tryCode("123456", { Origin: "https://evil.example" })).status, 403);
+    let last;
+    for (let i = 0; i < 9; i++) last = await tryCode(String(100000 + i), { "X-Forwarded-For": "203.0.113.9" });
+    assert.equal(last.status, 429);
+    console.log("PASS: Kod bilan ulash: admin rolini boshqa qurilmaga beradi, bir martalik, mehmonga berilmaydi, taxmin cheklanadi.");
+  }
+
   console.log("\nHAMMASI O'TDI: /api/v1 va eski API web va mobil uchun bir xil ishlaydi.");
 } finally {
   if (createdUsers.length) {
@@ -788,6 +827,7 @@ try {
       )
       .run(...unique, ...unique);
     sqlite.prepare(`DELETE FROM reading_posts WHERE user_id IN (${placeholders})`).run(...unique);
+    sqlite.prepare(`DELETE FROM login_codes WHERE user_id IN (${placeholders})`).run(...unique);
     sqlite
       .prepare(
         `DELETE FROM reader_follows WHERE follower_id IN (${placeholders}) OR followed_id IN (${placeholders})`,

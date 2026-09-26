@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { LogIn } from "lucide-react";
 import type { Viewer } from "@/shared/contract";
+import { CodeLoginForm } from "./device-link";
 
 function TelegramButton({ bot }: { bot: string }) {
   const host = useRef<HTMLDivElement>(null);
@@ -25,7 +26,7 @@ function TelegramButton({ bot }: { bot: string }) {
   return <div ref={host} className="login-telegram" />;
 }
 
-export default function LoginCard({ viewer }: { viewer: Viewer }) {
+export default function LoginCard({ viewer, title = "Hisobingizni saqlang", text }: { viewer: Viewer; title?: string; text?: string }) {
   const { google, telegramBot } = viewer.loginProviders;
   const available = google || telegramBot;
 
@@ -33,8 +34,8 @@ export default function LoginCard({ viewer }: { viewer: Viewer }) {
     <section className="login-card" aria-label="Hisobga kirish">
       <span className="login-card-icon"><LogIn size={20} /></span>
       <div>
-        <strong>Hisobingizni saqlang</strong>
-        <p>Google yoki Telegram orqali kiring — shunda istalgan telefon va kompyuterdan shu akkauntga, postlaringiz va rolingiz bilan kirasiz.</p>
+        <strong>{title}</strong>
+        <p>{text ?? "Google yoki Telegram orqali kiring — shunda istalgan telefon va kompyuterdan shu akkauntga, postlaringiz va rolingiz bilan kirasiz."}</p>
         {available ? (
           <div className="login-buttons">
             {google && (
@@ -53,6 +54,7 @@ export default function LoginCard({ viewer }: { viewer: Viewer }) {
         ) : (
           <p className="login-soon">Kirish tugmalari tez orada yoqiladi.</p>
         )}
+        <CodeLoginForm />
       </div>
     </section>
   );
