@@ -150,3 +150,5 @@
 .pomo-badge { position: absolute; top: -5px; right: -5px; min-width: 19px; height: 19px; padding: 0 4px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 999px; background: #157a52; color: #fff; font-size: 10px; font-weight: 800; line-height: 1; }
 .m-icon .pomo-badge { top: 2px; right: 1px; }
 @media (max-width: 980px) { .heading-actions { display: none; } }
+.bell-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 999px; background: #e33f4b; color: #fff; font-size: 10px; font-weight: 800; line-height: 1; }
+.icon-btn, .feed-icon { position: relative; }

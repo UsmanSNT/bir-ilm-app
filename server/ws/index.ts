@@ -59,6 +59,12 @@ async function depart(db: Database, sessionId: string, userId: string) {
   cancelDeparture(sessionId, userId);
   if (isConnected(sessionId, userId)) return;
   await live.leaveSession(db, sessionId, userId);
+  // Yozayotgan admin chiqib ketsa, yozuv to'xtaydi — boshqalar buni ko'rishi kerak.
+  const session = await live.getLiveSession(db, sessionId);
+  if (session?.recording && (await recorderOf(db, sessionId)) === userId) {
+    await live.setRecordingBy(db, sessionId, null);
+    broadcastToSession(sessionId, { type: "recording", active: false });
+  }
   const count = await live.getParticipantCount(db, sessionId);
   broadcastToSession(sessionId, { type: "participant_left", userId, count });
 }
@@ -266,12 +272,41 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         broadcastToSession(client.sessionId, { type: "session_started", startedAt });
       } else {
         const endedAt = await live.endLiveSession(db, client.sessionId);
+        broadcastToSession(client.sessionId, { type: "recording", active: false });
         broadcastToSession(client.sessionId, { type: "session_ended", endedAt });
         await closeMediaRoom(client.sessionId);
       }
       return;
     }
+
+    // ── Faqat admin: yozib olishni yoqish/o'chirish (yozuvni adminning brauzeri qiladi) ──
+
+    case "mod:recording": {
+      if (!client.sessionId) return;
+      if ((await getUserRole(db, client.userId)) !== "admin") {
+        send(client.ws, { type: "error", message: "Yozib olishni faqat admin boshqaradi." });
+        return;
+      }
+      const session = await live.getLiveSession(db, client.sessionId);
+      if (!session || (msg.on && session.status !== "live")) {
+        send(client.ws, { type: "error", message: "Yozib olish faqat jonli suhbatda ishlaydi." });
+        return;
+      }
+      await live.setRecordingBy(db, client.sessionId, msg.on ? client.userId : null);
+      broadcastToSession(client.sessionId, { type: "recording", active: msg.on });
+      return;
+    }
   }
+}
+
+async function recorderOf(db: Database, sessionId: string): Promise<string | null> {
+  const { schema } = await import("@/server/db/client");
+  const { eq } = await import("drizzle-orm");
+  const row = await db.query.liveSessions.findFirst({
+    where: eq(schema.liveSessions.id, sessionId),
+    columns: { recordingBy: true },
+  });
+  return row?.recordingBy ?? null;
 }
 
 // Rol har buyruqda bazadan o'qiladi, shuning uchun admin rolni olib qo'ysa darhol kuchga kiradi.

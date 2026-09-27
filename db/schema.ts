@@ -169,6 +169,22 @@ export const books = sqliteTable("books", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+/**
+ * Audiokitob qismlari (boblar) — tartib bilan ketma-ket ijro etiladi.
+ * Fayl: BIR_ILM_MEDIA_DIR/books/<kitob-id>/<file>. Jami hajm va soni BOOK_LIMITS'da.
+ */
+export const bookTracks = sqliteTable("book_tracks", {
+  id: text("id").primaryKey(),
+  bookId: text("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+  position: integer("position").notNull().default(0),
+  title: text("title").notNull().default(""),
+  file: text("file").notNull(),
+  mime: text("mime").notNull(),
+  bytes: integer("bytes").notNull().default(0),
+  seconds: integer("seconds").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_book_tracks_book").on(t.bookId, t.position)]);
+
 export const readingProgress = sqliteTable(
   "reading_progress",
   {
@@ -224,9 +240,35 @@ export const liveSessions = sqliteTable("live_sessions", {
   endedAt: text("ended_at"),
   /** Moderator userId. */
   moderatorId: text("moderator_id").notNull().references(() => users.id),
+  /** Hozir yozib olayotgan admin (null — yozilmayapti). */
+  recordingBy: text("recording_by"),
+  /**
+   * Ishlov berilgan, hammaga ochiq audio («O'tgan suhbatlar»). Fayl:
+   * BIR_ILM_MEDIA_DIR/live/<id>/archive.<kengaytma>. Yo'q bo'lsa — tugagan suhbat faqat adminlarga ko'rinadi.
+   */
+  archiveFile: text("archive_file"),
+  archiveMime: text("archive_mime"),
+  archiveBytes: integer("archive_bytes").notNull().default(0),
+  archiveSeconds: integer("archive_seconds").notNull().default(0),
+  archivedAt: text("archived_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [
   index("idx_live_sessions_status").on(t.status, t.scheduledAt),
+]);
+
+/** Suhbatning xom yozuvlari (faqat admin/moderator ko'radi va yuklab oladi). */
+export const liveRecordings = sqliteTable("live_recordings", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").notNull().references(() => liveSessions.id, { onDelete: "cascade" }),
+  /** rec-<id>.<kengaytma>, suhbat papkasida. */
+  file: text("file").notNull(),
+  mime: text("mime").notNull(),
+  bytes: integer("bytes").notNull().default(0),
+  seconds: integer("seconds").notNull().default(0),
+  createdBy: text("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [
+  index("idx_live_recordings_session").on(t.sessionId, t.createdAt),
 ]);
 
 export const liveParticipants = sqliteTable("live_participants", {

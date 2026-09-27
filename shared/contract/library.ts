@@ -31,10 +31,21 @@ export type Book = {
   active: boolean;
   /** Muqova rasmi (yo'q bo'lsa rangli muqova chiziladi). */
   coverUrl: string | null;
-  /** Audiokitob fayli; null — hali yuklanmagan. */
+  /** Birinchi qism (eski ilova versiyalari uchun); null — audio hali yuklanmagan. */
   audioUrl: string | null;
+  /** Barcha qismlar jami. */
   audioSeconds: number;
   audioBytes: number;
+  /** Audiokitob qismlari — tartib bilan ketma-ket ijro etiladi. */
+  tracks: BookTrack[];
+};
+
+export type BookTrack = {
+  id: string;
+  title: string;
+  url: string;
+  seconds: number;
+  bytes: number;
 };
 
 export const BOOK_LIMITS = {
@@ -43,8 +54,11 @@ export const BOOK_LIMITS = {
   summary: 2000,
   /** Muqova rasmi: 5 MB. */
   coverBytes: 5 * 1024 * 1024,
-  /** Audiokitob: 1 GB. */
+  /** Audiokitob: barcha qismlar jami 1 GB. */
   audioBytes: 1024 * 1024 * 1024,
+  /** Audiokitob qismlari soni. */
+  maxTracks: 50,
+  trackTitle: 120,
   /** Bo'laklab yuklashda bitta bo'lak: 8 MB. */
   chunkBytes: 8 * 1024 * 1024,
 } as const;
@@ -59,6 +73,14 @@ export type CreateBookInput = z.infer<typeof createBookSchema>;
 
 export const updateBookSchema = createBookSchema.partial().extend({ active: z.boolean().optional() });
 export type UpdateBookInput = z.infer<typeof updateBookSchema>;
+
+/** Qismlar tartibi va nomlari: ro'yxatdagi tartib — ijro tartibi. */
+export const reorderTracksSchema = z.object({
+  tracks: z
+    .array(z.object({ id: z.string().min(1).max(40), title: z.string().trim().max(BOOK_LIMITS.trackTitle) }))
+    .max(BOOK_LIMITS.maxTracks),
+});
+export type ReorderTracksInput = z.infer<typeof reorderTracksSchema>;
 
 export type BookComment = {
   id: number;

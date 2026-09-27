@@ -1,5 +1,6 @@
 /**
- * Kitob muqovasi va audiosini bo'laklab yuklash (admin/moderator).
+ * Kitob muqovasi va audio qismlarini bo'laklab yuklash (admin/moderator).
+ * `kind=audio` har safar oxiriga yangi qism qo'shadi (X-Track-Title — qism nomi, URL-kodlangan).
  *
  *   GET  ?kind=audio  → { received }  — uzilgan yuklash qayerdan davom etishi
  *   PUT  ?kind=audio  + X-Upload-Offset, X-Upload-Total, X-Upload-Type, [X-Audio-Seconds]
@@ -12,7 +13,7 @@ import path from "node:path";
 import { resolveIdentity } from "@/server/auth/identity";
 import { tryGetDb } from "@/server/db/client";
 import { isAllowedOrigin, parseAllowedOrigins } from "@/server/http/cors";
-import { ensureBookDir, getBookRow, setBookMedia } from "@/server/services/books";
+import { addTrack, ensureBookDir, getBookRow, setBookCover, trackUsage } from "@/server/services/books";
 import { getUserRole } from "@/server/services/roles";
 import { BOOK_LIMITS } from "@/shared/contract";
 
@@ -109,6 +110,12 @@ export function PUT(request: Request, segment: Segment) {
     if (!Number.isInteger(total) || total <= 0 || total > limit) {
       throw new UploadError(kind === "cover" ? "Muqova 5 MB dan oshmasin." : "Audio 1 GB dan oshmasin.", 413);
     }
+    if (kind === "audio" && offset === 0) {
+      // Qismlar soni va jami hajm cheklangan.
+      const usage = await trackUsage(db, id);
+      if (usage.count >= BOOK_LIMITS.maxTracks) throw new UploadError(`Audiokitob ${BOOK_LIMITS.maxTracks} qismdan oshmasin.`, 413);
+      if (usage.bytes + total > BOOK_LIMITS.audioBytes) throw new UploadError("Barcha qismlar jami 1 GB dan oshmasin.", 413);
+    }
     if (!Number.isInteger(offset) || offset < 0) throw new UploadError("X-Upload-Offset noto'g'ri.");
 
     // Yangi yuklash boshlanadi yoki boshqa fayl kelsa — eski qoldiqni tashlaymiz.
@@ -129,15 +136,27 @@ export function PUT(request: Request, segment: Segment) {
     const now = offset + chunk.length;
     if (now < total) return json({ done: false, received: now });
 
-    // Oxirgi bo'lak: eski faylni almashtiramiz va bazaga yozamiz.
+    const seconds = Math.max(0, Math.round(Number(request.headers.get("x-audio-seconds")) || 0));
+    if (kind === "audio") {
+      // Yangi qism: eski qismlar joyida qoladi.
+      const trackId = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+      const file = `track-${trackId}.${ext}`;
+      await rename(part, path.join(dir, file));
+      await rm(meta, { force: true });
+      let title = "";
+      try { title = decodeURIComponent(request.headers.get("x-track-title") ?? ""); } catch { /* noto'g'ri kodlangan nom */ }
+      const book = await addTrack(db, id, { id: trackId, file, mime: type, bytes: total, seconds, title: title.trim().slice(0, BOOK_LIMITS.trackTitle) });
+      return json({ done: true, received: total, book, trackId });
+    }
+
+    // Muqova: eski faylni almashtiramiz va bazaga yozamiz.
     const file = `${kind}.${ext}`;
     for (const name of await readdir(dir)) {
       if (name.startsWith(`${kind}.`) && !name.startsWith(`${kind}.upload`) && name !== file) await rm(path.join(dir, name), { force: true });
     }
     await rename(part, path.join(dir, file));
     await rm(meta, { force: true });
-    const seconds = Math.max(0, Math.round(Number(request.headers.get("x-audio-seconds")) || 0));
-    const book = await setBookMedia(db, id, kind, file, { mime: type, bytes: total, seconds });
+    const book = await setBookCover(db, id, file);
     return json({ done: true, received: total, book });
   });
 }

@@ -673,10 +673,31 @@ try {
     const done = await (await put(editor, audio.slice(10), 10, 15, "audio/mpeg", { "X-Audio-Seconds": "3725" })).json();
     assert.equal(done.data.done, true);
     assert.equal(done.data.book.audioSeconds, 3725);
-    assert.match(done.data.book.audioUrl, new RegExp(`^/media/books/${id}/audio\\.mp3\\?v=`));
+    assert.equal(done.data.book.tracks.length, 1, "Har yuklash — yangi qism");
+    const firstFile = done.data.book.tracks[0].url.split("/").pop().split("?")[0];
+    assert.match(firstFile, /^track-[a-z0-9]+\.mp3$/);
+    assert.equal(done.data.book.audioUrl, done.data.book.tracks[0].url);
+
+    // Ikkinchi qism oxiriga qo'shiladi; tartib va nom o'zgartiriladi; qism o'chiriladi.
+    const second = await (await put(editor, audio.slice(0, 5), 0, 5, "audio/mpeg", { "X-Audio-Seconds": "60", "X-Track-Title": encodeURIComponent("2-bob") })).json();
+    assert.equal(second.data.book.tracks.length, 2);
+    assert.equal(second.data.book.audioSeconds, 3785, "Uzunlik — qismlar yig'indisi");
+    assert.equal(second.data.book.tracks[1].title, "2-bob");
+    const tracksRoute = await load("app/api/v1/books/[id]/tracks/route.ts");
+    const trackItem = await load("app/api/v1/books/[id]/tracks/[tid]/route.ts");
+    const [a, b] = second.data.book.tracks;
+    await reader.call(tracksRoute.PUT, `/api/v1/books/${id}/tracks`, { method: "PUT", body: { tracks: [] }, params: { id }, expect: 403 });
+    const { payload: reordered } = await editor.call(tracksRoute.PUT, `/api/v1/books/${id}/tracks`, {
+      method: "PUT",
+      body: { tracks: [{ id: b.id, title: "Muqaddima" }, { id: a.id, title: "1-bob" }] },
+      params: { id },
+    });
+    assert.deepEqual(reordered.data.tracks.map((t) => t.title), ["Muqaddima", "1-bob"]);
+    const { payload: trimmed } = await editor.call(trackItem.DELETE, `/api/v1/books/${id}/tracks/${b.id}`, { method: "DELETE", params: { id, tid: b.id } });
+    assert.deepEqual(trimmed.data.tracks.map((t) => t.id), [a.id]);
 
     // Tinglash: Range so'rovi faylning bir qismini beradi.
-    const media = (range) => mediaFile.GET(new Request(`${ORIGIN}/media/books/${id}/audio.mp3`, { headers: range ? { Range: range } : {} }), { params: Promise.resolve({ id, file: "audio.mp3" }) });
+    const media = (range) => mediaFile.GET(new Request(`${ORIGIN}/media/books/${id}/${firstFile}`, { headers: range ? { Range: range } : {} }), { params: Promise.resolve({ id, file: firstFile }) });
     const partial = await media("bytes=5-9");
     assert.equal(partial.status, 206);
     assert.equal(partial.headers.get("content-range"), "bytes 5-9/15");
@@ -695,6 +716,83 @@ try {
 
     await rmDir(process.env.BIR_ILM_MEDIA_DIR, { recursive: true, force: true });
     console.log("PASS: kitobni admin/moderator qo'shadi, audio bo'laklab yuklanadi va davom ettiriladi, Range bilan tinglanadi.");
+  }
+
+  // --- Suhbat yozuvi: faqat admin yozadi, tugagan suhbat audio joylanguncha yashirin --
+  {
+    const { mkdtemp, rm: rmDir, readdir: listDir } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const pathMod = await import("node:path");
+    process.env.BIR_ILM_MEDIA_DIR = await mkdtemp(pathMod.join(tmpdir(), "bir-ilm-live-"));
+    const recordings = await load("app/api/v1/live/[id]/recordings/route.ts");
+    const recordingItem = await load("app/api/v1/live/[id]/recordings/[rid]/route.ts");
+    const archive = await load("app/api/v1/live/[id]/archive/route.ts");
+    const liveItem = await load("app/api/v1/live/[id]/route.ts");
+    const liveFile = await load("app/media/live/[id]/[file]/route.ts");
+
+    const admin = await webClient();
+    const reader = await webClient();
+    promote(admin.userId, "admin");
+    const { payload: made } = await admin.call(live.POST, "/api/v1/live", {
+      method: "POST",
+      body: { bookTitle: "Yozuv testi", title: "Yozib olish", scheduledAt: new Date().toISOString() },
+      expect: 201,
+    });
+    const id = made.data.id;
+    const params = { id };
+
+    // Suhbat boshlanmagan — yozib bo'lmaydi; oddiy foydalanuvchi umuman yoza olmaydi.
+    await admin.call(recordings.POST, `/api/v1/live/${id}/recordings`, { method: "POST", body: { mime: "audio/webm;codecs=opus" }, params, expect: 400 });
+    sqlite.prepare("UPDATE live_sessions SET status = 'live', started_at = ? WHERE id = ?").run(new Date().toISOString(), id);
+    await reader.call(recordings.POST, `/api/v1/live/${id}/recordings`, { method: "POST", body: { mime: "audio/webm" }, params, expect: 403 });
+    const { payload: rec } = await admin.call(recordings.POST, `/api/v1/live/${id}/recordings`, { method: "POST", body: { mime: "audio/webm;codecs=opus" }, params, expect: 201 });
+    const rid = rec.data.id;
+
+    const chunk = (bytes, offset) =>
+      recordingItem.PUT(new Request(`${ORIGIN}/api/v1/live/${id}/recordings/${rid}`, {
+        method: "PUT",
+        body: bytes,
+        headers: { Cookie: admin.cookie, Origin: ORIGIN, "X-Upload-Offset": String(offset), "X-Recording-Seconds": "20" },
+      }), { params: Promise.resolve({ id, rid }) });
+    assert.equal((await (await chunk(new Uint8Array([1, 2, 3]), 0)).json()).data.received, 3);
+    assert.equal((await (await chunk(new Uint8Array([1, 2, 3]), 0)).json()).data.received, 3, "Qayta yuborilgan bo'lak ikki marta yozilmaydi");
+    assert.equal((await chunk(new Uint8Array([9]), 7)).status, 409, "Tartib buzilsa rad etiladi");
+    assert.equal((await (await chunk(new Uint8Array([4, 5]), 3)).json()).data.received, 5);
+
+    // Tugagan suhbat oddiy foydalanuvchiga ko'rinmaydi; admin xom yozuvni ko'radi.
+    sqlite.prepare("UPDATE live_sessions SET status = 'ended', ended_at = ? WHERE id = ?").run(new Date().toISOString(), id);
+    const { payload: hidden } = await reader.call(live.GET, "/api/v1/live");
+    assert.ok(!hidden.data.some((s) => s.id === id), "Audiosiz tugagan suhbat yashirin");
+    await reader.call(liveItem.GET, `/api/v1/live/${id}`, { params, expect: 404 });
+    const { payload: staffList } = await admin.call(live.GET, "/api/v1/live");
+    const staffView = staffList.data.find((s) => s.id === id);
+    assert.equal(staffView.recordings.length, 1);
+    assert.equal(staffView.recordings[0].bytes, 5);
+    const recFile = staffView.recordings[0].url.split("/").pop();
+    const getFile = (client, file) => liveFile.GET(new Request(`${ORIGIN}/media/live/${id}/${file}`, { headers: { Cookie: client.cookie } }), { params: Promise.resolve({ id, file }) });
+    assert.equal((await getFile(reader, recFile)).status, 404, "Xom yozuv faqat adminlarga");
+    assert.deepEqual([...new Uint8Array(await (await getFile(admin, recFile)).arrayBuffer())], [1, 2, 3, 4, 5]);
+
+    // Ishlov berilgan audio joylangach hammaga ko'rinadi.
+    const done = await (await archive.PUT(new Request(`${ORIGIN}/api/v1/live/${id}/archive`, {
+      method: "PUT",
+      body: new Uint8Array([7, 7, 7]),
+      headers: { Cookie: admin.cookie, Origin: ORIGIN, "X-Upload-Offset": "0", "X-Upload-Total": "3", "X-Upload-Type": "audio/mpeg", "X-Audio-Seconds": "90" },
+    }), { params: Promise.resolve(params) })).json();
+    assert.equal(done.data.done, true);
+    const { payload: visible } = await reader.call(live.GET, "/api/v1/live");
+    const shown = visible.data.find((s) => s.id === id);
+    assert.equal(shown.archive.seconds, 90);
+    assert.deepEqual(shown.recordings, [], "Oddiy foydalanuvchi xom yozuvlarni ko'rmaydi");
+    const archiveFile = shown.archive.url.split("/").pop().split("?")[0];
+    assert.equal((await getFile(reader, archiveFile)).status, 200);
+
+    // O'chirish faqat admin; fayllar ham ketadi.
+    await reader.call(liveItem.DELETE, `/api/v1/live/${id}`, { method: "DELETE", params, expect: 403 });
+    await admin.call(liveItem.DELETE, `/api/v1/live/${id}`, { method: "DELETE", params });
+    assert.deepEqual(await listDir(pathMod.join(process.env.BIR_ILM_MEDIA_DIR, "live")), [], "Suhbat papkasi o'chishi kerak");
+    await rmDir(process.env.BIR_ILM_MEDIA_DIR, { recursive: true, force: true });
+    console.log("PASS: yozuv faqat admin, bo'laklar takrorlanmaydi, tugagan suhbat audio joylanguncha yashirin, o'chirish fayllarni ham oladi.");
   }
 
   // --- Postlar: e'lon, shikoyat, moderator o'chirishi, ism saqlanishi ----------

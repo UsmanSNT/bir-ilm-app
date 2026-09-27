@@ -192,13 +192,19 @@ export default function MobileScreens({
   const [correct, setCorrect] = useState(0);
   const [finished, setFinished] = useState(false);
   const announcements = useAnnouncements();
-  const featured = useCatalog().active;
+  const unread = useUnreadCount(announcements);
+  const catalog = useCatalog();
+  const featured = catalog.active;
   const library = useLibrarySave();
 
   const secs = Math.max(0, Math.floor((session - now) / 1000));
   const days = String(Math.floor(secs / 86400)).padStart(2, "0");
   const hours = String(Math.floor((secs / 3600) % 24)).padStart(2, "0");
   // Hafta kitobining audiosi bo'lsa, progress — tinglangan joy; aks holda o'qilgan sahifa.
+  // Tugma doim audioga olib boradi: hafta kitobi, bo'lmasa oxirgi tinglangan kitob.
+  const listenBook = featured?.audioUrl
+    ? featured
+    : catalog.items.find((b) => b.id === library.last && b.audioUrl) ?? null;
   const audioLength = featured?.audioUrl ? featured.audioSeconds : 0;
   const audioAt = featured ? library.progress[featured.id] ?? 0 : 0;
   const percent = audioLength
@@ -314,7 +320,7 @@ export default function MobileScreens({
               <PomodoroButton className="m-icon" />
               <button className="m-icon" type="button" aria-label="Bildirishnomalar" onClick={onOpenNotifications}>
                 <Bell size={22} />
-                <span className="m-alert-dot">3</span>
+                {unread > 0 && <span className="m-alert-dot">{unread > 9 ? "9+" : unread}</span>}
               </button>
             </div>
           </header>
@@ -353,9 +359,13 @@ export default function MobileScreens({
                 {todaySeconds > 0 && <span>· bugun {listenedLabel(todaySeconds)}</span>}
               </p>
             )}
-            <button className="m-primary" type="button" onClick={() => onContinue(featured)}>
-              {featured?.audioUrl ? <Headphones size={18} /> : null}
-              {featured?.audioUrl ? (audioAt > 0 ? "Tinglashni davom ettirish" : "Tinglashni boshlash") : "Mutolaani davom ettirish"}
+            <button className="m-primary" type="button" onClick={() => onContinue(listenBook)}>
+              <Headphones size={18} />
+              {listenBook
+                ? listenBook.id === featured?.id
+                  ? audioAt > 0 ? "Tinglashni davom ettirish" : "Tinglashni boshlash"
+                  : `«${listenBook.title}»ni davom ettirish`
+                : "Audiokitoblarni ko‘rish"}
               <ArrowRight size={18} />
             </button>
           </section>
@@ -611,9 +621,11 @@ function NewsCard({
   );
 }
 
-type Announcement = { id: string; title: string; body: string; time: string };
+type Announcement = { id: string; title: string; body: string; time: string; at: number };
+const parseTime = (iso: string) => new Date(iso.replace(" ", "T") + (iso.endsWith("Z") ? "" : "Z")).getTime();
+
 function relativeTime(iso: string): string {
-  const when = new Date(iso.replace(" ", "T") + (iso.endsWith("Z") ? "" : "Z")).getTime();
+  const when = parseTime(iso);
   const minutes = Math.max(0, Math.round((Date.now() - when) / 60000));
   if (minutes < 60) return minutes <= 1 ? "Hozirgina" : `${minutes} daqiqa oldin`;
   if (minutes < 24 * 60) return `${Math.round(minutes / 60)} soat oldin`;
@@ -628,10 +640,45 @@ export function useAnnouncements(): Announcement[] {
     fetch("/api/social?scope=announcements", { signal: ctrl.signal })
       .then((r) => (r.ok ? (r.json() as Promise<{ posts?: { id: string; title?: string; book: string; body: string; createdAt: string }[] }>) : null))
       .then((data) => {
-        setItems((data?.posts ?? []).map((p) => ({ id: p.id, title: p.title || p.book, body: p.body, time: relativeTime(p.createdAt) })));
+        setItems((data?.posts ?? []).map((p) => ({ id: p.id, title: p.title || p.book, body: p.body, time: relativeTime(p.createdAt), at: parseTime(p.createdAt) })));
       })
       .catch(() => {});
     return () => ctrl.abort();
   }, []);
   return items;
+}
+
+// O'qilmagan bildirishnomalar: oxirgi marta oyna ochilgandan keyin kelgan e'lonlar.
+const SEEN_KEY = "bir-notifications-seen";
+const SEEN_EVENT = "bir-notifications-seen";
+
+function readSeen(): number {
+  try {
+    return Number(localStorage.getItem(SEEN_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function markNotificationsSeen() {
+  try {
+    localStorage.setItem(SEEN_KEY, String(Date.now()));
+  } catch {
+    /* shaxsiy rejim — son shu sessiyada qoladi */
+  }
+  window.dispatchEvent(new Event(SEEN_EVENT));
+}
+
+function subscribeSeen(onChange: () => void) {
+  window.addEventListener(SEEN_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(SEEN_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+export function useUnreadCount(items: Announcement[]): number {
+  const seen = useSyncExternalStore(subscribeSeen, readSeen, () => Number.MAX_SAFE_INTEGER);
+  return items.filter((item) => item.at > seen).length;
 }

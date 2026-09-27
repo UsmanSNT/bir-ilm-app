@@ -11,6 +11,12 @@ export type LiveRole = (typeof LIVE_ROLES)[number];
 export const LIMITS_LIVE = {
   title: 200,
   messageBody: 500,
+  /** Yozuvning bitta bo'lagi (brauzer har 10 soniyada yuboradi). */
+  recordingChunkBytes: 8 * 1024 * 1024,
+  /** Bitta xom yozuv: 2 GB. */
+  recordingBytes: 2 * 1024 * 1024 * 1024,
+  /** Ishlov berilgan audio: 1 GB. */
+  archiveBytes: 1024 * 1024 * 1024,
 } as const;
 
 const trimmed = (max: number) => z.string().trim().max(max);
@@ -38,6 +44,22 @@ export type LiveSession = {
   endedAt: string | null;
   moderatorId: string;
   participantCount: number;
+  /** Hozir yozib olinmoqda (hamma ko'radi — qatnashchilar bilishi kerak). */
+  recording: boolean;
+  /** Ishlov berilgan, hammaga ochiq audio. null — hali joylanmagan (tugagan suhbat faqat adminlarga ko'rinadi). */
+  archive: { url: string; seconds: number; bytes: number } | null;
+  /** Xom yozuvlar — faqat admin/moderatorga; boshqalarga doim bo'sh. */
+  recordings: LiveRecording[];
+};
+
+export type LiveRecording = {
+  id: string;
+  /** Yuklab olish manzili (faqat admin/moderator ochadi). */
+  url: string;
+  mime: string;
+  bytes: number;
+  seconds: number;
+  createdAt: string;
 };
 
 export type LiveParticipant = {
@@ -75,7 +97,9 @@ export type WsClientMessage =
   | { type: "mod:kick"; targetUserId: string }
   | { type: "mod:delete_message"; messageId: number }
   | { type: "mod:start" }
-  | { type: "mod:end" };
+  | { type: "mod:end" }
+  /** Faqat admin: yozib olishni yoqish/o'chirish. */
+  | { type: "mod:recording"; on: boolean };
 
 /** Serverdan mijozga. */
 export type WsServerMessage =
@@ -98,4 +122,5 @@ export type WsServerMessage =
   | { type: "message_deleted"; messageId: number }
   | { type: "kicked" }
   | { type: "session_started"; startedAt: string }
-  | { type: "session_ended"; endedAt: string };
+  | { type: "session_ended"; endedAt: string }
+  | { type: "recording"; active: boolean };

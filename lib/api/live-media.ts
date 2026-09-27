@@ -29,6 +29,8 @@ export type ParticipantMedia = {
 };
 
 export type LiveMediaApi = {
+  /** LiveKit xonasi (yozib olish uchun). Ulanmagan bo'lsa null. */
+  room: Room | null;
   status: MediaStatus;
   canPublish: boolean;
   micOn: boolean;
@@ -249,6 +251,7 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
   }, []);
 
   return {
+    room,
     status,
     canPublish: Boolean(local?.permissions?.canPublish),
     micOn: Boolean(local?.isMicrophoneEnabled),

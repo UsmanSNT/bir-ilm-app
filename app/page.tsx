@@ -35,7 +35,7 @@ import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
 import FocusTimer, { PomodoroButton } from "./focus-timer";
-import MobileScreens, { useAnnouncements } from "./mobile-screens";
+import MobileScreens, { markNotificationsSeen, useAnnouncements, useUnreadCount } from "./mobile-screens";
 import MobileLibrary from "./mobile-library";
 import ProfileScreens from "./profile-screens";
 import { requestAudio } from "./library-store";
@@ -219,6 +219,13 @@ export default function App() {
   const [backendMode, setBackendMode] = useState<BackendMode>("local");
   const [serverLeaders, setServerLeaders] = useState<LeaderboardMember[]>([]);
   const announcements = useAnnouncements();
+  const unread = useUnreadCount(announcements);
+  const badge = unread > 0 ? <span className="bell-badge">{unread > 9 ? "9+" : unread}</span> : null;
+
+  // Bildirishnomalar oynasi ochilishi — hammasi o'qildi.
+  useEffect(() => {
+    if (modal === "notifications") markNotificationsSeen();
+  }, [modal]);
 
   const pct = Math.round((data.page / Math.max(1, data.total)) * 100);
   const leaders = useMemo(
@@ -420,11 +427,11 @@ export default function App() {
                 <h1 className="community-nav-title">Community</h1>
                 <div className="community-nav-actions">
                   <PomodoroButton className="feed-icon" />
-                  <button className="feed-icon" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={21} /></button>
+                  <button className="feed-icon" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={21} />{badge}</button>
                 </div>
               </>
             ) : (
-              <><Brand /><div className="header-actions"><PomodoroButton className="icon-btn" /><button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} /></button></div></>
+              <><Brand /><div className="header-actions"><PomodoroButton className="icon-btn" /><button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} />{badge}</button></div></>
             )}
           </header>
 
@@ -450,7 +457,7 @@ export default function App() {
                 </div>
                 <div className="heading-actions">
                   <PomodoroButton className="icon-btn" />
-                  <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} /></button>
+                  <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} />{badge}</button>
                 </div>
               </div>
 
@@ -467,11 +474,8 @@ export default function App() {
                   now={now}
                   reminderOn={data.talk}
                   onContinue={(book) => {
-                    if (!book) {
-                      setModal("progress");
-                      return;
-                    }
-                    requestAudio(book.id);
+                    // Kitob bo'lsa pleerda ochiladi, bo'lmasa Javonim'dagi audiokitoblar.
+                    if (book) requestAudio(book.id);
                     go("shelf");
                   }}
                   onOpenNotifications={() => setModal("notifications")}
@@ -503,7 +507,7 @@ export default function App() {
                         onClick={() => setModal("notifications")}
                       >
                         <Bell size={21} />
-                        
+                        {badge}
                       </button>
                     </div>
                   </div>

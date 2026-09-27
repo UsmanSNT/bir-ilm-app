@@ -66,21 +66,23 @@ export function audioDuration(file: File): Promise<number> {
 /**
  * Faylni 8 MB bo'laklarda yuklaydi. Ulanish uzilsa, serverdan qancha kelganini
  * so'rab, o'sha joydan davom etadi (bir necha marta qayta urinadi).
+ * Kitob qismlari va suhbat audiosi uchun umumiy; oxirgi bo'lakdagi javobni qaytaradi.
  */
-export async function uploadBookMedia(
-  bookId: string,
-  kind: "cover" | "audio",
+export async function uploadChunked<T>(
+  url: string,
   file: File,
   onProgress: (sent: number, total: number) => void,
-  signal?: AbortSignal,
-): Promise<Book> {
-  const url = `${API_PREFIX}/books/${encodeURIComponent(bookId)}/media?kind=${kind}`;
-  const type = file.type || (kind === "audio" ? "audio/mpeg" : "image/jpeg");
-  const seconds = kind === "audio" ? await audioDuration(file) : 0;
+  options: { signal?: AbortSignal; headers?: Record<string, string> } = {},
+): Promise<T> {
+  const { signal } = options;
+  const type = file.type || "audio/mpeg";
+  const seconds = type.startsWith("audio/") ? await audioDuration(file) : 0;
+  const received = (body: { error?: { received?: number; fields?: { received?: string[] } } } | null) =>
+    body?.error?.received ?? (body?.error?.fields?.received ? Number(body.error.fields.received[0]) : undefined);
 
   // Oldingi uzilgan yuklash o'sha fayl uchun bo'lsa — davom ettiramiz.
   let offset = 0;
-  const status = await fetch(url, { credentials: "include", signal }).then((r) => r.json()).catch(() => null) as Envelope<{ received: number; total: number; type: string | null }> | null;
+  const status = await fetch(url, { credentials: "include", signal }).then((r) => r.json()).catch(() => null) as Envelope<{ received: number; total: number; type: string }> | null;
   if (status?.data && status.data.total === file.size && status.data.type === type) offset = status.data.received;
 
   let failures = 0;
@@ -99,19 +101,21 @@ export async function uploadBookMedia(
           "X-Upload-Total": String(file.size),
           "X-Upload-Type": type,
           ...(end === file.size && seconds ? { "X-Audio-Seconds": String(seconds) } : {}),
+          ...options.headers,
         },
       });
-      const body = (await res.json().catch(() => ({}))) as Envelope<{ done: boolean; received: number; book?: Book }>;
-      if (res.status === 409 && typeof body.error?.received === "number") {
-        offset = body.error.received;
+      const body = (await res.json().catch(() => ({}))) as Envelope<T & { done: boolean; received: number }> & { error?: { fields?: { received?: string[] } } };
+      const resume = received(body);
+      if (res.status === 409 && typeof resume === "number") {
+        offset = resume;
         continue;
       }
       if (!res.ok || !body.data) throw Object.assign(new Error(body.error?.message ?? "Yuklab bo'lmadi."), { fatal: res.status >= 400 && res.status < 500 });
       failures = 0;
       offset = body.data.received;
-      if (body.data.done && body.data.book) {
+      if (body.data.done) {
         onProgress(file.size, file.size);
-        return body.data.book;
+        return body.data;
       }
     } catch (error) {
       if (signal?.aborted || (error as { fatal?: boolean }).fatal || ++failures > 5) throw error;
@@ -122,3 +126,27 @@ export async function uploadBookMedia(
     }
   }
 }
+
+/** Muqova yoki yangi audio qism. Audio har safar oxiriga yangi qism bo'lib qo'shiladi. */
+export async function uploadBookMedia(
+  bookId: string,
+  kind: "cover" | "audio",
+  file: File,
+  onProgress: (sent: number, total: number) => void,
+  signal?: AbortSignal,
+  trackTitle = "",
+): Promise<Book> {
+  const url = `${API_PREFIX}/books/${encodeURIComponent(bookId)}/media?kind=${kind}`;
+  const data = await uploadChunked<{ book: Book }>(url, file, onProgress, {
+    signal,
+    headers: trackTitle ? { "X-Track-Title": encodeURIComponent(trackTitle) } : {},
+  });
+  return data.book;
+}
+
+/** Qismlar tartibi va nomlari. */
+export const saveTracks = (bookId: string, tracks: Array<{ id: string; title: string }>) =>
+  call<Book>(`/books/${encodeURIComponent(bookId)}/tracks`, { method: "PUT", body: JSON.stringify({ tracks }) });
+
+export const deleteTrack = (bookId: string, trackId: string) =>
+  call<Book>(`/books/${encodeURIComponent(bookId)}/tracks/${encodeURIComponent(trackId)}`, { method: "DELETE" });

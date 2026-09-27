@@ -593,6 +593,39 @@
   font-weight: 650;
 }
 
+.lib-part-now {
+  margin: 4px 0 0;
+  color: #3f5a50;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.lib-parts {
+  margin-top: 18px;
+  text-align: left;
+}
+.lib-parts h3 { margin: 0 0 8px; color: #173029; font-size: 15px; }
+.lib-parts ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lib-parts button {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e3ebe7;
+  border-radius: 12px;
+  background: #fff;
+  color: #173029;
+  text-align: left;
+  cursor: pointer;
+}
+.lib-parts button.is-on { border-color: #9fd1b7; background: #eef8f2; }
+.lib-parts b { color: #157a52; font-size: 13px; text-align: center; }
+.lib-parts span { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.lib-parts small { color: #6d7f79; font-size: 12px; }
+
 .lib-transport,
 .lib-tools,
 .lib-readbar {

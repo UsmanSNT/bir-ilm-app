@@ -85,6 +85,20 @@
       "when": 1790422094987,
       "tag": "0011_community_media",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790480710900,
+      "tag": "0012_live_recordings",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790481137264,
+      "tag": "0013_book_tracks",
+      "breakpoints": true
     }
   ]
 }

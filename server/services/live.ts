@@ -3,16 +3,21 @@
  *
  * HTTP va WebSocket'dan mustaqil — ikkalasi ham shu funksiyalarni chaqiradi.
  */
-import { eq, and, desc, sql } from "drizzle-orm";
+import { mkdir, rm } from "node:fs/promises";
+import path from "node:path";
+import { eq, and, asc, desc, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ensureUser } from "./social";
+import { mediaRoot } from "./books";
+import { notFound } from "@/server/http/errors";
 import type {
   CreateLiveSessionInput,
   LiveSession,
   LiveParticipant,
   LiveMessage,
   LiveRole,
+  LiveRecording,
 } from "@/shared/contract/live";
 
 function sessionId(): string {
@@ -38,9 +43,63 @@ export async function createLiveSession(
   return (await getLiveSession(db, id))!;
 }
 
+type SessionRow = typeof schema.liveSessions.$inferSelect;
+type RecordingRow = typeof schema.liveRecordings.$inferSelect;
+
+export const LIVE_ID_PATTERN = /^live_[a-z0-9]{6,32}$/;
+export const LIVE_FILE_PATTERN = /^(archive|rec-[a-z0-9]{6,32})\.[a-z0-9]{2,5}$/;
+
+/** Suhbat fayllari: BIR_ILM_MEDIA_DIR/live/<suhbat-id>/ */
+export function liveDir(id: string): string {
+  if (!LIVE_ID_PATTERN.test(id)) throw notFound("Suhbat topilmadi.");
+  return path.join(mediaRoot(), "live", id);
+}
+
+export async function ensureLiveDir(id: string): Promise<string> {
+  const dir = liveDir(id);
+  await mkdir(dir, { recursive: true });
+  return dir;
+}
+
+function toRecording(row: RecordingRow): LiveRecording {
+  return {
+    id: row.id,
+    url: `/media/live/${row.sessionId}/${row.file}`,
+    mime: row.mime,
+    bytes: row.bytes,
+    seconds: row.seconds,
+    createdAt: sqliteUtcToIso(row.createdAt),
+  };
+}
+
+function toSession(row: SessionRow, participantCount: number, recordings: RecordingRow[] = []): LiveSession {
+  return {
+    id: row.id,
+    bookTitle: row.bookTitle,
+    title: row.title,
+    status: row.status,
+    scheduledAt: row.scheduledAt,
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+    moderatorId: row.moderatorId,
+    participantCount,
+    recording: Boolean(row.recordingBy),
+    archive: row.archiveFile
+      ? {
+          url: `/media/live/${row.id}/${row.archiveFile}?v=${encodeURIComponent(row.archivedAt ?? "")}`,
+          seconds: row.archiveSeconds,
+          bytes: row.archiveBytes,
+        }
+      : null,
+    recordings: recordings.map(toRecording),
+  };
+}
+
+/** `staff` — admin/moderator: xom yozuvlar ham qo'shiladi. */
 export async function getLiveSession(
   db: Database,
   id: string,
+  staff = false,
 ): Promise<LiveSession | null> {
   const row = await db.query.liveSessions.findFirst({
     where: eq(schema.liveSessions.id, id),
@@ -50,17 +109,28 @@ export async function getLiveSession(
     .select({ c: sql<number>`count(*)` })
     .from(schema.liveParticipants)
     .where(eq(schema.liveParticipants.sessionId, id));
-  return { ...row, participantCount: count[0]?.c ?? 0 };
+  const recordings = staff
+    ? await db.query.liveRecordings.findMany({
+        where: eq(schema.liveRecordings.sessionId, id),
+        orderBy: asc(schema.liveRecordings.createdAt),
+      })
+    : [];
+  return toSession(row, count[0]?.c ?? 0, recordings);
 }
 
+/**
+ * Ro'yxat. Oddiy foydalanuvchi tugagan suhbatni faqat ishlov berilgan audio joylangandan
+ * keyin ko'radi; admin/moderator hammasini va xom yozuvlarni ko'radi.
+ */
 export async function listLiveSessions(
   db: Database,
+  staff = false,
 ): Promise<LiveSession[]> {
   const rows = await db.query.liveSessions.findMany({
     orderBy: desc(schema.liveSessions.scheduledAt),
-    limit: 20,
+    limit: 50,
   });
-  // Participant counts
+  const visible = staff ? rows : rows.filter((r) => r.status !== "ended" || r.archiveFile);
   const counts = await db
     .select({
       sessionId: schema.liveParticipants.sessionId,
@@ -69,7 +139,78 @@ export async function listLiveSessions(
     .from(schema.liveParticipants)
     .groupBy(schema.liveParticipants.sessionId);
   const countMap = new Map(counts.map((r) => [r.sessionId, r.c]));
-  return rows.map((r) => ({ ...r, participantCount: countMap.get(r.id) ?? 0 }));
+  const recordings = staff
+    ? await db.query.liveRecordings.findMany({ orderBy: asc(schema.liveRecordings.createdAt) })
+    : [];
+  return visible.map((r) =>
+    toSession(r, countMap.get(r.id) ?? 0, recordings.filter((rec) => rec.sessionId === r.id)),
+  );
+}
+
+/** Suhbatni butunlay o'chiradi (izohlar, yozuvlar va fayllar bilan). */
+export async function deleteLiveSession(db: Database, id: string): Promise<void> {
+  const row = await db.query.liveSessions.findFirst({ where: eq(schema.liveSessions.id, id) });
+  if (!row) throw notFound("Suhbat topilmadi.");
+  await db.delete(schema.liveSessions).where(eq(schema.liveSessions.id, id));
+  await rm(liveDir(id), { recursive: true, force: true });
+}
+
+// ── Yozib olish ─────────────────────────────────────────────────────
+
+export async function setRecordingBy(db: Database, id: string, userId: string | null): Promise<void> {
+  await db.update(schema.liveSessions).set({ recordingBy: userId }).where(eq(schema.liveSessions.id, id));
+}
+
+export async function createRecording(
+  db: Database,
+  sessionId: string,
+  userId: string,
+  mime: string,
+  ext: string,
+): Promise<LiveRecording> {
+  const id = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+  await ensureLiveDir(sessionId);
+  const [row] = await db
+    .insert(schema.liveRecordings)
+    .values({ id, sessionId, file: `rec-${id}.${ext}`, mime, createdBy: userId })
+    .returning();
+  return toRecording(row);
+}
+
+export async function getRecordingRow(db: Database, sessionId: string, recordingId: string): Promise<RecordingRow> {
+  const row = await db.query.liveRecordings.findFirst({
+    where: and(eq(schema.liveRecordings.id, recordingId), eq(schema.liveRecordings.sessionId, sessionId)),
+  });
+  if (!row) throw notFound("Yozuv topilmadi.");
+  return row;
+}
+
+export async function updateRecordingSize(db: Database, recordingId: string, bytes: number, seconds: number): Promise<void> {
+  await db.update(schema.liveRecordings).set({ bytes, seconds }).where(eq(schema.liveRecordings.id, recordingId));
+}
+
+export async function deleteRecording(db: Database, sessionId: string, recordingId: string): Promise<void> {
+  const row = await getRecordingRow(db, sessionId, recordingId);
+  await db.delete(schema.liveRecordings).where(eq(schema.liveRecordings.id, row.id));
+  await rm(path.join(liveDir(sessionId), row.file), { force: true });
+}
+
+// ── Ishlov berilgan audio («O'tgan suhbatlar») ──────────────────────
+
+export async function setArchive(
+  db: Database,
+  id: string,
+  meta: { file: string; mime: string; bytes: number; seconds: number } | null,
+): Promise<LiveSession> {
+  await db
+    .update(schema.liveSessions)
+    .set(meta
+      ? { archiveFile: meta.file, archiveMime: meta.mime, archiveBytes: meta.bytes, archiveSeconds: meta.seconds, archivedAt: new Date().toISOString() }
+      : { archiveFile: null, archiveMime: null, archiveBytes: 0, archiveSeconds: 0, archivedAt: null })
+    .where(eq(schema.liveSessions.id, id));
+  const session = await getLiveSession(db, id, true);
+  if (!session) throw notFound("Suhbat topilmadi.");
+  return session;
 }
 
 // Ruxsat chaqiruvchida (WS) tekshiriladi: faqat admin boshlaydi va tugatadi.
@@ -86,7 +227,7 @@ export async function endLiveSession(db: Database, id: string): Promise<string> 
   const endedAt = new Date().toISOString();
   await db
     .update(schema.liveSessions)
-    .set({ status: "ended", endedAt })
+    .set({ status: "ended", endedAt, recordingBy: null })
     .where(eq(schema.liveSessions.id, id));
   return endedAt;
 }
@@ -128,6 +269,8 @@ export async function leaveSession(
 
 export async function clearAllParticipants(db: Database): Promise<void> {
   await db.delete(schema.liveParticipants);
+  // Server qayta ishga tushsa, yozayotgan brauzer ham uzilgan bo'ladi.
+  await db.update(schema.liveSessions).set({ recordingBy: null });
 }
 
 export async function getParticipants(

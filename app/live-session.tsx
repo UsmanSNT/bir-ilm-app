@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Camera,
   CameraOff,
+  CircleDot,
   Hand,
   LogOut,
   MessageCircle,
@@ -32,6 +33,7 @@ import {
   type LiveConnectionState,
 } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
+import { RoomRecorder, recordingSupported } from "@/lib/api/live-recorder";
 import LoginCard from "./login-card";
 import TalksBoard from "./talks-board";
 import type {
@@ -142,6 +144,10 @@ export default function LiveSession({
   const [devicesOpen, setDevicesOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const rejoinTried = useRef(false);
+  // Yozib olish adminning brauzerida ishlaydi; «Boshlash» bosilganda o'zi yoqiladi.
+  const recorderRef = useRef<RoomRecorder | null>(null);
+  const autoRecord = useRef(false);
+  const [recBusy, setRecBusy] = useState(false);
 
   const av = useLiveMedia(activeSessionId ? media : null, setNotice);
   const sharerId = av.screenSharer?.userId ?? null;
@@ -177,7 +183,10 @@ export default function LiveSession({
   }, [messages]);
 
   useEffect(() => {
-    return () => clientRef.current?.dispose();
+    return () => {
+      void recorderRef.current?.stop();
+      clientRef.current?.dispose();
+    };
   }, []);
 
   useEffect(() => {
@@ -268,6 +277,13 @@ export default function LiveSession({
       setNotice("Suhbat boshlandi");
     });
 
+    client.on("recording", ({ active }) => {
+      setSessionData((prev) => (prev ? { ...prev, recording: active } : prev));
+      // Boshqa admin to'xtatgan bo'lsa, shu brauzerdagi yozuvni ham yakunlaymiz.
+      if (!active && recorderRef.current) void finishRecording(false);
+      setNotice(active ? "Suhbat yozib olinmoqda" : "Yozib olish to'xtatildi");
+    });
+
     client.on("session_ended", ({ endedAt }) => {
       setSessionData((prev) =>
         prev ? { ...prev, status: "ended", endedAt } : prev,
@@ -298,7 +314,43 @@ export default function LiveSession({
     client.join(sessionId);
   }
 
+  async function startRecording() {
+    if (recorderRef.current || recBusy || !activeSessionId) return;
+    if (!av.room || av.status !== "connected") {
+      setNotice("Ovoz serveriga ulanilmagan — yozib bo'lmaydi.");
+      return;
+    }
+    if (!recordingSupported()) {
+      setNotice("Bu brauzer yozib olishni qo'llab-quvvatlamaydi.");
+      return;
+    }
+    setRecBusy(true);
+    const recorder = new RoomRecorder(av.room, activeSessionId, setNotice);
+    try {
+      await recorder.start();
+      recorderRef.current = recorder;
+      clientRef.current?.setRecording(true);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Yozib olishni boshlab bo'lmadi.");
+    } finally {
+      setRecBusy(false);
+    }
+  }
+
+  /** `announce` — boshqalarga «yozuv to'xtadi» deb xabar berish (server orqali). */
+  async function finishRecording(announce = true) {
+    const recorder = recorderRef.current;
+    if (announce) clientRef.current?.setRecording(false);
+    if (!recorder) return;
+    recorderRef.current = null;
+    setRecBusy(true);
+    await recorder.stop();
+    setRecBusy(false);
+    setNotice("Yozuv saqlandi. Uni «Suhbatlar» bo'limidagi boshqaruvdan yuklab olasiz.");
+  }
+
   function leaveSession() {
+    if (recorderRef.current) void finishRecording();
     rememberActive(null);
     setMinimized(false);
     clientRef.current?.leave();
@@ -373,7 +425,8 @@ export default function LiveSession({
   // Tinglovchi so'z berilmaguncha mikrofon, kamera va ekranni yoqa olmaydi (ruxsat LiveKit serverida).
   const publishLocked = av.status !== "connected" || !av.canPublish;
   const lockedHint = av.status !== "connected" ? "Ovoz/video serveriga ulanilmagan" : "So'z berilganda yoqiladi";
-  const controls = [
+  const recording = Boolean(sessionData?.recording);
+  const controls: Array<{ label: string; icon: typeof Mic; active: boolean; disabled: boolean; pending: boolean; action: () => unknown; hint?: string }> = [
     { label: "Mikrofon", icon: av.micOn ? Mic : MicOff, active: av.micOn, disabled: publishLocked, pending: av.busy === "mic", action: av.toggleMic },
     { label: "Kamera", icon: av.cameraOn ? Camera : CameraOff, active: av.cameraOn, disabled: publishLocked, pending: av.busy === "camera", action: av.toggleCamera },
     { label: "Ekran ulashish", icon: MonitorUp, active: av.screenOn, disabled: publishLocked, pending: av.busy === "screen", action: av.toggleScreen },
@@ -382,7 +435,27 @@ export default function LiveSession({
       ? []
       : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, disabled: false, pending: false, action: toggleHand }]),
     { label: "Izohlar", icon: MessageCircle, active: commentsOpen, disabled: false, pending: false, action: () => setCommentsOpen(!commentsOpen) },
+    ...(roomAdmin
+      ? [{
+          label: recording ? "Yozuvni to'xtatish" : "Yozib olish",
+          icon: CircleDot,
+          active: recording,
+          disabled: status !== "live" || av.status !== "connected",
+          pending: recBusy,
+          action: () => (recording ? finishRecording() : startRecording()),
+          hint: status !== "live" ? "Suhbat boshlangach yozib olinadi" : "Ovoz serveriga ulanilmagan",
+        }]
+      : []),
   ];
+
+  // «Boshlash» bosilgan bo'lsa: suhbat jonli bo'lib, ovoz ulangach yozuv o'zi yoqiladi.
+  useEffect(() => {
+    if (!autoRecord.current || !roomAdmin || status !== "live" || av.status !== "connected") return;
+    autoRecord.current = false;
+    queueMicrotask(() => void startRecording());
+    // startRecording har renderda yangi; shart bajarilganda bir marta chaqiriladi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomAdmin, status, av.status]);
 
   // ── Active session overlay ─────────────────────────────────────────
 
@@ -406,13 +479,16 @@ export default function LiveSession({
             {status === "live" && (
               <span className="live-indicator"><i /> LIVE</span>
             )}
+            {recording && (
+              <span className="live-rec" title="Suhbat yozib olinmoqda"><i /> REC</span>
+            )}
             {roomAdmin && status === "planned" && (
-              <button className="live-admin-btn start" onClick={() => clientRef.current?.startSession()}>
+              <button className="live-admin-btn start" onClick={() => { autoRecord.current = true; clientRef.current?.startSession(); }}>
                 <Play size={13} /> Boshlash
               </button>
             )}
             {roomAdmin && status === "live" && (
-              <button className="live-admin-btn end" onClick={() => clientRef.current?.endSession()}>
+              <button className="live-admin-btn end" onClick={async () => { await finishRecording(); clientRef.current?.endSession(); }}>
                 <Square size={12} /> Tugatish
               </button>
             )}
@@ -663,7 +739,7 @@ export default function LiveSession({
           {/* ── Boshqaruv paneli ── */}
           <footer className="live-controls">
             <div className="live-control-actions">
-              {controls.map(({ label, icon: Icon, active, disabled, pending, action }) => (
+              {controls.map(({ label, icon: Icon, active, disabled, pending, action, hint }) => (
                 <button
                   className={`${active ? "active" : ""}${pending ? " pending" : ""}`}
                   key={label}
@@ -671,7 +747,7 @@ export default function LiveSession({
                   disabled={disabled || pending}
                   aria-label={label}
                   aria-busy={pending}
-                  title={disabled ? lockedHint : pending ? "Yoqilmoqda…" : label}
+                  title={disabled ? hint ?? lockedHint : pending ? "Yoqilmoqda…" : label}
                 >
                   <span><Icon size={20} /></span>
                   <small>{label}</small>
@@ -718,11 +794,10 @@ export default function LiveSession({
         isAdmin={isAdmin}
         userId={viewer?.userId ?? null}
         notice={listNotice}
-        onJoin={(id) => {
-          joinSession(id);
-          // Tugagan suhbat — faqat izohlar arxivi.
-          if (sessions.find((s) => s.id === id)?.status === "ended") setCommentsOpen(true);
-        }}
+        staff={canModerate(viewer?.role)}
+        onJoin={joinSession}
+        onChange={(next) => setSessions((prev) => prev.map((s) => (s.id === next.id ? next : s)))}
+        onRemove={(id) => setSessions((prev) => prev.filter((s) => s.id !== id))}
         onCreate={() => setShowCreate(true)}
         onShare={onComments}
         login={viewer && !viewer.signedIn && (

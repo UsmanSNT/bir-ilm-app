@@ -1,7 +1,8 @@
 /** Jonli suhbatlar ro'yxati va yaratish. */
 import { defineRoute } from "@/server/http/handler";
 import { createLiveSession, listLiveSessions } from "@/server/services/live";
-import { requireRole } from "@/server/services/roles";
+import { getUserRole, requireRole } from "@/server/services/roles";
+import { canModerate } from "@/shared/contract/roles";
 import {
   createLiveSessionSchema,
   type CreateLiveSessionInput,
@@ -11,7 +12,8 @@ import {
 export const runtime = "edge";
 
 export const GET = defineRoute<undefined, LiveSession[]>({
-  handler: ({ db }) => listLiveSessions(db),
+  // Tugagan, audiosi joylanmagan suhbatlar va xom yozuvlar faqat admin/moderatorga.
+  handler: async ({ db, identity }) => listLiveSessions(db, canModerate(await getUserRole(db, identity.userId))),
 });
 
 export const POST = defineRoute<CreateLiveSessionInput, LiveSession>({

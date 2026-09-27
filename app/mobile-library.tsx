@@ -38,7 +38,33 @@ function lengthLabel(seconds: number) {
   return hours <= 0 ? `${Math.max(1, mins)} daq` : `${hours}s ${mins} daq`;
 }
 
-type Live = { id: string; playing: boolean; at: number; duration: number; speed: number; sleepUntil: number | null; sleepMinutes: number | null };
+type Live = { id: string; playing: boolean; at: number; duration: number; part: number; speed: number; sleepUntil: number | null; sleepMinutes: number | null };
+
+/** `index`-qism boshlanadigan joy (soniya) — oldingi qismlar uzunligi yig'indisi. */
+function startOf(book: Book, index: number) {
+  return book.tracks.slice(0, index).reduce((sum, t) => sum + t.seconds, 0);
+}
+
+/** Butun kitobdagi joy → qaysi qism va uning ichidagi joy. */
+function locate(book: Book, at: number): { index: number; offset: number } {
+  let start = 0;
+  for (let index = 0; index < book.tracks.length; index++) {
+    const length = book.tracks[index].seconds;
+    if (index === book.tracks.length - 1 || at < start + length) return { index, offset: Math.max(0, at - start) };
+    start += length;
+  }
+  return { index: 0, offset: 0 };
+}
+
+function loadPart(el: HTMLAudioElement, book: Book, index: number, offset: number) {
+  const track = book.tracks[index];
+  if (!track) return;
+  el.dataset.book = book.id;
+  el.dataset.part = String(index);
+  el.dataset.start = String(startOf(book, index));
+  el.src = track.url;
+  el.currentTime = offset;
+}
 
 export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]; onToggleSave: (id: string) => void }) {
   const catalog = useCatalog();
@@ -59,6 +85,11 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
 
   const byId = (id: string | null) => catalog.items.find((b) => b.id === id) ?? null;
   const active = byId(activeId);
+  // Audio hodisalari bir marta ulanadi — katalogni ref orqali o'qiydi.
+  const booksRef = useRef(catalog.items);
+  useEffect(() => {
+    booksRef.current = catalog.items;
+  }, [catalog.items]);
 
   // Bitta audio element: sahifa ichida kitoblar almashsa ham shu ishlatiladi.
   useEffect(() => {
@@ -86,7 +117,15 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
       count(false);
       flush();
     };
-    const sync = () => setLive((prev) => (prev ? { ...prev, at: el.currentTime, duration: Number.isFinite(el.duration) ? el.duration : prev.duration, playing: !el.paused } : prev));
+    // Joy butun kitob bo'yicha: oldingi qismlar uzunligi + shu qismdagi joy.
+    const globalAt = () => Number(el.dataset.start || 0) + el.currentTime;
+    const sync = () =>
+      setLive((prev) => {
+        if (!prev) return prev;
+        const book = booksRef.current.find((b) => b.id === el.dataset.book);
+        const single = Number.isFinite(el.duration) && (book?.tracks.length ?? 0) <= 1 ? el.duration : 0;
+        return { ...prev, at: globalAt(), duration: book?.audioSeconds || single || prev.duration, part: Number(el.dataset.part || 0), playing: !el.paused };
+      });
     const onTime = () => {
       sync();
       count(!el.paused);
@@ -94,7 +133,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
       if (id && Date.now() - lastSaved > 3000) {
         lastSaved = Date.now();
         flush();
-        writeLibrarySave({ progress: { ...parseLibrarySave(readLibrarySnapshot()).progress, [id]: el.currentTime }, last: id });
+        writeLibrarySave({ progress: { ...parseLibrarySave(readLibrarySnapshot()).progress, [id]: globalAt() }, last: id });
       }
     };
     const onPlay = () => {
@@ -108,6 +147,16 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
     };
     const onEnded = () => {
       const id = el.dataset.book;
+      const book = booksRef.current.find((b) => b.id === id);
+      const nextPart = Number(el.dataset.part || 0) + 1;
+      // Keyingi qism bo'lsa — to'xtamasdan davom etadi.
+      if (book && nextPart < book.tracks.length) {
+        el.dataset.part = String(nextPart);
+        el.dataset.start = String(startOf(book, nextPart));
+        el.src = book.tracks[nextPart].url;
+        void el.play().catch(() => toast.error("Keyingi qism ochilmadi. Qayta bosing."));
+        return;
+      }
       count(false);
       flush();
       sync();
@@ -131,7 +180,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
       count(false);
       flush();
       const id = el.dataset.book;
-      if (id && el.currentTime) writeLibrarySave({ progress: { ...parseLibrarySave(readLibrarySnapshot()).progress, [id]: el.currentTime } });
+      if (id && globalAt()) writeLibrarySave({ progress: { ...parseLibrarySave(readLibrarySnapshot()).progress, [id]: globalAt() } });
       el.pause();
       el.removeAttribute("src");
       el.load();
@@ -182,7 +231,8 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
     window.scrollTo({ top: 0 });
   }
 
-  function play(id: string) {
+  /** `from` — shu joydan (soniya) boshlash; bo'lmasa to'xtagan joydan. */
+  function play(id: string, from?: number) {
     const book = byId(id);
     const el = audioRef.current;
     if (!book || !el) return;
@@ -192,10 +242,10 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
     }
     if (el.dataset.book !== id) {
       stopCounting.current();
-      el.dataset.book = id;
-      el.src = book.audioUrl;
-      el.currentTime = save.progress[id] ?? 0;
-      setLive({ id, playing: false, at: save.progress[id] ?? 0, duration: book.audioSeconds, speed: save.speed, sleepUntil: null, sleepMinutes: null });
+      const at = from ?? save.progress[id] ?? 0;
+      const { index, offset } = locate(book, at);
+      loadPart(el, book, index, offset);
+      setLive({ id, playing: false, at, duration: book.audioSeconds, part: index, speed: save.speed, sleepUntil: null, sleepMinutes: null });
     }
     el.playbackRate = live?.speed ?? save.speed;
     void el.play().catch(() => toast.error("Ijro etib bo‘lmadi. Qayta bosing."));
@@ -210,11 +260,29 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
 
   function seek(at: number) {
     const el = audioRef.current;
+    const target = Math.max(0, active?.audioSeconds ? Math.min(at, active.audioSeconds) : at);
     if (!el || !active || el.dataset.book !== active.id) {
-      if (active) writeLibrarySave({ progress: { ...save.progress, [active.id]: at } });
+      if (active) writeLibrarySave({ progress: { ...save.progress, [active.id]: target } });
       return;
     }
-    el.currentTime = Math.max(0, Math.min(at, el.duration || at));
+    const { index, offset } = locate(active, target);
+    if (index === Number(el.dataset.part || 0)) {
+      el.currentTime = Math.max(0, Math.min(offset, el.duration || offset));
+      return;
+    }
+    const wasPlaying = !el.paused;
+    loadPart(el, active, index, offset);
+    setLive((prev) => (prev ? { ...prev, at: target, part: index } : prev));
+    if (wasPlaying) void el.play().catch(() => {});
+  }
+
+  /** Qismlar ro'yxatidan tanlangan qismni boshidan ijro etadi. */
+  function jumpTo(book: Book, index: number) {
+    const el = audioRef.current;
+    if (el?.dataset.book === book.id) {
+      seek(startOf(book, index));
+      if (el.paused) play(book.id);
+    } else play(book.id, startOf(book, index));
   }
 
   function cycleSpeed() {
@@ -364,6 +432,12 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
                 {save.listenedBooks[active.id] ? `Siz tingladingiz: ${listenedLabel(save.listenedBooks[active.id])}` : "Hali tinglanmagan"}
                 {save.listenedDays[dayKey()] ? ` · bugun ${listenedLabel(save.listenedDays[dayKey()])}` : ""}
               </p>
+              {active.tracks.length > 1 && (
+                <p className="lib-part-now">
+                  {(live?.id === active.id ? live.part : locate(active, position(active)).index) + 1}/{active.tracks.length}-qism
+                  {active.tracks[live?.id === active.id ? live.part : locate(active, position(active)).index]?.title ? ` · ${active.tracks[live?.id === active.id ? live.part : locate(active, position(active)).index].title}` : ""}
+                </p>
+              )}
               <div className="lib-transport">
                 <button type="button" aria-label="15 soniya orqaga" onClick={() => seek(position(active) - 15)}><SkipBack size={18} /><b>15</b></button>
                 <button type="button" className="lib-play" aria-label={playingNow(active.id) ? "Pauza" : "Ijro"} onClick={() => toggle(active.id)}>
@@ -378,6 +452,30 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
             </>
           ) : (
             <p className="lib-empty">Bu kitobning audiosi hali yuklanmagan.{editor ? " Tahrirlash (qalam) tugmasi orqali qo‘shing." : ""}</p>
+          )}
+          {active.tracks.length > 1 && (
+            <section className="lib-parts" aria-label="Qismlar">
+              <h3>Qismlar · {active.tracks.length}</h3>
+              <ol>
+                {active.tracks.map((track, index) => {
+                  const current = (live?.id === active.id ? live.part : locate(active, position(active)).index) === index;
+                  return (
+                    <li key={track.id}>
+                      <button
+                        type="button"
+                        className={current ? "is-on" : undefined}
+                        aria-current={current || undefined}
+                        onClick={() => jumpTo(active, index)}
+                      >
+                        <b>{index + 1}</b>
+                        <span>{track.title || `${index + 1}-qism`}</span>
+                        <small>{clock(track.seconds)}</small>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
           )}
           {active.summary && <p className="lib-summary">{active.summary}</p>}
         </div>

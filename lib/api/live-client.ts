@@ -35,6 +35,7 @@ export type LiveEventMap = {
   role_update: { userId: string; role: string };
   session_started: { startedAt: string };
   session_ended: { endedAt: string };
+  recording: { active: boolean };
   error: string;
 };
 
@@ -201,6 +202,9 @@ export class LiveClient {
       case "session_ended":
         this.emit("session_ended", { endedAt: msg.endedAt });
         break;
+      case "recording":
+        this.emit("recording", { active: msg.active });
+        break;
     }
   }
 
@@ -240,6 +244,11 @@ export class LiveClient {
 
   endSession() {
     this.send({ type: "mod:end" });
+  }
+
+  /** Faqat admin: yozib olish holatini hammaga e'lon qiladi. */
+  setRecording(on: boolean) {
+    this.send({ type: "mod:recording", on });
   }
 
   leave() {
@@ -298,4 +307,27 @@ export async function createLiveSession(input: {
   if (!res.ok) return null;
   const data: { data: LiveSession } = await res.json();
   return data.data ?? null;
+}
+
+/** Suhbatni o'chirish (admin). */
+export async function deleteLiveSession(id: string): Promise<boolean> {
+  const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "include" });
+  return res.ok;
+}
+
+/** Ishlov berilgan audioni olib tashlash (suhbat yana faqat adminlarga ko'rinadi). */
+export async function removeLiveArchive(id: string): Promise<LiveSession | null> {
+  const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(id)}/archive`, { method: "DELETE", credentials: "include" });
+  if (!res.ok) return null;
+  const data: { data: LiveSession } = await res.json();
+  return data.data ?? null;
+}
+
+/** Xom yozuvni o'chirish (admin). */
+export async function deleteLiveRecording(sessionId: string, recordingId: string): Promise<boolean> {
+  const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(sessionId)}/recordings/${encodeURIComponent(recordingId)}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  return res.ok;
 }

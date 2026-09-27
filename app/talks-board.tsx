@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Bell,
   BellRing,
@@ -9,6 +9,10 @@ import {
   ChevronRight,
   CirclePlay,
   Clock3,
+  FileAudio,
+  MoreVertical,
+  Pause,
+  Settings2,
   Mic,
   NotebookText,
   Play,
@@ -19,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
 import type { LiveSession } from "@/shared/contract/live";
+import TalkManage, { length } from "./talk-manage";
 
 // Suhbatlar bo'limining asosiy oynasi (xonaga kirishdan oldingi holat).
 
@@ -91,7 +96,10 @@ export default function TalksBoard({
   userId,
   notice,
   login,
+  staff,
   onJoin,
+  onChange,
+  onRemove,
   onCreate,
   onShare,
 }: {
@@ -102,13 +110,59 @@ export default function TalksBoard({
   userId: string | null;
   notice: string;
   login: ReactNode;
+  /** Admin yoki moderator: audiosi joylanmagan suhbatlar va yozuvlarni boshqaradi. */
+  staff: boolean;
   onJoin: (id: string) => void;
+  onChange: (session: LiveSession) => void;
+  onRemove: (id: string) => void;
   onCreate: () => void;
   onShare: () => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [reminders, setReminders] = useState<string[]>([]);
   const catalog = useCatalog();
+  const [managing, setManaging] = useState<string | null>(null);
+  const [player, setPlayer] = useState<{ id: string; playing: boolean; at: number } | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // O'tgan suhbat audiosi: bitta element, sahifadan chiqilganda to'xtaydi.
+  useEffect(() => {
+    const el = new Audio();
+    el.preload = "none";
+    audioRef.current = el;
+    const sync = () => setPlayer((prev) => (prev ? { ...prev, at: el.currentTime, playing: !el.paused } : prev));
+    el.addEventListener("timeupdate", sync);
+    el.addEventListener("play", sync);
+    el.addEventListener("pause", sync);
+    el.addEventListener("ended", sync);
+    el.addEventListener("error", () => {
+      if (el.src) toast.error("Audio ochilmadi. Internetni tekshiring.");
+    });
+    return () => {
+      el.pause();
+      el.removeAttribute("src");
+    };
+  }, []);
+
+  function togglePlay(s: LiveSession) {
+    const el = audioRef.current;
+    if (!el || !s.archive) return;
+    if (player?.id === s.id) {
+      if (el.paused) void el.play().catch(() => toast.error("Ijro etib bo‘lmadi. Qayta bosing."));
+      else el.pause();
+      return;
+    }
+    el.src = s.archive.url;
+    setPlayer({ id: s.id, playing: false, at: 0 });
+    void el.play().catch(() => toast.error("Ijro etib bo‘lmadi. Qayta bosing."));
+  }
+
+  function seekTo(s: LiveSession, ratio: number) {
+    const el = audioRef.current;
+    if (!el || player?.id !== s.id || !s.archive) return;
+    const total = s.archive.seconds || el.duration || 0;
+    if (total) el.currentTime = Math.max(0, Math.min(total, ratio * total));
+  }
 
   useEffect(() => {
     queueMicrotask(() => setReminders(readReminders()));
@@ -119,14 +173,15 @@ export default function TalksBoard({
     return catalog.items.find((b) => b.title.trim().toLowerCase() === key);
   };
 
-  const { upcoming, past } = useMemo(() => {
+  const { upcoming, past, pending } = useMemo(() => {
     const open = sessions
       .filter((s) => s.status !== "ended")
       .sort((a, b) => (a.status === "live" ? 0 : 1) - (b.status === "live" ? 0 : 1) || Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt));
     const done = sessions
       .filter((s) => s.status === "ended")
       .sort((a, b) => Date.parse(b.endedAt ?? b.scheduledAt) - Date.parse(a.endedAt ?? a.scheduledAt));
-    return { upcoming: open, past: done };
+    // Tugagan suhbat «O'tgan suhbatlar»ga faqat ishlov berilgan audio joylangach chiqadi.
+    return { upcoming: open, past: done.filter((s) => s.archive), pending: done.filter((s) => !s.archive) };
   }, [sessions]);
 
   const isMine = (s: LiveSession) => reminders.includes(s.id) || (userId !== null && s.moderatorId === userId);
@@ -178,6 +233,11 @@ export default function TalksBoard({
                 <><Clock3 size={16} /> {untilLabel(s.scheduledAt)}</>
               )}
             </span>
+            {isAdmin && (
+              <button type="button" className="tb-action tb-manage" onClick={() => setManaging(s.id)} aria-label="Suhbatni boshqarish">
+                <Settings2 size={17} />
+              </button>
+            )}
             {live || isAdmin ? (
               <button type="button" className="tb-action primary" onClick={() => open(s)} disabled={!signedIn}>
                 <Mic size={17} /> {live ? "Qo‘shilish" : "Kirish va boshlash"}
@@ -197,7 +257,10 @@ export default function TalksBoard({
   const pastRow = (s: LiveSession) => {
     const when = new Date(s.endedAt ?? s.scheduledAt);
     const book = bookFor(s.bookTitle);
-    const length = duration(s);
+    const total = s.archive?.seconds || 0;
+    const mine = player?.id === s.id;
+    const ratio = mine && total ? Math.min(1, player.at / total) : 0;
+    const bars = waveBars(s.id);
     return (
       <article className="tb-past" key={s.id}>
         <Cover title={s.bookTitle} url={book?.coverUrl} color={book?.color} size="sm" />
@@ -205,15 +268,49 @@ export default function TalksBoard({
           <h4>{s.bookTitle}</h4>
           <p className="tb-meta">
             <span><CalendarDays size={16} /> {dayMonth(when)}, {when.getFullYear()}</span>
-            {length && <span><Clock3 size={16} /> {length}</span>}
+            <span><Clock3 size={16} /> {mine && player.at > 0 ? `${length(player.at)} / ` : ""}{total ? length(total) : duration(s) ?? "—"}</span>
           </p>
-          <span className="tb-wave" aria-hidden="true">
-            {waveBars(s.id).map((h, i) => <i key={i} style={{ height: `${h}%` }} className={i < 13 ? "on" : undefined} />)}
-          </span>
+          <button
+            type="button"
+            className="tb-wave"
+            aria-label="Joyini tanlash"
+            disabled={!mine}
+            onClick={(e) => {
+              const box = e.currentTarget.getBoundingClientRect();
+              seekTo(s, (e.clientX - box.left) / box.width);
+            }}
+          >
+            {bars.map((h, i) => <i key={i} style={{ height: `${h}%` }} className={i < Math.round(ratio * bars.length) ? "on" : undefined} />)}
+          </button>
         </div>
-        <button type="button" className="tb-play" aria-label={`${s.bookTitle}: suhbat izohlarini ochish`} title="Suhbat izohlarini ochish" onClick={() => open(s)}>
-          <Play size={20} fill="currentColor" />
-        </button>
+        <div className="tb-past-actions">
+          <button type="button" className="tb-play" aria-label={mine && player.playing ? "Pauza" : `${s.bookTitle} suhbatini tinglash`} onClick={() => togglePlay(s)}>
+            {mine && player.playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+          </button>
+          {staff && (
+            <button type="button" className="tb-kebab" aria-label="Suhbatni boshqarish" onClick={() => setManaging(s.id)}>
+              <MoreVertical size={18} />
+            </button>
+          )}
+        </div>
+      </article>
+    );
+  };
+
+  // Faqat admin/moderator: tugagan, audiosi hali joylanmagan suhbatlar.
+  const pendingRow = (s: LiveSession) => {
+    const when = new Date(s.endedAt ?? s.scheduledAt);
+    const recorded = s.recordings.reduce((sum, r) => sum + r.seconds, 0);
+    return (
+      <article className="tb-pending" key={s.id}>
+        <span className="tb-pending-icon"><FileAudio size={20} /></span>
+        <span>
+          <strong>{s.bookTitle} – {s.title}</strong>
+          <small>
+            {dayMonth(when)}, {when.getFullYear()} · {s.recordings.length ? `${s.recordings.length} ta yozuv · ${length(recorded)}` : "yozib olinmagan"}
+          </small>
+        </span>
+        <button type="button" onClick={() => setManaging(s.id)}>Boshqarish</button>
       </article>
     );
   };
@@ -274,6 +371,16 @@ export default function TalksBoard({
 
       {content}
 
+      {staff && !loading && pending.length > 0 && (filter === "all" || filter === "past") && (
+        <section className="tb-pending-list" aria-label="Qayta ishlanayotgan suhbatlar">
+          <div className="tb-section-head">
+            <h3>Qayta ishlanmoqda</h3>
+          </div>
+          <p className="tb-pending-hint">Faqat admin va moderatorga ko‘rinadi. Tayyor audioni joylaganingizda suhbat «O‘tgan suhbatlar»ga chiqadi.</p>
+          {pending.map(pendingRow)}
+        </section>
+      )}
+
       {login}
 
       <button type="button" className="tb-share" onClick={onShare}>
@@ -285,6 +392,19 @@ export default function TalksBoard({
         <BookOpenText className="tb-share-art" size={58} strokeWidth={1.2} aria-hidden="true" />
         <ChevronRight size={22} aria-hidden="true" />
       </button>
+
+      {managing && sessions.find((s) => s.id === managing) && (
+        <TalkManage
+          session={sessions.find((s) => s.id === managing)!}
+          isAdmin={isAdmin}
+          onClose={() => setManaging(null)}
+          onChange={onChange}
+          onRemove={(id) => {
+            if (player?.id === id) audioRef.current?.pause();
+            onRemove(id);
+          }}
+        />
+      )}
     </div>
   );
 }
