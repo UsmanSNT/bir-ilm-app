@@ -12,6 +12,7 @@ import {
   Headphones,
   Home,
   Medal,
+  Mic,
   MessageSquare,
   MonitorSmartphone,
   Settings,
@@ -29,15 +30,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
 import { toast, Toaster } from "sonner";
 import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
-import FocusTimer from "./focus-timer";
+import FocusTimer, { PomodoroButton } from "./focus-timer";
 import MobileScreens, { useAnnouncements } from "./mobile-screens";
 import MobileLibrary from "./mobile-library";
 import ProfileScreens from "./profile-screens";
+import { requestAudio } from "./library-store";
 import { type CommunityComment, type LeaderboardMember } from "./app-data";
 import type { Book } from "@/shared/contract";
 
@@ -70,7 +71,7 @@ type AppStatePayload = {
 const nav = [
   ["home", "Home", Home],
   ["community", "Community", Users],
-  ["talks", "Suhbatlar", MessageSquare],
+  ["talks", "Suhbatlar", Mic],
   ["shelf", "Javonim", BookOpen],
   ["profile", "Profil", UserRound],
 ] as const;
@@ -418,11 +419,12 @@ export default function App() {
               <>
                 <h1 className="community-nav-title">Community</h1>
                 <div className="community-nav-actions">
+                  <PomodoroButton className="feed-icon" />
                   <button className="feed-icon" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={21} /></button>
                 </div>
               </>
             ) : (
-              <><Brand /><button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} /></button></>
+              <><Brand /><div className="header-actions"><PomodoroButton className="icon-btn" /><button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} /></button></div></>
             )}
           </header>
 
@@ -446,11 +448,10 @@ export default function App() {
                       : tab === "leaders" ? "Faollar" : nav.find((item) => item[0] === tab)?.[1]}
                   </h1>
                 </div>
-                <FocusTimer onComplete={async session => {
-                  const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", name: data.name, ...session }) });
-                  if (!response.ok) throw Error("Seans saqlanmadi");
-                  window.dispatchEvent(new Event("bir-focus-saved"));
-                }} />
+                <div className="heading-actions">
+                  <PomodoroButton className="icon-btn" />
+                  <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} /></button>
+                </div>
               </div>
 
               <TabsContent value="home">
@@ -460,14 +461,19 @@ export default function App() {
                 </div>
                 <MobileScreens
                   name={data.name}
-                  streak={data.streak}
                   page={data.page}
                   total={data.total}
                   session={session}
                   now={now}
                   reminderOn={data.talk}
-                  onContinue={() => setModal("progress")}
-                  onOpenTimer={() => window.dispatchEvent(new Event("bir-open-pomodoro"))}
+                  onContinue={(book) => {
+                    if (!book) {
+                      setModal("progress");
+                      return;
+                    }
+                    requestAudio(book.id);
+                    go("shelf");
+                  }}
                   onOpenNotifications={() => setModal("notifications")}
                   onOpenBook={(book) => {
                     setSelected(book);
@@ -612,6 +618,12 @@ export default function App() {
               </TabsContent>
             </div>
           </Tabs>
+
+          <FocusTimer onComplete={async session => {
+            const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", name: data.name, ...session }) });
+            if (!response.ok) throw Error("Seans saqlanmadi");
+            window.dispatchEvent(new Event("bir-focus-saved"));
+          }} />
 
           <footer className="desktop-footer">
             SINANG, QO&apos;LLANG, ULASHING <span>Bir Ilm · Appga tayyor web</span>
@@ -783,36 +795,6 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-
-                  <h3 className="notification-settings-title">Eslatma sozlamalari</h3>
-                  <div className="setting">
-                    <label htmlFor="read-reminder">O&apos;qish eslatmasi</label>
-                    <Switch
-                      id="read-reminder"
-                      checked={data.reading}
-                      onCheckedChange={(value) => update({ reading: value })}
-                    />
-                  </div>
-                  <div className="setting">
-                    <label htmlFor="talk-reminder">Suhbat eslatmasi</label>
-                    <Switch
-                      id="talk-reminder"
-                      checked={data.talk}
-                      onCheckedChange={(value) => update({ talk: value })}
-                    />
-                  </div>
-                  {(data.reading || data.talk) && (
-                    <button
-                      className="button"
-                      onClick={() =>
-                        toast("Bir Ilm eslatmasi", {
-                          description: "Bugungi o'qish uchun vaqt ajrating.",
-                        })
-                      }
-                    >
-                      Eslatmani sinash
-                    </button>
-                  )}
                 </>
               )}
 

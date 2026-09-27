@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useSyncExternalStore, useState, type CSSProperties } from "react";
 import {
   ArrowRight,
@@ -11,8 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Headphones,
   Leaf,
-  Timer,
   TreePine,
   Trophy,
   Users,
@@ -22,6 +21,8 @@ import { toast } from "sonner";
 import { LIVE_ROOM, quizzes, wisdom, type Quiz } from "./quiz-data";
 import { useCatalog } from "@/lib/api/books-client";
 import type { Book } from "@/shared/contract";
+import { dayKey, listenedLabel, useLibrarySave } from "./library-store";
+import { PomodoroButton } from "./focus-timer";
 
 type Save = {
   joined: boolean;
@@ -136,7 +137,7 @@ function DiscussionArt({ variant = "talk" }: { variant?: string }) {
   const background = variant === "quiz" ? "#e8e2d1" : variant === "habit" ? "#d7e8e8" : "#d7e4dc";
   const accent = variant === "quiz" ? "#b58b35" : variant === "habit" ? "#367688" : "#1f6b4e";
   return (
-    <svg className="m-news-art" viewBox="0 0 160 132" aria-hidden="true">
+    <svg className="m-news-art" viewBox="0 0 160 132" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <rect width="160" height="132" fill={background} />
       <rect x="18" y="78" width="124" height="14" rx="4" fill="#c4a27a" />
       <rect x="28" y="90" width="10" height="22" fill="#b08968" />
@@ -155,27 +156,24 @@ function DiscussionArt({ variant = "talk" }: { variant?: string }) {
 
 export default function MobileScreens({
   name,
-  streak,
   page,
   total,
   session,
   now,
   reminderOn,
   onContinue,
-  onOpenTimer,
   onOpenNotifications,
   onOpenBook,
   onAddReminder,
 }: {
   name: string;
-  streak: number;
   page: number;
   total: number;
   session: number;
   now: number;
   reminderOn: boolean;
-  onContinue: () => void;
-  onOpenTimer: () => void;
+  /** Hafta kitobi bo'lsa — o'sha kitob audio pleerda ochiladi. */
+  onContinue: (book: Book | null) => void;
   onOpenNotifications: () => void;
   onOpenBook: (book: Book) => void;
   onAddReminder: () => void;
@@ -195,15 +193,24 @@ export default function MobileScreens({
   const [finished, setFinished] = useState(false);
   const announcements = useAnnouncements();
   const featured = useCatalog().active;
+  const library = useLibrarySave();
 
   const secs = Math.max(0, Math.floor((session - now) / 1000));
   const days = String(Math.floor(secs / 86400)).padStart(2, "0");
   const hours = String(Math.floor((secs / 3600) % 24)).padStart(2, "0");
-  const percent = Math.round((page / Math.max(1, total)) * 100);
-  const dailyMinutes = Math.min(5, Math.max(1, streak));
-  const dailyProgress = dailyMinutes * 20;
+  // Hafta kitobining audiosi bo'lsa, progress — tinglangan joy; aks holda o'qilgan sahifa.
+  const audioLength = featured?.audioUrl ? featured.audioSeconds : 0;
+  const audioAt = featured ? library.progress[featured.id] ?? 0 : 0;
+  const percent = audioLength
+    ? Math.min(100, Math.round((audioAt / audioLength) * 100))
+    : Math.round((page / Math.max(1, total)) * 100);
+  const todaySeconds = library.listenedDays[dayKey()] ?? 0;
+  const bookSeconds = featured ? library.listenedBooks[featured.id] ?? 0 : 0;
+  const dailyMinutes = Math.floor(todaySeconds / 60);
+  const dailyProgress = Math.min(100, (dailyMinutes / 5) * 100);
   const week = koreaWeekProgress(now);
-  const quote = wisdom[0];
+  // Har kuni boshqa hikmat.
+  const quote = wisdom[Math.floor(now / 86_400_000) % wisdom.length] ?? wisdom[0];
   const visibleQuizzes = showQuizzes ? quizzes : quizzes.slice(0, 2);
 
   const leaders = useMemo(() => {
@@ -298,15 +305,13 @@ export default function MobileScreens({
           <header className="m-top">
             <p className="m-wordmark">BIR ILM</p>
             <div className="m-top-actions">
-              <span className="m-daily-progress" aria-label={`Bugungi mutolaa ${dailyMinutes} daqiqa, maqsad 5 daqiqa`}>
+              <span className="m-daily-progress" aria-label={`Bugun ${dailyMinutes} daqiqa tinglandi, maqsad 5 daqiqa`}>
                 <TreePine size={18} />
                 <span className="m-daily-ring" style={{ "--daily-progress": `${dailyProgress * 3.6}deg` } as CSSProperties}>
                   <b>{dailyMinutes}</b><small>/5</small>
                 </span>
               </span>
-              <button className="m-icon" type="button" aria-label="Pomodoro taymeri" onClick={onOpenTimer}>
-                <Timer size={21} />
-              </button>
+              <PomodoroButton className="m-icon" />
               <button className="m-icon" type="button" aria-label="Bildirishnomalar" onClick={onOpenNotifications}>
                 <Bell size={22} />
                 <span className="m-alert-dot">3</span>
@@ -341,15 +346,26 @@ export default function MobileScreens({
               </div>
               <strong>{percent}%</strong>
             </div>
-            <button className="m-primary" type="button" onClick={onContinue}>
-              Mutolaani davom ettirish <ArrowRight size={18} />
+            {featured?.audioUrl && (
+              <p className="m-listened">
+                <Headphones size={15} />
+                {bookSeconds ? <>Tinglandi: <b>{listenedLabel(bookSeconds)}</b></> : "Hali tinglanmagan"}
+                {todaySeconds > 0 && <span>· bugun {listenedLabel(todaySeconds)}</span>}
+              </p>
+            )}
+            <button className="m-primary" type="button" onClick={() => onContinue(featured)}>
+              {featured?.audioUrl ? <Headphones size={18} /> : null}
+              {featured?.audioUrl ? (audioAt > 0 ? "Tinglashni davom ettirish" : "Tinglashni boshlash") : "Mutolaani davom ettirish"}
+              <ArrowRight size={18} />
             </button>
           </section>
 
-          <section className="m-card m-wisdom">
-            <Image src="/assets/adras.png" alt="" width={720} height={240} />
+          <figure className="m-wisdom">
+            <span className="m-wisdom-band" aria-hidden="true" />
+            <figcaption><Leaf size={14} /> Kun hikmati <Leaf size={14} className="m-leaf-flip" /></figcaption>
             <blockquote>{quote}</blockquote>
-          </section>
+            <span className="m-wisdom-sign">— Bir Ilm</span>
+          </figure>
 
           <div className="m-shortcuts">
             <button className="m-card m-shortcut" type="button" onClick={openQuizzes}>
@@ -367,7 +383,7 @@ export default function MobileScreens({
           </div>
           <div className="m-news-carousel" aria-label="Bir ilm yangiliklari">
             {!news.length && <p className="m-news-empty">Hozircha e‘lonlar yo‘q.</p>}
-            {news.map((item) => <NewsCard key={item.id} item={item} />)}
+            {news.slice(0, 3).map((item) => <NewsCard key={item.id} item={item} />)}
           </div>
         </div>
       )}

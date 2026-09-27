@@ -82,7 +82,6 @@ export async function GET(request: Request) {
   try {
     const db = env.DB;
     if (!db) throw Error("DB unavailable");
-    await db.prepare("INSERT OR IGNORE INTO users (id, name) VALUES (?, 'Kitobxon')").bind(id).run();
     const role = await roleOf(db, id);
     const moderator = canModerate(role);
     const query = new URL(request.url).searchParams;
@@ -148,15 +147,20 @@ export async function POST(request: Request) {
   try {
     const db = env.DB;
     if (!db) throw Error("DB unavailable");
+    // Sahifa ochilganda yuboriladigan standart ism ("Kitobxon") hech narsani o'zgartirmaydi —
+    // bunday so'rov uchun bo'sh akkaunt yaratmaymiz.
+    const profileName = value("name", 40);
+    if (payload.type === "profile" && payload.bio === undefined && (!profileName || profileName === "Kitobxon")) {
+      return Response.json({ ok: true }, { headers });
+    }
     await db.prepare("INSERT OR IGNORE INTO users (id, name) VALUES (?, 'Kitobxon')").bind(id).run();
     const moderator = canModerate(await roleOf(db, id));
     switch (payload.type) {
       case "profile": {
         // Ism faqat aniq o'zgartirilganda yangilanadi: brauzerdagi standart "Kitobxon"
         // Google/Telegram'dan kelgan haqiqiy ismni bosib ketmasin.
-        const name = value("name", 40);
-        if (name && name !== "Kitobxon") {
-          await db.prepare("UPDATE users SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(name, id).run();
+        if (profileName && profileName !== "Kitobxon") {
+          await db.prepare("UPDATE users SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(profileName, id).run();
         }
         if (payload.bio !== undefined) {
           if (typeof payload.bio !== "string" || payload.bio.length > 300) return fail("O'zingiz haqingizda 300 belgigacha yozing.");

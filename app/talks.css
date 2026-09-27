@@ -1,0 +1,307 @@
+/* Suhbatlar bo'limi — xonaga kirishdan oldingi asosiy oyna. */
+.talks-board {
+  --tb-green: #157a52;
+  --tb-green-dark: #0f5c3d;
+  --tb-mint: #e6f4ec;
+  --tb-line: #dfeae4;
+  --tb-ink: #14261f;
+  --tb-muted: #5d706a;
+  display: grid;
+  gap: 16px;
+  padding-bottom: 8px;
+}
+
+.tb-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--tb-line);
+  border-radius: 999px;
+  background: #fbfdfc;
+}
+.tb-filters button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #33463f;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tb-filters button.active {
+  background: var(--tb-green);
+  color: #fff;
+  box-shadow: 0 4px 12px #157a5230;
+}
+.tb-filters svg { flex-shrink: 0; }
+
+.tb-create {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  border: 1.5px dashed #9fcfb6;
+  border-radius: 14px;
+  background: #f5fbf8;
+  color: var(--tb-green);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Kelgusi / jonli suhbat kartasi ── */
+.tb-feature {
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 24px;
+  gap: 20px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid #cfe7da;
+  border-radius: 18px;
+  background: #eef8f2;
+}
+.tb-feature.is-live {
+  border-color: #f2c6c6;
+  background: linear-gradient(135deg, #fff5f4, #eef8f2 70%);
+}
+.tb-stretch {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.tb-stretch:focus-visible { outline: 3px solid #18b88d; outline-offset: 2px; }
+.tb-feature-body { display: grid; gap: 12px; min-width: 0; }
+.tb-feature-body > *, .tb-chevron { pointer-events: none; }
+.tb-feature .tb-action { pointer-events: auto; position: relative; z-index: 1; }
+.tb-chevron { color: #33463f; }
+
+.tb-cover {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  color: #fff;
+  box-shadow: 0 8px 18px #0f2a2020;
+  pointer-events: none;
+}
+.tb-cover img { width: 100%; height: 100%; object-fit: cover; }
+.tb-cover b {
+  padding: 10px;
+  font-family: Georgia, serif;
+  font-weight: 500;
+  line-height: 1.15;
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.tb-cover-lg { width: 150px; aspect-ratio: 3 / 4; }
+.tb-cover-lg b { font-size: 22px; }
+.tb-cover-sm { width: 110px; height: 112px; border-radius: 10px; }
+.tb-cover-sm b { font-size: 15px; }
+
+.tb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  padding: 5px 10px;
+  border: 1px solid #b9dfca;
+  border-radius: 8px;
+  background: #dff2e7;
+  color: var(--tb-green-dark);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.tb-badge.live { border-color: #f3b7b4; background: #fde6e4; color: #b4232f; }
+.tb-badge i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e5484d;
+  animation: tb-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tb-pulse { 50% { opacity: 0.35; } }
+
+.tb-feature h3 {
+  margin: 0;
+  color: var(--tb-ink);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.tb-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin: 0;
+  color: #3c4f48;
+  font-size: 16px;
+}
+.tb-meta span { display: inline-flex; align-items: center; gap: 8px; }
+.tb-meta svg { color: #56685f; flex-shrink: 0; }
+
+.tb-feature-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+.tb-people { display: inline-flex; align-items: center; gap: 8px; color: var(--tb-muted); font-size: 15px; }
+.tb-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1.5px solid #bfe0cd;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--tb-green-dark);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tb-action.on { background: var(--tb-mint); }
+.tb-action.primary { border-color: var(--tb-green); background: var(--tb-green); color: #fff; }
+.tb-action:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── O'tgan suhbatlar ── */
+.tb-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+.tb-section-head h3 { margin: 0; color: var(--tb-ink); font-size: 24px; font-weight: 700; }
+.tb-section-head button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: #4a5c56;
+  font-size: 16px;
+  cursor: pointer;
+}
+.tb-past-list { display: grid; gap: 14px; }
+.tb-past {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 14px 18px 14px 14px;
+  border: 1px solid #edf1ef;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 14px #1b3b2f0d;
+}
+.tb-past-body { display: grid; gap: 10px; min-width: 0; }
+.tb-past h4 { margin: 0; color: var(--tb-ink); font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.tb-past .tb-meta { font-size: 15px; }
+.tb-wave { display: flex; align-items: center; gap: 3px; height: 24px; overflow: hidden; }
+.tb-wave i { flex: 0 0 3px; border-radius: 2px; background: #c9d3cf; }
+.tb-wave i.on { background: #1f9a64; }
+.tb-play {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--tb-mint);
+  color: var(--tb-green-dark);
+  cursor: pointer;
+}
+.tb-play svg { margin-left: 3px; }
+.tb-play:hover { background: #d6eee0; }
+
+.tb-empty {
+  margin: 0;
+  padding: 22px 18px;
+  border: 1px dashed #cfe0d7;
+  border-radius: 16px;
+  background: #f8fbfa;
+  color: var(--tb-muted);
+  text-align: center;
+}
+
+/* ── Fikr ulashish kartasi ── */
+.tb-share {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 18px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 20px 22px;
+  border: 0;
+  border-radius: 18px;
+  background: #f2f6f4;
+  color: var(--tb-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.tb-share-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border: 1px solid #cfe7da;
+  border-radius: 50%;
+  background: #eaf6ef;
+  color: var(--tb-green);
+}
+.tb-share-copy { display: grid; gap: 6px; }
+.tb-share-copy strong { font-size: 18px; }
+.tb-share-copy small { color: #4d5f58; font-size: 15px; line-height: 1.45; }
+.tb-share-art { color: #9bb9a9; }
+
+@media (max-width: 640px) {
+  .talks-board { gap: 14px; }
+  .tb-filters { border-radius: 16px; }
+  .tb-filters button { flex-direction: column; gap: 3px; min-height: 52px; padding: 4px 2px; border-radius: 12px; font-size: 12.5px; }
+  .tb-feature { grid-template-columns: 96px minmax(0, 1fr) 18px; gap: 12px; padding: 12px; }
+  .tb-cover-lg { width: 96px; }
+  .tb-cover-lg b { font-size: 16px; }
+  .tb-feature h3 { font-size: 17px; }
+  .tb-meta { gap: 4px 14px; font-size: 13.5px; }
+  .tb-meta svg { width: 15px; height: 15px; }
+  .tb-badge { font-size: 11px; padding: 4px 8px; }
+  .tb-feature-foot { grid-column: 1 / -1; }
+  .tb-people { font-size: 13px; }
+  .tb-action { min-height: 40px; padding: 0 12px; font-size: 13.5px; border-radius: 12px; }
+  .tb-section-head h3 { font-size: 20px; }
+  .tb-section-head button { font-size: 14px; }
+  .tb-past { gap: 12px; padding: 10px 12px 10px 10px; }
+  .tb-cover-sm { width: 70px; height: 74px; }
+  .tb-cover-sm b { font-size: 10px; padding: 5px; }
+  .tb-past h4 { font-size: 16px; }
+  .tb-past .tb-meta { font-size: 13px; }
+  .tb-wave { height: 18px; gap: 2px; }
+  .tb-wave i { flex-basis: 2px; }
+  .tb-play { width: 46px; height: 46px; }
+  .tb-play svg { width: 17px; height: 17px; }
+  .tb-share { grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; padding: 16px; }
+  .tb-share-icon { width: 54px; height: 54px; }
+  .tb-share-icon svg { width: 22px; height: 22px; }
+  .tb-share-copy strong { font-size: 16px; }
+  .tb-share-copy small { font-size: 13px; }
+  .tb-share-art { display: none; }
+}

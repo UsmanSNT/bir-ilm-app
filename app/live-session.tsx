@@ -13,8 +13,6 @@ import {
   MicOff,
   MonitorUp,
   Play,
-  Plus,
-  Radio,
   Send,
   Settings2,
   ShieldCheck,
@@ -35,6 +33,7 @@ import {
 } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
 import LoginCard from "./login-card";
+import TalksBoard from "./talks-board";
 import type {
   LiveSession as LiveSessionType,
   LiveParticipant,
@@ -49,20 +48,6 @@ function timeStr(iso: string) {
     minute: "2-digit",
   });
 }
-
-function dateStr(iso: string) {
-  return new Date(iso).toLocaleDateString("uz-UZ", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  planned: "Rejalashtirilgan",
-  live: "JONLI",
-  ended: "Tugagan",
-};
 
 const AVATAR_COLORS = [
   "#0b6148", "#1a73e8", "#e8710a", "#9334e6",
@@ -125,6 +110,7 @@ function readActive(): string | null {
 
 export default function LiveSession({
   name,
+  onComments,
 }: {
   name: string;
   date: number;
@@ -725,59 +711,24 @@ export default function LiveSession({
 
   return (
     <>
-      <section className="live-card">
-        <div className="live-heading">
-          <span className="live-icon"><Radio size={24} /></span>
-          <div>
-            <span className="eyebrow">JONLI SUHBATLAR</span>
-            <h3>Kitob muhokamalariga qo'shiling</h3>
-          </div>
-        </div>
-        <p className="session-status">
-          {isAdmin
-            ? "Siz adminsiz: yangi suhbat e'lon qiling va uni boshlang."
-            : "Suhbatlarni admin e'lon qiladi. Vaqti kelganda qo'shiling."}
-        </p>
-        {isAdmin && (
-          <button className="button" onClick={() => setShowCreate(true)}>
-            <Plus size={16} /> Yangi suhbat yaratish
-          </button>
+      <TalksBoard
+        sessions={sessions}
+        loading={loading}
+        signedIn={signedIn}
+        isAdmin={isAdmin}
+        userId={viewer?.userId ?? null}
+        notice={listNotice}
+        onJoin={(id) => {
+          joinSession(id);
+          // Tugagan suhbat — faqat izohlar arxivi.
+          if (sessions.find((s) => s.id === id)?.status === "ended") setCommentsOpen(true);
+        }}
+        onCreate={() => setShowCreate(true)}
+        onShare={onComments}
+        login={viewer && !viewer.signedIn && (
+          <LoginCard viewer={viewer} title="Suhbatga qo'shilish uchun kiring" text="Jonli suhbatlarda faqat ro'yxatdan o'tgan kitobxonlar qatnashadi. Google yoki Telegram orqali kiring, yoki boshqa qurilmangizdagi kodni kiriting." />
         )}
-      </section>
-
-      {viewer && !viewer.signedIn && (
-        <LoginCard viewer={viewer} title="Suhbatga qo'shilish uchun kiring" text="Jonli suhbatlarda faqat ro'yxatdan o'tgan kitobxonlar qatnashadi. Google yoki Telegram orqali kiring, yoki boshqa qurilmangizdagi kodni kiriting." />
-      )}
-
-      {listNotice && <p className="live-list-notice">{listNotice}</p>}
-
-      {loading && <p className="muted">Yuklanmoqda...</p>}
-
-      {!loading && sessions.length === 0 && (
-        <p className="muted">Hozircha rejalashtirilgan suhbat yo'q.</p>
-      )}
-
-      {sessions.map((s) => (
-        <section className="live-card" key={s.id}>
-          <div className="live-heading">
-            {s.status === "live" && (
-              <span className="live-indicator"><i /> LIVE</span>
-            )}
-            <div>
-              <span className="eyebrow">{s.bookTitle}</span>
-              <h3>{s.title}</h3>
-            </div>
-          </div>
-          <p className="session-date">{dateStr(s.scheduledAt)} · {timeStr(s.scheduledAt)}</p>
-          <p className="session-status">
-            {STATUS_LABELS[s.status] ?? s.status}
-            {s.participantCount > 0 && ` · ${s.participantCount} qatnashchi`}
-          </p>
-          <button className="button" onClick={() => joinSession(s.id)} disabled={s.status === "ended" || !signedIn}>
-            {s.status === "ended" ? "Tugagan" : !signedIn ? "Avval tizimga kiring" : isAdmin && s.status === "planned" ? "Kirish va boshlash" : "Qo'shilish"}
-          </button>
-        </section>
-      ))}
+      />
 
       {showCreate && isAdmin && (
         <CreateSessionDialog

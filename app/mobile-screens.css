@@ -313,30 +313,111 @@
   opacity: 0.55;
 }
 
+/* Kun hikmati: iliq qog'oz fon, ichki hoshiya va tepada adras lentasi. */
 .m-wisdom {
   position: relative;
-  min-height: 132px;
-  display: block;
-  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 150px;
+  margin: 12px 0 0;
+  padding: 30px 26px 22px;
   overflow: hidden;
-  padding: 0;
+  border: 1px solid #e8d6ae;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 12% 10%, #fff 0, transparent 45%),
+    linear-gradient(160deg, #fffbf2, #fbf2df);
+  box-shadow: 0 8px 24px rgba(92, 70, 24, 0.06);
+  text-align: center;
 }
-
-.m-wisdom img { width: 100%; height: 132px; display: block; object-fit: cover; }
-.m-wisdom blockquote {
+.m-wisdom::before {
   position: absolute;
-  right: 16px;
-  bottom: 14px;
-  left: 16px;
+  inset: 7px;
+  border: 1px solid #e3cc98;
+  border-radius: 13px;
+  content: "";
+  pointer-events: none;
+}
+.m-wisdom::after {
+  position: absolute;
+  inset: 11px;
+  border: 1px dashed #efdfbb;
+  border-radius: 10px;
+  content: "";
+  pointer-events: none;
+}
+.m-wisdom-band {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 112px;
+  height: 11px;
+  border-radius: 0 0 9px 9px;
+  background: url("/assets/adras.png") center / auto 260% repeat-x;
+  transform: translateX(-50%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.m-wisdom figcaption {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #a5782a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.m-wisdom figcaption svg { color: #1f8a5b; }
+.m-leaf-flip { transform: scaleX(-1); }
+.m-wisdom blockquote {
+  position: relative;
+  z-index: 1;
+  max-width: 34ch;
   margin: 0;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
+  padding: 0 14px;
   color: #173029;
-  font-size: 14px;
-  font-weight: 700;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 19px;
+  font-style: italic;
   line-height: 1.45;
 }
+.m-wisdom blockquote::before,
+.m-wisdom blockquote::after {
+  position: absolute;
+  color: #157a52;
+  font-size: 44px;
+  font-style: normal;
+  line-height: 1;
+  opacity: 0.28;
+}
+.m-wisdom blockquote::before { top: -12px; left: -8px; content: "“"; }
+.m-wisdom blockquote::after { right: -8px; bottom: -28px; content: "”"; }
+.m-wisdom-sign {
+  position: relative;
+  z-index: 1;
+  color: #8a7a55;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.m-listened {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: -4px 0 0 !important;
+  color: #3f5a50;
+  font-size: 13px;
+}
+.m-listened svg { color: #157a52; }
+.m-listened b { color: #157a52; }
+.m-listened span { color: #6d7f79; }
 
 .m-shortcuts {
   display: grid;
@@ -914,6 +995,32 @@
 .m-news-carousel::-webkit-scrollbar { display: none; }
 .m-news-carousel .m-news { flex: 0 0 min(82vw, 390px); scroll-snap-align: start; }
 
+/* Telefonda yangiliklar yonga emas, pastga qarab ixcham ro'yxat bo'lib tushadi. */
+@media (max-width: 700px) {
+  .m-news-carousel {
+    display: grid;
+    gap: 10px;
+    overflow: visible;
+    scroll-snap-type: none;
+    padding: 0;
+  }
+  .m-news-carousel .m-news {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0;
+  }
+  .m-news-carousel .m-news-art { height: 100%; min-height: 104px; }
+  .m-news-carousel .m-news > span { padding: 11px 13px 12px; }
+  .m-news-carousel .m-news small {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .m-news-carousel .m-news time { margin-top: 6px; }
+}
+
 .show-mobile-home .page-heading,
 .show-mobile-home .desktop-home {
   display: none;
@@ -1004,7 +1111,8 @@ body:has(.show-mobile-home) { background: #f4f7f5; }
   }
 
   .app-shell .navigation [role="tab"][data-state="active"] {
-    background: transparent;
+    background: #e6f4ec;
+    border-radius: 14px;
     box-shadow: none;
     color: #157a52;
   }

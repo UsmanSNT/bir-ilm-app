@@ -11,7 +11,7 @@
  */
 import { defineRoute } from "@/server/http/handler";
 import { TOKEN_MAX_AGE_SECONDS } from "@/server/auth/identity";
-import { ensureUser, getProfile } from "@/server/services/social";
+import { getProfile } from "@/server/services/social";
 import { getUserRole } from "@/server/services/roles";
 import { isSignedIn, listAccounts } from "@/server/services/accounts";
 import { loginConfig } from "@/server/auth/providers";
@@ -25,22 +25,20 @@ export const POST = defineRoute<CreateSessionInput, Session>({
   schema: createSessionSchema,
   source: "body",
   status: 201,
-  handler: async ({ db, identity, input }) => {
-    await ensureUser(db, identity.userId);
-
-    return {
-      userId: identity.userId,
-      // Tokenni faqat so'ralganda qaytaramiz. Web uni so'ramaydi, chunki
-      // HttpOnly cookie XSS hujumidan ko'proq himoya qiladi.
-      token: input.wantToken ? identity.token : null,
-      expiresAt: new Date(Date.now() + TOKEN_MAX_AGE_SECONDS * 1000).toISOString(),
-    };
-  },
+  // Akkaunt yozuvi bu yerda yaratilmaydi: foydalanuvchi birinchi marta biror narsa
+  // yozganda (post, progress, login) `ensureUser` o'zi yaratadi. Aks holda har bir
+  // ochilgan brauzer yoki bot bazada bo'sh "Kitobxon" akkauntini qoldirardi.
+  handler: async ({ identity, input }) => ({
+    userId: identity.userId,
+    // Tokenni faqat so'ralganda qaytaramiz. Web uni so'ramaydi, chunki
+    // HttpOnly cookie XSS hujumidan ko'proq himoya qiladi.
+    token: input.wantToken ? identity.token : null,
+    expiresAt: new Date(Date.now() + TOKEN_MAX_AGE_SECONDS * 1000).toISOString(),
+  }),
 });
 
 export const GET = defineRoute<undefined, Viewer>({
   handler: async ({ db, identity, request }) => {
-    await ensureUser(db, identity.userId);
     const [profile, role, accounts, user, signedIn] = await Promise.all([
       getProfile(db, identity.userId),
       getUserRole(db, identity.userId),

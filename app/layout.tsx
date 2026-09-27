@@ -5,6 +5,7 @@ import "./mobile-screens.css";
 import "./mobile-library.css";
 import "./profile-screens.css";
 import "./community/community.css";
+import "./talks.css";
 
 export const metadata: Metadata = {
   title: "Bir Ilm — kitobxonlik ilovasi",

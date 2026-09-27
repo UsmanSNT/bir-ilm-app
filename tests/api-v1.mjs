@@ -120,8 +120,17 @@ async function call(handler, path, { params, expect = 200, ...options } = {}) {
   return { response, payload };
 }
 
+/** Rol beradi. Akkaunt hali yo'q bo'lsa yaratadi (haqiqiy adminlar ham mavjud akkaunt). */
+function promote(userId, role) {
+  sqlite
+    .prepare("INSERT INTO users (id, role) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET role = excluded.role")
+    .run(userId, role);
+}
+
 /** Google hisobini bog'laydi — Community'da yozish faqat ro'yxatdan o'tganlarga. */
 function signIn(userId) {
+  // Haqiqiy login ham akkaunt yozuvini shu paytda yaratadi (sessiya ochilishi yaratmaydi).
+  sqlite.prepare("INSERT OR IGNORE INTO users (id) VALUES (?)").run(userId);
   sqlite
     .prepare("INSERT OR IGNORE INTO auth_accounts (provider, subject, user_id, display_name) VALUES ('google', ?, ?, 'Test')")
     .run(`test-${userId}`, userId);
@@ -375,7 +384,7 @@ try {
   {
     // Namuna katalog yo'q — kitobni admin qo'shadi.
     const librarian = await webClient();
-    sqlite.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(librarian.userId);
+    promote(librarian.userId, "admin");
     const { payload: created } = await librarian.call(books.POST, "/api/v1/books", { method: "POST", body: { title: "Test kitob", author: "Muallif" }, expect: 201 });
     const bookId = created.data.id;
     createdBooks.push(bookId);
@@ -573,6 +582,8 @@ try {
   {
     const admin = await webClient();
     const member = await webClient();
+    // Admin faqat mavjud (kirgan) foydalanuvchiga rol beradi; bo'sh mehmon bazada yo'q.
+    signIn(member.userId);
     const newSession = {
       bookTitle: "Atom odatlar",
       title: "Rol testi",
@@ -591,7 +602,7 @@ try {
       expect: 403,
     });
 
-    sqlite.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(admin.userId);
+    promote(admin.userId, "admin");
 
     await admin.call(live.POST, "/api/v1/live", { method: "POST", body: newSession, expect: 201 });
 
@@ -630,7 +641,7 @@ try {
 
     const reader = await webClient();
     const editor = await webClient();
-    sqlite.prepare("UPDATE users SET role = 'moderator' WHERE id = ?").run(editor.userId);
+    promote(editor.userId, "moderator");
     await reader.call(books.POST, "/api/v1/books", { method: "POST", body: { title: "X", author: "Y" }, expect: 403 });
     const { payload: made } = await editor.call(books.POST, "/api/v1/books", {
       method: "POST",
@@ -691,7 +702,7 @@ try {
     const author = await webClient();
     const reporter = await webClient();
     const mod = await webClient();
-    sqlite.prepare("UPDATE users SET role = 'moderator' WHERE id = ?").run(mod.userId);
+    promote(mod.userId, "moderator");
     signIn(author.userId);
     const social = (client, method, body, query = "") =>
       legacySocial[method](request(`/api/social${query}`, {
@@ -780,7 +791,7 @@ try {
     assert.equal(me.name, "Test Kitobxon");
 
     // Ikkinchi qurilma (cookie'siz) o'sha Telegram bilan kirsa — o'sha akkaunt va o'sha rol.
-    sqlite.prepare("UPDATE users SET role = 'moderator' WHERE id = ?").run(guest.userId);
+    promote(guest.userId, "moderator");
     const second = await loginAs(null, signed({ ...tgUser, auth_date: String(Math.floor(Date.now() / 1000)) }));
     const other = await viewerFor(second.cookie);
     assert.equal(other.userId, guest.userId);
@@ -817,7 +828,7 @@ try {
 
     // Admin (Google/Telegram'siz ham) kod oladi; ikkinchi qurilma o'sha akkauntga admin bo'lib kiradi.
     const admin = await webClient();
-    sqlite.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(admin.userId);
+    promote(admin.userId, "admin");
     const { payload } = await admin.call(linkCode.POST, "/api/v1/auth/link-code", { method: "POST", expect: 201 });
     assert.match(payload.data.code, /^\d{6}$/);
 

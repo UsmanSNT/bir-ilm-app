@@ -582,6 +582,17 @@
   font-size: 12px;
 }
 
+.lib-listened {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  color: #157a52;
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .lib-transport,
 .lib-tools,
 .lib-readbar {

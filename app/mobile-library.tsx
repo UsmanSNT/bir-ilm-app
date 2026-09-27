@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bookmark, ChevronLeft, Headphones, Moon, Pause, Pencil, Play, Plus, Search, SkipBack, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
@@ -8,61 +8,21 @@ import { useViewer } from "@/lib/api/roles-client";
 import { canModerate } from "@/shared/contract/roles";
 import type { Book } from "@/shared/contract";
 import BookEditor from "./book-editor";
-
-type Save = {
-  /** Har kitob uchun tinglangan joy (soniya). */
-  progress: Record<string, number>;
-  finished: string[];
-  speed: number;
-  last: string | null;
-};
+import {
+  OPEN_AUDIO_EVENT,
+  SPEEDS,
+  addListened,
+  dayKey,
+  listenedLabel,
+  parseLibrarySave,
+  readLibrarySnapshot,
+  takeAudioRequest,
+  useLibrarySave,
+  writeLibrarySave,
+} from "./library-store";
 
 type Screen = "catalog" | "mine" | "player";
 type MineTab = "saved" | "finished";
-
-const KEY = "bir-ilm-library-v2";
-const speeds = [1, 1.25, 1.5, 2];
-const empty: Save = { progress: {}, finished: [], speed: 1, last: null };
-
-function parseSave(raw: string): Save {
-  if (!raw) return empty;
-  try {
-    const parsed = JSON.parse(raw) as Partial<Save>;
-    const progress: Record<string, number> = {};
-    for (const [id, at] of Object.entries(parsed.progress ?? {})) if (Number.isFinite(at)) progress[id] = at as number;
-    return {
-      progress,
-      finished: Array.isArray(parsed.finished) ? parsed.finished.filter((id) => typeof id === "string") : [],
-      speed: typeof parsed.speed === "number" && speeds.includes(parsed.speed) ? parsed.speed : 1,
-      last: typeof parsed.last === "string" ? parsed.last : null,
-    };
-  } catch {
-    return empty;
-  }
-}
-
-function subscribe(onChange: () => void) {
-  window.addEventListener("bir-library-save", onChange);
-  return () => window.removeEventListener("bir-library-save", onChange);
-}
-
-function readSnapshot() {
-  try {
-    return localStorage.getItem(KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function writeSave(patch: Partial<Save>) {
-  const next = { ...parseSave(readSnapshot()), ...patch };
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    /* Qurilma xotirasi to'lsa tinglash shu sessiyada davom etadi. */
-  }
-  window.dispatchEvent(new Event("bir-library-save"));
-}
 
 export function clock(seconds: number) {
   const safe = Math.max(0, Math.floor(seconds));
@@ -84,8 +44,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
   const catalog = useCatalog();
   const viewer = useViewer();
   const editor = canModerate(viewer?.role);
-  const raw = useSyncExternalStore(subscribe, readSnapshot, () => "");
-  const save = useMemo(() => parseSave(raw), [raw]);
+  const save = useLibrarySave();
   const [screen, setScreen] = useState<Screen>("catalog");
   const [returnTo, setReturnTo] = useState<Screen>("catalog");
   const [mine, setMine] = useState<MineTab>("saved");
@@ -94,6 +53,9 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
   const [live, setLive] = useState<Live | null>(null);
   const [editing, setEditing] = useState<{ book: Book | null } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Tinglash hisobini to'xtatib, yig'ilganini saqlaydi (kitob almashganda ham chaqiriladi).
+  const stopCounting = useRef<() => void>(() => {});
+  const [wanted, setWanted] = useState<string | null>(null);
 
   const byId = (id: string | null) => catalog.items.find((b) => b.id === id) ?? null;
   const active = byId(activeId);
@@ -104,21 +66,54 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
     el.preload = "metadata";
     audioRef.current = el;
     let lastSaved = 0;
+    // Haqiqiy tinglangan vaqt: ijro paytidagi soat vaqti (orqaga/oldinga surish hisoblanmaydi).
+    let tick: number | null = null;
+    let pending = 0;
+    const count = (stillPlaying: boolean) => {
+      const now = Date.now();
+      if (tick !== null) {
+        const gap = now - tick;
+        if (gap > 0 && gap < 3000) pending += gap / 1000;
+      }
+      tick = stillPlaying ? now : null;
+    };
+    const flush = () => {
+      const id = el.dataset.book;
+      if (id && pending >= 1) addListened(id, pending);
+      pending = 0;
+    };
+    stopCounting.current = () => {
+      count(false);
+      flush();
+    };
     const sync = () => setLive((prev) => (prev ? { ...prev, at: el.currentTime, duration: Number.isFinite(el.duration) ? el.duration : prev.duration, playing: !el.paused } : prev));
     const onTime = () => {
       sync();
+      count(!el.paused);
       const id = el.dataset.book;
       if (id && Date.now() - lastSaved > 3000) {
         lastSaved = Date.now();
-        writeSave({ progress: { ...parseSave(readSnapshot()).progress, [id]: el.currentTime }, last: id });
+        flush();
+        writeLibrarySave({ progress: { ...parseLibrarySave(readLibrarySnapshot()).progress, [id]: el.currentTime }, last: id });
       }
+    };
+    const onPlay = () => {
+      tick = Date.now();
+      sync();
+    };
+    const onPause = () => {
+      count(false);
+      flush();
+      sync();
     };
     const onEnded = () => {
       const id = el.dataset.book;
+      count(false);
+      flush();
       sync();
       if (id) {
-        const current = parseSave(readSnapshot());
-        writeSave({ finished: current.finished.includes(id) ? current.finished : [...current.finished, id], progress: { ...current.progress, [id]: 0 } });
+        const current = parseLibrarySave(readLibrarySnapshot());
+        writeLibrarySave({ finished: current.finished.includes(id) ? current.finished : [...current.finished, id], progress: { ...current.progress, [id]: 0 } });
         toast.success("Kitob tugadi — «Tugatilgan»larga qo‘shildi");
       }
     };
@@ -127,14 +122,16 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
       sync();
     };
     el.addEventListener("timeupdate", onTime);
-    el.addEventListener("play", sync);
-    el.addEventListener("pause", sync);
+    el.addEventListener("play", onPlay);
+    el.addEventListener("pause", onPause);
     el.addEventListener("loadedmetadata", sync);
     el.addEventListener("ended", onEnded);
     el.addEventListener("error", onError);
     return () => {
+      count(false);
+      flush();
       const id = el.dataset.book;
-      if (id && el.currentTime) writeSave({ progress: { ...parseSave(readSnapshot()).progress, [id]: el.currentTime } });
+      if (id && el.currentTime) writeLibrarySave({ progress: { ...parseLibrarySave(readLibrarySnapshot()).progress, [id]: el.currentTime } });
       el.pause();
       el.removeAttribute("src");
       el.load();
@@ -154,6 +151,30 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
     return () => window.clearInterval(timer);
   }, [live?.sleepUntil]);
 
+  // Bosh sahifadagi «davom ettirish» so'rovi: kitob yuklangach pleerni ochib, ijroni boshlaymiz.
+  useEffect(() => {
+    const take = () => {
+      const id = takeAudioRequest();
+      if (id) setWanted(id);
+    };
+    take();
+    window.addEventListener(OPEN_AUDIO_EVENT, take);
+    return () => window.removeEventListener(OPEN_AUDIO_EVENT, take);
+  }, []);
+
+  useEffect(() => {
+    if (!wanted || catalog.loading) return;
+    const id = wanted;
+    queueMicrotask(() => {
+      setWanted(null);
+      if (!byId(id)) return;
+      openBook(id, "catalog");
+      if (byId(id)?.audioUrl) play(id);
+    });
+    // byId/openBook/play har renderda yangi, lekin so'rov bir marta bajariladi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted, catalog.loading, catalog.items]);
+
   function openBook(id: string, from: Screen = screen) {
     setReturnTo(from);
     setActiveId(id);
@@ -170,6 +191,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
       return;
     }
     if (el.dataset.book !== id) {
+      stopCounting.current();
       el.dataset.book = id;
       el.src = book.audioUrl;
       el.currentTime = save.progress[id] ?? 0;
@@ -177,7 +199,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
     }
     el.playbackRate = live?.speed ?? save.speed;
     void el.play().catch(() => toast.error("Ijro etib bo‘lmadi. Qayta bosing."));
-    writeSave({ last: id });
+    writeLibrarySave({ last: id });
   }
 
   function toggle(id: string) {
@@ -189,7 +211,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
   function seek(at: number) {
     const el = audioRef.current;
     if (!el || !active || el.dataset.book !== active.id) {
-      if (active) writeSave({ progress: { ...save.progress, [active.id]: at } });
+      if (active) writeLibrarySave({ progress: { ...save.progress, [active.id]: at } });
       return;
     }
     el.currentTime = Math.max(0, Math.min(at, el.duration || at));
@@ -197,10 +219,10 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
 
   function cycleSpeed() {
     const current = live?.speed ?? save.speed;
-    const next = speeds[(speeds.indexOf(current) + 1) % speeds.length];
+    const next = SPEEDS[(SPEEDS.indexOf(current) + 1) % SPEEDS.length];
     if (audioRef.current) audioRef.current.playbackRate = next;
     setLive((prev) => (prev ? { ...prev, speed: next } : prev));
-    writeSave({ speed: next });
+    writeLibrarySave({ speed: next });
   }
 
   function cycleSleep() {
@@ -337,6 +359,11 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
                 <input type="range" min={0} max={Math.max(1, lengthOf(active))} step={1} value={Math.min(position(active), lengthOf(active))} onChange={(event) => seek(Number(event.target.value))} />
               </label>
               <div className="lib-times"><span>{clock(position(active))}</span><span>{clock(lengthOf(active))}</span></div>
+              <p className="lib-listened">
+                <Headphones size={15} />
+                {save.listenedBooks[active.id] ? `Siz tingladingiz: ${listenedLabel(save.listenedBooks[active.id])}` : "Hali tinglanmagan"}
+                {save.listenedDays[dayKey()] ? ` · bugun ${listenedLabel(save.listenedDays[dayKey()])}` : ""}
+              </p>
               <div className="lib-transport">
                 <button type="button" aria-label="15 soniya orqaga" onClick={() => seek(position(active) - 15)}><SkipBack size={18} /><b>15</b></button>
                 <button type="button" className="lib-play" aria-label={playingNow(active.id) ? "Pauza" : "Ijro"} onClick={() => toggle(active.id)}>
