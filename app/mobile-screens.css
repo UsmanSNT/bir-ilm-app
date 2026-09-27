@@ -280,6 +280,41 @@
 }
 
 .m-week-timeline { display: grid; gap: 7px; }
+.m-talk-when {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #cfe7da;
+  border-radius: 12px;
+  background: #f4faf7;
+  color: #173029;
+  font: inherit;
+  text-align: left;
+}
+.m-talk-when strong, .m-talk-when small { display: block; }
+.m-talk-when strong { font-size: 14px; }
+.m-talk-when small { display: flex; align-items: center; gap: 4px; margin-top: 2px; color: #5f736c; font-size: 12px; }
+.m-talk-badge { padding: 3px 7px; border-radius: 6px; background: #dff2e7; color: #0f5c3d; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; }
+.m-talk-badge.live { background: #fde6e4; color: #b4232f; }
+.m-talk-remind {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1.5px solid #bfe0cd;
+  border-radius: 999px;
+  background: #fff;
+  color: #0f5c3d;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+.m-talk-remind.on { background: #e6f4ec; }
+.m-talk-none { margin: 0; color: #8a6511; font-size: 12px; }
 .m-week-labels {
   display: grid;
   grid-template-columns: auto 1fr auto;

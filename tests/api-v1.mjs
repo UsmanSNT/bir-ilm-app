@@ -787,6 +787,21 @@ try {
     const archiveFile = shown.archive.url.split("/").pop().split("?")[0];
     assert.equal((await getFile(reader, archiveFile)).status, 200);
 
+    // Suhbat e'lon bilan belgilansa, bosh sahifa yangiliklarida ham chiqadi.
+    const { payload: announced } = await admin.call(live.POST, "/api/v1/live", {
+      method: "POST",
+      body: {
+        bookTitle: "E'lon testi",
+        title: "Birga tahlil qilamiz",
+        scheduledAt: new Date(Date.now() + 86_400_000).toISOString(),
+        announcement: { title: "Yangi suhbat: «E'lon testi»", body: "Ertaga soat 20:00 da." },
+      },
+      expect: 201,
+    });
+    const news = await (await legacySocial.GET(request("/api/social?scope=announcements", { headers: { Cookie: reader.cookie } }))).json();
+    assert.ok(news.posts.some((p) => p.title === "Yangi suhbat: «E'lon testi»" && p.body.includes("20:00")), "E'lon yangiliklarda ko'rinadi");
+    await admin.call(liveItem.DELETE, `/api/v1/live/${announced.data.id}`, { method: "DELETE", params: { id: announced.data.id } });
+
     // O'chirish faqat admin; fayllar ham ketadi.
     await reader.call(liveItem.DELETE, `/api/v1/live/${id}`, { method: "DELETE", params, expect: 403 });
     await admin.call(liveItem.DELETE, `/api/v1/live/${id}`, { method: "DELETE", params });

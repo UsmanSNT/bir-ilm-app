@@ -2419,6 +2419,12 @@ input {
 .book-editor-audio strong{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .book-editor-audio small{color:#6b7a73;font-size:11px}
 .book-editor-active{display:flex;align-items:center;justify-content:flex-start;gap:8px;font-size:14px;font-weight:650;color:#7a5a0c;text-align:left;cursor:pointer}
+.book-editor-talk{display:grid;gap:8px;margin:0;padding:12px;border:1px solid #cfe7da;border-radius:12px;background:#f5fbf8;min-width:0}
+.book-editor-talk legend{display:inline-flex;align-items:center;gap:6px;padding:0 6px;color:#0b6148;font-size:14px;font-weight:750}
+.book-editor-talk input[type=datetime-local],.book-editor-talk input:not([type]){width:100%;min-height:42px;padding:0 10px;border:1px solid #cfe0d7;border-radius:10px;background:#fff;font:inherit;font-size:15px}
+.book-editor-talk small,.book-editor-talk-note{margin:0;color:#5f736c;font-size:12px;line-height:1.4}
+.book-editor-announce{display:flex;align-items:center;gap:8px;color:#294256;font-size:13px;text-align:left;cursor:pointer}
+.book-editor-announce input{flex:0 0 auto;width:18px;height:18px;margin:0;accent-color:#157a52}
 .book-editor-active input{flex:0 0 auto;width:18px;height:18px;min-height:0;margin:0;accent-color:#157a52}
 .book-editor-progress{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#34434d}
 .book-editor-progress .bar{height:6px;border-radius:6px;background:#e5ece8;overflow:hidden}

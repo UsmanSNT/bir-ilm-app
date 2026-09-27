@@ -1,11 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Headphones, ImagePlus, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, Headphones, ImagePlus, Megaphone, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { createBook, deleteBook, deleteTrack, notifyCatalogChanged, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
-import { BOOK_LIMITS, type Book } from "@/shared/contract";
+import { createLiveSession, fetchLiveSessions } from "@/lib/api/live-client";
+import { useViewer } from "@/lib/api/roles-client";
+import { BOOK_LIMITS, type Book, type LiveSession } from "@/shared/contract";
+import { WEEKDAYS, clock, dayMonth, nextTalk, notifyTalksChanged, talkAnnouncement } from "./talk-format";
+
+/** `<input type="datetime-local">` qiymati (mahalliy vaqt). */
+function localInput(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 const COLORS = ["#0f4f45", "#294256", "#7a3b2e", "#5b4a8b", "#8a6511", "#2f6f8f", "#374151"];
 
@@ -42,6 +51,18 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
   const [summary, setSummary] = useState(book?.summary ?? "");
   const [color, setColor] = useState(book?.color ?? COLORS[0]);
   const [active, setActive] = useState(book?.active ?? asWeekBook);
+  // Hafta kitobi bilan birga suhbat vaqtini belgilash (faqat admin suhbat yarata oladi).
+  const isAdmin = useViewer()?.role === "admin";
+  const [talkWhen, setTalkWhen] = useState("");
+  const [talkTitle, setTalkTitle] = useState("Birga tahlil qilamiz");
+  const [announce, setAnnounce] = useState(true);
+  const [existingTalk, setExistingTalk] = useState<LiveSession | null>(null);
+  const talkCreated = useRef(false);
+
+  useEffect(() => {
+    if (!isAdmin || !book) return;
+    fetchLiveSessions().then((list) => setExistingTalk(nextTalk(list.filter((s) => s.bookTitle.trim().toLowerCase() === book.title.trim().toLowerCase()))));
+  }, [isAdmin, book]);
   const [cover, setCover] = useState<File | null>(null);
   const [parts, setParts] = useState<Part[]>(() => (book?.tracks ?? []).map((t) => ({ key: t.id, id: t.id, title: t.title, bytes: t.bytes })));
   const [busy, setBusy] = useState(false);
@@ -81,12 +102,31 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
+    if (isAdmin && active && talkWhen && !talkCreated.current && new Date(talkWhen).getTime() <= Date.now()) {
+      toast.error("Suhbat vaqti kelajakda bo‘lsin.");
+      return;
+    }
     setBusy(true);
     abortRef.current = new AbortController();
     try {
       const fields = { title: title.trim(), author: author.trim(), summary: summary.trim(), color };
       let saved = book ? await updateBook(book.id, { ...fields, active }) : await createBook(fields);
       if (!book && active) saved = await updateBook(saved.id, { active: true });
+
+      // Suhbat fayllardan oldin e'lon qilinadi: yuklash uzilsa ham suhbat belgilanib qoladi.
+      if (isAdmin && active && talkWhen && !talkCreated.current) {
+        const when = new Date(talkWhen);
+        const talk = await createLiveSession({
+          bookTitle: saved.title,
+          title: talkTitle.trim() || "Birga tahlil qilamiz",
+          scheduledAt: when.toISOString(),
+          announcement: announce ? talkAnnouncement(saved.title, talkTitle.trim() || "Birga tahlil qilamiz", when) : undefined,
+        });
+        if (!talk) throw new Error("Kitob saqlandi, lekin suhbatni e’lon qilib bo‘lmadi. Qayta bosing.");
+        talkCreated.current = true;
+        notifyTalksChanged();
+        toast.success(`Suhbat e’lon qilindi: ${dayMonth(when)}, ${clock(when)}`);
+      }
 
       if (cover) {
         setProgress({ label: "Muqova", sent: 0, total: cover.size });
@@ -199,6 +239,34 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
             <Sparkles size={16} /> Haftaning kitobi (bosh sahifada ko‘rinadi)
           </label>
+
+          {isAdmin && active && (
+            <fieldset className="book-editor-talk" disabled={busy}>
+              <legend><CalendarClock size={16} /> Suhbat vaqti</legend>
+              {existingTalk && (
+                <p className="book-editor-talk-note">
+                  Belgilangan: {dayMonth(new Date(existingTalk.scheduledAt))}, {WEEKDAYS[new Date(existingTalk.scheduledAt).getDay()]}, {clock(new Date(existingTalk.scheduledAt))} — «{existingTalk.title}». Yana biri kerak bo‘lsa, pastda tanlang.
+                </p>
+              )}
+              <input
+                type="datetime-local"
+                aria-label="Suhbat sanasi va vaqti"
+                min={localInput(new Date())}
+                value={talkWhen}
+                onChange={(e) => setTalkWhen(e.target.value)}
+              />
+              {talkWhen && (
+                <>
+                  <input aria-label="Suhbat sarlavhasi" placeholder="Suhbat sarlavhasi" maxLength={200} value={talkTitle} onChange={(e) => setTalkTitle(e.target.value)} />
+                  <label className="book-editor-announce">
+                    <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />
+                    <Megaphone size={15} /> Bosh sahifada e’lon qilish (yangiliklar va qo‘ng‘iroqcha)
+                  </label>
+                </>
+              )}
+              {!talkWhen && !existingTalk && <small>Ixtiyoriy: sanani tanlasangiz, suhbat «Suhbatlar»da va bosh sahifada e’lon qilinadi.</small>}
+            </fieldset>
+          )}
 
           {progress && (
             <div className="book-editor-progress" role="status">

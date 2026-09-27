@@ -36,6 +36,8 @@ import { useViewer } from "@/lib/api/roles-client";
 import { RoomRecorder, recordingSupported } from "@/lib/api/live-recorder";
 import LoginCard from "./login-card";
 import TalksBoard from "./talks-board";
+import { TALKS_CHANGED, notifyTalksChanged, talkAnnouncement } from "./talk-format";
+import { useCatalog } from "@/lib/api/books-client";
 import type {
   LiveSession as LiveSessionType,
   LiveParticipant,
@@ -165,6 +167,9 @@ export default function LiveSession({
 
   useEffect(() => {
     loadSessions();
+    // Kitob oynasidan yoki boshqa joydan suhbat qo'shilsa/o'chirilsa — ro'yxat yangilanadi.
+    window.addEventListener(TALKS_CHANGED, loadSessions);
+    return () => window.removeEventListener(TALKS_CHANGED, loadSessions);
   }, [loadSessions]);
 
   useEffect(() => {
@@ -841,6 +846,8 @@ function CreateSessionDialog({
   const [when, setWhen] = useState(() => toLocalInput(new Date()));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [announce, setAnnounce] = useState(true);
+  const catalog = useCatalog();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -849,11 +856,14 @@ function CreateSessionDialog({
     setSubmitting(true);
     setError("");
 
+    const scheduled = new Date(when);
     const session = await createLiveSession({
       bookTitle: bookTitle.trim(),
       title: title.trim(),
-      scheduledAt: new Date(when).toISOString(),
+      scheduledAt: scheduled.toISOString(),
+      announcement: announce ? talkAnnouncement(bookTitle.trim(), title.trim(), scheduled) : undefined,
     });
+    if (session) notifyTalksChanged();
 
     setSubmitting(false);
 
@@ -885,7 +895,10 @@ function CreateSessionDialog({
         >
           <label style={labelStyle}>
             <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Kitob nomi</span>
-            <input value={bookTitle} onChange={(e) => setBookTitle(e.target.value)} placeholder="Atom odatlar" maxLength={160} required style={fieldStyle} />
+            <input value={bookTitle} onChange={(e) => setBookTitle(e.target.value)} placeholder="Kutubxonadan tanlang yoki yozing" list="talk-books" maxLength={160} required style={fieldStyle} />
+            <datalist id="talk-books">
+              {catalog.items.map((b) => <option key={b.id} value={b.title} />)}
+            </datalist>
           </label>
           <label style={labelStyle}>
             <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Suhbat sarlavhasi</span>
@@ -894,6 +907,10 @@ function CreateSessionDialog({
           <label style={labelStyle}>
             <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Qachon</span>
             <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} required style={fieldStyle} />
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem" }}>
+            <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} style={{ width: 18, height: 18 }} />
+            Bosh sahifada e&apos;lon qilish (yangiliklar va qo&apos;ng&apos;iroqcha)
           </label>
           {error && <p style={{ color: "#e5484d", fontSize: "0.85rem" }}>{error}</p>}
           <button className="button" type="submit" disabled={submitting}>

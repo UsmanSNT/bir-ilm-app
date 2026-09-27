@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
 import type { LiveSession } from "@/shared/contract/live";
 import TalkManage, { length } from "./talk-manage";
+import { WEEKDAYS, clock, dayMonth, toggleTalkReminder, useTalkReminders } from "./talk-format";
 
 // Suhbatlar bo'limining asosiy oynasi (xonaga kirishdan oldingi holat).
 
@@ -35,12 +36,6 @@ const FILTERS: Array<[Filter, string, typeof Mic]> = [
   ["past", "O‘tganlar", CirclePlay],
   ["mine", "Mening", NotebookText],
 ];
-
-const MONTHS = ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sent", "okt", "noy", "dek"];
-const WEEKDAYS = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
-
-const dayMonth = (d: Date) => `${d.getDate()}-${MONTHS[d.getMonth()]}`;
-const clock = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
 function duration(s: LiveSession) {
   if (!s.startedAt || !s.endedAt) return null;
@@ -57,17 +52,6 @@ function untilLabel(iso: string) {
   if (days <= 0) return "Bugun";
   if (days === 1) return "Ertaga";
   return `${days} kundan keyin`;
-}
-
-// Eslatmalar faqat shu qurilmada saqlanadi.
-const REMINDERS_KEY = "bir-live-reminders";
-function readReminders(): string[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(REMINDERS_KEY) ?? "[]");
-    return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : [];
-  } catch {
-    return [];
-  }
 }
 
 // To'lqin chizig'i suhbat id'sidan hosil bo'ladi — har safar bir xil ko'rinadi.
@@ -119,7 +103,7 @@ export default function TalksBoard({
   onShare: () => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
-  const [reminders, setReminders] = useState<string[]>([]);
+  const reminders = useTalkReminders();
   const catalog = useCatalog();
   const [managing, setManaging] = useState<string | null>(null);
   const [player, setPlayer] = useState<{ id: string; playing: boolean; at: number } | null>(null);
@@ -164,10 +148,6 @@ export default function TalksBoard({
     if (total) el.currentTime = Math.max(0, Math.min(total, ratio * total));
   }
 
-  useEffect(() => {
-    queueMicrotask(() => setReminders(readReminders()));
-  }, []);
-
   const bookFor = (title: string) => {
     const key = title.trim().toLowerCase();
     return catalog.items.find((b) => b.title.trim().toLowerCase() === key);
@@ -187,16 +167,9 @@ export default function TalksBoard({
   const isMine = (s: LiveSession) => reminders.includes(s.id) || (userId !== null && s.moderatorId === userId);
 
   function toggleReminder(s: LiveSession) {
-    const on = reminders.includes(s.id);
-    const next = on ? reminders.filter((id) => id !== s.id) : [...reminders, s.id];
-    setReminders(next);
-    try {
-      localStorage.setItem(REMINDERS_KEY, JSON.stringify(next));
-    } catch {
-      /* shaxsiy rejim */
-    }
+    const on = toggleTalkReminder(s.id);
     const when = new Date(s.scheduledAt);
-    toast.success(on ? "Eslatma olib tashlandi" : `${dayMonth(when)}, ${clock(when)} uchun eslatma qo‘yildi`);
+    toast.success(on ? `${dayMonth(when)}, ${clock(when)} uchun eslatma qo‘yildi` : "Eslatma olib tashlandi");
   }
 
   function open(s: LiveSession) {

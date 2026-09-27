@@ -25,6 +25,9 @@ import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-cl
 import { useViewer } from "@/lib/api/roles-client";
 import { canModerate } from "@/shared/contract/roles";
 import BookEditor from "./book-editor";
+import { fetchLiveSessions } from "@/lib/api/live-client";
+import type { LiveSession } from "@/shared/contract/live";
+import { TALKS_CHANGED, WEEKDAYS, clock, countdown, dayMonth, nextTalk, toggleTalkReminder, useTalkReminders } from "./talk-format";
 import type { Book } from "@/shared/contract";
 import { dayKey, listenedLabel, useLibrarySave } from "./library-store";
 import { PomodoroButton } from "./focus-timer";
@@ -120,24 +123,6 @@ function CountBoxes({ days, hours }: { days: string; hours: string }) {
   );
 }
 
-function koreaWeekProgress(timestamp: number) {
-  const korea = new Date(timestamp + 9 * 60 * 60 * 1000);
-  const day = korea.getUTCDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const start = Date.UTC(korea.getUTCFullYear(), korea.getUTCMonth(), korea.getUTCDate() + mondayOffset);
-  const end = start + (5 * 24 + 22) * 60 * 60 * 1000;
-  const current = korea.getTime();
-  const elapsed = Math.max(0, Math.min(end - start, current - start));
-  const remaining = Math.max(0, end - current);
-  const remainingHours = Math.ceil(remaining / 3_600_000);
-  return {
-    progress: Math.round((elapsed / (end - start)) * 100),
-    label: remainingHours >= 24
-      ? `${Math.floor(remainingHours / 24)} kun ${remainingHours % 24} soat qoldi`
-      : remainingHours > 0 ? `${remainingHours} soat qoldi` : "Suhbat boshlandi",
-  };
-}
-
 function DiscussionArt({ variant = "talk" }: { variant?: string }) {
   const background = variant === "quiz" ? "#e8e2d1" : variant === "habit" ? "#d7e8e8" : "#d7e4dc";
   const accent = variant === "quiz" ? "#b58b35" : variant === "habit" ? "#367688" : "#1f6b4e";
@@ -168,6 +153,7 @@ export default function MobileScreens({
   reminderOn,
   onContinue,
   onOpenNotifications,
+  onOpenTalks,
   onOpenBook,
   onAddReminder,
 }: {
@@ -180,6 +166,8 @@ export default function MobileScreens({
   /** Hafta kitobi bo'lsa — o'sha kitob audio pleerda ochiladi. */
   onContinue: (book: Book | null) => void;
   onOpenNotifications: () => void;
+  /** «Suhbatlar» bo'limiga o'tish. */
+  onOpenTalks: () => void;
   onOpenBook: (book: Book) => void;
   onAddReminder: () => void;
 }) {
@@ -232,7 +220,21 @@ export default function MobileScreens({
   const bookSeconds = featured ? library.listenedBooks[featured.id] ?? 0 : 0;
   const dailyMinutes = Math.floor(todaySeconds / 60);
   const dailyProgress = Math.min(100, (dailyMinutes / 5) * 100);
-  const week = koreaWeekProgress(now);
+  // Hafta kitobi suhbati: admin kitob oynasida yoki «Suhbatlar»da belgilagan haqiqiy vaqt.
+  const [talks, setTalks] = useState<LiveSession[]>([]);
+  useEffect(() => {
+    const load = () => void fetchLiveSessions().then(setTalks);
+    load();
+    window.addEventListener(TALKS_CHANGED, load);
+    return () => window.removeEventListener(TALKS_CHANGED, load);
+  }, []);
+  const talk = nextTalk(talks, featured?.title);
+  const reminders = useTalkReminders();
+  const talkAt = talk ? new Date(talk.scheduledAt) : null;
+  // Chiziq: e'londan (7 kun oldin) suhbatgacha o'tgan vaqt.
+  const talkProgress = talk
+    ? talk.status === "live" ? 100 : Math.round(Math.max(0, Math.min(1, 1 - (Date.parse(talk.scheduledAt) - now) / (7 * 86_400_000))) * 100)
+    : 0;
   // Har kuni boshqa hikmat.
   const quote = wisdom[Math.floor(now / 86_400_000) % wisdom.length] ?? wisdom[0];
   const visibleQuizzes = showQuizzes ? quizzes : quizzes.slice(0, 2);
@@ -378,13 +380,42 @@ export default function MobileScreens({
                 {featured?.summary && <p className="m-blurb">{featured.summary.slice(0, 90)}{featured.summary.length > 90 ? "…" : ""}</p>}
               </div>
             </div>
-            <div className={`m-week-timeline ${week.progress >= 80 ? "is-finishing" : ""}`}>
-              <div className="m-week-labels"><span>Dush</span><strong>{week.label}</strong><span>Shan 22:00</span></div>
-              <div className="m-week-track" aria-label={`Haftalik vaqtning ${week.progress} foizi o‘tdi`}>
-                <span style={{ width: `${week.progress}%` }} />
-                <Leaf size={17} style={{ left: `${Math.min(96, week.progress)}%` }} />
+            {talk && talkAt ? (
+              <div className={`m-week-timeline m-talk-next ${talkProgress >= 80 ? "is-finishing" : ""}`}>
+                <button type="button" className="m-talk-when" onClick={onOpenTalks}>
+                  <span className={`m-talk-badge${talk.status === "live" ? " live" : ""}`}>{talk.status === "live" ? "JONLI" : "SUHBAT"}</span>
+                  <span>
+                    <strong>{talk.title}</strong>
+                    <small><Calendar size={13} /> {dayMonth(talkAt)}, {WEEKDAYS[talkAt.getDay()]} · <Clock size={13} /> {clock(talkAt)}</small>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+                <div className="m-week-labels">
+                  <span>E’lon</span>
+                  <strong>{talk.status === "live" ? "Suhbat boshlandi" : countdown(talk.scheduledAt, now)}</strong>
+                  <span>{dayMonth(talkAt)} {clock(talkAt)}</span>
+                </div>
+                <div className="m-week-track" aria-label={`Suhbatgacha vaqtning ${talkProgress} foizi o‘tdi`}>
+                  <span style={{ width: `${talkProgress}%` }} />
+                  <Leaf size={17} style={{ left: `${Math.min(96, talkProgress)}%` }} />
+                </div>
+                {talk.status !== "live" && (
+                  <button
+                    type="button"
+                    className={`m-talk-remind${reminders.includes(talk.id) ? " on" : ""}`}
+                    aria-pressed={reminders.includes(talk.id)}
+                    onClick={() => {
+                      const on = toggleTalkReminder(talk.id);
+                      toast.success(on ? `${dayMonth(talkAt)}, ${clock(talkAt)} uchun eslatma qo‘yildi` : "Eslatma olib tashlandi");
+                    }}
+                  >
+                    <Bell size={15} /> {reminders.includes(talk.id) ? "Eslatma qo‘yildi" : "Eslatma qo‘yish"}
+                  </button>
+                )}
               </div>
-            </div>
+            ) : (
+              editor && featured && <p className="m-talk-none">Suhbat vaqti belgilanmagan — «Tahrirlash»dan kalendar orqali tanlang.</p>
+            )}
             <div className="m-progress">
               <div className="m-progress-track" aria-hidden="true">
                 <span style={{ width: `${percent}%` }} />
@@ -678,13 +709,19 @@ export function useAnnouncements(): Announcement[] {
   const [items, setItems] = useState<Announcement[]>([]);
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch("/api/social?scope=announcements", { signal: ctrl.signal })
+    const load = () => fetch("/api/social?scope=announcements", { signal: ctrl.signal })
       .then((r) => (r.ok ? (r.json() as Promise<{ posts?: { id: string; title?: string; book: string; body: string; createdAt: string }[] }>) : null))
       .then((data) => {
         setItems((data?.posts ?? []).map((p) => ({ id: p.id, title: p.title || p.book, body: p.body, time: relativeTime(p.createdAt), at: parseTime(p.createdAt) })));
       })
       .catch(() => {});
-    return () => ctrl.abort();
+    load();
+    // Suhbat e'lon bilan belgilansa — yangi e'lon darhol ko'rinsin.
+    window.addEventListener(TALKS_CHANGED, load);
+    return () => {
+      window.removeEventListener(TALKS_CHANGED, load);
+      ctrl.abort();
+    };
   }, []);
   return items;
 }

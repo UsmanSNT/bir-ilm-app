@@ -7,6 +7,7 @@ import { uploadChunked } from "@/lib/api/books-client";
 import { API_PREFIX } from "@/lib/api/config";
 import { deleteLiveRecording, deleteLiveSession, removeLiveArchive, withMediaUrls } from "@/lib/api/live-client";
 import { LIMITS_LIVE, type LiveSession } from "@/shared/contract";
+import { notifyTalksChanged } from "./talk-format";
 
 // Suhbatni boshqarish (admin/moderator): xom yozuvni yuklab olish, ishlov berilgan
 // audioni joylash — shundan keyin suhbat «O'tgan suhbatlar»da hammaga ko'rinadi.
@@ -88,6 +89,7 @@ export default function TalkManage({
     setBusy(false);
     if (!ok) return toast.error("O‘chirib bo‘lmadi.");
     onRemove(session.id);
+    notifyTalksChanged();
     toast.success("Suhbat o‘chirildi");
     onClose();
   }

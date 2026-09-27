@@ -306,6 +306,7 @@ export async function createLiveSession(input: {
   bookTitle: string;
   title: string;
   scheduledAt: string;
+  announcement?: { title: string; body: string };
 }): Promise<LiveSession | null> {
   const res = await fetch(`${API_PREFIX}/live`, {
     method: "POST",

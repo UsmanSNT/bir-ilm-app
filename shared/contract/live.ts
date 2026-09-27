@@ -25,6 +25,10 @@ export const createLiveSessionSchema = z.object({
   bookTitle: trimmed(160).min(1, "Kitob nomini yozing."),
   title: trimmed(LIMITS_LIVE.title).min(1, "Sarlavhani yozing."),
   scheduledAt: z.string().datetime({ message: "ISO 8601 format kerak." }),
+  /** Bo'lsa — bosh sahifa yangiliklarida (va qo'ng'iroqchada) e'lon ham joylanadi. */
+  announcement: z
+    .object({ title: trimmed(160).min(1), body: trimmed(2000).min(1) })
+    .optional(),
 });
 
 export const liveMessageSchema = z.object({

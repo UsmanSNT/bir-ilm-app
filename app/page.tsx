@@ -479,6 +479,7 @@ export default function App() {
                     go("shelf");
                   }}
                   onOpenNotifications={() => setModal("notifications")}
+                  onOpenTalks={() => go("talks")}
                   onOpenBook={(book) => {
                     setSelected(book);
                     setModal("book");
