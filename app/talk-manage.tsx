@@ -5,7 +5,7 @@ import { Download, FileAudio, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { uploadChunked } from "@/lib/api/books-client";
 import { API_PREFIX } from "@/lib/api/config";
-import { deleteLiveRecording, deleteLiveSession, removeLiveArchive } from "@/lib/api/live-client";
+import { deleteLiveRecording, deleteLiveSession, removeLiveArchive, withMediaUrls } from "@/lib/api/live-client";
 import { LIMITS_LIVE, type LiveSession } from "@/shared/contract";
 
 // Suhbatni boshqarish (admin/moderator): xom yozuvni yuklab olish, ishlov berilgan
@@ -52,7 +52,7 @@ export default function TalkManage({
         (sent, total) => setProgress({ sent, total }),
         { signal: abortRef.current.signal },
       );
-      onChange(data.session);
+      onChange(withMediaUrls(data.session));
       toast.success("Audio joylandi — «O‘tgan suhbatlar»da hammaga ko‘rinadi");
     } catch (error) {
       if (abortRef.current?.signal.aborted) toast("Yuklash to‘xtatildi. Qayta tanlasangiz, to‘xtagan joyidan davom etadi.");

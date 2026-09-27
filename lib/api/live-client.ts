@@ -13,7 +13,7 @@ import type {
   WsServerMessage,
 } from "@/shared/contract/live";
 import type { UserRole } from "@/shared/contract/roles";
-import { API_PREFIX, detectPlatform, resolveBaseUrl } from "./config";
+import { API_PREFIX, absoluteUrl, detectPlatform, resolveBaseUrl } from "./config";
 
 export type LiveConnectionState = "idle" | "connecting" | "joined" | "error";
 
@@ -286,11 +286,20 @@ export class LiveClient {
 
 // ── REST API ───────────────────────────────────────────────────────────
 
+/** Ilovada sahifa https://localhost dan ochiladi — audio manzillari serverga ko'rsatilsin. */
+export function withMediaUrls(session: LiveSession): LiveSession {
+  return {
+    ...session,
+    archive: session.archive ? { ...session.archive, url: absoluteUrl(session.archive.url) } : null,
+    recordings: session.recordings.map((r) => ({ ...r, url: absoluteUrl(r.url) })),
+  };
+}
+
 export async function fetchLiveSessions(): Promise<LiveSession[]> {
   const res = await fetch(`${API_PREFIX}/live`, { credentials: "include" });
   if (!res.ok) return [];
   const data: { data: LiveSession[] } = await res.json();
-  return data.data ?? [];
+  return (data.data ?? []).map(withMediaUrls);
 }
 
 export async function createLiveSession(input: {
@@ -320,7 +329,7 @@ export async function removeLiveArchive(id: string): Promise<LiveSession | null>
   const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(id)}/archive`, { method: "DELETE", credentials: "include" });
   if (!res.ok) return null;
   const data: { data: LiveSession } = await res.json();
-  return data.data ?? null;
+  return data.data ? withMediaUrls(data.data) : null;
 }
 
 /** Xom yozuvni o'chirish (admin). */

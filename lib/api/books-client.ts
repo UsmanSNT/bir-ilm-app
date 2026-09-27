@@ -29,7 +29,13 @@ export function useCatalog(): Catalog & { reload: () => void } {
   const reload = useCallback(() => {
     call<{ items: Book[]; activeBookId: string | null }>("/books")
       .then((data) => {
-        const items = data.items.map((b) => ({ ...b, coverUrl: absoluteUrl(b.coverUrl), audioUrl: absoluteUrl(b.audioUrl) }));
+        // Ilovada sahifa https://localhost dan ochiladi — media manzillari serverga ko'rsatilsin.
+        const items = data.items.map((b) => ({
+          ...b,
+          coverUrl: absoluteUrl(b.coverUrl),
+          audioUrl: absoluteUrl(b.audioUrl),
+          tracks: b.tracks.map((t) => ({ ...t, url: absoluteUrl(t.url) })),
+        }));
         setState({ items, active: items.find((b) => b.id === data.activeBookId) ?? null, loading: false, error: "" });
       })
       .catch((e: Error) => setState((s) => ({ ...s, loading: false, error: e.message })));
