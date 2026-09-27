@@ -10,7 +10,7 @@ import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ensureUser } from "./social";
 import { mediaRoot } from "./books";
-import { notFound } from "@/server/http/errors";
+import { badRequest, notFound } from "@/server/http/errors";
 import type {
   CreateLiveSessionInput,
   LiveSession,
@@ -211,6 +211,27 @@ export async function setArchive(
   const session = await getLiveSession(db, id, true);
   if (!session) throw notFound("Suhbat topilmadi.");
   return session;
+}
+
+/**
+ * Suhbatni o'zgartirish. Tugagan suhbat o'zgarmaydi; jonli suhbatning vaqti ham
+ * o'zgarmaydi (u allaqachon boshlangan) — faqat sarlavha/kitob nomi.
+ */
+export async function updateLiveSession(
+  db: Database,
+  id: string,
+  patch: { bookTitle?: string; title?: string; scheduledAt?: string },
+): Promise<LiveSession> {
+  const row = await db.query.liveSessions.findFirst({ where: eq(schema.liveSessions.id, id) });
+  if (!row) throw notFound("Suhbat topilmadi.");
+  if (row.status === "ended") throw badRequest("Tugagan suhbatni o'zgartirib bo'lmaydi.");
+  if (patch.scheduledAt && row.status !== "planned") throw badRequest("Boshlangan suhbatning vaqtini o'zgartirib bo'lmaydi.");
+  const set: Partial<SessionRow> = {};
+  if (patch.bookTitle !== undefined) set.bookTitle = patch.bookTitle;
+  if (patch.title !== undefined) set.title = patch.title;
+  if (patch.scheduledAt !== undefined) set.scheduledAt = patch.scheduledAt;
+  await db.update(schema.liveSessions).set(set).where(eq(schema.liveSessions.id, id));
+  return (await getLiveSession(db, id, true))!;
 }
 
 // Ruxsat chaqiruvchida (WS) tekshiriladi: faqat admin boshlaydi va tugatadi.

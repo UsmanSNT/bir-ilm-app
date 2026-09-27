@@ -319,6 +319,22 @@ export async function createLiveSession(input: {
   return data.data ?? null;
 }
 
+/** Suhbat vaqti/sarlavhasini o'zgartirish (admin). Xato bo'lsa — xabar matni. */
+export async function updateLiveSession(
+  id: string,
+  patch: { bookTitle?: string; title?: string; scheduledAt?: string; announcement?: { title: string; body: string } },
+): Promise<LiveSession | string> {
+  const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(patch),
+  });
+  const body = (await res.json().catch(() => ({}))) as { data?: LiveSession; error?: { message?: string } };
+  if (!res.ok || !body.data) return body.error?.message ?? "Saqlab bo'lmadi.";
+  return withMediaUrls(body.data);
+}
+
 /** Suhbatni o'chirish (admin). */
 export async function deleteLiveSession(id: string): Promise<boolean> {
   const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "include" });

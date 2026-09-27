@@ -430,6 +430,24 @@ button.tb-wave:disabled { cursor: default; }
 }
 .tb-danger:disabled, .tb-sheet button:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* Boshqaruv oynasida suhbat vaqtini o'zgartirish. */
+.tb-resched { display: grid; gap: 8px; }
+.tb-resched-title { display: inline-flex; align-items: center; gap: 6px; }
+.tb-resched input[type="datetime-local"],
+.tb-resched input:not([type]) {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid #cfe0d7;
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 15px;
+}
+.tb-resched-announce { display: flex; align-items: center; gap: 8px; color: #294256; font-size: 13px; cursor: pointer; }
+.tb-resched-announce input { width: 18px; height: 18px; margin: 0; accent-color: #157a52; }
+.tb-resched-save { justify-self: start; }
+
 /* Suhbat oynasidagi «yozilmoqda» belgisi — hamma qatnashchi ko'radi. */
 .live-rec {
   display: inline-flex;

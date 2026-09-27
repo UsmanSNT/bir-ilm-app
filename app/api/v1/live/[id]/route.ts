@@ -1,10 +1,19 @@
 /** Bitta jonli suhbat: tafsilotlar va o'chirish (faqat admin). */
 import { defineRoute } from "@/server/http/handler";
 import { notFound } from "@/server/http/errors";
-import { deleteLiveSession, getLiveSession, getParticipants, getRecentMessages } from "@/server/services/live";
+import { deleteLiveSession, getLiveSession, getParticipants, getRecentMessages, updateLiveSession } from "@/server/services/live";
+import { createCommunityPost } from "@/server/services/community";
 import { getUserRole, requireRole } from "@/server/services/roles";
 import { canModerate } from "@/shared/contract/roles";
-import type { Empty, LiveSession, LiveParticipant, LiveMessage } from "@/shared/contract";
+import {
+  plainToDoc,
+  updateLiveSessionSchema,
+  type Empty,
+  type LiveSession,
+  type LiveParticipant,
+  type LiveMessage,
+  type UpdateLiveSessionInput,
+} from "@/shared/contract";
 
 export const runtime = "edge";
 
@@ -25,6 +34,27 @@ export const GET = defineRoute<undefined, SessionDetail>({
       getRecentMessages(db, params.id),
     ]);
     return { session, participants, recentMessages };
+  },
+});
+
+/** Vaqt, sarlavha yoki kitob nomini o'zgartirish (admin); xohlasa e'lon ham joylanadi. */
+export const PATCH = defineRoute<UpdateLiveSessionInput, LiveSession>({
+  schema: updateLiveSessionSchema,
+  source: "body",
+  handler: async ({ db, identity, input, params }) => {
+    await requireRole(db, identity.userId, ["admin"], "Suhbatni faqat admin o'zgartiradi.");
+    const session = await updateLiveSession(db, params.id, input);
+    if (input.announcement) {
+      await createCommunityPost(db, identity.userId, {
+        format: "post",
+        kind: "announcement",
+        title: input.announcement.title,
+        book: session.bookTitle,
+        content: plainToDoc(input.announcement.body),
+        attachments: [],
+      });
+    }
+    return session;
   },
 });
 

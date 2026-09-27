@@ -5,16 +5,10 @@ import { ArrowDown, ArrowUp, CalendarClock, Headphones, ImagePlus, Megaphone, Sp
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { createBook, deleteBook, deleteTrack, notifyCatalogChanged, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
-import { createLiveSession, fetchLiveSessions } from "@/lib/api/live-client";
+import { createLiveSession, fetchLiveSessions, updateLiveSession } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { BOOK_LIMITS, type Book, type LiveSession } from "@/shared/contract";
-import { WEEKDAYS, clock, dayMonth, nextTalk, notifyTalksChanged, talkAnnouncement } from "./talk-format";
-
-/** `<input type="datetime-local">` qiymati (mahalliy vaqt). */
-function localInput(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
+import { WEEKDAYS, clock, dayMonth, localInput, nextTalk, notifyTalksChanged, talkAnnouncement, talkRescheduled } from "./talk-format";
 
 const COLORS = ["#0f4f45", "#294256", "#7a3b2e", "#5b4a8b", "#8a6511", "#2f6f8f", "#374151"];
 
@@ -59,10 +53,20 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
   const [existingTalk, setExistingTalk] = useState<LiveSession | null>(null);
   const talkCreated = useRef(false);
 
+  // Kitobning suhbati allaqachon belgilangan bo'lsa — maydonlar uning vaqti bilan to'ladi,
+  // saqlanganda yangi suhbat emas, o'shasi o'zgaradi.
   useEffect(() => {
     if (!isAdmin || !book) return;
-    fetchLiveSessions().then((list) => setExistingTalk(nextTalk(list.filter((s) => s.bookTitle.trim().toLowerCase() === book.title.trim().toLowerCase()))));
+    fetchLiveSessions().then((list) => {
+      const talk = nextTalk(list.filter((s) => s.bookTitle.trim().toLowerCase() === book.title.trim().toLowerCase()));
+      if (!talk || talk.bookTitle.trim().toLowerCase() !== book.title.trim().toLowerCase()) return;
+      setExistingTalk(talk);
+      setTalkWhen(localInput(new Date(talk.scheduledAt)));
+      setTalkTitle(talk.title);
+    });
   }, [isAdmin, book]);
+  const existingPlanned = existingTalk?.status === "planned";
+  const whenChanged = !existingTalk || talkWhen !== localInput(new Date(existingTalk.scheduledAt));
   const [cover, setCover] = useState<File | null>(null);
   const [parts, setParts] = useState<Part[]>(() => (book?.tracks ?? []).map((t) => ({ key: t.id, id: t.id, title: t.title, bytes: t.bytes })));
   const [busy, setBusy] = useState(false);
@@ -102,7 +106,7 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    if (isAdmin && active && talkWhen && !talkCreated.current && new Date(talkWhen).getTime() <= Date.now()) {
+    if (isAdmin && active && talkWhen && whenChanged && !talkCreated.current && new Date(talkWhen).getTime() <= Date.now()) {
       toast.error("Suhbat vaqti kelajakda bo‘lsin.");
       return;
     }
@@ -113,14 +117,31 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
       let saved = book ? await updateBook(book.id, { ...fields, active }) : await createBook(fields);
       if (!book && active) saved = await updateBook(saved.id, { active: true });
 
-      // Suhbat fayllardan oldin e'lon qilinadi: yuklash uzilsa ham suhbat belgilanib qoladi.
-      if (isAdmin && active && talkWhen && !talkCreated.current) {
+      // Suhbat fayllardan oldin saqlanadi: yuklash uzilsa ham suhbat belgilanib qoladi.
+      const talkName = talkTitle.trim() || "Birga tahlil qilamiz";
+      if (isAdmin && active && talkWhen && !talkCreated.current && existingTalk && existingPlanned) {
+        const when = new Date(talkWhen);
+        const titleChanged = talkName !== existingTalk.title;
+        const bookChanged = saved.title !== existingTalk.bookTitle;
+        if (whenChanged || titleChanged || bookChanged) {
+          const result = await updateLiveSession(existingTalk.id, {
+            ...(whenChanged ? { scheduledAt: when.toISOString() } : {}),
+            ...(titleChanged ? { title: talkName } : {}),
+            ...(bookChanged ? { bookTitle: saved.title } : {}),
+            announcement: announce && whenChanged ? talkRescheduled(saved.title, talkName, when) : undefined,
+          });
+          if (typeof result === "string") throw new Error(`Kitob saqlandi, lekin suhbat yangilanmadi: ${result}`);
+          talkCreated.current = true;
+          notifyTalksChanged();
+          toast.success(whenChanged ? `Suhbat vaqti o‘zgartirildi: ${dayMonth(when)}, ${clock(when)}` : "Suhbat yangilandi");
+        }
+      } else if (isAdmin && active && talkWhen && !talkCreated.current && !existingTalk) {
         const when = new Date(talkWhen);
         const talk = await createLiveSession({
           bookTitle: saved.title,
-          title: talkTitle.trim() || "Birga tahlil qilamiz",
+          title: talkName,
           scheduledAt: when.toISOString(),
-          announcement: announce ? talkAnnouncement(saved.title, talkTitle.trim() || "Birga tahlil qilamiz", when) : undefined,
+          announcement: announce ? talkAnnouncement(saved.title, talkName, when) : undefined,
         });
         if (!talk) throw new Error("Kitob saqlandi, lekin suhbatni e’lon qilib bo‘lmadi. Qayta bosing.");
         talkCreated.current = true;
@@ -245,13 +266,15 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
               <legend><CalendarClock size={16} /> Suhbat vaqti</legend>
               {existingTalk && (
                 <p className="book-editor-talk-note">
-                  Belgilangan: {dayMonth(new Date(existingTalk.scheduledAt))}, {WEEKDAYS[new Date(existingTalk.scheduledAt).getDay()]}, {clock(new Date(existingTalk.scheduledAt))} — «{existingTalk.title}». Yana biri kerak bo‘lsa, pastda tanlang.
+                  {existingPlanned ? "Belgilangan" : "Hozir jonli"}: {dayMonth(new Date(existingTalk.scheduledAt))}, {WEEKDAYS[new Date(existingTalk.scheduledAt).getDay()]}, {clock(new Date(existingTalk.scheduledAt))} — «{existingTalk.title}».
+                  {existingPlanned ? " Sana yoki vaqtni o‘zgartirsangiz, suhbat yangilanadi." : " Boshlangan suhbatning vaqti o‘zgarmaydi."}
                 </p>
               )}
               <input
                 type="datetime-local"
                 aria-label="Suhbat sanasi va vaqti"
                 min={localInput(new Date())}
+                disabled={Boolean(existingTalk && !existingPlanned)}
                 value={talkWhen}
                 onChange={(e) => setTalkWhen(e.target.value)}
               />
@@ -260,7 +283,7 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
                   <input aria-label="Suhbat sarlavhasi" placeholder="Suhbat sarlavhasi" maxLength={200} value={talkTitle} onChange={(e) => setTalkTitle(e.target.value)} />
                   <label className="book-editor-announce">
                     <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />
-                    <Megaphone size={15} /> Bosh sahifada e’lon qilish (yangiliklar va qo‘ng‘iroqcha)
+                    <Megaphone size={15} /> {existingTalk ? "Vaqt o‘zgarganini bosh sahifada e’lon qilish" : "Bosh sahifada e’lon qilish (yangiliklar va qo‘ng‘iroqcha)"}
                   </label>
                 </>
               )}

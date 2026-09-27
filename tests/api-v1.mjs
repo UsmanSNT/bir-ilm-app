@@ -800,6 +800,22 @@ try {
     });
     const news = await (await legacySocial.GET(request("/api/social?scope=announcements", { headers: { Cookie: reader.cookie } }))).json();
     assert.ok(news.posts.some((p) => p.title === "Yangi suhbat: «E'lon testi»" && p.body.includes("20:00")), "E'lon yangiliklarda ko'rinadi");
+    // Vaqtni faqat admin o'zgartiradi; xohlasa «vaqt o'zgardi» e'loni ham chiqadi.
+    const moved = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    const annParams = { id: announced.data.id };
+    await reader.call(liveItem.PATCH, `/api/v1/live/${announced.data.id}`, { method: "PATCH", body: { scheduledAt: moved }, params: annParams, expect: 403 });
+    await admin.call(liveItem.PATCH, `/api/v1/live/${announced.data.id}`, { method: "PATCH", body: {}, params: annParams, expect: 422 });
+    const { payload: rescheduled } = await admin.call(liveItem.PATCH, `/api/v1/live/${announced.data.id}`, {
+      method: "PATCH",
+      body: { scheduledAt: moved, title: "Yangi vaqtda", announcement: { title: "Suhbat vaqti o‘zgardi: «E'lon testi»", body: "Yangi vaqt." } },
+      params: annParams,
+    });
+    assert.equal(rescheduled.data.scheduledAt, moved);
+    assert.equal(rescheduled.data.title, "Yangi vaqtda");
+    const news2 = await (await legacySocial.GET(request("/api/social?scope=announcements", { headers: { Cookie: reader.cookie } }))).json();
+    assert.ok(news2.posts.some((p) => p.title === "Suhbat vaqti o‘zgardi: «E'lon testi»"), "Vaqt o'zgargani e'lon qilinadi");
+    // Tugagan suhbatni o'zgartirib bo'lmaydi.
+    await admin.call(liveItem.PATCH, `/api/v1/live/${id}`, { method: "PATCH", body: { title: "X" }, params, expect: 400 });
     await admin.call(liveItem.DELETE, `/api/v1/live/${announced.data.id}`, { method: "DELETE", params: { id: announced.data.id } });
 
     // O'chirish faqat admin; fayllar ham ketadi.

@@ -34,6 +34,22 @@ export function talkAnnouncement(bookTitle: string, title: string, when: Date) {
   };
 }
 
+/** Suhbat vaqti o'zgarganda bosh sahifa uchun e'lon. */
+export function talkRescheduled(bookTitle: string, title: string, when: Date) {
+  return {
+    title: `Suhbat vaqti o‘zgardi: «${bookTitle}»`,
+    body:
+      `«${bookTitle}» kitobi bo‘yicha jonli suhbat — ${title} — yangi vaqtda bo‘ladi.\n\n` +
+      `${dayMonth(when)}, ${WEEKDAYS[when.getDay()]}, soat ${clock(when)} da. Eslatma qo‘ygan bo‘lsangiz, u yangi vaqtga o‘tdi.`,
+  };
+}
+
+/** `<input type="datetime-local">` qiymati (mahalliy vaqt). */
+export function localInput(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 /** Yaqin suhbat: avval jonli, keyin eng yaqini. `bookTitle` berilsa, o'sha kitob suhbati afzal. */
 export function nextTalk(sessions: LiveSession[], bookTitle?: string): LiveSession | null {
   const open = sessions

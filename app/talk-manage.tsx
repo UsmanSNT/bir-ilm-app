@@ -1,13 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, FileAudio, Trash2, Upload, X } from "lucide-react";
+import { CalendarClock, Download, FileAudio, Megaphone, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { uploadChunked } from "@/lib/api/books-client";
 import { API_PREFIX } from "@/lib/api/config";
-import { deleteLiveRecording, deleteLiveSession, removeLiveArchive, withMediaUrls } from "@/lib/api/live-client";
+import { deleteLiveRecording, deleteLiveSession, removeLiveArchive, updateLiveSession, withMediaUrls } from "@/lib/api/live-client";
 import { LIMITS_LIVE, type LiveSession } from "@/shared/contract";
-import { notifyTalksChanged } from "./talk-format";
+import { clock, dayMonth, localInput, notifyTalksChanged, talkRescheduled } from "./talk-format";
 
 // Suhbatni boshqarish (admin/moderator): xom yozuvni yuklab olish, ishlov berilgan
 // audioni joylash — shundan keyin suhbat «O'tgan suhbatlar»da hammaga ko'rinadi.
@@ -39,6 +39,30 @@ export default function TalkManage({
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ sent: number; total: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [when, setWhen] = useState(() => localInput(new Date(session.scheduledAt)));
+  const [talkTitle, setTalkTitle] = useState(session.title);
+  const [announce, setAnnounce] = useState(true);
+  const whenChanged = when !== localInput(new Date(session.scheduledAt));
+
+  /** Vaqt va sarlavhani saqlaydi (faqat admin). */
+  async function reschedule() {
+    const title = talkTitle.trim();
+    if (!title) return toast.error("Sarlavhani yozing.");
+    const at = new Date(when);
+    if (whenChanged && at.getTime() <= Date.now()) return toast.error("Suhbat vaqti kelajakda bo‘lsin.");
+    if (!whenChanged && title === session.title) return toast("O‘zgarish yo‘q.");
+    setBusy(true);
+    const result = await updateLiveSession(session.id, {
+      ...(whenChanged ? { scheduledAt: at.toISOString() } : {}),
+      ...(title !== session.title ? { title } : {}),
+      announcement: announce && whenChanged ? talkRescheduled(session.bookTitle, title, at) : undefined,
+    });
+    setBusy(false);
+    if (typeof result === "string") return toast.error(result);
+    onChange(result);
+    notifyTalksChanged();
+    toast.success(whenChanged ? `Suhbat vaqti o‘zgartirildi: ${dayMonth(at)}, ${clock(at)}` : "Suhbat yangilandi");
+  }
 
   async function upload(file?: File) {
     if (!file) return;
@@ -106,6 +130,29 @@ export default function TalkManage({
           </div>
           <button type="button" aria-label="Yopish" disabled={busy} onClick={onClose}><X size={20} /></button>
         </header>
+
+        {isAdmin && session.status !== "ended" && (
+          <section className="tb-resched" aria-label="Suhbat vaqti">
+            <h4><span className="tb-resched-title"><CalendarClock size={16} /> Suhbat vaqti</span></h4>
+            <input
+              type="datetime-local"
+              aria-label="Suhbat sanasi va vaqti"
+              min={localInput(new Date())}
+              value={when}
+              disabled={busy || session.status !== "planned"}
+              onChange={(e) => setWhen(e.target.value)}
+            />
+            <input aria-label="Suhbat sarlavhasi" value={talkTitle} maxLength={200} disabled={busy} onChange={(e) => setTalkTitle(e.target.value)} />
+            {session.status === "planned" && whenChanged && (
+              <label className="tb-resched-announce">
+                <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />
+                <Megaphone size={15} /> Vaqt o‘zgarganini bosh sahifada e’lon qilish
+              </label>
+            )}
+            {session.status === "live" && <small className="tb-sheet-empty">Suhbat boshlangan — vaqti o‘zgarmaydi, faqat sarlavha.</small>}
+            <button type="button" className="tb-sheet-btn tb-resched-save" disabled={busy} onClick={reschedule}>Saqlash</button>
+          </section>
+        )}
 
         {session.status === "ended" && (
           <>

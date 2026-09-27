@@ -36,6 +36,20 @@ export const liveMessageSchema = z.object({
 });
 
 export type CreateLiveSessionInput = z.infer<typeof createLiveSessionSchema>;
+
+/** Rejalashtirilgan suhbatni o'zgartirish (admin): vaqt, sarlavha, kitob. */
+export const updateLiveSessionSchema = z
+  .object({
+    bookTitle: trimmed(160).min(1, "Kitob nomini yozing.").optional(),
+    title: trimmed(LIMITS_LIVE.title).min(1, "Sarlavhani yozing.").optional(),
+    scheduledAt: z.string().datetime({ message: "ISO 8601 format kerak." }).optional(),
+    /** Bo'lsa — «vaqt o'zgardi» e'loni bosh sahifaga joylanadi. */
+    announcement: z.object({ title: trimmed(160).min(1), body: trimmed(2000).min(1) }).optional(),
+  })
+  .refine((v) => v.bookTitle !== undefined || v.title !== undefined || v.scheduledAt !== undefined, {
+    message: "O'zgartiriladigan maydon yo'q.",
+  });
+export type UpdateLiveSessionInput = z.infer<typeof updateLiveSessionSchema>;
 export type LiveMessageInput = z.infer<typeof liveMessageSchema>;
 
 export type LiveSession = {
