@@ -160,6 +160,55 @@
   padding: 16px;
 }
 
+.m-week-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.m-week-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #cfe7da;
+  border-radius: 999px;
+  background: #f4faf7;
+  color: #157a52;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+.m-week-admin {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1.5px dashed #9fcfb6;
+  border-radius: 14px;
+  background: #f5fbf8;
+}
+.m-week-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  border: 0;
+  border-radius: 12px;
+  background: #157a52;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 720;
+}
+.m-week-admin select {
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid #cfe0d7;
+  border-radius: 10px;
+  background: #fff;
+  color: #173029;
+  font: inherit;
+  font-size: 14px;
+}
+.m-week-admin small { color: #5f736c; font-size: 12px; }
+
 .m-week {
   display: grid;
   gap: 14px;

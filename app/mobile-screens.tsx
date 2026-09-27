@@ -12,6 +12,8 @@ import {
   Clock,
   Headphones,
   Leaf,
+  Pencil,
+  Plus,
   TreePine,
   Trophy,
   Users,
@@ -19,7 +21,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { LIVE_ROOM, quizzes, wisdom, type Quiz } from "./quiz-data";
-import { useCatalog } from "@/lib/api/books-client";
+import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-client";
+import { useViewer } from "@/lib/api/roles-client";
+import { canModerate } from "@/shared/contract/roles";
+import BookEditor from "./book-editor";
 import type { Book } from "@/shared/contract";
 import { dayKey, listenedLabel, useLibrarySave } from "./library-store";
 import { PomodoroButton } from "./focus-timer";
@@ -195,6 +200,19 @@ export default function MobileScreens({
   const unread = useUnreadCount(announcements);
   const catalog = useCatalog();
   const featured = catalog.active;
+  const editor = canModerate(useViewer()?.role);
+  const [editing, setEditing] = useState<{ book: Book | null } | null>(null);
+
+  async function chooseWeekBook(id: string) {
+    if (!id) return;
+    try {
+      await updateBook(id, { active: true });
+      notifyCatalogChanged();
+      toast.success("Hafta kitobi tanlandi");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Saqlanmadi.");
+    }
+  }
   const library = useLibrarySave();
 
   const secs = Math.max(0, Math.floor((session - now) / 1000));
@@ -330,7 +348,28 @@ export default function MobileScreens({
           </div>
 
           <section className="m-card m-week">
-            <p className="m-kicker">Hafta kitobi</p>
+            <div className="m-week-head">
+              <p className="m-kicker">Hafta kitobi</p>
+              {editor && featured && (
+                <button type="button" className="m-week-edit" onClick={() => setEditing({ book: featured })}>
+                  <Pencil size={15} /> Tahrirlash
+                </button>
+              )}
+            </div>
+            {editor && !featured && (
+              <div className="m-week-admin">
+                <button type="button" className="m-week-add" onClick={() => setEditing({ book: null })}>
+                  <Plus size={18} /> Yangi hafta kitobini joylash
+                </button>
+                {catalog.items.length > 0 && (
+                  <select aria-label="Kutubxonadagi kitobni hafta kitobi qilish" value="" onChange={(e) => void chooseWeekBook(e.target.value)}>
+                    <option value="">yoki kutubxonadan tanlang…</option>
+                    {catalog.items.map((b) => <option key={b.id} value={b.id}>{b.title} — {b.author}</option>)}
+                  </select>
+                )}
+                <small>Muqova rasmi va bir nechta audio qism kitob oynasida yuklanadi.</small>
+              </div>
+            )}
             <div className="m-week-row">
               {featured ? <button type="button" className="m-week-cover" onClick={() => onOpenBook(featured)} aria-label={`${featured.title} haqida`}><BookCover title={featured.title} author={featured.author} tone="cream" image={featured.coverUrl} color={featured.color} /></button> : <BookCover title="Tez orada" author="Bir Ilm" tone="cream" />}
               <div>
@@ -540,6 +579,8 @@ export default function MobileScreens({
           )}
         </div>
       )}
+
+      <BookEditor open={Boolean(editing)} book={editing?.book ?? null} asWeekBook={!editing?.book} onClose={() => setEditing(null)} />
 
       {reminder && screen === "home" && (
         <div className="m-modal-root">

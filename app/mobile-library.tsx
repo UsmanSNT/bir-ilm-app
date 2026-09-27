@@ -320,8 +320,8 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
             <h1>Kutubxona</h1>
             <button type="button" onClick={() => setScreen("mine")}>Kitoblarim</button>
             {editor && (
-              <button type="button" className="lib-add" aria-label="Kitob qo‘shish" onClick={() => setEditing({ book: null })}>
-                <Plus size={18} />
+              <button type="button" className="lib-add" onClick={() => setEditing({ book: null })}>
+                <Plus size={17} /> Kitob qo‘shish
               </button>
             )}
           </header>

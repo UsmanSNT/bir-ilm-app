@@ -21,16 +21,27 @@ const byName = (a: File, b: File) => a.name.localeCompare(b.name, undefined, { n
 const titleOf = (file: File) => file.name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim().slice(0, BOOK_LIMITS.trackTitle);
 
 /** Kitob qo'shish/tahrirlash (admin va moderator). `book` bo'lmasa — yangi kitob. */
-export default function BookEditor({ book, open, onClose }: { book: Book | null; open: boolean; onClose: () => void }) {
-  return open ? <EditorDialog key={book?.id ?? "new"} book={book} onClose={onClose} /> : null;
+export default function BookEditor({
+  book,
+  open,
+  onClose,
+  asWeekBook = false,
+}: {
+  book: Book | null;
+  open: boolean;
+  onClose: () => void;
+  /** Yangi kitob «Haftaning kitobi» belgisi bilan ochiladi (bosh sahifadan). */
+  asWeekBook?: boolean;
+}) {
+  return open ? <EditorDialog key={book?.id ?? "new"} book={book} onClose={onClose} asWeekBook={asWeekBook} /> : null;
 }
 
-function EditorDialog({ book, onClose }: { book: Book | null; onClose: () => void }) {
+function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClose: () => void; asWeekBook: boolean }) {
   const [title, setTitle] = useState(book?.title ?? "");
   const [author, setAuthor] = useState(book?.author ?? "");
   const [summary, setSummary] = useState(book?.summary ?? "");
   const [color, setColor] = useState(book?.color ?? COLORS[0]);
-  const [active, setActive] = useState(book?.active ?? false);
+  const [active, setActive] = useState(book?.active ?? asWeekBook);
   const [cover, setCover] = useState<File | null>(null);
   const [parts, setParts] = useState<Part[]>(() => (book?.tracks ?? []).map((t) => ({ key: t.id, id: t.id, title: t.title, bytes: t.bytes })));
   const [busy, setBusy] = useState(false);
@@ -132,8 +143,8 @@ function EditorDialog({ book, onClose }: { book: Book | null; onClose: () => voi
   return (
     <Dialog open onOpenChange={(value) => { if (!value && !busy) onClose(); }}>
       <DialogContent className="book-editor">
-        <DialogTitle>{book ? "Kitobni tahrirlash" : "Yangi kitob"}</DialogTitle>
-        <DialogDescription>Audiokitob, muqova va tavsif. Faqat admin va moderator ko‘radi.</DialogDescription>
+        <DialogTitle>{book ? "Kitobni tahrirlash" : asWeekBook ? "Yangi hafta kitobi" : "Yangi kitob"}</DialogTitle>
+        <DialogDescription>Muqova rasmini chapdagi katakdan, audio qismlarni pastdagi tugmadan yuklang. Faqat admin va moderator ko‘radi.</DialogDescription>
         <form onSubmit={save}>
           <div className="book-editor-top">
             <label className="book-editor-cover" style={{ backgroundColor: color }}>
@@ -156,7 +167,7 @@ function EditorDialog({ book, onClose }: { book: Book | null; onClose: () => voi
             <Headphones size={18} />
             <span>
               <strong>{parts.length ? "Yana qism qo‘shish" : "Audiokitob fayllarini tanlang"}</strong>
-              <small>Bir nechta faylni birdan tanlang · {BOOK_LIMITS.maxTracks} tagacha, jami 1 GB · hozir {mb(totalBytes)}</small>
+              <small>Bir nechta faylni birdan tanlang · {BOOK_LIMITS.maxTracks} tagacha, jami 1 GB{totalBytes ? ` · hozir ${mb(totalBytes)}` : ""}</small>
             </span>
             <Upload size={16} />
             <input type="file" accept="audio/*" multiple disabled={busy} onChange={(e) => { pickAudio(e.target.files); e.target.value = ""; }} />
