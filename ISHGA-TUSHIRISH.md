@@ -135,3 +135,16 @@ Javon (kutubxona) endi PC kengligida ham telefon maketidagi pleyer va yog‘och 
 - **Joylashda tartib:** har bir rasmda raqam (1, 2, 3…) — postda ko‘rinish tartibi. Tartibni **sudrab** (kompyuterda) yoki rasm pastidagi katta **‹ ›** tugmalari bilan (telefonda) o‘zgartirasiz; × — olib tashlash. Tahrirlashda ham shu ishlaydi.
 - **Postda karusel:** ikki va undan ko‘p rasm/video Instagram kabi karusel bo‘lib ko‘rinadi — barmoq bilan suriladi (kompyuterda ‹ › tugmalari va klaviatura strelkalari), tagida nuqtalar, yuqorida «2 / 10». Karusel nisbati birinchi rasmniki (4:5 dan 1.91:1 gacha). Rasm bosilsa, to‘liq ekranli ko‘ruvchi ochiladi. Bitta rasm/video avvalgidek katta ko‘rinadi.
 - Bu o‘zgarish faqat interfeys: ma’lumotlar bazasi va API o‘zgarmagan, migratsiya yo‘q.
+
+## Do'kon mahsulotlarini zaxiradan tiklash
+
+`0018` migratsiyasi audiosi bor (kutubxona) kitoblarda narxni 0 ga tushiradi, shuning uchun do‘kon bo‘sh qolishi mumkin. Zaxiradagi narxi qo‘yilgan kitoblardan do‘konda **alohida mahsulot** yaratish (muqova nusxasi bilan):
+
+```
+set BIR_ILM_DB_PATH=C:\bir-ilm\data\bir-ilm.sqlite
+set BIR_ILM_MEDIA_DIR=C:\bir-ilm\media
+node scripts\restore-store-products.mjs C:\bir-ilm\backups\before-deploy-2026-10-03.sqlite
+node scripts\restore-store-products.mjs C:\bir-ilm\backups\before-deploy-2026-10-03.sqlite --apply
+```
+
+Birinchi buyruq faqat nima yaratilishini ko‘rsatadi. Takror yurgizish xavfsiz (shu nomli mahsulot bor bo‘lsa, o‘tkazib yuboradi). Narx zaxiradagi son bilan olinadi (so‘m edi) — won bilan **Do‘kon kitoblari** da tuzating.
