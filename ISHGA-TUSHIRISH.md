@@ -56,3 +56,28 @@ Asl logo va illyustratsiyalar `public/assets/README.md` orqali ulanadi. Kitob mu
 - Yozuvni admin boshqaradi: «Yozib olish» → **Pauza** / **Davom ettirish** (to‘xtagan joydan o‘sha faylga qo‘shiladi) → «Yozuvni to‘xtatish».
 - Hammaga «REC» yoki «PAUZA» belgisi ko‘rinadi; adminda pauzalarsiz vaqt hisoblagichi.
 - Yozuv avvalgidek serverga bo‘laklab yuklanadi (Suhbatlar → o‘tganlar → yozuv). To‘xtatilgach admin oynasida **«Yozuvni faylga saqlash»** chiqadi: fayl nomini yozadi, Chrome/Edge’da papkani tizim oynasida tanlaydi, boshqa brauzerlarda shu nom bilan yuklab olinadi. «Keyinroq» — faqat serverdagi nusxa qoladi.
+
+## Kitoblarni kim yuklaydi
+
+Kitob qo‘shish, tahrirlash, muqova va audio yuklash, narx qo‘yish — faqat **admin va moderator** (server tekshiradi, oddiy foydalanuvchi qila olmaydi).
+- Admin: bosh sahifadagi «Hafta kitobi» kartasida «Qo‘shish» / «Tahrirlash»; Javon sahifasida ham kitob qo‘shiladi. Oynada: muqova, nom, muallif, tavsif, **narx va janr (Book Store)**, audio qismlar (bir nechta fayl, 1 GB gacha).
+- Rol berish: **Profil → Sozlamalar → Boshqaruv paneli** (admin boshqalarga «moderator» yoki «admin» beradi). Birinchi adminni serverda `node scripts\set-role.mjs <userId> admin` bilan tayinlaysiz (`--list` foydalanuvchilarni ko‘rsatadi).
+- Do‘konda kitob chiqishi uchun **narx** (> 0) qo‘yiladi; narxsiz kitob faqat Javonda (tinglash uchun) qoladi.
+
+## Google va Telegram bilan kirish (serverda)
+
+Sirlar faqat serverda, `C:\bir-ilm\secrets.cmd` faylida turadi (git'ga tushmaydi). Har biri alohida qator:
+
+```cmd
+set "PUBLIC_URL=https://birilm.uz"
+set "GOOGLE_CLIENT_ID=..."
+set "GOOGLE_CLIENT_SECRET=..."
+set "TELEGRAM_BOT_TOKEN=..."
+set "TELEGRAM_BOT_USERNAME=bot_nomi_@siz"
+```
+
+Qiymatni qo‘shtirnoq ichida yozing (`%`, `&`, `!` belgilari cmd'ni buzmasin). Saqlagach saytni qayta ishga tushiring: `schtasks /end /tn "BirIlm-Site"`, keyin `schtasks /run /tn "BirIlm-Site"`. Tugmalar faqat tegishli sirlar bor bo‘lganda ko‘rinadi.
+
+**Google:** [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials) → *Create credentials → OAuth client ID* → *Web application*. *Authorized redirect URIs*: `https://birilm.uz/api/auth/google/callback`. OAuth consent screen'da ilova nomi va support email to‘ldiriladi. `GOOGLE_CLIENT_ID` va `GOOGLE_CLIENT_SECRET` shu yerdan.
+
+**Telegram:** [@BotFather](https://t.me/BotFather) → `/newbot` → token (`TELEGRAM_BOT_TOKEN`) va bot nomi (`TELEGRAM_BOT_USERNAME`, `@` siz). Keyin `/setdomain` → botni tanlang → `birilm.uz`. Telegram tugmasi faqat shu domenda ishlaydi.
