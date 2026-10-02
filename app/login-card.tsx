@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { LOGIN_RESULT_EVENT, nativeAuth } from "@/lib/api/native-auth";
 import type { Viewer } from "@/shared/contract";
 import { CodeLoginForm } from "./device-link";
+import PasswordAuth from "./password-auth";
 
 function TelegramButton({ bot }: { bot: string }) {
   const host = useRef<HTMLDivElement>(null);
@@ -61,7 +62,7 @@ export default function LoginCard({ viewer, title = "Hisobingizni saqlang", text
       <span className="login-card-icon"><LogIn size={20} /></span>
       <div>
         <strong>{title}</strong>
-        <p>{text ?? "Google yoki Telegram orqali kiring — shunda istalgan telefon va kompyuterdan shu akkauntga, postlaringiz va rolingiz bilan kirasiz."}</p>
+        <p>{text ?? "Email, Google yoki Telegram orqali kiring — shunda istalgan telefon va kompyuterdan shu akkauntga, postlaringiz va rolingiz bilan kirasiz."}</p>
         {available ? (
           <div className="login-buttons">
             {google && (
@@ -86,9 +87,9 @@ export default function LoginCard({ viewer, title = "Hisobingizni saqlang", text
               </button>
             ) : <TelegramButton bot={telegramBot} />)}
           </div>
-        ) : (
-          <p className="login-soon">Kirish tugmalari tez orada yoqiladi.</p>
-        )}
+        ) : null}
+        {available && <p className="login-or"><span>yoki</span></p>}
+        <PasswordAuth canReset={viewer.loginProviders.passwordReset} />
         <CodeLoginForm />
       </div>
     </section>

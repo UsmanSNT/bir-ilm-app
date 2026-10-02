@@ -186,7 +186,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
   };
 
   const startWriting = () => {
-    if (!data.signedIn) { requireLogin("Post yozish uchun Google yoki Telegram orqali kiring."); return; }
+    if (!data.signedIn) { requireLogin("Post yozish uchun hisobingizga kiring."); return; }
     setEditing(null);
     setComposing(true);
   };

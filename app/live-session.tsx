@@ -806,7 +806,7 @@ export default function LiveSession({
         onCreate={() => setShowCreate(true)}
         onShare={onComments}
         login={viewer && !viewer.signedIn && (
-          <LoginCard viewer={viewer} title="Suhbatga qo'shilish uchun kiring" text="Jonli suhbatlarda faqat ro'yxatdan o'tgan kitobxonlar qatnashadi. Google yoki Telegram orqali kiring, yoki boshqa qurilmangizdagi kodni kiriting." />
+          <LoginCard viewer={viewer} title="Suhbatga qo'shilish uchun kiring" text="Jonli suhbatlarda faqat ro'yxatdan o'tgan kitobxonlar qatnashadi. Email, Google yoki Telegram orqali kiring, yoki boshqa qurilmangizdagi kodni kiriting." />
         )}
       />
 

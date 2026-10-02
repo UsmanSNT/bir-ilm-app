@@ -15,6 +15,8 @@ import { getProfile } from "@/server/services/social";
 import { getUserRole } from "@/server/services/roles";
 import { isSignedIn, listAccounts } from "@/server/services/accounts";
 import { loginConfig } from "@/server/auth/providers";
+import { hasPassword } from "@/server/auth/passwords";
+import { canSendEmail, canSendTelegram } from "@/server/services/notify";
 import { schema } from "@/server/db/client";
 import { eq } from "drizzle-orm";
 import { createSessionSchema, type CreateSessionInput, type Session, type Viewer } from "@/shared/contract";
@@ -39,12 +41,13 @@ export const POST = defineRoute<CreateSessionInput, Session>({
 
 export const GET = defineRoute<undefined, Viewer>({
   handler: async ({ db, identity, request }) => {
-    const [profile, role, accounts, user, signedIn] = await Promise.all([
+    const [profile, role, accounts, user, signedIn, passwordSet] = await Promise.all([
       getProfile(db, identity.userId),
       getUserRole(db, identity.userId),
       listAccounts(db, identity.userId),
       db.query.users.findFirst({ where: eq(schema.users.id, identity.userId), columns: { avatarUrl: true } }),
       isSignedIn(db, identity.userId),
+      hasPassword(db, identity.userId),
     ]);
     const config = loginConfig(request);
 
@@ -58,7 +61,13 @@ export const GET = defineRoute<undefined, Viewer>({
       avatarUrl: user?.avatarUrl ?? null,
       accounts,
       signedIn,
-      loginProviders: { google: Boolean(config.google), telegramBot: config.telegram?.username ?? null },
+      loginProviders: {
+        google: Boolean(config.google),
+        telegramBot: config.telegram?.username ?? null,
+        password: true,
+        passwordReset: canSendEmail() || canSendTelegram(),
+      },
+      hasPassword: passwordSet,
     };
   },
 });

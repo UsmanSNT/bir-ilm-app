@@ -265,3 +265,20 @@ body .app-shell.show-mobile-home .app-main, body .app-shell.show-mobile-home .ap
 body .app-shell[hidden] { display: none; }
 .zb { margin-left: 124px; }
 @media (max-width: 980px) { .zb { margin-left: 0; } }
+
+/* Email + parol */
+.pw-form { display: grid; gap: 10px; margin-top: 12px; padding: 14px; border-radius: var(--r-md); background: var(--qogoz); box-shadow: inset 0 0 0 1px var(--chiziq); text-align: left; }
+.pw-title { display: inline-flex; align-items: center; gap: 6px; color: var(--lojuvard); font-size: 14px; }
+.pw-field { display: grid; gap: 5px; font-size: 13px; font-weight: 700; color: var(--siyoh-2); }
+.pw-field input { width: 100%; min-height: 46px; padding: 0 12px; border: 1.5px solid var(--chiziq); border-radius: var(--r-sm); background: var(--sahifa); font-size: 16px; }
+.pw-input { position: relative; display: block; }
+.pw-input input { padding-right: 46px; }
+.pw-input button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 50%; background: none; color: var(--siyoh-3); }
+.pw-hint { color: var(--siyoh-3); font-size: 12px; }
+.pw-error { margin: 0; padding: 9px 12px; border-radius: var(--r-sm); background: var(--anor-och); color: var(--anor); font-size: 13.5px; font-weight: 700; }
+.pw-ok { margin: 0; padding: 9px 12px; border-radius: var(--r-sm); background: var(--firuza-och); color: var(--firuza); font-size: 13.5px; font-weight: 700; }
+.pw-form .button { width: 100%; min-height: 46px; }
+.pw-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; color: var(--siyoh-3); font-size: 13px; }
+.pw-links button { padding: 0; border: 0; background: none; color: var(--firuza); font-weight: 800; }
+.login-or { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; color: var(--siyoh-3); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.login-or::before, .login-or::after { content: ""; flex: 1; height: 1px; background: var(--chiziq); }

@@ -16,7 +16,7 @@ export const POST = defineRoute<undefined, LinkCode>({
   status: 201,
   handler: async ({ db, identity }) => {
     if (!(await isSignedIn(db, identity.userId))) {
-      throw forbidden("Avval Google yoki Telegram orqali kiring.");
+      throw forbidden("Avval hisobingizga kiring.");
     }
     return createLinkCode(db, identity.userId);
   },

@@ -36,3 +36,17 @@ Asl logo va illyustratsiyalar `public/assets/README.md` orqali ulanadi. Kitob mu
 - AI yordamchi (tavsiya, mutolaa rejasi, kitob xulosasi) uchun serverga `GEMINI_API_KEY` o‘rnating (ixtiyoriy: `GEMINI_MODEL`, standart `gemini-2.5-flash`). Kalit faqat serverda; har foydalanuvchiga 10 daqiqada 20 ta so‘rov.
 - Migratsiya: `drizzle/0014_book_store.sql` — yangi jadvallar va `books` ga ikki ustun qo‘shadi, mavjud ma’lumotga tegmaydi. Server ishga tushganda avtomatik qo‘llanadi.
 - Test: `node tests/store-v1.mjs`.
+
+## Email va parol bilan kirish
+
+- Kirish oynasida (Profil, Suhbat, Do‘kon) Google/Telegram tugmalari ostida **Email bilan kirish** formasi bor: «Kirish», «Hisob ochish», «Parolni unutdingizmi?».
+- Ro‘yxatdan o‘tganda hozirgi mehmon ma’lumotlari (savat, progress, postlar) shu hisobga o‘tadi.
+- Parollar PBKDF2-SHA256 (600 000 iteratsiya, tasodifiy tuz) bilan xeshlanadi; ochiq parol hech qayerda saqlanmaydi.
+- Urinishlar cheklangan: kirish — IP va email bo‘yicha 15 daqiqada 10 ta; tiklash so‘rovi — 15 daqiqada 3 ta.
+- **Parolni tiklash** havolasi 30 daqiqa amal qiladi, bir martalik; ishlatilganda shu hisobning barcha qurilmalardagi kirishlari yopiladi. Yuborish kanallari:
+  - Email: `RESEND_API_KEY` va `MAIL_FROM` (resend.com, masalan `Bir Ilm <noreply@birilm.uz>`; domen Resend'da tasdiqlangan bo‘lishi kerak).
+  - Telegram: foydalanuvchi hisobiga Telegram ham bog‘langan bo‘lsa, `TELEGRAM_BOT_TOKEN` orqali bot xabari ham yuboriladi.
+  - Ikkalasi ham sozlanmagan bo‘lsa, «Parolni unutdingizmi?» tugmasi ko‘rinmaydi.
+- Havola `PUBLIC_URL` (masalan `https://birilm.uz`) asosida yasaladi — Caddy orqasida ham to‘g‘ri domen chiqadi.
+- Parolni o‘zgartirish: **Profil → Sozlamalar → Parolni o‘zgartirish**.
+- Migratsiya: `drizzle/0015_email_login.sql` (faqat yangi jadvallar). Test: `node tests/auth-password-v1.mjs`.

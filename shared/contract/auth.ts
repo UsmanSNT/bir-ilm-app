@@ -55,12 +55,14 @@ export type Viewer = {
   /** Google/Telegram bog'langan yoki admin/moderator: jonli suhbatga kira oladi, boshqa qurilmani ulay oladi. */
   signedIn: boolean;
   /** Serverda sozlangan kirish usullari. */
-  loginProviders: { google: boolean; telegramBot: string | null };
+  loginProviders: { google: boolean; telegramBot: string | null; password: boolean; passwordReset: boolean };
+  /** Email + parol bilan kirish sozlanganmi (parolni o'zgartirish uchun). */
+  hasPassword: boolean;
 };
 
 export type LinkedAccount = {
-  provider: "google" | "telegram";
-  /** Email (Google) yoki ism (Telegram). */
+  provider: "google" | "telegram" | "email";
+  /** Email (Google, email) yoki ism (Telegram). */
   label: string;
 };
 
@@ -92,3 +94,46 @@ export const finishAppLoginSchema = z.object({
   verifier: z.string().regex(/^[a-f0-9]{64}$/),
 });
 export type FinishAppLoginInput = z.infer<typeof finishAppLoginSchema>;
+
+// ── Email va parol ──────────────────────────────────────────────────
+
+export const PASSWORD_LIMITS = { min: 8, max: 128 } as const;
+
+const emailField = z.string().trim().toLowerCase().max(254).email("Email manzili noto'g'ri.");
+const passwordField = z
+  .string()
+  .min(PASSWORD_LIMITS.min, `Parol kamida ${PASSWORD_LIMITS.min} belgi bo'lsin.`)
+  .max(PASSWORD_LIMITS.max, "Parol juda uzun.");
+
+export const registerSchema = z.object({
+  name: z.string().trim().min(2, "Ismingizni yozing.").max(40),
+  email: emailField,
+  password: passwordField,
+  wantToken: z.boolean().default(false),
+});
+export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const passwordLoginSchema = z.object({
+  email: emailField,
+  password: z.string().min(1, "Parolni yozing.").max(PASSWORD_LIMITS.max),
+  wantToken: z.boolean().default(false),
+});
+export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>;
+
+export const forgotPasswordSchema = z.object({ email: emailField });
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const RESET_TOKEN_PATTERN = /^[a-f0-9]{64}$/;
+export const resetPasswordSchema = z.object({
+  token: z.string().regex(RESET_TOKEN_PATTERN, "Havola noto'g'ri."),
+  password: passwordField,
+  wantToken: z.boolean().default(false),
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const changePasswordSchema = z.object({
+  /** Parol avval o'rnatilgan bo'lsa majburiy. */
+  current: z.string().max(PASSWORD_LIMITS.max).default(""),
+  password: passwordField,
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

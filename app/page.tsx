@@ -43,7 +43,8 @@ import MobileLibrary from "./mobile-library";
 import ProfileScreens from "./profile-screens";
 import { requestAudio } from "./library-store";
 import { type CommunityComment, type LeaderboardMember } from "./app-data";
-import type { Book } from "@/shared/contract";
+import { RESET_TOKEN_PATTERN, type Book } from "@/shared/contract";
+import { ResetPasswordForm } from "./password-auth";
 
 type BackendMode = "local" | "server" | "seed";
 
@@ -288,6 +289,15 @@ export default function App() {
     setTab(value);
     window.scrollTo({ top: 0 });
   };
+
+  // Parolni tiklash havolasi (/?reset=<token>): token manzildan darhol olib tashlanadi.
+  const [resetToken, setResetToken] = useState("");
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get("reset");
+    if (!token || !RESET_TOKEN_PATTERN.test(token)) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    queueMicrotask(() => setResetToken(token));
+  }, []);
 
   // Google/Telegram'dan qaytganda natijani ko'rsatib, manzilni tozalaymiz.
   useEffect(() => {
@@ -624,6 +634,14 @@ export default function App() {
           </footer>
         </main>
       </div>
+
+      <Dialog open={Boolean(resetToken)} onOpenChange={(open) => { if (!open) setResetToken(""); }}>
+        <DialogContent className="app-dialog">
+          <DialogTitle>Yangi parol</DialogTitle>
+          <DialogDescription>Hisobingiz uchun yangi parol o‘rnating.</DialogDescription>
+          {resetToken && <ResetPasswordForm token={resetToken} />}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!data.onboarded || Boolean(modal)}

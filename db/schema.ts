@@ -137,8 +137,8 @@ export const loginCodes = sqliteTable("login_codes", {
 /** Google / Telegram hisoblari — bitta foydalanuvchiga bir nechtasi bog'lanishi mumkin. */
 export const authAccounts = sqliteTable("auth_accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  provider: text("provider", { enum: ["google", "telegram"] }).notNull(),
-  /** Provayderdagi doimiy ID (Google `sub`, Telegram `id`). */
+  provider: text("provider", { enum: ["google", "telegram", "email"] }).notNull(),
+  /** Provayderdagi doimiy ID (Google `sub`, Telegram `id`, email — kichik harfdagi manzil). */
   subject: text("subject").notNull(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   email: text("email"),
@@ -378,3 +378,21 @@ export const bookReviews = sqliteTable("book_reviews", {
   uniqueIndex("idx_book_reviews_book_user").on(t.bookId, t.userId),
   index("idx_book_reviews_book").on(t.bookId, t.updatedAt),
 ]);
+
+// ── Email va parol ──────────────────────────────────────────────────
+
+/** Parol xeshi (PBKDF2-SHA256, tuz va iteratsiya soni xesh ichida). Hisob — `auth_accounts` (provider = email). */
+export const userPasswords = sqliteTable("user_passwords", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  hash: text("hash").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+/** Parolni tiklash havolalari: faqat token xeshi, bir martalik, qisqa muddatli. */
+export const passwordResets = sqliteTable("password_resets", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: text("expires_at").notNull(),
+  usedAt: text("used_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_password_resets_user").on(t.userId)]);

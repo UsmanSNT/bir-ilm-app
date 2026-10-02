@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, LogOut, Mail, MessageCircle, NotebookPen, Settings, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Trophy, UserRound, Users } from "lucide-react";
+import { ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, KeyRound, LogOut, Mail, MessageCircle, NotebookPen, Settings, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
 import { useCatalog } from "@/lib/api/books-client";
 import type { Book } from "@/shared/contract";
 import { USER_ROLE_LABELS } from "@/shared/contract/roles";
 import AdminPanel from "./admin-panel";
 import AdminOrders from "./admin-orders";
+import { ChangePasswordForm } from "./password-auth";
 import LoginCard from "./login-card";
 import { LinkDeviceDialog } from "./device-link";
 import { nativeAuth } from "@/lib/api/native-auth";
@@ -15,7 +16,7 @@ import ReadingDashboard from "./reading-dashboard";
 import type { SocialData } from "./social-types";
 
 type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onEdit: () => void; onProgress: () => void; onNotifications: () => void };
-type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders";
+type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "password";
 
 function Cover({ small = false, book }: { small?: boolean; book: Book | null }) {
   if (book?.coverUrl) return <span className={`p-book p-book-image ${small ? "p-book-small" : ""}`} aria-hidden="true"><img src={book.coverUrl} alt="" /></span>;
@@ -67,12 +68,12 @@ export default function ProfileScreens(p: Props) {
   const open = (next: Screen) => { setScreen(next); window.scrollTo({ top: 0, behavior: "instant" }); };
   const percent = Math.min(100, Math.max(0, Math.round(p.page / Math.max(1, p.total) * 100)));
   const replies = (social?.posts ?? []).flatMap(post => post.replies.filter(reply => reply.name !== p.name).map(reply => ({ ...reply, book: post.book }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari" };
+  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari", password: "Parol" };
   const count = (value: number | undefined) => status === "ready" ? value ?? 0 : "—";
 
   return <section className={`profile-space p-view-${screen}`}>
     <header className="p-header">
-      {screen === "profile" ? <span className="p-brand-mark"><BookOpen size={21} /></span> : <button className="p-icon" aria-label="Orqaga" onClick={() => open(["privacy", "faq", "about"].includes(screen) ? "settings" : "profile")}><ChevronLeft size={23} /></button>}
+      {screen === "profile" ? <span className="p-brand-mark"><BookOpen size={21} /></span> : <button className="p-icon" aria-label="Orqaga" onClick={() => open(["privacy", "faq", "about", "password"].includes(screen) ? "settings" : "profile")}><ChevronLeft size={23} /></button>}
       <h1>{titles[screen]}</h1>
       {screen === "profile" ? <button className="p-icon" aria-label="Sozlamalar" onClick={() => open("settings")}><Settings size={23} /></button> : screen === "activity" ? <button className="p-icon" aria-label="Xabarlar" onClick={() => open("messages")}><Mail size={22} /></button> : <span />}
     </header>
@@ -103,13 +104,14 @@ export default function ProfileScreens(p: Props) {
 
     {screen === "settings" && <div className="p-settings">
       <p className="p-settings-intro">O‘zingizga mos mutolaa muhiti.</p>
-      <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={p.onEdit} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} /><Row icon={<Copy />} title={copied ? "Nusxa olindi" : "Hisob ID"} value={viewer ? `${viewer.userId.slice(7, 15)}… · ${USER_ROLE_LABELS[role]}` : "—"} onClick={copyId} />{viewer?.signedIn && <Row icon={<Smartphone />} title="Boshqa qurilmani ulash" value="Kod" onClick={() => setLinkOpen(true)} />}{viewer?.accounts.map(a => <div key={a.provider} className="p-row p-static"><span className="p-row-icon"><ShieldCheck /></span><span>{a.provider === "google" ? "Google" : "Telegram"}</span><small>{a.label}</small></div>)}{viewer && viewer.accounts.length > 0 && <Row icon={<LogOut />} title="Chiqish" onClick={signOut} />}</div>
+      <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={p.onEdit} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} /><Row icon={<Copy />} title={copied ? "Nusxa olindi" : "Hisob ID"} value={viewer ? `${viewer.userId.slice(7, 15)}… · ${USER_ROLE_LABELS[role]}` : "—"} onClick={copyId} />{viewer?.signedIn && <Row icon={<Smartphone />} title="Boshqa qurilmani ulash" value="Kod" onClick={() => setLinkOpen(true)} />}{viewer?.accounts.map(a => <div key={a.provider} className="p-row p-static"><span className="p-row-icon"><ShieldCheck /></span><span>{a.provider === "google" ? "Google" : a.provider === "telegram" ? "Telegram" : "Email"}</span><small>{a.label}</small></div>)}{viewer?.accounts.some(a => a.provider === "email") && <Row icon={<KeyRound />} title={viewer.hasPassword ? "Parolni o‘zgartirish" : "Parol o‘rnatish"} onClick={() => open("password")} />}{viewer && viewer.accounts.length > 0 && <Row icon={<LogOut />} title="Chiqish" onClick={signOut} />}</div>
       {viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
       <LinkDeviceDialog open={linkOpen} onClose={() => setLinkOpen(false)} />
       <h2>Ilova</h2><div className="p-menu"><Row icon={<Bell />} title="Bildirishnomalar" onClick={p.onNotifications} /><div className="p-row p-static"><span className="p-row-icon"><Globe /></span><span>Til</span><small>O‘zbekcha</small></div><Row icon={<BookOpen />} title="Mutolaa rejasi" onClick={p.onProgress} /></div>
       <h2>Yordam</h2><div className="p-menu"><Row icon={<CircleHelp />} title="Ko‘p so‘raladigan savollar" onClick={() => open("faq")} /><Row icon={<Info />} title="Loyiha haqida" onClick={() => open("about")} /></div>
       <div className="p-settings-brand"><BookOpen size={23} /><strong>BIR ILM</strong><span>Bir hafta. Bir kitob. Bir qadam oldinga.</span><small>Ilova versiyasi 0.1.0</small></div>
     </div>}
+    {screen === "password" && <div className="p-settings"><ChangePasswordForm hasPassword={Boolean(viewer?.hasPassword)} /></div>}
     {screen === "admin" && (role === "admin" && viewer ? <AdminPanel selfId={viewer.userId} /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "orders" && (role === "admin" ? <AdminOrders /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "posts" && <ReadingDashboard mode="profile" name={p.name} pages={p.page} shelfCount={p.shelfCount} streak={p.streak} />}

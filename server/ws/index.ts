@@ -125,7 +125,7 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
 
       // Jonli suhbat faqat ro'yxatdan o'tganlar uchun (LIVE_REQUIRE_LOGIN=0 — o'chirish, masalan sinovda).
       if (process.env.LIVE_REQUIRE_LOGIN !== "0" && !(await isSignedIn(db, client.userId))) {
-        send(client.ws, { type: "error", message: "Suhbatga qo'shilish uchun avval Google yoki Telegram orqali kiring." });
+        send(client.ws, { type: "error", message: "Suhbatga qo'shilish uchun avval hisobingizga kiring." });
         return;
       }
 

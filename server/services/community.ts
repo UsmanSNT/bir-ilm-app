@@ -66,7 +66,7 @@ export function toMediaItem(row: MediaRow): MediaItem {
 /** Yozish amallaridan oldin: mehmon emas, ro'yxatdan o'tgan foydalanuvchi. */
 export async function requireSignedIn(db: Database, userId: string, action = "Yozish"): Promise<void> {
   if (!(await isSignedIn(db, userId))) {
-    throw unauthorized(`${action} uchun Google yoki Telegram orqali kiring.`);
+    throw unauthorized(`${action} uchun hisobingizga kiring (email, Google yoki Telegram).`);
   }
 }
 
