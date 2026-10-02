@@ -1,0 +1,262 @@
+/*
+ * Bir Ilm — "Naqsh" dizayn tizimi (oxirgi qatlam: boshqa uslublar ustidan yoziladi).
+ * Ilhom: Registon koshinlari (lojuvard + firuza), tilla bezak, anor qizili va qog'oz (qo'lyozma) foni.
+ * Shakllar: peshtoq ravog'i, sakkiz qirrali yulduz (rub el-hizb), girih naqshi.
+ */
+:root {
+  --qogoz: #f7f1e4;
+  --qogoz-2: #efe5d1;
+  --sahifa: #fffbf3;
+  --siyoh: #1b1a2e;
+  --siyoh-2: #47445e;
+  --siyoh-3: #7b7789;
+  --chiziq: #e5d9c2;
+  --lojuvard: #1e2f6e;
+  --lojuvard-2: #2c4398;
+  --lojuvard-3: #131f4c;
+  --firuza: #0d7a79;
+  --firuza-2: #17a2a0;
+  --firuza-och: #d8efec;
+  --tilla: #c08a2e;
+  --tilla-2: #e2b65c;
+  --tilla-och: #f6e7c6;
+  --anor: #b83a2f;
+  --anor-och: #f8e0db;
+
+  --r-sm: 12px;
+  --r-md: 20px;
+  --r-lg: 28px;
+  --r-arch: 999px 999px var(--r-md) var(--r-md);
+  --soya-1: 0 1px 2px #1b1a2e0f, 0 4px 14px -6px #1e2f6e2e;
+  --soya-2: 0 2px 6px #1b1a2e12, 0 18px 40px -18px #1e2f6e59;
+  --star: polygon(50% 0%, 64.6% 14.6%, 85.4% 14.6%, 85.4% 35.4%, 100% 50%, 85.4% 64.6%, 85.4% 85.4%, 64.6% 85.4%, 50% 100%, 35.4% 85.4%, 14.6% 85.4%, 14.6% 64.6%, 0% 50%, 14.6% 35.4%, 14.6% 14.6%, 35.4% 14.6%);
+
+  --f-display: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
+  --f-ui: "Manrope Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  --girih: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23e2b65c' stroke-width='1'%3E%3Crect x='18' y='18' width='28' height='28'/%3E%3Crect x='18' y='18' width='28' height='28' transform='rotate(45 32 32)'/%3E%3Ccircle cx='32' cy='32' r='5'/%3E%3Cpath d='M32 0v8M32 56v8M0 32h8M56 32h8M0 0l12 12M64 0L52 12M0 64l12-12M64 64L52 52'/%3E%3C/g%3E%3C/svg%3E");
+  --koshin: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='10' viewBox='0 0 28 10'%3E%3Crect width='28' height='10' fill='%231e2f6e'/%3E%3Cpath d='M0 5L7 0L14 5L7 10Z' fill='%2317a2a0'/%3E%3Cpath d='M14 5L21 0L28 5L21 10Z' fill='%23fffbf3'/%3E%3Ccircle cx='7' cy='5' r='1.6' fill='%23e2b65c'/%3E%3Ccircle cx='21' cy='5' r='1.6' fill='%23c08a2e'/%3E%3C/svg%3E");
+
+  --background: var(--qogoz);
+  --foreground: var(--siyoh);
+  --card: var(--sahifa);
+  --card-foreground: var(--siyoh);
+  --popover: var(--sahifa);
+  --popover-foreground: var(--siyoh);
+  --primary: var(--lojuvard);
+  --primary-foreground: #ffffff;
+  --secondary: var(--firuza-och);
+  --secondary-foreground: var(--firuza);
+  --muted: var(--qogoz-2);
+  --muted-foreground: var(--siyoh-3);
+  --accent: var(--tilla-och);
+  --accent-foreground: var(--siyoh);
+  --destructive: var(--anor);
+  --border: var(--chiziq);
+  --input: var(--chiziq);
+  --ring: var(--firuza-2);
+  --radius: 0.75rem;
+}
+
+/* ───────────── Asos ───────────── */
+html body {
+  background: var(--qogoz);
+  background-image: radial-gradient(120% 60% at 100% 0%, #e9dcc0 0%, transparent 55%), radial-gradient(80% 50% at 0% 100%, #e3ebe6 0%, transparent 60%);
+  background-attachment: fixed;
+  color: var(--siyoh);
+  font: 500 16px/1.55 var(--f-ui);
+}
+body:has(.show-mobile-home) { background-color: var(--qogoz); }
+button, input, textarea, select { font-family: inherit; }
+:focus-visible { outline-color: var(--firuza-2); }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 600; letter-spacing: -0.015em; font-variation-settings: "opsz" 72; }
+h1 em, h2 em { color: var(--firuza); font-weight: 500; font-style: italic; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--tilla); font: 800 11px/1 var(--f-ui); letter-spacing: .2em; text-transform: uppercase;
+}
+.eyebrow::before { content: ""; width: 9px; height: 9px; background: currentColor; clip-path: var(--star); flex: none; }
+.page-heading .eyebrow { color: var(--tilla); }
+
+/* ───────────── Tugmalar ───────────── */
+.button {
+  border: 0; border-radius: 999px;
+  background: linear-gradient(180deg, var(--lojuvard-2), var(--lojuvard));
+  color: #fff; font-weight: 750;
+  box-shadow: 0 1px 0 #ffffff33 inset, 0 8px 18px -10px var(--lojuvard);
+  transition: transform .12s, filter .15s;
+}
+.button:hover:not(:disabled) { filter: brightness(1.12); }
+.button:active:not(:disabled) { transform: translateY(1px) scale(.99); }
+.button.secondary { background: var(--sahifa); color: var(--lojuvard); box-shadow: inset 0 0 0 1.5px var(--chiziq); }
+.icon-btn {
+  border: 1.5px solid var(--chiziq); border-radius: 14px; background: var(--sahifa); color: var(--lojuvard);
+  transition: background .15s, transform .12s;
+}
+.icon-btn:hover:not(:disabled) { background: var(--qogoz-2); }
+.icon-btn:active { transform: scale(.95); }
+.text-btn { color: var(--firuza); }
+
+/* ───────────── Brend ───────────── */
+.brand { display: flex; flex-direction: row; align-items: center; gap: 12px; min-width: 0; }
+.brand-mark { width: 44px; height: 50px; flex: none; overflow: hidden; border-radius: var(--r-arch); box-shadow: 0 0 0 2px var(--tilla-2), 0 6px 14px -6px var(--lojuvard); background: #fff; }
+.brand-mark img { width: 100%; height: 100%; object-fit: cover; }
+.brand-text { display: grid; line-height: 1.05; min-width: 0; }
+.brand .wordmark { font: 700 24px/1 var(--f-display); letter-spacing: -.02em; color: var(--lojuvard); font-variation-settings: "opsz" 144, "SOFT" 50; }
+.brand .brand-tag { margin-top: 4px; color: var(--tilla); font-size: 10.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
+
+/* ───────────── Qobiq: top bar va dock ───────────── */
+body .app-shell { display: block; width: auto; max-width: none; min-height: 100dvh; margin: 0 0 0 124px; border: 0; background: transparent; grid-template-columns: none; }
+body .app-shell .app-main { display: flex; flex-direction: column; min-height: 100dvh; }
+body .app-shell .app-header {
+  position: sticky; top: 0; z-index: 40;
+  align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 0; padding: 14px clamp(16px, 3vw, 40px);
+  border: 0; border-image: none;
+  background: #f7f1e4d9; backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+}
+body .app-shell .app-header::after { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 6px; background: var(--koshin) repeat-x; background-size: 28px 6px; opacity: .9; pointer-events: none; }
+@media (min-width: 981px) { .app-shell .app-header { display: flex; } }
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.topbar-status { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; background: var(--firuza-och); color: var(--firuza); font-size: 12px; font-weight: 800; white-space: nowrap; }
+.topbar-avatar {
+  width: 42px; height: 48px; padding: 2px; border: 0; border-radius: var(--r-arch); flex: none;
+  background: conic-gradient(from 210deg, var(--tilla-2), var(--firuza-2), var(--lojuvard-2), var(--anor), var(--tilla-2));
+}
+.topbar-avatar span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: inherit; background: var(--sahifa); color: var(--lojuvard); font: 800 17px var(--f-ui); border: 2px solid var(--sahifa); }
+body .app-shell .workspace { width: 100%; max-width: 1180px; margin: 0 auto; padding: 34px clamp(16px, 3vw, 40px) 64px; flex: 1; }
+body .app-shell .page-heading { border: 0; border-image: none; padding-top: 0; }
+body .app-shell .page-heading h1 { font-size: clamp(30px, 4.2vw, 46px); line-height: 1.05; color: var(--siyoh); }
+.heading-actions { display: none !important; }
+.desktop-footer { display: flex; justify-content: space-between; gap: 12px; padding: 22px clamp(16px, 3vw, 40px) 28px; border-top: 1px solid var(--chiziq); color: var(--siyoh-3); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+
+.dock {
+  position: fixed; z-index: 50; left: 16px; top: 16px; bottom: 16px; width: 92px;
+  display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 18px 0;
+  border-radius: 30px; color: #e9e4f7;
+  background: var(--girih) center / 64px, linear-gradient(180deg, var(--lojuvard-2), var(--lojuvard) 45%, var(--lojuvard-3));
+  background-blend-mode: soft-light, normal;
+  box-shadow: 0 0 0 1px #ffffff14 inset, var(--soya-2);
+}
+.dock[data-mode="store"] { background: var(--girih) center / 64px, linear-gradient(180deg, #13716f, #0b4d4d 50%, #07302f); background-blend-mode: soft-light, normal; }
+.dock::before { content: ""; position: absolute; inset: 7px; border-radius: 24px; border: 1px solid #e2b65c40; pointer-events: none; }
+.dock-logo { width: 52px; height: 60px; overflow: hidden; border-radius: var(--r-arch); box-shadow: 0 0 0 2px var(--tilla-2); background: #fff; }
+.dock-logo img { width: 100%; height: 100%; object-fit: cover; }
+.dock-items { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; width: 100%; }
+.dock-item, .dock-star { position: relative; display: grid; justify-items: center; gap: 5px; width: 76px; padding: 8px 0; border: 0; background: none; color: inherit; }
+.dock-icon { position: relative; display: grid; place-items: center; width: 48px; height: 40px; border-radius: 14px; transition: background .18s, color .18s; }
+.dock-item:hover .dock-icon { background: #ffffff14; }
+.dock-label { font-size: 11px; font-weight: 750; letter-spacing: .01em; opacity: .78; }
+.dock-item[aria-current="page"] { color: var(--tilla-2); }
+.dock-item[aria-current="page"] .dock-icon { background: #ffffff1c; box-shadow: inset 0 0 0 1px #e2b65c55; }
+.dock-item[aria-current="page"] .dock-label { opacity: 1; }
+.dock-item[aria-current="page"]::before { content: ""; position: absolute; left: -5px; top: 21px; width: 9px; height: 9px; background: var(--tilla-2); clip-path: var(--star); }
+.dock-badge { position: absolute; top: -2px; right: 0; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px; background: var(--anor); color: #fff; font: 800 11px/19px var(--f-ui); text-align: center; box-shadow: 0 0 0 2px var(--lojuvard); }
+.dock-star { margin: 10px 0; }
+.dock-star-shape {
+  display: grid; place-items: center; width: 66px; height: 66px;
+  background: linear-gradient(135deg, #f3d48d, var(--tilla-2) 45%, var(--tilla));
+  clip-path: var(--star); transition: transform .35s cubic-bezier(.2,.9,.3,1.3);
+  filter: drop-shadow(0 6px 10px #0006);
+}
+.dock-star-inner { display: grid; place-items: center; width: 50px; height: 50px; clip-path: var(--star); background: linear-gradient(160deg, var(--firuza-2), var(--firuza)); color: #fff; }
+.dock[data-mode="store"] .dock-star-inner { background: linear-gradient(160deg, var(--lojuvard-2), var(--lojuvard)); }
+.dock-star:hover .dock-star-shape { transform: rotate(22.5deg); }
+.dock-star:hover .dock-star-inner svg { transform: rotate(-22.5deg); }
+.dock-star .dock-label { color: var(--tilla-2); opacity: 1; }
+
+/* ───────────── Kartalar va dialoglar ───────────── */
+.card { background: var(--sahifa); border-color: var(--chiziq); border-radius: var(--r-md); box-shadow: var(--soya-1); }
+.app-dialog { border-radius: var(--r-lg) !important; background: var(--sahifa) !important; border-color: var(--chiziq) !important; }
+.app-dialog::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 8px; border-radius: var(--r-lg) var(--r-lg) 0 0; background: var(--koshin) repeat-x; background-size: 28px 8px; }
+.app-dialog [data-slot="dialog-title"] { font-family: var(--f-display); color: var(--siyoh); }
+input:focus, textarea:focus, select:focus { border-color: var(--firuza-2); }
+.splash { background: var(--qogoz); }
+
+@media (max-width: 980px) {
+  body .app-shell { margin-left: 0; }
+  body .app-shell .app-header { padding: 10px 16px; }
+  .topbar-status { display: none; }
+  .brand-mark { width: 38px; height: 44px; }
+  .brand .wordmark { font-size: 21px; }
+  .dock {
+    left: 10px; right: 10px; top: auto; bottom: max(10px, env(safe-area-inset-bottom)); width: auto; height: 74px;
+    flex-direction: row; padding: 0 8px; border-radius: 26px;
+  }
+  .dock::before { inset: 5px; border-radius: 21px; }
+  .dock-logo { display: none; }
+  .dock-items { flex-direction: row; justify-content: space-around; gap: 0; height: 100%; }
+  .dock-item, .dock-star { width: auto; flex: 1; padding: 0; gap: 3px; }
+  .dock-icon { width: 46px; height: 34px; }
+  .dock-label { font-size: 10.5px; }
+  .dock-item[aria-current="page"]::before { left: 50%; top: 4px; transform: translateX(-50%); width: 7px; height: 7px; }
+  .dock-star { margin: -34px 0 0; align-self: flex-start; }
+  .dock-star-shape { width: 70px; height: 70px; }
+  .dock-star-inner { width: 54px; height: 54px; }
+  body .app-shell .workspace { padding: 22px 16px calc(110px + env(safe-area-inset-bottom)); }
+  .desktop-footer { display: none; }
+}
+@media (max-width: 440px) { .brand .brand-tag { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .dock-star-shape, .dock-icon { transition: none; }
+}
+
+/* ───────────── Bosh sahifa ───────────── */
+@media (max-width: 980px) { body .app-shell.show-mobile-home .app-header { display: flex; } }
+.m-home-screen .m-top { min-height: 0; padding: 0; justify-content: flex-end; }
+.m-home-screen .m-wordmark, .m-home-screen .m-top .m-icon { display: none; }
+.m-daily-ring { background: conic-gradient(var(--firuza) var(--daily-progress), var(--firuza-och) 0); }
+.m-daily-ring::before { background: var(--qogoz); }
+.m-date { margin: 6px 0 2px; }
+.m-hello { font-family: var(--f-display); font-weight: 600; letter-spacing: -.015em; color: var(--siyoh); font-size: clamp(30px, 4.2vw, 44px) !important; line-height: 1.05; }
+.m-hello em { color: var(--firuza); font-weight: 500; font-style: italic; }
+.m-sub { color: var(--siyoh-3); }
+.m-card { border-color: var(--chiziq); border-radius: var(--r-md); background: var(--sahifa); box-shadow: var(--soya-1); }
+
+/* Hafta kitobi — peshtoq (lojuvard, girih, tilla) */
+.m-home-screen .m-week {
+  position: relative; isolation: isolate; overflow: hidden;
+  padding: 22px 22px 30px; border: 0; border-radius: var(--r-lg); color: #f3eedf;
+  background: linear-gradient(120deg, var(--lojuvard-3), var(--lojuvard) 50%, #22397f);
+  box-shadow: var(--soya-2);
+}
+.m-home-screen .m-week::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--girih) center / 64px; opacity: .22; mask-image: linear-gradient(90deg, #000 0%, transparent 75%); -webkit-mask-image: linear-gradient(90deg, #000 0%, transparent 75%); }
+.m-home-screen .m-week::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: var(--koshin) repeat-x; background-size: 28px 8px; }
+.m-week .m-kicker { display: inline-flex; align-items: center; gap: 8px; color: var(--tilla-2); font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
+.m-week .m-kicker::before { content: ""; width: 9px; height: 9px; background: currentColor; clip-path: var(--star); }
+.m-week h2 { color: #fff; font-family: var(--f-display); font-weight: 500; }
+.m-week .m-author, .m-week .m-blurb { color: #d8d6ea; }
+.m-week-row > .m-week-cover, .m-week-row > .m-cover { border-radius: 10px; box-shadow: 0 0 0 1.5px #e2b65c88, 0 14px 28px -12px #000a; }
+.m-week-cover { border: 0; background: none; padding: 0; }
+.m-week-edit, .m-talk-remind { border: 1.5px solid #ffffff40; background: #ffffff14; color: #fff; }
+.m-talk-remind.on { background: #e2b65c33; border-color: var(--tilla-2); }
+.m-week-admin { border-color: #e2b65c88; background: #ffffff10; color: #fff; }
+.m-week-admin small { color: #cfcde3; }
+.m-week-add { background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 40%, var(--tilla)); color: var(--lojuvard-3); }
+.m-talk-when { border-color: #ffffff26; background: #ffffff12; color: #fff; }
+.m-talk-when small { color: #cfcde3; }
+.m-talk-badge { background: var(--tilla-och); color: var(--lojuvard-3); }
+.m-talk-badge.live { background: var(--anor); color: #fff; }
+.m-talk-none { color: var(--tilla-2); }
+.m-week-labels { color: #cfcde3; }
+.m-week-labels strong { color: var(--tilla-2); }
+.m-week-track { background: #ffffff1f; }
+.m-week-track > span, .m-week-timeline.is-finishing .m-week-track > span { background: var(--tilla-2); }
+.m-week-track svg { background: var(--lojuvard); color: var(--tilla-2); }
+.m-week-timeline.is-finishing .m-week-track svg, .m-week-timeline.is-finishing .m-week-labels strong { color: var(--tilla-2); }
+.m-week .m-progress-track { background: #ffffff1f; }
+.m-week .m-progress-track span { background: var(--tilla-2); }
+.m-week .m-progress strong { color: #fff; }
+.m-week .m-listened { color: #cfcde3; }
+.m-week .m-primary {
+  border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 40%, var(--tilla)); color: var(--lojuvard-3); font-weight: 800;
+  box-shadow: 0 1px 0 #fff8 inset, 0 10px 22px -12px #000;
+}
+.m-primary { border-radius: 999px; background: linear-gradient(180deg, var(--lojuvard-2), var(--lojuvard)); }
+
+/* Bo'limlar foni: qog'oz hamma joyda bir xil */
+body .app-shell.show-community .app-main, body .app-shell.show-community .app-tabs, body .app-shell.show-community .workspace, body .app-shell.show-community .community-screen,
+body .app-shell.show-profile .app-main, body .app-shell.show-profile .app-tabs, body .app-shell.show-profile .workspace,
+body .app-shell.show-mobile-shelf .app-main, body .app-shell.show-mobile-shelf .workspace,
+body .app-shell.show-mobile-home .app-main, body .app-shell.show-mobile-home .app-tabs, body .app-shell.show-mobile-home .workspace { background: transparent; }
+@media (max-width: 980px) { body .app-shell.show-community .app-header { display: flex; } }

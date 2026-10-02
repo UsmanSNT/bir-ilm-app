@@ -21,7 +21,8 @@ import {
   UserRound,
   Wifi,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import Dock from "./dock";
 import {
   Dialog,
   DialogClose,
@@ -69,10 +70,10 @@ type AppStatePayload = {
 };
 
 const nav = [
-  ["home", "Home", Home],
-  ["community", "Community", Users],
-  ["talks", "Suhbatlar", Mic],
-  ["shelf", "Javonim", BookOpen],
+  ["home", "Bosh sahifa", Home],
+  ["community", "Gurung", Users],
+  ["talks", "Suhbat", Mic],
+  ["shelf", "Javon", BookOpen],
   ["profile", "Profil", UserRound],
 ] as const;
 
@@ -84,7 +85,7 @@ const initial: State = {
   note: "",
   reading: false,
   talk: false,
-  onboarded: false,
+  onboarded: true, // Kirishda ism so‘ralmaydi: ism hisobdan (Google/Telegram) yoki profildan olinadi.
   comments: [],
   streak: 0,
   points: 120,
@@ -149,12 +150,12 @@ function getInitialState() {
 
 function Brand() {
   return (
-    <div className="brand brand-with-logo">
-      <Image src="/assets/bir-ilm-logo.jpg" alt="BIR ILM" width={62} height={62} />
-      <div>
-        <span className="wordmark">BIR ILM</span>
-        <span className="brand-tag">SINANG, QO&apos;LLANG, ULASHING</span>
-      </div>
+    <div className="brand">
+      <span className="brand-mark"><Image src="/assets/bir-ilm-logo.jpg" alt="" width={44} height={44} /></span>
+      <span className="brand-text">
+        <span className="wordmark">Bir Ilm</span>
+        <span className="brand-tag">Sinang · qo‘llang · ulashing</span>
+      </span>
     </div>
   );
 }
@@ -411,47 +412,33 @@ export default function App() {
     <>
       <Toaster richColors position="top-center" />
       <div className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}${tab === "shelf" ? " show-mobile-shelf" : ""}${tab === "profile" ? " show-profile" : ""}`}>
-        <aside className="desktop-rail">
-          <Brand />
-          <div className="rail-intro"><span>KITOB BILAN</span><strong>Har kuningiz<br/>mazmunli.</strong><p>O‘qing. Fikrlashing.<br/>Birga o‘sing.</p></div>
-          <div className="rail-status">
-            <Wifi size={18} />
-            <span>{backendLabel}</span>
-          </div>
-        </aside>
+        <Dock
+          mode="main"
+          label="Asosiy bo'limlar"
+          left={nav.slice(0, 2).map(([id, label, icon]) => ({ id, label, icon, active: tab === id, onClick: () => go(id) }))}
+          right={nav.slice(2, 4).map(([id, label, icon]) => ({ id, label, icon, active: tab === id, onClick: () => go(id) }))}
+          center={{ label: "Profil", ariaLabel: "Profil", icon: UserRound, onClick: () => go("profile") }}
+        />
 
         <main className="app-main">
           <header className="app-header">
-            {tab === "community" ? (
-              <>
-                <h1 className="community-nav-title">Community</h1>
-                <div className="community-nav-actions">
-                  <PomodoroButton className="feed-icon" />
-                  <button className="feed-icon" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={21} />{badge}</button>
-                </div>
-              </>
-            ) : (
-              <><Brand /><div className="header-actions"><PomodoroButton className="icon-btn" /><button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} />{badge}</button></div></>
-            )}
+            <Brand />
+            <div className="header-actions">
+              <span className="topbar-status" title="Ma'lumotlar qayerda saqlanmoqda"><Wifi size={15} />{backendLabel}</span>
+              <PomodoroButton className="icon-btn" />
+              <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} />{badge}</button>
+              <button className="topbar-avatar" aria-label="Profil" onClick={() => go("profile")}><span>{(data.name || "K").slice(0, 1).toUpperCase()}</span></button>
+            </div>
           </header>
 
           <Tabs value={tab} onValueChange={go} className="app-tabs">
-            <TabsList className="navigation" aria-label="Asosiy bo'limlar">
-              {nav.map(([id, label, Icon]) => (
-                <TabsTrigger value={id} key={id}>
-                  <Icon size={22} strokeWidth={1.8} />
-                  <span>{label}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
             <div className="workspace">
               <div className="page-heading">
                 <div>
-                  <p className="eyebrow">BIR HAFTA. BIR KITOB.</p>
+                  <p className="eyebrow">Bir hafta · bir kitob</p>
                   <h1>
                     {tab === "home"
-                      ? `Salom, ${data.name}`
+                      ? <>Assalomu alaykum, <em>{data.name}</em></>
                       : tab === "leaders" ? "Faollar" : nav.find((item) => item[0] === tab)?.[1]}
                   </h1>
                 </div>
@@ -498,20 +485,7 @@ export default function App() {
               </TabsContent>
 
               <TabsContent value="community">
-                <section className="community-screen" aria-label="Community feed">
-                  <div className="community-topbar">
-                    <h2>Community</h2>
-                    <div>
-                      <button
-                        className="feed-icon"
-                        aria-label="Bildirishnomalar"
-                        onClick={() => setModal("notifications")}
-                      >
-                        <Bell size={21} />
-                        {badge}
-                      </button>
-                    </div>
-                  </div>
+                <section className="community-screen" aria-label="Gurung">
                   <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
                 </section>
               </TabsContent>
@@ -631,7 +605,7 @@ export default function App() {
           }} />
 
           <footer className="desktop-footer">
-            SINANG, QO&apos;LLANG, ULASHING <span>Bir Ilm · Appga tayyor web</span>
+            <span>Sinang · qo‘llang · ulashing</span> <span>© Bir Ilm</span>
           </footer>
         </main>
       </div>

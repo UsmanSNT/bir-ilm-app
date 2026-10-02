@@ -1,11 +1,11 @@
 /* Suhbatlar bo'limi — xonaga kirishdan oldingi asosiy oyna. */
 .talks-board {
-  --tb-green: #157a52;
-  --tb-green-dark: #0f5c3d;
-  --tb-mint: #e6f4ec;
-  --tb-line: #dfeae4;
-  --tb-ink: #14261f;
-  --tb-muted: #5d706a;
+  --tb-green: #192558;
+  --tb-green-dark: #202755;
+  --tb-mint: #e6f4f3;
+  --tb-line: #daefed;
+  --tb-ink: #131731;
+  --tb-muted: #605d70;
   display: grid;
   gap: 16px;
   padding-bottom: 8px;
@@ -18,7 +18,7 @@
   padding: 5px;
   border: 1px solid var(--tb-line);
   border-radius: 999px;
-  background: #fbfdfc;
+  background: #fcf9f3;
 }
 .tb-filters button {
   display: flex;
@@ -30,7 +30,7 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: #33463f;
+  color: #162250;
   font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
@@ -39,7 +39,7 @@
 .tb-filters button.active {
   background: var(--tb-green);
   color: #fff;
-  box-shadow: 0 4px 12px #157a5230;
+  box-shadow: 0 4px 12px #19255830;
 }
 .tb-filters svg { flex-shrink: 0; }
 
@@ -49,9 +49,9 @@
   justify-content: center;
   gap: 8px;
   min-height: 46px;
-  border: 1.5px dashed #9fcfb6;
+  border: 1.5px dashed #6be5e3;
   border-radius: 14px;
-  background: #f5fbf8;
+  background: #fcf9f3;
   color: var(--tb-green);
   font-weight: 700;
   cursor: pointer;
@@ -65,13 +65,13 @@
   gap: 20px;
   align-items: center;
   padding: 16px;
-  border: 1px solid #cfe7da;
+  border: 1px solid #cde9e7;
   border-radius: 18px;
-  background: #eef8f2;
+  background: #faf5ec;
 }
 .tb-feature.is-live {
   border-color: #f2c6c6;
-  background: linear-gradient(135deg, #fff5f4, #eef8f2 70%);
+  background: linear-gradient(135deg, #fff5f4, #faf5ec 70%);
 }
 .tb-stretch {
   position: absolute;
@@ -82,11 +82,11 @@
   background: transparent;
   cursor: pointer;
 }
-.tb-stretch:focus-visible { outline: 3px solid #18b88d; outline-offset: 2px; }
+.tb-stretch:focus-visible { outline: 3px solid #273b8a; outline-offset: 2px; }
 .tb-feature-body { display: grid; gap: 12px; min-width: 0; }
 .tb-feature-body > *, .tb-chevron { pointer-events: none; }
 .tb-feature .tb-action { pointer-events: auto; position: relative; z-index: 1; }
-.tb-chevron { color: #33463f; }
+.tb-chevron { color: #162250; }
 
 .tb-cover {
   display: grid;
@@ -94,13 +94,13 @@
   overflow: hidden;
   border-radius: 12px;
   color: #fff;
-  box-shadow: 0 8px 18px #0f2a2020;
+  box-shadow: 0 8px 18px #12173120;
   pointer-events: none;
 }
 .tb-cover img { width: 100%; height: 100%; object-fit: cover; }
 .tb-cover b {
   padding: 10px;
-  font-family: Georgia, serif;
+  font-family: var(--f-display);
   font-weight: 500;
   line-height: 1.15;
   text-align: center;
@@ -119,9 +119,9 @@
   gap: 7px;
   width: fit-content;
   padding: 5px 10px;
-  border: 1px solid #b9dfca;
+  border: 1px solid #b9dfdd;
   border-radius: 8px;
-  background: #dff2e7;
+  background: #e0f1f0;
   color: var(--tb-green-dark);
   font-size: 13px;
   font-weight: 700;
@@ -149,11 +149,11 @@
   flex-wrap: wrap;
   gap: 6px 22px;
   margin: 0;
-  color: #3c4f48;
+  color: #2f2d4f;
   font-size: 16px;
 }
 .tb-meta span { display: inline-flex; align-items: center; gap: 8px; }
-.tb-meta svg { color: #56685f; flex-shrink: 0; }
+.tb-meta svg { color: #595668; flex-shrink: 0; }
 
 .tb-feature-foot {
   display: flex;
@@ -170,7 +170,7 @@
   gap: 8px;
   min-height: 44px;
   padding: 0 18px;
-  border: 1.5px solid #bfe0cd;
+  border: 1.5px solid #bde2df;
   border-radius: 14px;
   background: #fff;
   color: var(--tb-green-dark);
@@ -197,7 +197,7 @@
   gap: 4px;
   border: 0;
   background: transparent;
-  color: #4a5c56;
+  color: #4e4c5a;
   font-size: 16px;
   cursor: pointer;
 }
@@ -208,17 +208,17 @@
   gap: 20px;
   align-items: center;
   padding: 14px 18px 14px 14px;
-  border: 1px solid #edf1ef;
+  border: 1px solid #f7f0e2;
   border-radius: 16px;
   background: #fff;
-  box-shadow: 0 4px 14px #1b3b2f0d;
+  box-shadow: 0 4px 14px #1a20460d;
 }
 .tb-past-body { display: grid; gap: 10px; min-width: 0; }
 .tb-past h4 { margin: 0; color: var(--tb-ink); font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
 .tb-past .tb-meta { font-size: 15px; }
 .tb-wave { display: flex; align-items: center; gap: 3px; height: 24px; overflow: hidden; }
-.tb-wave i { flex: 0 0 3px; border-radius: 2px; background: #c9d3cf; }
-.tb-wave i.on { background: #1f9a64; }
+.tb-wave i { flex: 0 0 3px; border-radius: 2px; background: #dbceb7; }
+.tb-wave i.on { background: #223378; }
 .tb-play {
   display: grid;
   place-items: center;
@@ -231,14 +231,14 @@
   cursor: pointer;
 }
 .tb-play svg { margin-left: 3px; }
-.tb-play:hover { background: #d6eee0; }
+.tb-play:hover { background: #d7edec; }
 
 .tb-empty {
   margin: 0;
   padding: 22px 18px;
-  border: 1px dashed #cfe0d7;
+  border: 1px dashed #c8e7e5;
   border-radius: 16px;
-  background: #f8fbfa;
+  background: #fcf9f3;
   color: var(--tb-muted);
   text-align: center;
 }
@@ -253,7 +253,7 @@
   padding: 20px 22px;
   border: 0;
   border-radius: 18px;
-  background: #f2f6f4;
+  background: #fbf6ed;
   color: var(--tb-ink);
   text-align: left;
   cursor: pointer;
@@ -263,15 +263,15 @@
   place-items: center;
   width: 72px;
   height: 72px;
-  border: 1px solid #cfe7da;
+  border: 1px solid #cde9e7;
   border-radius: 50%;
-  background: #eaf6ef;
+  background: #f9f3e7;
   color: var(--tb-green);
 }
 .tb-share-copy { display: grid; gap: 6px; }
 .tb-share-copy strong { font-size: 18px; }
-.tb-share-copy small { color: #4d5f58; font-size: 15px; line-height: 1.45; }
-.tb-share-art { color: #9bb9a9; }
+.tb-share-copy small { color: #504e5e; font-size: 15px; line-height: 1.45; }
+.tb-share-art { color: #54e1df; }
 
 /* Tinglash tugmalari va to'lqin chizig'i (joyni tanlash). */
 .tb-past-actions { display: flex; align-items: center; gap: 4px; }
@@ -283,10 +283,10 @@
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: #4a5c56;
+  color: #4e4c5a;
   cursor: pointer;
 }
-.tb-kebab:hover { background: #f1f5f3; }
+.tb-kebab:hover { background: #faf5ec; }
 button.tb-wave { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
 button.tb-wave:disabled { cursor: default; }
 .tb-manage { padding: 0 10px; }
@@ -327,7 +327,7 @@ button.tb-wave:disabled { cursor: default; }
   display: grid;
   place-items: end center;
   padding: 16px;
-  background: rgba(15, 30, 25, 0.45);
+  background: rgba(15, 18, 40, 0.45);
 }
 @media (min-width: 641px) { .tb-sheet-backdrop { place-items: center; } }
 .tb-sheet {
@@ -339,13 +339,13 @@ button.tb-wave:disabled { cursor: default; }
   padding: 18px;
   border-radius: 20px;
   background: #fff;
-  box-shadow: 0 24px 60px rgba(15, 30, 25, 0.25);
+  box-shadow: 0 24px 60px rgba(15, 18, 40, 0.25);
 }
 .tb-sheet header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .tb-sheet header strong, .tb-sheet header small { display: block; }
 .tb-sheet header strong { color: var(--tb-ink); font-size: 18px; }
 .tb-sheet header small { margin-top: 2px; color: var(--tb-muted); }
-.tb-sheet header button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 10px; background: #f1f5f3; cursor: pointer; }
+.tb-sheet header button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 10px; background: #faf5ec; cursor: pointer; }
 .tb-sheet h4 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 6px 0 0; color: var(--tb-ink); font-size: 15px; }
 .tb-sheet h4 span { color: var(--tb-muted); font-size: 12px; font-weight: 500; }
 .tb-sheet-empty { margin: 0; color: var(--tb-muted); font-size: 14px; }
@@ -356,7 +356,7 @@ button.tb-wave:disabled { cursor: default; }
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
-  border: 1px solid #e3ebe7;
+  border: 1px solid #def0ef;
   border-radius: 12px;
   color: var(--tb-green-dark);
 }
@@ -386,7 +386,7 @@ button.tb-wave:disabled { cursor: default; }
   gap: 6px;
   min-height: 38px;
   padding: 0 14px;
-  border: 1.5px solid #bfe0cd;
+  border: 1.5px solid #bde2df;
   border-radius: 12px;
   background: #fff;
   color: var(--tb-green-dark);
@@ -401,17 +401,17 @@ button.tb-wave:disabled { cursor: default; }
   align-items: center;
   gap: 12px;
   padding: 14px;
-  border: 1.5px dashed #9fcfb6;
+  border: 1.5px dashed #6be5e3;
   border-radius: 14px;
-  background: #f5fbf8;
+  background: #fcf9f3;
   color: var(--tb-green-dark);
   cursor: pointer;
 }
 .tb-upload strong, .tb-upload small { display: block; }
 .tb-upload small { margin-top: 2px; color: var(--tb-muted); font-size: 12px; }
 .tb-upload.is-disabled, .tb-sheet-btn.is-disabled { opacity: 0.55; pointer-events: none; }
-.tb-progress { display: grid; gap: 6px; font-size: 13px; color: #3f5a50; }
-.tb-progress .bar { height: 6px; overflow: hidden; border-radius: 99px; background: #e3ebe7; }
+.tb-progress { display: grid; gap: 6px; font-size: 13px; color: #1b295f; }
+.tb-progress .bar { height: 6px; overflow: hidden; border-radius: 99px; background: #def0ef; }
 .tb-progress .bar i { display: block; height: 100%; background: var(--tb-green); }
 .tb-progress button { justify-self: start; border: 0; background: transparent; color: #b4232f; cursor: pointer; }
 .tb-danger {
@@ -438,14 +438,14 @@ button.tb-wave:disabled { cursor: default; }
   width: 100%;
   min-height: 42px;
   padding: 0 10px;
-  border: 1px solid #cfe0d7;
+  border: 1px solid #c8e7e5;
   border-radius: 10px;
   background: #fff;
   font: inherit;
   font-size: 15px;
 }
-.tb-resched-announce { display: flex; align-items: center; gap: 8px; color: #294256; font-size: 13px; cursor: pointer; }
-.tb-resched-announce input { width: 18px; height: 18px; margin: 0; accent-color: #157a52; }
+.tb-resched-announce { display: flex; align-items: center; gap: 8px; color: #2b2947; font-size: 13px; cursor: pointer; }
+.tb-resched-announce input { width: 18px; height: 18px; margin: 0; accent-color: #192558; }
 .tb-resched-save { justify-self: start; }
 
 /* Suhbat oynasidagi «yozilmoqda» belgisi — hamma qatnashchi ko'radi. */

@@ -31,6 +31,7 @@ import { TALKS_CHANGED, WEEKDAYS, clock, countdown, dayMonth, nextTalk, toggleTa
 import type { Book } from "@/shared/contract";
 import { dayKey, listenedLabel, useLibrarySave } from "./library-store";
 import { PomodoroButton } from "./focus-timer";
+import { uzDate } from "./uz-date";
 
 type Save = {
   joined: boolean;
@@ -346,7 +347,7 @@ export default function MobileScreens({
           </header>
 
           <div className="m-greeting-row">
-            <div><h1 className="m-hello">Salom, {name}!</h1><p className="m-sub">Bugun ham bir sahifa oldinga.</p></div>
+            <div><p className="eyebrow m-date">{uzDate(new Date())}</p><h1 className="m-hello">Assalomu alaykum, <em>{name}</em></h1><p className="m-sub">Bugun ham bir sahifa oldinga.</p></div>
           </div>
 
           <section className="m-card m-week">

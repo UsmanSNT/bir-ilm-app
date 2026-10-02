@@ -66,7 +66,7 @@ function waveBars(seed: string, count = 42) {
 
 function Cover({ title, url, color, size }: { title: string; url?: string | null; color?: string; size: "lg" | "sm" }) {
   return (
-    <span className={`tb-cover tb-cover-${size}`} style={url ? undefined : { background: color ?? "#1d5b48" }} aria-hidden="true">
+    <span className={`tb-cover tb-cover-${size}`} style={url ? undefined : { background: color ?? "#1e2f6e" }} aria-hidden="true">
       {url ? <img src={url} alt="" loading="lazy" /> : <b>{title}</b>}
     </span>
   );
