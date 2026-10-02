@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   Bell,
@@ -13,6 +13,8 @@ import {
   Flame,
   Headphones,
   Home,
+  LogIn,
+  LogOut,
   LibraryBig,
   Medal,
   MonitorSmartphone,
@@ -23,6 +25,7 @@ import {
   Trophy,
   Upload,
   Users,
+  UserRound,
   Wifi,
   X,
 } from "lucide-react";
@@ -43,6 +46,7 @@ import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
 import BookStore from "./book-store";
 import Dock from "./dock";
+import { AuthProvider, useAuth } from "./auth";
 import { uzDate } from "./uz-date";
 import MyBooks from "./my-books";
 import {
@@ -264,7 +268,13 @@ function mergeLeaders(
   });
 }
 
-export default function App() {
+export default function Page() {
+  return <AuthProvider><App /></AuthProvider>;
+}
+
+function App() {
+  const { user, openAuth, logout, rename } = useAuth();
+  const displayName = user?.name ?? "Mehmon";
   const [data, setData] = useState<State>(initial);
   const [ready, setReady] = useState(false);
   const [tab, setTab] = useState("home");
@@ -288,8 +298,8 @@ export default function App() {
     "0",
   )}:${String(secs % 60).padStart(2, "0")}`;
   const leaders = useMemo(
-    () => mergeLeaders(data, serverLeaders),
-    [data, serverLeaders],
+    () => mergeLeaders({ ...data, name: displayName }, serverLeaders),
+    [data, displayName, serverLeaders],
   );
   const myRank = Math.max(1, leaders.findIndex((leader) => leader.current) + 1);
   const backendLabel =
@@ -461,6 +471,71 @@ export default function App() {
     );
   }
 
+  const leaderBoard = (
+    <div className="leader-list">
+      {leaders.map((leader, index) => (
+        <article className={`leader-row${leader.current ? " current" : ""}`} key={`${leader.id}-${leader.current ? "me" : "seed"}`}>
+          <span className="rank">{index === 0 ? <Crown size={19} /> : index + 1}</span>
+          <div>
+            <strong>{leader.name}</strong>
+            <small>{leader.pages} sahifa · {leader.comments} izoh · {leader.books} kitob</small>
+          </div>
+          <span className="score">{leader.score}</span>
+        </article>
+      ))}
+    </div>
+  );
+
+  const planPanel = (
+    <div className="home-grid">
+      <div className="stack">
+        {week()}
+        <div className="stats">
+          <div className="mini"><strong>{Math.max(1, Math.ceil((data.total - data.page) / Math.max(1, Math.ceil(secs / 86400))))}</strong><span>kunlik sahifa rejasi</span></div>
+          <div className="mini"><strong>{data.shelf.length}</strong><span>javoningizdagi kitob</span></div>
+        </div>
+        <button className="button full" onClick={() => setModal("progress")}><BookOpen size={18} />Progressni yangilash</button>
+      </div>
+      <div className="stack">
+        <h3 className="section-title">Bugungi reja</h3>
+        <div className="card tasks">
+          {([
+            ["progress", "Kitob o'qish", `${data.page} sahifa o'qildi`, BookOpen],
+            ["note", "Muhim fikr yozish", data.note ? "Fikringiz saqlangan" : "O'qiganingizdan bir xulosa", data.note ? Check : Plus],
+            ["community", "Gurungga post yozish", "Kitobdan fikr yoki iqtibos ulashing", Users],
+          ] as const).map(([id, title, sub, TaskIcon]) => (
+            <button className="task" key={id} onClick={() => (id === "community" ? go("community") : setModal(id))}>
+              <span className="check"><TaskIcon size={20} /></span>
+              <span>{title}<small>{sub}</small></span>
+              <ChevronRight size={18} />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const settingsPanel = (
+    <div className="settings-panel">
+      <NameSettings key={displayName} name={displayName} onSaved={name => { rename(name); update({ name }); }} />
+      {([
+        ["notifications", "Bildirishnomalar", "O'qish va suhbat eslatmalari", Bell],
+        ["progress", "Kitob rejasi", "Sahifa soni va o'qish progressi", BookOpen],
+        ["about", "App holati", "Web, backend va app chiqarish yo'li", Settings],
+      ] as const).map(([id, title, sub, SettingIcon]) => (
+        <button className="setting" key={id} onClick={() => setModal(id)}>
+          <SettingIcon size={22} />
+          <span><strong>{title}</strong><small>{sub}</small></span>
+          <ChevronRight size={18} />
+        </button>
+      ))}
+      <button className="setting setting-danger" onClick={() => { void logout().then(() => go("home")); }}>
+        <LogOut size={22} />
+        <span><strong>Hisobdan chiqish</strong><small>@{user?.login}</small></span>
+      </button>
+    </div>
+  );
+
   function updateProgress(page: number, total = data.total) {
     const next = {
       ...data,
@@ -522,14 +597,15 @@ export default function App() {
             <div className="topbar-actions">
               <span className="topbar-status" title="Ma'lumotlar qayerda saqlanmoqda"><Wifi size={15} />{backendLabel}</span>
               <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={20} /></button>
-              <button className="topbar-avatar" aria-label="Profil" disabled={store} onClick={() => go("profile")}><span>{(data.name.trim() || "K").slice(0, 1).toUpperCase()}</span></button>
+              {user
+                ? <button className="topbar-avatar" aria-label="Profil" disabled={store} onClick={() => go("profile")}><span>{displayName.slice(0, 1).toUpperCase()}</span></button>
+                : <button className="topbar-login" onClick={() => openAuth("login")}><LogIn size={17} />Kirish</button>}
             </div>
           </header>
 
           {store ? (
             <BookStore
               shelf={data.shelf}
-              name={data.name}
               onBack={() => { setStore(false); window.scrollTo({ top: 0 }); }}
               onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }}
             />
@@ -541,10 +617,10 @@ export default function App() {
               <div className="page-heading">
                 <div>
                   <p className="eyebrow">{tab === "home" ? uzDate(new Date()) : headings[tab]?.[0]}</p>
-                  <h1>{tab === "home" ? <>Assalomu alaykum,<br /><em>{data.name}</em></> : headings[tab]?.[1]}</h1>
+                  <h1>{tab === "home" ? <>Assalomu alaykum,<br /><em>{displayName}</em></> : headings[tab]?.[1]}</h1>
                 </div>
                 <FocusTimer onComplete={async session => {
-                  const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", name: data.name, ...session }) });
+                  const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", ...session }) });
                   if (!response.ok) throw Error("Seans saqlanmadi");
                   window.dispatchEvent(new Event("bir-focus-saved"));
                 }} />
@@ -552,91 +628,36 @@ export default function App() {
 
               <TabsContent value="home">
                 <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
-                <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
+                <ReadingDashboard mode="feed" name={displayName} />
               </TabsContent>
               <TabsContent value="profile">
-                <ReadingDashboard mode="profile" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} extra={<>
-                  <MyBooks onStore={openStore} onOpen={book => { setSelected(book); setModal("book"); }} />
-                  <section className="profile-settings" aria-label="Umumiy sozlamalar">
-                    <div className="section-row tight"><h3>Sozlamalar</h3></div>
-                    <label htmlFor="profile-name">Ism</label>
-                    <input id="profile-name" maxLength={40} value={data.name} onChange={e => update({ name: e.target.value })} onBlur={() => { if (!data.name.trim()) update({ name: "Kitobxon" }); }} />
-                    <button className="button" onClick={() => setModal("notifications")}><Bell size={18}/>Bildirishnoma sozlamalari</button>
-                  </section>
-                </>} />
-                <button className="button profile-ranking" onClick={() => go("leaders")}><Trophy size={18}/>Faollar reytingi · #{myRank}</button>
-                <div className="home-grid">
-                  <div className="stack">
-                    {week()}
-                    <div className="stats">
-                      <div className="mini">
-                        <strong>
-                          {Math.max(
-                            1,
-                            Math.ceil(
-                              (data.total - data.page) /
-                                Math.max(1, Math.ceil(secs / 86400)),
-                            ),
-                          )}
-                        </strong>
-                        <span>kunlik sahifa rejasi</span>
-                      </div>
-                      <div className="mini">
-                        <strong>{data.shelf.length}</strong>
-                        <span>javoningizdagi kitob</span>
-                      </div>
-                    </div>
-                    <button className="button full" onClick={() => setModal("progress")}>
-                      <BookOpen size={18} />
-                      Progressni yangilash
-                    </button>
-                  </div>
-
-                  <div className="stack">
-                    <h3 className="section-title">Bugungi reja</h3>
-                    <div className="card tasks">
-                      {[
-                        ["progress", "Kitob o'qish", `${data.page} sahifa o'qildi`, BookOpen],
-                        [
-                          "note",
-                          "Muhim fikr yozish",
-                          data.note ? "Fikringiz saqlangan" : "O'qiganingizdan bir xulosa",
-                          data.note ? Check : Plus,
-                        ],
-                        ["community", "Gurungga post yozish", "Kitobdan fikr yoki iqtibos ulashing", Users],
-                      ].map(([id, title, sub, Icon]) => {
-                        const TaskIcon = Icon as typeof Home;
-                        return (
-                          <button
-                            className="task"
-                            key={id as string}
-                            onClick={() =>
-                              id === "community" ? go("community") : setModal(id as string)
-                            }
-                          >
-                            <span className="check">
-                              <TaskIcon size={20} />
-                            </span>
-                            <span>
-                              {title as string}
-                              <small>{sub as string}</small>
-                            </span>
-                            <ChevronRight size={18} />
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                  </div>
-                </div>
+                {user ? <ReadingDashboard mode="profile" name={displayName}
+                  highlights={[
+                    { icon: Flame, value: data.streak, label: "kun streak", tone: "anor" },
+                    { icon: Trophy, value: `#${myRank}`, label: "reyting", tone: "tilla" },
+                    { icon: Medal, value: activityFromState(data).score, label: "ball", tone: "firuza" },
+                    { icon: BookOpen, value: data.page, label: "bet o‘qildi", tone: "lojuvard" },
+                  ]}
+                  tabs={[
+                    { id: "books", label: "Kitoblarim", content: <MyBooks onStore={openStore} onOpen={book => { setSelected(book); setModal("book"); }} /> },
+                    { id: "leaders", label: "Faollar", content: leaderBoard },
+                    { id: "plan", label: "Reja", content: planPanel },
+                    { id: "settings", label: "Sozlamalar", content: settingsPanel },
+                  ]} />
+                  : <section className="guest-card">
+                      <span className="guest-mark" aria-hidden="true"><UserRound size={30} /></span>
+                      <h2>Kitobxon sahifangiz</h2>
+                      <p>Postlaringiz, kuzatuvchilaringiz, streak va reytingingizni ko‘rish uchun hisobingizga kiring.</p>
+                      <div className="guest-actions"><button className="button" onClick={() => openAuth("login")}>Kirish</button><button className="button secondary" onClick={() => openAuth("register")}>Hisob ochish</button></div>
+                    </section>}
               </TabsContent>
 
               <TabsContent value="community">
-                <ReadingDashboard mode="gurung" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
+                <ReadingDashboard mode="gurung" name={displayName} />
               </TabsContent>
 
               <TabsContent value="talks">
-                <LiveSession name={data.name} date={session} onComments={() => go("community")} />
+                <LiveSession name={displayName} date={session} onComments={() => go("community")} />
                 <div className="section-row">
                   <h3>O&apos;tgan kitoblar suhbatlari</h3>
                   <Headphones size={22} />
@@ -713,93 +734,6 @@ export default function App() {
                 <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
               </TabsContent>
 
-              <TabsContent value="leaders">
-                <button className="text-btn profile-ranking" onClick={() => go("profile")}>Profilga qaytish</button>
-                <div className="leaders-grid">
-                  <section className="leaderboard-panel">
-                    <div className="section-row tight">
-                      <h3>Faollar doskasi</h3>
-                      <span>Top {leaders.length}</span>
-                    </div>
-                    <div className="leader-list">
-                      {leaders.map((leader, index) => (
-                        <article
-                          className={`leader-row${leader.current ? " current" : ""}`}
-                          key={`${leader.id}-${leader.current ? "me" : "seed"}`}
-                        >
-                          <span className="rank">
-                            {index === 0 ? <Crown size={19} /> : index + 1}
-                          </span>
-                          <div>
-                            <strong>{leader.name}</strong>
-                            <small>
-                              {leader.pages} sahifa · {leader.comments} izoh · {leader.books} kitob
-                            </small>
-                          </div>
-                          <span className="score">{leader.score}</span>
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-
-                  <aside className="streak-panel">
-                    <span className="flame">
-                      <Flame size={28} />
-                    </span>
-                    <h3>{data.streak || 0} kun streak</h3>
-                    <p>Har kuni progress, izoh yoki suhbat harakati streakni davom ettiradi.</p>
-                    <div className="streak-stats">
-                      <div>
-                        <strong>#{myRank}</strong>
-                        <span>reyting</span>
-                      </div>
-                      <div>
-                        <strong>{activityFromState(data).score}</strong>
-                        <span>ball</span>
-                      </div>
-                    </div>
-                    <button className="button" onClick={() => setModal("progress")}>
-                      <Medal size={18} />
-                      Bugungi progress
-                    </button>
-                  </aside>
-                </div>
-
-                <div className="profile card">
-                  <span className="avatar large">{data.name[0]}</span>
-                  <div>
-                    <h3>{data.name}</h3>
-                    <p className="muted">Bir Ilm kitobxoni</p>
-                  </div>
-                  <button className="text-btn" onClick={() => setModal("profile")}>
-                    Tahrirlash
-                  </button>
-                </div>
-
-                <h3 className="section-title">Sozlamalar</h3>
-                {[
-                  ["notifications", "Bildirishnomalar", "O'qish va suhbat eslatmalari", Bell],
-                  ["progress", "Kitob rejasi", "Sahifa soni va o'qish progressi", BookOpen],
-                  ["profile", "Profil", "Kitobxon ismini o'zgartirish", Users],
-                  ["about", "App holati", "Web, backend va app chiqarish yo'li", Settings],
-                ].map(([id, title, sub, Icon]) => {
-                  const SettingIcon = Icon as typeof Bell;
-                  return (
-                    <button
-                      className="setting"
-                      key={id as string}
-                      onClick={() => setModal(id as string)}
-                    >
-                      <SettingIcon size={22} />
-                      <span>
-                        <strong>{title as string}</strong>
-                        <small>{sub as string}</small>
-                      </span>
-                      <ChevronRight size={18} />
-                    </button>
-                  );
-                })}
-              </TabsContent>
             </div>
           </Tabs>
           )}
@@ -812,16 +746,14 @@ export default function App() {
       </div>
 
       <Dialog
-        open={!data.onboarded || Boolean(modal)}
+        open={Boolean(modal)}
         onOpenChange={(open) => {
-          if (!open && data.onboarded) setModal("");
+          if (!open) setModal("");
         }}
       >
         <DialogContent className="app-dialog" showCloseButton={false}>
           <DialogTitle>
-            {!data.onboarded
-              ? "Bir haftada bitta kitob"
-              : ({
+            {({
                   progress: "O'qish progressi",
                   note: "Muhim fikringiz",
                   book: selected.title,
@@ -831,42 +763,10 @@ export default function App() {
                 } as Record<string, string>)[modal]}
           </DialogTitle>
           <DialogDescription>
-            {!data.onboarded
-              ? "Har kuni o'qing. Hafta oxirida kitobni birga tahlil qiling."
-              : "O'zgarishlar backend mavjud bo'lsa serverga, aks holda qurilmaga saqlanadi."}
+            {"O'zgarishlar backend mavjud bo'lsa serverga, aks holda qurilmaga saqlanadi."}
           </DialogDescription>
 
-          {!data.onboarded ? (
-            <>
-              <div className="onboarding-brand">
-                <Brand />
-              </div>
-              <p>O&apos;qish progressi, chat, javon, reyting va streak bir joyda.</p>
-              <label>
-                Ismingiz
-                <input
-                  value={data.name}
-                  maxLength={40}
-                  onChange={(event) => update({ name: event.target.value })}
-                />
-              </label>
-              <button
-                className="button"
-                onClick={() => {
-                  const next = {
-                    ...data,
-                    onboarded: true,
-                    name: data.name.trim() || "Kitobxon",
-                  };
-                  setData(next);
-                  void syncState({ type: "profile" }, next);
-                }}
-              >
-                Boshlash <ChevronRight size={18} />
-              </button>
-            </>
-          ) : (
-            <>
+          <>
               {modal === "progress" && (
                 <>
                   <label>
@@ -915,20 +815,6 @@ export default function App() {
                 />
               )}
 
-              {modal === "profile" && (
-                <label>
-                  Ismingiz
-                  <input
-                    value={data.name}
-                    maxLength={40}
-                    onChange={(event) => {
-                      const next = { ...data, name: event.target.value };
-                      setData(next);
-                      void syncState({ type: "profile" }, next);
-                    }}
-                  />
-                </label>
-              )}
 
               {modal === "book" && (
                 <>
@@ -1017,32 +903,46 @@ export default function App() {
                     Keyingi qadam: real login, push bildirishnoma, audio fayllar uchun server
                     storage va Play Market/App Store paketlarini ulash.
                   </p>
-                  <button
-                    className="text-btn"
-                    onClick={() => {
-                      setModal("");
-                      update({ onboarded: false });
-                    }}
-                  >
-                    Onboardingni qayta ko&apos;rish
-                  </button>
                 </>
               )}
 
               <DialogClose asChild>
                 <button
                   className="button secondary"
-                  onClick={() => {
-                    if (!data.name.trim()) update({ name: "Kitobxon" });
-                  }}
                 >
                   Tayyor
                 </button>
               </DialogClose>
-            </>
-          )}
+          </>
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function NameSettings({ name, onSaved }: { name: string; onSaved: (name: string) => void }) {
+  const [value, setValue] = useState(name);
+  const [busy, setBusy] = useState(false);
+  const clean = value.trim().replace(/\s+/g, " ");
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    if (busy || clean.length < 2 || clean === name) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "profile", name: clean }) });
+      if (!res.ok) throw Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Saqlanmadi.");
+      onSaved(clean);
+      toast.success("Ism saqlandi");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Saqlanmadi."); }
+    finally { setBusy(false); }
+  };
+  return (
+    <form className="card name-settings" onSubmit={e => void save(e)}>
+      <label htmlFor="profile-name">Ism</label>
+      <div className="name-settings-row">
+        <input id="profile-name" maxLength={40} value={value} onChange={e => setValue(e.target.value)} />
+        <button className="button" disabled={busy || clean.length < 2 || clean === name}>{busy ? "..." : "Saqlash"}</button>
+      </div>
+    </form>
   );
 }

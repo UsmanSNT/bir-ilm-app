@@ -3,13 +3,15 @@ import {useState} from 'react';
 import {Radio,Users,Hand,MicOff,Minimize2,MessageCircle,LogOut,ShieldCheck,CalendarDays} from 'lucide-react';
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from '@/components/ui/dialog';
 import {uzDate} from './uz-date';
+import {useAuth} from './auth';
 type Person={id:string;name:string;speaker:boolean;hand:boolean};
 export default function LiveSession({name,date,onComments}:{name:string;date:number;onComments:()=>void}){
  const [open,setOpen]=useState(false),[started,setStarted]=useState(false),[joined,setJoined]=useState(false),[moderator,setModerator]=useState(false),[people,setPeople]=useState<Person[]>([]);
+ const {requireAuth}=useAuth();
  const me=people.find(p=>p.id==='me');
  const patch=(id:string,value:Partial<Person>)=>setPeople(rows=>rows.map(p=>p.id===id?{...p,...value}:p));
- function start(){setStarted(true);setJoined(true);setPeople([{id:'me',name,speaker:true,hand:false}]);setOpen(true)}
- function join(){setJoined(true);setPeople(rows=>rows.some(p=>p.id==='me')?rows:[...rows,{id:'me',name,speaker:false,hand:false}]);setOpen(true)}
+ function start(){if(!requireAuth(start))return;setStarted(true);setJoined(true);setPeople([{id:'me',name,speaker:true,hand:false}]);setOpen(true)}
+ function join(){if(!requireAuth(join))return;setJoined(true);setPeople(rows=>rows.some(p=>p.id==='me')?rows:[...rows,{id:'me',name,speaker:false,hand:false}]);setOpen(true)}
  function leave(){setJoined(false);setPeople(rows=>rows.filter(p=>p.id!=='me'));setOpen(false)}
  return <><section className="live-card"><div className="live-heading"><span className="live-icon"><Radio size={24}/></span><div><span className="eyebrow">HAFTALIK ONLAYN MUHOKAMA</span><h3>{started?'Suhbat interfeysi sinovi boshlandi':'Atom odatlar — birga tahlil qilamiz'}</h3></div></div><p className="session-date"><CalendarDays size={18}/>{date?uzDate(new Date(date)):'Yakshanba'} · 18:00 <small>qurilmangiz vaqti</small></p><p className="session-status">{started?`${people.length} ishtirokchi · lokal sinov`:'Moderator boshlagach qo‘shilish ochiladi.'}</p><button className="button" onClick={()=>started?joined?setOpen(true):join():setOpen(true)}>{started?joined?'Suhbat oynasiga qaytish':'Sinov xonasiga qo‘shilish':'Suhbat tafsilotlari'}</button></section>
  {started&&<div className="live-dock"><button onClick={()=>joined?setOpen(true):join()}><Radio size={22}/><span><strong>{joined?'Suhbat oynasiga qaytish':'Suhbatga qo‘shilish'}</strong><small>Atom odatlar · lokal sinov · {people.length} ishtirokchi</small></span></button>{joined&&<button aria-label="Suhbatdan chiqish" onClick={leave}><LogOut size={21}/></button>}</div>}

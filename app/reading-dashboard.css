@@ -10,40 +10,61 @@
 .social-main h2 { font-size: 26px; }
 .social-aside { display: grid; gap: 24px; position: sticky; top: 96px; }
 
-/* Profil sarlavhasi */
-.social-profile {
+/* Profil: ixcham sarlavha, raqamli ko'rsatkichlar, ro'yxatlar alohida tablarda */
+.pf-head {
   position: relative; overflow: hidden; isolation: isolate;
-  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 14px 22px;
-  padding: 28px; margin-bottom: 18px; border-radius: var(--r-lg); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq), var(--soya-1);
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 18px;
+  padding: 22px; border-radius: var(--r-lg); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq), var(--soya-1);
 }
-.social-profile::before { content: ""; position: absolute; inset: 0 0 auto; height: 92px; z-index: -1; background: var(--girih) center / 64px, linear-gradient(120deg, var(--lojuvard), var(--firuza)); background-blend-mode: soft-light, normal; }
-.profile-identity { display: contents; }
-.profile-avatar {
-  grid-row: span 2; width: 96px !important; height: 112px !important; flex: none !important; margin-top: 30px;
-  border-radius: var(--r-arch) !important; font: 600 40px var(--f-display) !important;
-  background: var(--firuza-och) !important; color: var(--firuza) !important;
-  box-shadow: 0 0 0 4px var(--sahifa), 0 0 0 6.5px var(--tilla-2);
-}
-.profile-identity > div { align-self: end; display: grid; gap: 4px; min-width: 0; padding-top: 70px; }
-.profile-kicker { color: var(--tilla); font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
-.profile-identity h2 { font-size: 30px; overflow-wrap: anywhere; }
-.profile-identity p, .public-profile p { color: var(--siyoh-2); white-space: pre-wrap; overflow-wrap: anywhere; }
-.social-profile > .follow-button { grid-column: 2; justify-self: start; }
-.profile-counts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 6px; border-top: 1px solid var(--chiziq); padding-top: 16px; text-align: center; }
-.profile-counts > * { display: grid; justify-items: center; gap: 2px; padding: 4px; border: 0; background: none; color: var(--siyoh-3); font-size: 13px; font-weight: 700; }
-.profile-counts strong { font: 600 26px/1 var(--f-display); color: var(--siyoh); }
+.pf-head::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--girih) center / 56px; opacity: .35; mask-image: linear-gradient(100deg, #000 0%, transparent 45%); -webkit-mask-image: linear-gradient(100deg, #000 0%, transparent 45%); }
+.pf-avatar { display: grid; place-items: center; width: 76px; height: 88px; border-radius: var(--r-arch); background: var(--firuza-och); color: var(--firuza); font: 600 34px var(--f-display); box-shadow: 0 0 0 4px var(--sahifa), 0 0 0 6px var(--tilla-2); }
+.pf-who { display: grid; gap: 2px; min-width: 0; }
+.pf-who h2 { font-size: 26px; overflow-wrap: anywhere; }
+.pf-login { color: var(--tilla); font-size: 13px; font-weight: 800; }
+.pf-who p { margin-top: 4px; color: var(--siyoh-2); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pf-edit { align-self: start; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--qogoz-2); color: var(--siyoh); font-size: 13px; font-weight: 800; }
+.pf-counts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); padding-top: 12px; border-top: 1px solid var(--chiziq); }
+.pf-counts button { display: grid; justify-items: center; gap: 2px; padding: 4px; border: 0; border-radius: var(--r-sm); background: none; color: var(--siyoh-3); font-size: 12.5px; font-weight: 700; }
+.pf-counts button:hover { background: var(--qogoz); }
+.pf-counts strong { font: 600 22px/1 var(--f-display); color: var(--siyoh); }
+
+.pf-highlights { display: flex; gap: 10px; margin: 14px 0; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.pf-hl { flex: 1 0 auto; min-width: 104px; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; padding: 12px 14px; border-radius: var(--r-md); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.pf-hl svg { grid-row: span 2; width: 36px; height: 36px; padding: 9px; clip-path: var(--star); }
+.pf-hl strong { font: 600 21px/1.1 var(--f-display); color: var(--siyoh); }
+.pf-hl span { color: var(--siyoh-3); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.tone-anor svg { background: var(--anor-och); color: var(--anor); }
+.tone-tilla svg { background: var(--tilla-och); color: var(--tilla); }
+.tone-firuza svg { background: var(--firuza-och); color: var(--firuza); }
+.tone-lojuvard svg { background: #e2e6f6; color: var(--lojuvard); }
+
+.pf-tabs { position: sticky; top: 76px; z-index: 5; display: flex; gap: 4px; padding: 5px; margin-bottom: 14px; overflow-x: auto; border-radius: 999px; background: var(--qogoz-2); scrollbar-width: none; }
+.pf-tabs button { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--siyoh-2); font-size: 14px; font-weight: 800; white-space: nowrap; }
+.pf-tabs button span { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: #1b1a2e12; font-size: 11.5px; text-align: center; }
+.pf-tabs button[aria-selected="true"] { background: var(--lojuvard); color: #fff; }
+.pf-tabs button[aria-selected="true"] span { background: #ffffff2e; }
+.pf-panel { min-height: 220px; }
+.pf-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pf-feed { max-width: 560px; margin: 0 auto; }
+.pf-list { padding: 4px 18px; border-radius: var(--r-lg); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.pf-list .reader-row strong { font-weight: 800; }
+.pf-panel .leader-list { padding: 12px; border-radius: var(--r-lg); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.pf-panel .home-grid { margin-top: 0; }
+.pf-panel .my-books { margin: 0; }
+.settings-panel { display: grid; gap: 8px; max-width: 640px; }
+.settings-panel .setting { margin: 0; }
+.setting-danger strong { color: var(--anor); }
+.setting-danger svg { color: var(--anor) !important; }
+.name-settings { display: grid; gap: 8px; padding: 16px 18px; }
+.name-settings-row { display: flex; gap: 8px; }
 .profile-editor form { display: grid; gap: 12px; }
 .profile-editor textarea { resize: vertical; }
 
-/* Ko'rsatkichlar */
-.dashboard-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
-.dashboard-metrics > div { display: grid; gap: 8px; padding: 18px; border-radius: var(--r-md); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); min-width: 0; }
-.dashboard-metrics svg { width: 38px; height: 38px; padding: 9px; clip-path: var(--star); background: var(--firuza-och); color: var(--firuza); }
-.dashboard-metrics > div:nth-child(2) svg { background: var(--tilla-och); color: var(--tilla); }
-.dashboard-metrics > div:nth-child(3) svg { background: var(--anor-och); color: var(--anor); }
-.dashboard-metrics > div:nth-child(4) svg { background: #e2e6f6; color: var(--lojuvard); }
-.dashboard-metrics strong { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; font: 600 28px/1.1 var(--f-display); color: var(--siyoh); }
-.dashboard-metrics small, .dashboard-metrics span { color: var(--siyoh-3); font: 600 13px var(--f-ui); }
+/* Mehmon uchun profil o'rnida */
+.guest-card { display: grid; justify-items: center; gap: 12px; max-width: 520px; margin: 20px auto; padding: 36px 24px; text-align: center; border-radius: var(--r-lg); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq), var(--soya-1); }
+.guest-mark { display: grid; place-items: center; width: 72px; height: 72px; clip-path: var(--star); background: linear-gradient(135deg, #f3d48d, var(--tilla-2)); color: var(--lojuvard-3); }
+.guest-card p { color: var(--siyoh-2); }
+.guest-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 6px; }
 
 /* Lenta boshqaruvi */
 .feed-tabs { display: flex !important; width: 100%; height: 48px !important; margin-top: 16px; padding: 4px !important; border-radius: 999px !important; background: var(--qogoz-2) !important; }
@@ -104,12 +125,10 @@
   .social-aside { position: static; }
 }
 @media (max-width: 700px) {
-  .social-profile { padding: 20px 18px; gap: 12px 16px; }
-  .profile-avatar { width: 80px !important; height: 94px !important; font-size: 32px !important; margin-top: 34px; }
-  .profile-identity > div { padding-top: 66px; }
-  .profile-identity h2 { font-size: 24px; }
-  .social-profile > .follow-button { grid-column: 1 / -1; justify-self: stretch; }
-  .dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .dashboard-metrics > div { padding: 14px; }
-  .dashboard-metrics strong { font-size: 24px; }
+  .pf-head { grid-template-columns: auto minmax(0, 1fr); padding: 18px; }
+  .pf-avatar { width: 64px; height: 74px; font-size: 28px; }
+  .pf-who h2 { font-size: 22px; }
+  .pf-edit { grid-column: 1 / -1; justify-content: center; }
+  .pf-tabs { top: 66px; margin-inline: -16px; border-radius: 0; padding-inline: 16px; }
+  .pf-hl { min-width: 96px; padding: 10px 12px; }
 }

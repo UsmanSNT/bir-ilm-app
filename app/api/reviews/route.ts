@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { books } from "@/app/app-data";
-import { readerIdentity } from "@/lib/reader-identity";
+import { authRequired, readerIdentity } from "@/lib/reader-identity";
 import type { BookReview, ReviewSummary } from "@/app/review-types";
 
 export const runtime = "edge";
@@ -32,7 +32,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return fail("So'rov rad etildi.", 403);
-  const { id, headers } = await readerIdentity(request);
+  const { id, headers, authed } = await readerIdentity(request);
+  if (!authed) return authRequired(headers);
   const db = env.DB;
   if (!db) return fail("Saqlanmadi.", 503, headers);
   let p: Record<string, unknown>;
@@ -44,9 +45,7 @@ export async function POST(request: Request) {
 
   const bookId = typeof p.bookId === "string" ? p.bookId : "";
   if (!books.some(b => b.id === bookId)) return fail("Kitob topilmadi.", 404, headers);
-  const name = typeof p.name === "string" ? p.name.trim().slice(0, 40) : "";
   try {
-    await db.prepare(name ? "INSERT INTO users (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name=excluded.name" : "INSERT OR IGNORE INTO users (id, name) VALUES (?, 'Kitobxon')").bind(...(name ? [id, name] : [id])).run();
     if (p.type === "delete") {
       await db.prepare("DELETE FROM book_reviews WHERE book_id=? AND user_id=?").bind(bookId, id).run();
       return Response.json({ ok: true }, { headers });

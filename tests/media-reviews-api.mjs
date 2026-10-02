@@ -2,14 +2,13 @@ import assert from "node:assert/strict";
 import { sqlite } from "../scripts/local-d1.mjs";
 
 // Lokal D1/R2 previewda vaqtinchalik kitobxonlar yaratadi va oxirida o'chiradi.
-const origin = "http://127.0.0.1:8787";
+import { account, origin } from "./helpers.mjs";
 const ids = [];
 const keys = [];
 async function reader() {
-  const res = await fetch(`${origin}/api/social`);
-  assert.equal(res.status, 200);
-  const cookie = res.headers.get("set-cookie").split(";")[0];
-  ids.push((await res.json()).userId);
+  const acc = await account();
+  const cookie = acc.cookie;
+  ids.push(acc.id);
   const call = async (path, init = {}, expected = 200) => {
     const r = await fetch(`${origin}${path}`, { ...init, headers: { Cookie: cookie, Origin: origin, ...(init.headers ?? {}) } });
     const text = await r.text();

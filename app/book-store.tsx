@@ -5,6 +5,7 @@ import { BookOpen, Check, Heart, Library, Minus, Plus, Search, ShoppingCart, Spa
 import { toast } from "sonner";
 import StoreAi from "./store-ai";
 import Dock, { type DockItem } from "./dock";
+import { useAuth } from "./auth";
 import StoreBookPage from "./store-book-page";
 import { BookCover, RatingLine, useReviewSummaries } from "./store-ui";
 import { useStoreState } from "./store-state";
@@ -21,8 +22,8 @@ const titles: Record<Section, string> = { catalog: "Kitob do‘koni", ai: "AI yo
 const categories = ["Barchasi", ...new Set(books.map(b => getMeta(b).category))];
 const phoneRe = /^\+998\d{9}$/;
 
-export default function BookStore({ shelf, name, onBack, onToggle }: {
-  shelf: string[]; name: string; onBack: () => void; onToggle: (book: Book) => void;
+export default function BookStore({ shelf, onBack, onToggle }: {
+  shelf: string[]; onBack: () => void; onToggle: (book: Book) => void;
 }) {
   const [section, setSection] = useState<Section>("catalog");
   const [detail, setDetail] = useState<Book | null>(null);
@@ -33,7 +34,9 @@ export default function BookStore({ shelf, name, onBack, onToggle }: {
 
   const go = (next: Section) => { setSection(next); setDetail(null); setPlaced(null); window.scrollTo({ top: 0 }); };
   const open = (book: Book) => { setDetail(book); window.scrollTo({ top: 0 }); };
-  const addToCart = (book: Book) => { cart.add(book.id); toast.success(`«${book.title}» savatga qo‘shildi`); };
+  const { requireAuth } = useAuth();
+  // Kitob olish (savat, buyurtma) faqat hisobga kirganlar uchun.
+  const addToCart = (book: Book) => requireAuth(() => { cart.add(book.id); toast.success(`«${book.title}» savatga qo‘shildi`); });
   const active = section === "checkout" ? "cart" : section;
   const tab = ([id, label, icon]: [Section, string, Icon]): DockItem => ({
     id, label, icon, active: active === id && !detail, badge: id === "cart" ? cart.count : undefined, onClick: () => go(id),
@@ -45,13 +48,13 @@ export default function BookStore({ shelf, name, onBack, onToggle }: {
       center={{ label: "Bir Ilm", ariaLabel: "Bir Ilm bosh sahifasiga qaytish", icon: BookOpen, onClick: onBack }} />
     <div className="zb-page">
       {detail
-        ? <StoreBookPage key={detail.id} book={detail} name={name} saved={shelf.includes(detail.id)} summaries={summaries}
+        ? <StoreBookPage key={detail.id} book={detail} saved={shelf.includes(detail.id)} summaries={summaries}
             onBack={() => setDetail(null)} onOpen={open} onAdd={() => addToCart(detail)} onToggle={() => onToggle(detail)} onReviewed={() => setReviewsVersion(v => v + 1)} />
         : <>
           {section !== "catalog" && <header className="zb-head"><span className="zb-eyebrow">BIR ILM · BOOK STORE</span><h1>{titles[section]}</h1></header>}
           {section === "catalog" && <StoreHome summaries={summaries} onOpen={open} onAdd={addToCart} onAi={() => go("ai")} />}
           {section === "ai" && <StoreAi />}
-          {section === "cart" && <CartView cart={cart} onCheckout={() => go("checkout")} onCatalog={() => go("catalog")} onOpen={open} />}
+          {section === "cart" && <CartView cart={cart} onCheckout={() => requireAuth(() => go("checkout"))} onCatalog={() => go("catalog")} onOpen={open} />}
           {section === "checkout" && (placed
             ? <Confirmation order={placed} onLibrary={() => go("library")} />
             : <Checkout cart={cart} onBack={() => go("cart")} onPlaced={setPlaced} />)}

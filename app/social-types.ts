@@ -7,6 +7,8 @@ import type { MediaType } from "./media-rules";
 export type ReadingPost = { id: string; userId: string; name: string; book: string; body: string; kind: PostKind; createdAt: string; likes: number; liked: boolean; mediaKey: string | null; mediaType: MediaType | null; design: PostDesign | null; replies: PostReply[] };
 export type SocialData = {
   userId: string;
+  followersList: Reader[];
+  followingList: Reader[];
   posts: ReadingPost[];
   readers: Reader[];
   following: string[];

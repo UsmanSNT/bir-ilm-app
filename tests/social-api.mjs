@@ -2,17 +2,14 @@ import assert from "node:assert/strict";
 import { sqlite } from "../scripts/local-d1.mjs";
 
 // This test creates disposable readers only in the local D1 preview.
-const origin = "http://127.0.0.1:8787";
+import { account, origin } from "./helpers.mjs";
 const ids = [];
 async function reader(name) {
-  const response = await fetch(`${origin}/api/social`);
-  assert.equal(response.status, 200);
-  const cookie = response.headers.get("set-cookie").split(";")[0];
-  assert.match(response.headers.get("set-cookie"), /HttpOnly/);
-  const initial = await response.json();
-  ids.push(initial.userId);
+  const acc = await account(name);
+  const cookie = acc.cookie;
+  ids.push(acc.id);
   return {
-    id: initial.userId,
+    id: acc.id,
     get: async (query = "") => {
       const response = await fetch(`${origin}/api/social${query}`, { headers: { Cookie: cookie } });
       assert.equal(response.status, 200);

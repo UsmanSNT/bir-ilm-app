@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { books } from "./app-data";
+import { AUTH_CHANGED } from "./auth";
 import { computeTotals, getMeta, MAX_QTY, promoCodes, sanitizeCart, type CartLine, type Order } from "./store-data";
 
 const KEY = "bir-store-v1";
@@ -93,6 +94,20 @@ export function useStoreState() {
     }, 400);
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
   }, [cartKey, ready, online, state.cart, state.promo]);
+
+  // Hisobga kirilganda/chiqilganda savat va buyurtmalar shu foydalanuvchiniki bilan almashadi.
+  useEffect(() => {
+    const onAuth = () => {
+      void fetchServer().then(server => {
+        if (!server) return;
+        lastSynced.current = JSON.stringify([server.cart, server.promo]);
+        setState(server);
+        setOnline(true);
+      });
+    };
+    window.addEventListener(AUTH_CHANGED, onAuth);
+    return () => window.removeEventListener(AUTH_CHANGED, onAuth);
+  }, []);
 
   const setQty = useCallback((id: string, qty: number) => setState(s => {
     const cart = { ...s.cart };

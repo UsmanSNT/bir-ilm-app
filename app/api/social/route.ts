@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { readerIdentity as identity } from "@/lib/reader-identity";
+import { authRequired, readerIdentity as identity } from "@/lib/reader-identity";
 import { postKinds, type ReadingPost, type PostReply, type Reader } from "@/app/social-types";
 import { parseDesign } from "@/app/post-design";
 import { MEDIA_KEY } from "@/app/media-rules";
@@ -34,13 +34,16 @@ export async function GET(request: Request) {
       replies.push(...result.results);
     }
     const profileQuery = "SELECT u.id, u.name, u.bio, (SELECT count(*) FROM reading_posts p WHERE p.user_id=u.id) AS posts, (SELECT count(*) FROM reader_follows f WHERE f.followed_id=u.id) AS followers FROM users u";
-    const readers = (await db.prepare(`${profileQuery} WHERE u.id LIKE 'reader_%' ORDER BY posts DESC, u.created_at DESC LIMIT 100`).all<Reader>()).results;
+    // Faqat hisob ochgan kitobxonlar ko'rsatiladi (mehmonlar ro'yxatni to'ldirmasin).
+    const readers = (await db.prepare(`${profileQuery} WHERE EXISTS (SELECT 1 FROM accounts a WHERE a.user_id=u.id) ORDER BY posts DESC, u.created_at DESC LIMIT 100`).all<Reader>()).results;
+    const followersList = (await db.prepare(`${profileQuery} JOIN reader_follows f ON f.follower_id=u.id WHERE f.followed_id=? ORDER BY u.name LIMIT 200`).bind(id).all<Reader>()).results;
+    const followingList = (await db.prepare(`${profileQuery} JOIN reader_follows f ON f.followed_id=u.id WHERE f.follower_id=? ORDER BY u.name LIMIT 200`).bind(id).all<Reader>()).results;
     const profile = await db.prepare(`${profileQuery} WHERE u.id=?`).bind(id).first<Reader>();
     const authorProfile = author ? await db.prepare(`${profileQuery} WHERE u.id=?`).bind(author).first<Reader>() : null;
     const following = (await db.prepare("SELECT followed_id AS id FROM reader_follows WHERE follower_id=?").bind(id).all<{id: string}>()).results.map(r => r.id);
     const followers = await db.prepare("SELECT count(*) AS total FROM reader_follows WHERE followed_id=?").bind(id).first<{total: number}>();
     const focus = await db.prepare("SELECT COALESCE(sum(minutes),0) AS minutes, count(*) AS sessions FROM focus_sessions WHERE user_id=?").bind(id).first<{minutes: number; sessions: number}>();
-    return Response.json({ userId: id, profile, authorProfile, posts: posts.map(p => { const l = likeRows.find(x => x.postId === p.id); let design = null; try { design = p.design ? parseDesign(JSON.parse(p.design)) : null; } catch { design = null; }
+    return Response.json({ userId: id, followersList, followingList, profile, authorProfile, posts: posts.map(p => { const l = likeRows.find(x => x.postId === p.id); let design = null; try { design = p.design ? parseDesign(JSON.parse(p.design)) : null; } catch { design = null; }
       return { ...p, design, likes: l?.likes ?? 0, liked: !!l?.mine, replies: replies.filter(r => r.postId === p.id) }; }), readers, following, followers: followers?.total ?? 0, focusMinutes: focus?.minutes ?? 0, sessions: focus?.sessions ?? 0 }, { headers });
   } catch {
     return Response.json({ error: "Lenta yuklanmadi. Qayta urinib ko'ring." }, { status: 503, headers });
@@ -50,7 +53,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return Response.json({ error: "So'rov rad etildi." }, { status: 403 });
-  const { id, headers } = await identity(request);
+  const { id, headers, authed } = await identity(request);
   let payload: Record<string, unknown>;
   try {
     const raw: unknown = await request.json();
@@ -62,10 +65,16 @@ export async function POST(request: Request) {
   try {
     const db = env.DB;
     if (!db) throw Error("DB unavailable");
-    const name = value("name", 40) || "Kitobxon";
-    await db.prepare("INSERT INTO users (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name=excluded.name").bind(id, name).run();
+    // Mehmon faqat Pomodoro seansini saqlay oladi; qolgan amallar uchun hisobga kirish kerak.
+    if (payload.type !== "focus" && !authed) return authRequired(headers);
+    await db.prepare("INSERT OR IGNORE INTO users (id, name) VALUES (?, 'Kitobxon')").bind(id).run();
     switch (payload.type) {
       case "profile": {
+        if (payload.name !== undefined) {
+          const name = typeof payload.name === "string" ? payload.name.trim().replace(/\s+/g, " ") : "";
+          if (name.length < 2 || name.length > 40) return fail("Ism 2–40 belgi bo'lsin.");
+          await db.prepare("UPDATE users SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(name, id).run();
+        }
         if (payload.bio !== undefined) {
           if (typeof payload.bio !== "string" || payload.bio.length > 300) return fail("O'zingiz haqingizda 300 belgigacha yozing.");
           await db.prepare("UPDATE users SET bio=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(payload.bio.trim(), id).run();
@@ -119,7 +128,7 @@ export async function POST(request: Request) {
       case "follow": {
         const target = value("target", 80);
         if (target === id || typeof payload.follow !== "boolean") return fail("Obuna noto'g'ri.");
-        if (!await db.prepare("SELECT id FROM users WHERE id=? AND id LIKE 'reader_%'").bind(target).first()) return fail("Kitobxon topilmadi.", 404);
+        if (!await db.prepare("SELECT 1 FROM accounts WHERE user_id=?").bind(target).first()) return fail("Kitobxon topilmadi.", 404);
         await db.prepare(payload.follow ? "INSERT OR IGNORE INTO reader_follows (follower_id,followed_id) VALUES (?,?)" : "DELETE FROM reader_follows WHERE follower_id=? AND followed_id=?").bind(id, target).run();
         break;
       }

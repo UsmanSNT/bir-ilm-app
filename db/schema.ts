@@ -169,3 +169,25 @@ export const bookReviews = sqliteTable("book_reviews", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [uniqueIndex("idx_reviews_book_user").on(t.bookId, t.userId), index("idx_reviews_book_created").on(t.bookId, t.createdAt)]);
+
+export const accounts = sqliteTable("accounts", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  login: text("login").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  salt: text("salt").notNull(),
+  iterations: integer("iterations").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [uniqueIndex("idx_accounts_login").on(t.login)]);
+
+export const sessions = sqliteTable("sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  expiresAt: text("expires_at").notNull(),
+}, (t) => [index("idx_sessions_user").on(t.userId)]);
+
+export const authAttempts = sqliteTable("auth_attempts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  login: text("login").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_auth_attempts_login").on(t.login, t.createdAt)]);

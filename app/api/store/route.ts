@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { books } from "@/app/app-data";
 import { computeTotals, getMeta, paymentMethods, promoCodes, sanitizeCart, type Order } from "@/app/store-data";
-import { readerIdentity } from "@/lib/reader-identity";
+import { authRequired, readerIdentity } from "@/lib/reader-identity";
 
 export const runtime = "edge";
 
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return Response.json({ error: "So'rov rad etildi." }, { status: 403 });
-  const { id, headers } = await readerIdentity(request);
+  const { id, headers, authed } = await readerIdentity(request);
   const fail = (error: string, status = 400) => Response.json({ error }, { status, headers });
 
   let payload: Record<string, unknown>;
@@ -74,6 +74,7 @@ export async function POST(request: Request) {
     }
 
     if (payload.type === "order") {
+      if (!authed) return authRequired(headers);
       const orderId = typeof payload.id === "string" ? payload.id : "";
       const name = typeof payload.name === "string" ? payload.name.trim().slice(0, 80) : "";
       const phone = typeof payload.phone === "string" ? payload.phone.replace(/\s/g, "") : "";

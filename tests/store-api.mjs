@@ -2,14 +2,12 @@ import assert from "node:assert/strict";
 import { sqlite } from "../scripts/local-d1.mjs";
 
 // Bu test faqat lokal D1 previewda vaqtinchalik kitobxonlar yaratadi va oxirida o'chiradi.
-const origin = "http://127.0.0.1:8787";
+import { account, origin } from "./helpers.mjs";
 const ids = [];
 async function reader() {
-  const response = await fetch(`${origin}/api/store`);
-  assert.equal(response.status, 200);
-  const cookie = response.headers.get("set-cookie").split(";")[0];
-  const user = sqlite.prepare("SELECT id FROM users ORDER BY rowid DESC LIMIT 1").get();
-  ids.push(user.id);
+  const acc = await account();
+  const cookie = acc.cookie;
+  ids.push(acc.id);
   return {
     get: async () => (await fetch(`${origin}/api/store`, { headers: { Cookie: cookie } })).json(),
     post: (payload, expected = 200) => fetch(`${origin}/api/store`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json", Origin: origin }, body: JSON.stringify(payload) })

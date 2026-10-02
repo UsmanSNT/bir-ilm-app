@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, MEDIA_KEY, UPLOADS_PER_HOUR, mimeForKey, sniff } from "@/app/media-rules";
-import { readerIdentity } from "@/lib/reader-identity";
+import { authRequired, readerIdentity } from "@/lib/reader-identity";
 
 export const runtime = "edge";
 
@@ -9,7 +9,8 @@ const json = (body: unknown, status: number, headers?: Headers) => Response.json
 export async function POST(request: Request) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return json({ error: "So'rov rad etildi." }, 403);
-  const { id, headers } = await readerIdentity(request);
+  const { id, headers, authed } = await readerIdentity(request);
+  if (!authed) return authRequired(headers);
   const db = env.DB, bucket = env.BUCKET;
   if (!db || !bucket) return json({ error: "Media saqlash hali sozlanmagan." }, 503, headers);
 
