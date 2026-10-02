@@ -312,3 +312,35 @@ body .app-shell[hidden] { display: none; }
 .card-sticker-tools span { flex: 1; }
 .card-sticker-tools button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); }
 @media (max-width: 520px) { .card-stickers { grid-template-columns: repeat(6, 1fr); } }
+
+/* Ixcham profil: statistika tepada, bo'limlar tablarda */
+.p-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 4px 0 18px; }
+.p-tiles button { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px; border: 0; border-radius: var(--r-md); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); text-align: left; color: var(--siyoh); }
+.p-tiles button > span:last-child { display: grid; min-width: 0; }
+.p-tiles b { font: 600 22px/1.05 var(--f-display); }
+.p-tiles small { color: var(--siyoh-3); font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-tile-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: none; clip-path: var(--star); }
+.p-tile-icon.is-anor { background: var(--anor-och); color: var(--anor); }
+.p-tile-icon.is-tilla { background: var(--tilla-och); color: var(--tilla); }
+.p-tile-icon.is-firuza { background: var(--firuza-och); color: var(--firuza); }
+.p-main-tabs { position: sticky; top: 76px; z-index: 5; gap: 6px; margin: 0 -4px 16px; padding: 6px 4px; border: 0; background: var(--qogoz-2); border-radius: 999px; overflow-x: auto; scrollbar-width: none; }
+.p-main-tabs button { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; padding: 0 16px; border: 0; border-radius: 999px; color: var(--siyoh-2); font-size: 14px; font-weight: 750; white-space: nowrap; }
+.p-main-tabs button[aria-selected="true"] { background: var(--lojuvard); color: #fff; font-weight: 800; }
+.p-main-tabs i { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: #1e2f6e1a; font-style: normal; font-size: 12px; }
+.p-main-tabs button[aria-selected="true"] i { background: #ffffff2e; }
+.p-tab-panel { display: grid; gap: 14px; }
+.p-tab-panel > .p-settings { padding: 0; }
+@media (max-width: 980px) { .p-main-tabs { top: 0; } }
+@media (max-width: 420px) {
+  .p-tiles { gap: 6px; }
+  .p-tiles button { flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px; }
+  .p-tile-icon { width: 32px; height: 32px; }
+}
+/* Postlar tabida dashboardning o'z sarlavhasi va ko'rsatkichlari takrorlanmasin — ular profil tepasida. */
+.p-tab-panel .social-profile, .p-tab-panel .dashboard-metrics { display: none; }
+.p-tab-panel .profile-dashboard, .p-tab-panel > section { margin-top: 0; }
+@media (max-width: 520px) {
+  .p-main-tabs { gap: 2px; margin-inline: 0; }
+  .p-main-tabs button { flex: 1 1 0; min-width: 0; padding: 0 6px; font-size: 12.5px; }
+  .p-main-tabs i { min-width: 18px; padding: 0 5px; font-size: 11px; }
+}
