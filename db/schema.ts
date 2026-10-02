@@ -6,6 +6,7 @@ export const readingPosts = sqliteTable("reading_posts", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   book: text("book").notNull(),
   body: text("body").notNull(),
+  kind: text("kind").notNull().default("review"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_posts_created").on(t.createdAt), index("idx_posts_user").on(t.userId)]);
 
@@ -142,3 +143,8 @@ export const storeOrderItems = sqliteTable("store_order_items", {
   qty: integer("qty").notNull(),
   price: integer("price").notNull(),
 }, (t) => [index("idx_store_order_items_order").on(t.orderId)]);
+
+export const postLikes = sqliteTable("post_likes", {
+  postId: text("post_id").notNull().references(() => readingPosts.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+}, (t) => [uniqueIndex("idx_post_likes_pair").on(t.postId, t.userId)]);

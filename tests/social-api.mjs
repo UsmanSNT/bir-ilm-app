@@ -65,7 +65,30 @@ try {
   assert.equal(invalid.status, 400);
   const impersonation = await fetch(`${origin}/api/app-state`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "profile", userId: a.id, name: "Wrong reader" }) });
   assert.equal(impersonation.status, 403);
-  console.log("PASS: distinct readers, posts, replies, filters, follow/unfollow, ownership, validation, idempotent focus sessions.");
+  await a.write({ type: "post", book: "Atom odatlar", body: "Kichik odatlar katta natija beradi.", kind: "quote" });
+  const quote = (await a.get("?scope=mine")).posts[0];
+  assert.equal(quote.kind, "quote");
+  assert.equal(quote.likes, 0);
+  assert.equal((await a.get("?scope=mine&kind=review")).posts.length, 0);
+  assert.equal((await a.get("?scope=mine&kind=quote")).posts.length, 1);
+  await a.write({ type: "post", book: "X", body: "Y", kind: "spam" }, 400);
+  await b.write({ type: "like", postId: quote.id, like: true });
+  await b.write({ type: "like", postId: quote.id, like: true });
+  let seen = (await b.get(`?author=${a.id}`)).posts[0];
+  assert.equal(seen.likes, 1, "Like idempotent bo'lishi kerak");
+  assert.equal(seen.liked, true);
+  assert.equal((await a.get("?scope=mine")).posts[0].liked, false);
+  await b.write({ type: "like", postId: quote.id, like: false });
+  assert.equal((await a.get("?scope=mine")).posts[0].likes, 0);
+  await b.write({ type: "like", postId: "missing", like: true }, 404);
+  await b.write({ type: "edit", postId: quote.id, book: "Boshqa", body: "Buzish" }, 404);
+  await a.write({ type: "edit", postId: quote.id, book: "Atom odatlar", body: "Tahrirlangan iqtibos." });
+  seen = (await a.get("?scope=mine")).posts[0];
+  assert.equal(seen.body, "Tahrirlangan iqtibos.");
+  await b.write({ type: "like", postId: quote.id, like: true });
+  await a.write({ type: "delete", postId: quote.id });
+  assert.equal((await a.get("?scope=mine")).posts.length, 0);
+  console.log("PASS: distinct readers, posts, replies, filters, follow/unfollow, ownership, validation, idempotent focus sessions, post kinds, likes, edit ownership.");
 } finally {
   if (ids.length) {
     assert.ok(ids.every(id => /^reader_[a-f0-9]{64}$/.test(id)));

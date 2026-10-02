@@ -142,3 +142,37 @@
   .post-author { min-width: 110px; }
   .app-shell .navigation [role=tab] { font-size: 11px; gap: 4px; }
 }
+
+/* Gurung: Instagram uslubidagi lenta */
+.ig-stories { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 16px; margin-bottom: 8px; scrollbar-width: none; }
+.ig-story { display: grid; justify-items: center; gap: 6px; flex: none; width: 68px; border: 0; background: none; cursor: pointer; }
+.ig-story .reader-avatar { width: 60px; height: 60px; font-size: 22px; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #d4af37; }
+.ig-story.is-active .reader-avatar { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0f5132; }
+.ig-story small { max-width: 68px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #4b5a61; }
+.ig-compose { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 1px solid #e3e8ec; border-radius: 16px; background: #fff; color: #61737b; font-size: 15px; text-align: left; cursor: pointer; }
+.ig-compose span:nth-child(2) { flex: 1; }
+.ig-post { max-width: 560px; margin: 0 auto; border: 1px solid #e3e8ec; border-radius: 18px; padding: 14px; background: #fff; margin-top: 18px; }
+.ig-media { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 10px; aspect-ratio: 1 / 1; margin: 0 -14px; padding: 36px 28px; color: #fff; overflow: hidden; }
+.ig-media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, #ffffff1f, transparent 45%, #0000002e); pointer-events: none; }
+.ig-media strong { font-family: Georgia, "Times New Roman", serif; font-size: clamp(26px, 6vw, 38px); line-height: 1.15; }
+.ig-media blockquote { font-family: Georgia, "Times New Roman", serif; font-size: clamp(18px, 4.2vw, 24px); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 9; -webkit-box-orient: vertical; overflow: hidden; }
+.ig-media small { font-size: 14px; color: #ffffffd9; }
+.ig-kind { position: absolute; top: 14px; left: 14px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: #ffffff2e; font-size: 12px; font-weight: 700; backdrop-filter: blur(6px); }
+.ig-actions { display: flex; gap: 14px; padding: 10px 0 4px; }
+.ig-actions button { border: 0; background: none; color: #1a1a1a; cursor: pointer; padding: 2px; }
+.ig-actions button:disabled { opacity: .5; cursor: default; }
+.ig-like.is-liked { color: #e0245e; }
+.ig-likes { font-size: 14px; font-weight: 700; }
+.ig-post .post-body { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.post-owner-actions { display: flex; gap: 6px; margin-left: auto; }
+.kind-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.kind-picker button { border: 1px solid #dfe7e5; border-radius: 999px; padding: 7px 14px; background: #fff; cursor: pointer; font-size: 13px; }
+.kind-picker button[aria-checked="true"] { background: #0f5132; border-color: #0f5132; color: #fff; }
+.kind-filter { margin-top: 14px; }
+.my-books, .profile-settings { margin: 22px 0; padding: 18px; border: 1px solid #e3e8ec; border-radius: 18px; background: #fff; }
+.my-books-row { display: flex; gap: 12px; overflow-x: auto; padding-top: 10px; }
+.my-book { flex: none; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; width: 112px; height: 160px; padding: 12px; border: 0; border-radius: 12px; color: #fff; text-align: left; cursor: pointer; }
+.my-book small { opacity: .85; font-size: 11px; }
+.profile-settings { display: grid; gap: 10px; max-width: 520px; }
+.profile-settings label { font-size: 13px; font-weight: 650; }
+.profile-settings input { padding: 12px; border: 1px solid #dfe7e5; border-radius: 12px; }

@@ -1,9 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
-  BadgeCheck,
   Bell,
   BookOpen,
   Check,
@@ -16,13 +15,10 @@ import {
   Home,
   LibraryBig,
   Medal,
-  MessageSquare,
   MonitorSmartphone,
   Plus,
-  Send,
   Settings,
   Smartphone,
-  Star,
   Store,
   Trophy,
   Upload,
@@ -47,6 +43,7 @@ import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
 import BookStore from "./book-store";
+import MyBooks from "./my-books";
 import {
   Book,
   CommunityComment,
@@ -90,7 +87,7 @@ type AppStatePayload = {
 
 const nav = [
   ["home", "Bosh sahifa", Home],
-  ["community", "Chat", MessageSquare],
+  ["community", "Gurung", Users],
   ["talks", "Suhbat", Headphones],
   ["shelf", "Javon", LibraryBig],
 ] as const;
@@ -268,7 +265,6 @@ export default function App() {
   const [session, setSession] = useState(0);
   const [modal, setModal] = useState("");
   const [selected, setSelected] = useState<Book>(books[0]);
-  const [message, setMessage] = useState("");
   const [audio, setAudio] = useState<Recording[]>([]);
   const [audioTitle, setAudioTitle] = useState("Atom odatlar muhokamasi");
   const [busy, setBusy] = useState(false);
@@ -490,25 +486,6 @@ export default function App() {
     }
   }
 
-  function submitComment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const text = message.trim();
-    if (!text) return;
-
-    const comment: CommunityComment = {
-      id: Date.now(),
-      name: data.name,
-      text,
-      createdAt: new Date().toISOString(),
-    };
-    const next = { ...data, comments: [...data.comments, comment] };
-    setData(next);
-    setMessage("");
-    touchActivity(35);
-    void syncState({ type: "comment", text }, next);
-    toast.success("Izoh saqlandi");
-  }
-
   if (!ready) {
     return (
       <main className="splash">
@@ -604,7 +581,15 @@ export default function App() {
                 <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
               </TabsContent>
               <TabsContent value="profile">
-                <ReadingDashboard mode="profile" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
+                <ReadingDashboard mode="profile" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} extra={<>
+                  <MyBooks onStore={() => { setStore(true); window.scrollTo({ top: 0 }); }} onOpen={book => { setSelected(book); setModal("book"); }} />
+                  <section className="profile-settings" aria-label="Umumiy sozlamalar">
+                    <div className="section-row tight"><h3>Sozlamalar</h3></div>
+                    <label htmlFor="profile-name">Ism</label>
+                    <input id="profile-name" maxLength={40} value={data.name} onChange={e => update({ name: e.target.value })} onBlur={() => { if (!data.name.trim()) update({ name: "Kitobxon" }); }} />
+                    <button className="button" onClick={() => setModal("notifications")}><Bell size={18}/>Bildirishnoma sozlamalari</button>
+                  </section>
+                </>} />
                 <button className="button profile-ranking" onClick={() => go("leaders")}><Trophy size={18}/>Faollar reytingi · #{myRank}</button>
                 <div className="home-grid">
                   <div className="stack">
@@ -644,7 +629,7 @@ export default function App() {
                           data.note ? "Fikringiz saqlangan" : "O'qiganingizdan bir xulosa",
                           data.note ? Check : Plus,
                         ],
-                        ["community", "Chatga fikr yozish", "Hafta savoliga javob bering", Users],
+                        ["community", "Gurungga post yozish", "Kitobdan fikr yoki iqtibos ulashing", Users],
                       ].map(([id, title, sub, Icon]) => {
                         const TaskIcon = Icon as typeof Home;
                         return (
@@ -673,63 +658,7 @@ export default function App() {
               </TabsContent>
 
               <TabsContent value="community">
-                <div className="community-layout">
-                  <div>
-                    {week()}
-                    <div className="chat-panel">
-                      <div className="section-row tight">
-                        <h3>Fikrlar va savollar</h3>
-                        <span>{data.comments.length} ta izoh</span>
-                      </div>
-                      <div className="messages">
-                        {data.comments.map((comment) => (
-                          <article className="message" key={comment.id}>
-                            <span className="avatar">{comment.name.slice(0, 1)}</span>
-                            <div>
-                              <div className="message-head">
-                                <strong>{comment.name}</strong>
-                                <small>{comment.demo ? "Namuna" : "Siz"}</small>
-                              </div>
-                              <p>{comment.text}</p>
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                      <form className="composer" onSubmit={submitComment}>
-                        <textarea
-                          aria-label="Izoh yoki savol"
-                          placeholder="Fikr yoki savol yozing..."
-                          value={message}
-                          maxLength={2000}
-                          onChange={(event) => setMessage(event.target.value)}
-                        />
-                        <button
-                          className="button"
-                          disabled={!message.trim()}
-                          aria-label="Izoh yuborish"
-                        >
-                          <Send size={20} />
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-
-                  <aside className="side-panel">
-                    <h3>Chat holati</h3>
-                    <div className="status-line">
-                      <BadgeCheck size={19} />
-                      <span>{backendLabel}</span>
-                    </div>
-                    <p>
-                      Backend ulanganda chat, progress va reyting barcha qurilmalarda bitta
-                      hisobga bog&apos;lanadi.
-                    </p>
-                    <button className="button secondary" onClick={() => setModal("note")}>
-                      <Star size={18} />
-                      Hafta fikrini yozish
-                    </button>
-                  </aside>
-                </div>
+                <ReadingDashboard mode="gurung" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
               </TabsContent>
 
               <TabsContent value="talks">
