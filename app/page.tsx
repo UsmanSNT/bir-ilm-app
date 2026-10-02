@@ -558,7 +558,6 @@ export default function App() {
             <BookStore
               shelf={data.shelf}
               onBack={() => { setStore(false); window.scrollTo({ top: 0 }); }}
-              onOpen={book => { setSelected(book); setModal("book"); }}
               onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }}
             />
           ) : (
