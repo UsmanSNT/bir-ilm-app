@@ -10,6 +10,7 @@ import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ApiException, badRequest, notFound, validationFailed } from "@/server/http/errors";
 import { requireSignedIn } from "./community";
+import { orderMessageStatements } from "./store-chat";
 import { ensureUser } from "./social";
 import type {
   BookReview,
@@ -164,6 +165,8 @@ export async function placeOrder(db: Database, userId: string, input: PlaceOrder
       db.insert(storeOrders).values({ ...input, userId, total, createdAt: stamp, updatedAt: stamp }),
       ...lines.map((line) => db.insert(storeOrderItems).values({ orderId: input.id, ...line })),
       db.delete(storeCartItems).where(eq(storeCartItems.userId, userId)),
+      // Buyurtma xaridorning chatiga ham tushadi — admin shu yerda hisob raqam yuboradi.
+      ...orderMessageStatements(db, userId, { ...input, total, lines }),
     ]);
   } catch (error) {
     // Parallel takroriy so'rov birinchi yozgan bo'lishi mumkin.
@@ -256,7 +259,7 @@ export async function deleteReview(db: Database, userId: string, bookId: string)
 export async function catalogForAi(db: Database): Promise<{ text: string; books: StoreBook[] }> {
   const list = await listStoreBooks(db);
   const text = list
-    .map((b) => `${b.id} | ${b.title} | ${b.author} | ${b.category || "—"} | ${b.price} so'm | ${b.pages} bet${b.hasAudio ? " | audio bor" : ""}`)
+    .map((b) => `${b.id} | ${b.title} | ${b.author} | ${b.category || "—"} | ₩${b.price} | ${b.pages} bet${b.hasAudio ? " | audio bor" : ""}`)
     .join("\n");
   return { text, books: list };
 }

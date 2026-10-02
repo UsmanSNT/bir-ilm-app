@@ -8,6 +8,8 @@ import type { Book } from "@/shared/contract";
 import { USER_ROLE_LABELS } from "@/shared/contract/roles";
 import AdminPanel from "./admin-panel";
 import AdminOrders from "./admin-orders";
+import AdminStoreBooks from "./admin-store-books";
+import AdminStoreChat from "./admin-store-chat";
 import { ChangePasswordForm } from "./password-auth";
 import LoginCard from "./login-card";
 import { LinkDeviceDialog } from "./device-link";
@@ -18,7 +20,7 @@ import type { SocialData } from "./social-types";
 type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onEdit: () => void; onProgress: () => void; onNotifications: () => void };
 type ProfileTab = "reading" | "posts" | "activity" | "settings";
 const PROFILE_TABS: [ProfileTab, string][] = [["reading", "Mutolaa"], ["posts", "Postlar"], ["activity", "Faollik"], ["settings", "Sozlamalar"]];
-type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "password";
+type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "password";
 
 function Cover({ small = false, book }: { small?: boolean; book: Book | null }) {
   if (book?.coverUrl) return <span className={`p-book p-book-image ${small ? "p-book-small" : ""}`} aria-hidden="true"><img src={book.coverUrl} alt="" /></span>;
@@ -76,7 +78,7 @@ export default function ProfileScreens(p: Props) {
   };
   const percent = Math.min(100, Math.max(0, Math.round(p.page / Math.max(1, p.total) * 100)));
   const replies = (social?.posts ?? []).flatMap(post => post.replies.filter(reply => reply.name !== p.name).map(reply => ({ ...reply, book: post.book }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari", password: "Parol" };
+  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari", storebooks: "Do‘kon kitoblari", storechat: "Do‘kon chati", password: "Parol" };
   const count = (value: number | undefined) => status === "ready" ? value ?? 0 : "—";
 
   const activityView = <>
@@ -96,7 +98,7 @@ export default function ProfileScreens(p: Props) {
 
   return <section className={`profile-space p-view-${screen}`}>
     <header className="p-header">
-      {screen === "profile" ? <span className="p-brand-mark"><BookOpen size={21} /></span> : <button className="p-icon" aria-label="Orqaga" onClick={() => open(["privacy", "faq", "about", "password", "admin", "orders"].includes(screen) ? "settings" : "profile")}><ChevronLeft size={23} /></button>}
+      {screen === "profile" ? <span className="p-brand-mark"><BookOpen size={21} /></span> : <button className="p-icon" aria-label="Orqaga" onClick={() => open(["privacy", "faq", "about", "password", "admin", "orders", "storebooks", "storechat"].includes(screen) ? "settings" : "profile")}><ChevronLeft size={23} /></button>}
       <h1>{titles[screen]}</h1>
       {screen === "profile" ? <button className="p-icon" aria-label="Sozlamalar" onClick={() => setTab("settings")}><Settings size={23} /></button> : screen === "activity" ? <button className="p-icon" aria-label="Xabarlar" onClick={() => open("messages")}><Mail size={22} /></button> : <span />}
     </header>
@@ -124,7 +126,7 @@ export default function ProfileScreens(p: Props) {
       {tab === "posts" && <div className="p-tab-panel"><ReadingDashboard mode="profile" name={p.name} pages={p.page} shelfCount={p.shelfCount} streak={p.streak} /></div>}
       {tab === "activity" && <div className="p-tab-panel">{activityView}</div>}
       {tab === "settings" && <div className="p-tab-panel">
-        {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value="Book Store" onClick={() => open("orders")} /></div>}
+        {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value="Book Store" onClick={() => open("orders")} /><Row icon={<BookOpen />} title="Do‘kon kitoblari" value="Rasm, narx" onClick={() => open("storebooks")} /><Row icon={<Mail />} title="Do‘kon chati" value="Savol va buyurtmalar" onClick={() => open("storechat")} /></div>}
         {settingsView}
       </div>}
     </>}
@@ -134,6 +136,8 @@ export default function ProfileScreens(p: Props) {
     {screen === "settings" && settingsView}
     {screen === "password" && <div className="p-settings"><ChangePasswordForm hasPassword={Boolean(viewer?.hasPassword)} /></div>}
     {screen === "admin" && (role === "admin" && viewer ? <AdminPanel selfId={viewer.userId} /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
+    {screen === "storebooks" && (role === "admin" ? <AdminStoreBooks /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
+    {screen === "storechat" && (role === "admin" ? <AdminStoreChat /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "orders" && (role === "admin" ? <AdminOrders /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "posts" && <ReadingDashboard mode="profile" name={p.name} pages={p.page} shelfCount={p.shelfCount} streak={p.streak} />}
     {screen === "messages" && <div className="p-empty"><Mail /><h2>Yaxshi suhbat — bir xabardan</h2><p>Shaxsiy yozishmalar hali ishga tushirilmagan. Hozir kitobxonlar bilan hamjamiyatda fikr almashishingiz mumkin.</p><button className="p-primary" onClick={() => p.onNavigate("community")}>Hamjamiyatga o‘tish <ArrowRight size={16} /></button></div>}

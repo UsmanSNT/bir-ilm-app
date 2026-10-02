@@ -166,3 +166,9 @@
 .live-waiting-start:disabled { opacity: .6; cursor: progress; }
 @keyframes talk-gate-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .talk-gate { animation: none; } }
+
+/* Kichraytirilgan suhbat paneli telefonda pastki dock'ning (va markaziy yulduzning) ustida turadi */
+@media (max-width: 980px) {
+  .live-minibar { left: 12px; right: 12px; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 46px); max-width: none; justify-content: space-between; }
+  .live-minibar-open { flex: 1; }
+}

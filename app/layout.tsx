@@ -27,8 +27,8 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: [{ url: "/assets/bir-ilm-logo.jpg", type: "image/jpeg" }],
+    shortcut: "/assets/bir-ilm-logo.jpg",
     apple: "/assets/bir-ilm-logo.jpg",
   },
 };

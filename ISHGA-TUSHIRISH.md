@@ -32,7 +32,8 @@ Asl logo va illyustratsiyalar `public/assets/README.md` orqali ulanadi. Kitob mu
 - Do‘konda faqat **narxi qo‘yilgan** kitoblar chiqadi. Narx va janrni admin yoki moderator kitob tahririda («Book Store» bo‘limi) qo‘yadi. Bo‘sh narx — kitob sotuvda emas.
 - Savat serverda saqlanadi (web va mobil ilovada bir xil). Mehmon savat to‘ldira oladi; buyurtma, sharh va AI faqat Google/Telegram bilan kirganlar uchun.
 - Summa har doim serverda, bazadagi narxdan hisoblanadi. Buyurtmadagi nom va narx o‘sha paytdagi holatda saqlanadi.
-- Onlayn to‘lov ulanmagan: buyurtma «Yangi» holatda tushadi, operator mijozga qo‘ng‘iroq qiladi. Buyurtmalar: **Profil → Do‘kon buyurtmalari** (faqat admin). Holatlar: Yangi → Tasdiqlandi → Yo‘lda → Yetkazildi / Bekor qilindi.
+- **Narxlar Koreya wonida (₩)** va butun sonda (masalan ₩59,000). Eski narxlar so‘mda kiritilgan bo‘lsa, ularni **Profil → Do‘kon kitoblari** orqali won bilan qayta kiriting (avtomatik o‘zgarmaydi).
+- To‘lov ilovada emas: buyurtma «Yangi» holatda tushadi va xaridorning chatiga ham xabar bo‘lib tushadi; admin chatda hisob raqamni yuboradi, xaridor chek rasmini shu chatga tashlaydi. Buyurtmalar: **Profil → Do‘kon buyurtmalari** (faqat admin). Holatlar: Yangi → Tasdiqlandi → Yo‘lda → Yetkazildi / Bekor qilindi.
 - AI yordamchi (tavsiya, mutolaa rejasi, kitob xulosasi) uchun serverga `GEMINI_API_KEY` o‘rnating (ixtiyoriy: `GEMINI_MODEL`, standart `gemini-2.5-flash`). Kalit faqat serverda; har foydalanuvchiga 10 daqiqada 20 ta so‘rov.
 - Migratsiya: `drizzle/0014_book_store.sql` — yangi jadvallar va `books` ga ikki ustun qo‘shadi, mavjud ma’lumotga tegmaydi. Server ishga tushganda avtomatik qo‘llanadi.
 - Test: `node tests/store-v1.mjs`.
@@ -95,3 +96,13 @@ Qiymatni qo‘shtirnoq ichida yozing (`%`, `&`, `!` belgilari cmd'ni buzmasin). 
 ## Suhbat xonasi ko‘rinishi
 
 Jonli suhbat xonasi "Naqsh" tungi uslubida: sarlavhada kitob nomi va qatnashchilar soni, ostida holat chiplari (**LIVE**, **REC** + vaqt, ovoz holati: «Ovoz ulangan» / «Faqat izohlar»), admin uchun «Tugatish». So‘zlovchilar ixcham kartalarda (gapirayotganning atrofida yashil halqa), tinglovchilar ixcham ro‘yxatda, qo‘l ko‘targanlar alohida «Navbatda» kartasida. Pastda suzuvchi panel: Mikrofon, Kamera, Ekran ulashish, Izohlar, Chiqish; admin uchun ustida qo‘shimcha amallar (Qurilma, Yozib olish, Pauza). Izohlar va moderator oynalari o‘qish uchun qog‘oz rangida. Uslublar: `app/live-room.css`.
+
+## Do'kon: kitoblarni admin paneldan boshqarish va chat
+
+- **Profil → Do‘kon kitoblari** (faqat admin): barcha kitoblar ro‘yxati; «Yangi kitob qo‘shish» (muqova rasmi, nom, muallif, tavsif, janr, narx), qalam tugmasi — tahrirlash, narx maydoni — tezkor narx o‘zgartirish (Enter yoki maydondan chiqish bilan saqlanadi). Narx 0 — kitob do‘kondan olinadi. Kod orqali kitob qo‘shish shart emas.
+- **Chat ilovaning ichida.** Do‘konning har sahifasida «Admin bilan chat» tugmasi, kitob sahifasida «Adminga yozish» (xabar o‘sha kitob haqida belgilanadi). Xaridor admindan yangi javob kelsa, tugmada son ko‘radi.
+- Buyurtma berilganda to‘lov usuli so‘ralmaydi: buyurtma xaridorning chatiga «Buyurtma» xabari bo‘lib tushadi. Admin shu yerda hisob raqamni yuboradi, xaridor to‘lab, **chek rasmini** (JPG/PNG/WebP, 5 MB gacha) chatga tashlaydi. Chek rasmini faqat xaridorning o‘zi va admin ko‘radi.
+- **Profil → Do‘kon chati** (faqat admin): har xaridorga bitta yozishma; buyurtmalar va kitob bo‘yicha savollar bir joyda, o‘qilmaganlar soni bilan. Admin har biriga alohida javob yozadi, rasm yuborishi mumkin.
+- Yangilanish: ochiq chat har 4 soniyada, admin ro‘yxati har 8 soniyada o‘zi yangilanadi (WebSocket emas, oddiy so‘rov — qo‘shimcha server kerak emas).
+- Migratsiya: `drizzle/0017_store_chat.sql` (yangi jadvallar, mavjud ma’lumotga tegmaydi) — server ishga tushganda o‘zi qo‘llanadi. Rasmlar `BIR_ILM_MEDIA_DIR/store-chat/` papkasida saqlanadi (zaxira nusxaga shu papkani ham qo‘shing).
+- Test: `node tests/store-v1.mjs` (chat, o‘qilmaganlar, rasm ruxsatlari).

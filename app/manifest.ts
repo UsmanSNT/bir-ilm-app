@@ -12,11 +12,6 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#0f4f45",
     icons: [
       {
-        src: "/favicon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-      },
-      {
         src: "/assets/bir-ilm-logo.jpg",
         sizes: "512x512",
         type: "image/jpeg",

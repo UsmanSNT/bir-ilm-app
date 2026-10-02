@@ -234,3 +234,60 @@
 .zb .zb-rail-item strong, .zb .zb-shelf-item strong { font-family: var(--f-display); }
 .admin-order a { display: inline-flex; align-items: center; gap: 4px; }
 @media (max-width: 700px) { .zb .zb-card-title { font-size: 16px; } }
+
+/* ───────── Do'kon chati (xaridor ↔ admin) ───────── */
+.zb-chat-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; margin: 0 0 14px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--sahifa); color: var(--lojuvard); font: 800 13.5px var(--f-ui); box-shadow: inset 0 0 0 1.5px var(--chiziq); cursor: pointer; }
+.zb-chat-chip:hover { box-shadow: inset 0 0 0 1.5px var(--tilla); }
+.zb-chat-chip b { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--anor); color: #fff; font-size: 11px; }
+
+.zc { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; gap: 10px; max-width: 640px; height: min(68vh, 640px); min-height: 360px; margin: 0 auto; }
+.zc-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 12px; overflow-y: auto; list-style: none; border-radius: var(--r-md); background: var(--qogoz-2); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.zc-note { margin: auto; padding: 18px; color: var(--siyoh-3); font-size: 13.5px; text-align: center; line-height: 1.6; }
+.zc-msg { display: grid; gap: 4px; max-width: 86%; padding: 9px 12px 7px; border-radius: 16px; font-size: 14.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.zc-msg p { margin: 0; white-space: pre-wrap; }
+.zc-msg time { color: inherit; opacity: .6; font-size: 10.5px; font-weight: 700; justify-self: end; }
+.zc-msg.is-mine { align-self: flex-end; border-bottom-right-radius: 5px; background: var(--lojuvard); color: #fff; }
+.zc-msg.is-theirs { align-self: flex-start; border-bottom-left-radius: 5px; background: var(--sahifa); color: var(--siyoh); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.zc-msg.is-order { max-width: 94%; box-shadow: inset 0 0 0 1.5px var(--tilla); }
+.zc-tag { display: inline-flex; align-items: center; gap: 5px; justify-self: start; padding: 2px 8px; border-radius: 999px; background: #ffffff26; font-size: 11px; font-weight: 800; }
+.is-theirs .zc-tag { background: var(--qogoz-2); color: var(--siyoh-2); }
+.zc-image { padding: 0; border: 0; background: none; cursor: zoom-in; }
+.zc-image img { display: block; max-width: min(240px, 100%); max-height: 260px; border-radius: 10px; object-fit: cover; }
+.zc-about { display: flex; align-items: center; gap: 6px; margin: 0; padding: 6px 12px; border-radius: 999px; background: var(--qogoz-2); color: var(--siyoh-2); font-size: 12.5px; font-weight: 700; }
+.zc-about button { margin-left: auto; border: 0; background: none; color: var(--siyoh-3); font-size: 18px; line-height: 1; cursor: pointer; }
+.zc-form { display: flex; align-items: center; gap: 8px; }
+.zc-form input[type="text"], .zc-form input:not([type]) { flex: 1; min-width: 0; min-height: 46px; padding: 0 16px; border: 1.5px solid var(--chiziq); border-radius: 999px; background: var(--sahifa); color: var(--siyoh); font: inherit; font-size: 15px; }
+.zc-attach, .zc-send { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border: 0; border-radius: 50%; cursor: pointer; }
+.zc-attach { background: var(--qogoz-2); color: var(--siyoh-2); box-shadow: inset 0 0 0 1.5px var(--chiziq); }
+.zc-send { background: var(--lojuvard); color: #fff; }
+.zc-send:disabled, .zc-attach:disabled { opacity: .5; cursor: not-allowed; }
+.zc-zoom { position: fixed; inset: 0; z-index: 1300; display: grid; place-items: center; padding: 16px; background: #070b22d9; cursor: zoom-out; }
+.zc-zoom img { max-width: 100%; max-height: 100%; border-radius: 12px; }
+
+/* Admin: yozishmalar ro'yxati */
+.admin-chat-back { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 8px; padding: 0; border: 0; background: none; color: var(--lojuvard); font: 800 13.5px var(--f-ui); cursor: pointer; }
+.admin-chat-title { margin: 0 0 10px; font: 600 20px var(--f-display); }
+.admin-threads { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.admin-threads button { display: flex; align-items: center; gap: 11px; width: 100%; padding: 12px; border: 0; border-radius: var(--r-md); background: var(--sahifa); color: inherit; text-align: left; box-shadow: inset 0 0 0 1px var(--chiziq); cursor: pointer; }
+.admin-threads button.has-unread { box-shadow: inset 0 0 0 1.5px var(--tilla); }
+.admin-thread-info { display: grid; flex: 1; min-width: 0; gap: 2px; }
+.admin-thread-info strong { font-size: 14px; }
+.admin-thread-info small { overflow: hidden; color: var(--siyoh-3); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.admin-thread-meta { display: grid; justify-items: end; gap: 4px; flex: none; color: var(--siyoh-3); font-size: 11px; }
+.admin-thread-meta b { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--anor); color: #fff; font-size: 11px; }
+
+/* Admin: do'kon kitoblari */
+.admin-add-book { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 46px; margin: 0 0 12px; border: 0; border-radius: 999px; background: var(--lojuvard); color: #fff; font: 800 14px var(--f-ui); cursor: pointer; }
+.admin-books-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.admin-books-list li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px 12px; align-items: center; padding: 10px; border-radius: var(--r-md); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.admin-book-cover { display: grid; place-items: center; width: 52px; height: 70px; overflow: hidden; border-radius: 8px; color: #fff; font: 600 22px var(--f-display); }
+.admin-book-cover img { width: 100%; height: 100%; object-fit: cover; }
+.admin-book-info { display: grid; gap: 2px; min-width: 0; }
+.admin-book-info strong { font-size: 14px; overflow-wrap: anywhere; }
+.admin-book-info small { color: var(--siyoh-3); font-size: 12px; }
+.admin-sale { display: inline-flex; align-items: center; gap: 4px; justify-self: start; color: var(--siyoh-3); font-size: 11.5px; font-weight: 800; }
+.admin-sale.on { color: #1f6b3a; }
+.admin-book-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
+.admin-price { display: flex; flex: 1; align-items: center; gap: 6px; padding: 0 12px; border-radius: 12px; background: var(--qogoz-2); box-shadow: inset 0 0 0 1px var(--chiziq); font-size: 12.5px; color: var(--siyoh-3); }
+.admin-price input { flex: 1; min-width: 0; min-height: 40px; border: 0; background: none; outline: 0; color: var(--siyoh); font: 800 15px var(--f-ui); }
+.admin-edit-book { display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 12px; background: var(--qogoz-2); color: var(--lojuvard); box-shadow: inset 0 0 0 1px var(--chiziq); cursor: pointer; }

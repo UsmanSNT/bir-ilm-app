@@ -9,8 +9,12 @@ import {
   type PlaceOrderInput,
   type ReviewInput,
   type ReviewSummary,
+  type AdminStoreChat,
   type StoreAiInput,
   type StoreBook,
+  type StoreChat,
+  type StoreMessage,
+  type StoreThread,
   type StoreOrder,
 } from "@/shared/contract";
 import { API_PREFIX, absoluteUrl } from "./config";
@@ -157,3 +161,23 @@ export const setAdminOrderStatus = (id: string, status: OrderStatus) =>
 
 /** Takroriy yuborishda bir xil bo'ladigan buyurtma raqami. */
 export const newOrderId = () => `BI-${crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
+
+// ── Do'kon chati ────────────────────────────────────────────────────
+
+const withChatUrl = (m: StoreMessage): StoreMessage => ({ ...m, imageUrl: absoluteUrl(m.imageUrl) });
+
+export const fetchChat = (after = 0) =>
+  call<StoreChat>(`/store/chat?after=${after}`).then((c) => ({ ...c, messages: c.messages.map(withChatUrl) }));
+export const fetchChatUnread = () => call<{ unread: number }>("/store/chat/unread").then((d) => d.unread);
+export const sendChatMessage = (body: string, bookId?: string) =>
+  call<StoreMessage>("/store/chat", { method: "POST", body: JSON.stringify({ body, ...(bookId ? { bookId } : {}) }) }).then(withChatUrl);
+export const sendChatImage = (file: Blob) =>
+  call<StoreMessage>("/store/chat/image", { method: "POST", body: file, headers: { "Content-Type": file.type } }).then(withChatUrl);
+
+export const fetchAdminThreads = () => call<{ items: StoreThread[]; unread: number }>("/admin/store-chat");
+export const fetchAdminThread = (userId: string, after = 0) =>
+  call<AdminStoreChat>(`/admin/store-chat/${encodeURIComponent(userId)}?after=${after}`).then((c) => ({ ...c, messages: c.messages.map(withChatUrl) }));
+export const sendAdminReply = (userId: string, body: string) =>
+  call<StoreMessage>(`/admin/store-chat/${encodeURIComponent(userId)}`, { method: "POST", body: JSON.stringify({ body }) }).then(withChatUrl);
+export const sendAdminImage = (userId: string, file: Blob) =>
+  call<StoreMessage>(`/admin/store-chat/${encodeURIComponent(userId)}/image`, { method: "POST", body: file, headers: { "Content-Type": file.type } }).then(withChatUrl);

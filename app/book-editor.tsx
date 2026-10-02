@@ -116,7 +116,7 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
     abortRef.current = new AbortController();
     try {
       const priceValue = price.trim() ? Number(price) : 0;
-      if (!Number.isInteger(priceValue) || priceValue < 0 || priceValue > STORE_LIMITS.maxPrice) throw new Error("Narx butun so‘mda, 0 dan 10 000 000 gacha bo‘lsin.");
+      if (!Number.isInteger(priceValue) || priceValue < 0 || priceValue > STORE_LIMITS.maxPrice) throw new Error("Narx butun wonda (₩), 0 dan 10 000 000 gacha bo‘lsin.");
       const fields = { title: title.trim(), author: author.trim(), summary: summary.trim(), color, price: priceValue, category: category.trim() };
       let saved = book ? await updateBook(book.id, { ...fields, active }) : await createBook(fields);
       if (!book && active) saved = await updateBook(saved.id, { active: true });
@@ -231,7 +231,7 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
           <fieldset className="book-editor-store">
             <legend><Store size={16} /> Book Store</legend>
             <label>
-              <span>Narx (so‘m)</span>
+              <span>Narx (₩ won)</span>
               <input inputMode="numeric" pattern="[0-9]*" placeholder="Sotilmaydi" value={price} disabled={busy} onChange={(e) => setPrice(e.target.value.replace(/\D/g, "").slice(0, 8))} />
             </label>
             <label>

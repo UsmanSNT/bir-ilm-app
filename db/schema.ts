@@ -347,7 +347,7 @@ export const storeOrders = sqliteTable("store_orders", {
   phone: text("phone").notNull(),
   address: text("address").notNull(),
   note: text("note").notNull().default(""),
-  payment: text("payment", { enum: ["cash", "click", "payme", "uzum", "card"] }).notNull(),
+  payment: text("payment", { enum: ["cash", "click", "payme", "uzum", "card", "chat"] }).notNull(),
   status: text("status", { enum: ["new", "confirmed", "shipped", "delivered", "cancelled"] }).notNull().default("new"),
   total: integer("total").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -398,3 +398,35 @@ export const passwordResets = sqliteTable("password_resets", {
   usedAt: text("used_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_password_resets_user").on(t.userId)]);
+
+/**
+ * Do'kon chati: har xaridorga bitta yozishma (savollar va buyurtmalar bir joyda).
+ * To'lov ilovada emas: admin shu chatda hisob raqam yuboradi, xaridor chek rasmini shu yerga tashlaydi.
+ */
+export const storeThreads = sqliteTable("store_threads", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  lastMessageAt: text("last_message_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  lastPreview: text("last_preview").notNull().default(""),
+  /** Admin hali o'qimagan xaridor xabarlari soni. */
+  adminUnread: integer("admin_unread").notNull().default(0),
+  /** Xaridor hali o'qimagan admin xabarlari soni. */
+  userUnread: integer("user_unread").notNull().default(0),
+}, (t) => [index("idx_store_threads_last").on(t.lastMessageAt)]);
+
+export const storeMessages = sqliteTable("store_messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  /** Yozishma egasi (xaridor). */
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sender: text("sender", { enum: ["user", "admin"] }).notNull(),
+  /** Xabarni yozgan hisob (admin javobida — qaysi admin). */
+  senderId: text("sender_id").notNull(),
+  kind: text("kind", { enum: ["text", "order", "image"] }).notNull().default("text"),
+  body: text("body").notNull().default(""),
+  orderId: text("order_id"),
+  /** Savol qaysi kitob haqida (ixtiyoriy). */
+  bookId: text("book_id"),
+  bookTitle: text("book_title"),
+  imageFile: text("image_file"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_store_messages_user").on(t.userId, t.id)]);

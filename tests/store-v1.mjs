@@ -63,8 +63,19 @@ const ai = await load("app/api/v1/store/ai/route.ts");
 const reviews = await load("app/api/v1/books/[id]/reviews/route.ts");
 const adminOrders = await load("app/api/v1/admin/orders/route.ts");
 const adminOrder = await load("app/api/v1/admin/orders/[id]/route.ts");
+const chat = await load("app/api/v1/store/chat/route.ts");
+const chatImage = await load("app/api/v1/store/chat/image/route.ts");
+const adminChats = await load("app/api/v1/admin/store-chat/route.ts");
+const adminChat = await load("app/api/v1/admin/store-chat/[userId]/route.ts");
+const adminChatImage = await load("app/api/v1/admin/store-chat/[userId]/image/route.ts");
+const chatFile = await load("app/media/store-chat/[uid]/[file]/route.ts");
 
 const ORIGIN = "http://127.0.0.1:8787";
+const { mkdtemp, rm: removeDir } = await import("node:fs/promises");
+const { tmpdir } = await import("node:os");
+const pathMod = await import("node:path");
+const mediaDir = await mkdtemp(pathMod.join(tmpdir(), "bir-ilm-chat-"));
+process.env.BIR_ILM_MEDIA_DIR = mediaDir;
 const createdUsers = [];
 const createdBooks = [];
 
@@ -95,6 +106,7 @@ async function client() {
   createdUsers.push(payload.data.userId);
   return {
     userId: payload.data.userId,
+    cookie,
     call: (handler, path, options = {}) => call(handler, path, { ...options, headers: { Cookie: cookie, Origin: ORIGIN, ...options.headers } }),
   };
 }
@@ -196,6 +208,67 @@ try {
   await buyer.call(reviews.PUT, `/api/v1/books/book_yoq/reviews`, { method: "PUT", params: { id: "book_yoq" }, body: { rating: 5 }, expect: 404 });
   console.log("PASS: Sharhlar: kirganlar yozadi, bittadan, o'rtacha baho, faqat o'zini o'chiradi.");
 
+  // --- Do'kon chati: xaridor ↔ admin, buyurtma chatga tushadi --------------
+  // Buyurtma xaridorning chatida «order» xabari sifatida turadi, admin ro'yxatida o'qilmagan bo'ladi.
+  const bchat = (await buyer.call(chat.GET, "/api/v1/store/chat")).data;
+  assert.equal(bchat.messages.length, 1);
+  assert.equal(bchat.messages[0].kind, "order");
+  assert.equal(bchat.messages[0].orderId, order.id);
+  assert.match(bchat.messages[0].body, /Jami: ₩177,000/);
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM store_messages WHERE user_id = ?").get(buyer.userId).n, 1, "Takroriy buyurtma xabarni ko'paytirmaydi");
+  await guest.call(chat.POST, "/api/v1/store/chat", { method: "POST", body: { body: "Salom" }, expect: 401 });
+  await buyer.call(chat.POST, "/api/v1/store/chat", { method: "POST", body: { body: "   " }, expect: 422 });
+  await buyer.call(chat.POST, "/api/v1/store/chat", { method: "POST", body: { body: "x".repeat(1001) }, expect: 422 });
+  await buyer.call(chat.POST, "/api/v1/store/chat", { method: "POST", body: { body: "Bu kitob bormi?", bookId: "book_yoq" }, expect: 404 });
+  const asked = (await buyer.call(chat.POST, "/api/v1/store/chat", { method: "POST", body: { body: "Muqovasi qattiqmi?", bookId: forSale.id }, expect: 201 })).data;
+  assert.equal(asked.sender, "user");
+  assert.equal(asked.bookTitle, "Do'kon kitobi");
+
+  await buyer.call(adminChats.GET, "/api/v1/admin/store-chat", { expect: 403 });
+  await buyer.call(adminChat.GET, `/api/v1/admin/store-chat/${buyer.userId}`, { params: { userId: buyer.userId }, expect: 403 });
+  await buyer.call(adminChat.POST, `/api/v1/admin/store-chat/${buyer.userId}`, { method: "POST", params: { userId: buyer.userId }, body: { body: "o'zimga" }, expect: 403 });
+  const inbox = (await admin.call(adminChats.GET, "/api/v1/admin/store-chat")).data;
+  const row = inbox.items.find((t) => t.userId === buyer.userId);
+  assert.equal(row.unread, 2, "Buyurtma + savol = 2 ta o'qilmagan");
+  assert.equal(row.name, "Xaridor");
+  assert.ok(inbox.unread >= 2);
+  const opened = (await admin.call(adminChat.GET, `/api/v1/admin/store-chat/${buyer.userId}`, { params: { userId: buyer.userId } })).data;
+  assert.equal(opened.messages.length, 2);
+  assert.equal((await admin.call(adminChats.GET, "/api/v1/admin/store-chat")).data.items.find((t) => t.userId === buyer.userId).unread, 0, "Ochilgach o'qilgan");
+  await admin.call(adminChat.GET, "/api/v1/admin/store-chat/reader_yoq", { params: { userId: "reader_yoq" }, expect: 404 });
+
+  const reply = (await admin.call(adminChat.POST, `/api/v1/admin/store-chat/${buyer.userId}`, { method: "POST", params: { userId: buyer.userId }, body: { body: "Hisob raqam: 8600 **** **** 1234" }, expect: 201 })).data;
+  assert.equal(reply.sender, "admin");
+  const fresh = (await buyer.call(chat.GET, `/api/v1/store/chat?after=${asked.id}`)).data;
+  assert.deepEqual(fresh.messages.map((m) => m.id), [reply.id], "after faqat yangilarini qaytaradi");
+  assert.equal(fresh.unread, 1);
+  assert.equal((await buyer.call(chat.GET, "/api/v1/store/chat")).data.unread, 0, "Admin javobi o'qilgach nol");
+  assert.equal((await other.call(chat.GET, "/api/v1/store/chat")).data.messages.length, 0, "Yozishmalar aralashmaydi");
+
+  // Chek rasmi: faqat haqiqiy rasm, hajm chegarasi; egasi va admin ko'radi, boshqasi — yo'q.
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8]);
+  const upload = async (client, route, path, mime, bytes, params) => {
+    const res = await route.POST(new Request(`${ORIGIN}${path}`, { method: "POST", headers: { "Content-Type": mime, Cookie: client.cookie, Origin: ORIGIN }, body: bytes }), params ? { params: Promise.resolve(params) } : undefined);
+    return { status: res.status, payload: await res.json() };
+  };
+  assert.equal((await upload(buyer, chatImage, "/api/v1/store/chat/image", "image/png", new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]))).status, 400, "Rasm bo'lmagan fayl rad etiladi");
+  assert.equal((await upload(buyer, chatImage, "/api/v1/store/chat/image", "application/pdf", png)).status, 400);
+  assert.equal((await upload(guest, chatImage, "/api/v1/store/chat/image", "image/png", png)).status, 401);
+  const receipt = await upload(buyer, chatImage, "/api/v1/store/chat/image", "image/png", png);
+  assert.equal(receipt.status, 201);
+  assert.equal(receipt.payload.data.kind, "image");
+  const imageUrl = receipt.payload.data.imageUrl;
+  const [, , , uid, fileName] = imageUrl.split("/");
+  const fetchImage = (who) => chatFile.GET(new Request(`${ORIGIN}${imageUrl}`, { headers: { Cookie: who.cookie } }), { params: Promise.resolve({ uid, file: fileName }) });
+  assert.equal((await fetchImage(buyer)).status, 200);
+  assert.equal((await fetchImage(admin)).status, 200);
+  assert.equal((await fetchImage(other)).status, 404, "Chek rasmini boshqa xaridor ko'rmaydi");
+  assert.equal((await fetchImage(guest)).status, 404);
+  assert.equal((await upload(buyer, adminChatImage, `/api/v1/admin/store-chat/${buyer.userId}/image`, "image/png", png, { userId: buyer.userId })).status, 403);
+  assert.equal((await upload(admin, adminChatImage, `/api/v1/admin/store-chat/${buyer.userId}/image`, "image/png", png, { userId: buyer.userId })).status, 201);
+  assert.equal(sqlite.prepare("SELECT admin_unread FROM store_threads WHERE user_id = ?").get(buyer.userId).admin_unread, 1, "Chek rasmi adminda o'qilmagan");
+  console.log("PASS: Do'kon chati: buyurtma chatga tushadi, o'qilmaganlar, javob, chek rasmi (egasi va admin).");
+
   // --- AI: kalitsiz 503, mehmon 401 bo'lmasdan oldin sozlama tekshiriladi --
   delete process.env.GEMINI_API_KEY;
   await buyer.call(ai.POST, "/api/v1/store/ai", { method: "POST", body: { mode: "chat", messages: [{ role: "user", text: "Salom" }] }, expect: 503 });
@@ -210,6 +283,8 @@ try {
   const unique = [...new Set(createdUsers)];
   if (unique.length) {
     const ph = unique.map(() => "?").join(",");
+    sqlite.prepare(`DELETE FROM store_messages WHERE user_id IN (${ph})`).run(...unique);
+    sqlite.prepare(`DELETE FROM store_threads WHERE user_id IN (${ph})`).run(...unique);
     sqlite.prepare(`DELETE FROM store_orders WHERE user_id IN (${ph})`).run(...unique);
     sqlite.prepare(`DELETE FROM store_cart_items WHERE user_id IN (${ph})`).run(...unique);
     sqlite.prepare(`DELETE FROM book_reviews WHERE user_id IN (${ph})`).run(...unique);
@@ -217,5 +292,6 @@ try {
   }
   for (const id of createdBooks) sqlite.prepare("DELETE FROM books WHERE id = ?").run(id);
   if (unique.length) sqlite.prepare(`DELETE FROM users WHERE id IN (${unique.map(() => "?").join(",")})`).run(...unique);
+  await removeDir(mediaDir, { recursive: true, force: true });
   console.log(`Tozalandi: ${unique.length} ta foydalanuvchi, ${createdBooks.length} ta kitob.`);
 }
