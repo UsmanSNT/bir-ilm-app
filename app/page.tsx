@@ -17,12 +17,14 @@ import {
   MonitorSmartphone,
   Settings,
   Smartphone,
+  Store,
   Users,
   UserRound,
   Wifi,
 } from "lucide-react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import Dock from "./dock";
+import BookStore from "./book-store";
 import {
   Dialog,
   DialogClose,
@@ -216,6 +218,8 @@ export default function App() {
   const [now, setNow] = useState(0);
   const [session, setSession] = useState(0);
   const [modal, setModal] = useState("");
+  // Book Store — alohida rejim; Bir Ilm qobig'i yashiriladi, lekin o'chirilmaydi (jonli suhbat uzilmasin).
+  const [store, setStore] = useState(false);
   const [selected, setSelected] = useState<Book | null>(null);
   const [backendMode, setBackendMode] = useState<BackendMode>("local");
   const [serverLeaders, setServerLeaders] = useState<LeaderboardMember[]>([]);
@@ -411,13 +415,24 @@ export default function App() {
   return (
     <>
       <Toaster richColors position="top-center" />
-      <div className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}${tab === "shelf" ? " show-mobile-shelf" : ""}${tab === "profile" ? " show-profile" : ""}`}>
+      {store && (
+        <BookStore
+          shelf={data.shelf}
+          onBack={() => { setStore(false); window.scrollTo({ top: 0 }); }}
+          onToggle={(id) => {
+            const saved = data.shelf.includes(id);
+            update({ shelf: saved ? data.shelf.filter((item) => item !== id) : [...data.shelf, id] });
+            toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi");
+          }}
+        />
+      )}
+      <div hidden={store} className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}${tab === "shelf" ? " show-mobile-shelf" : ""}${tab === "profile" ? " show-profile" : ""}`}>
         <Dock
           mode="main"
           label="Asosiy bo'limlar"
           left={nav.slice(0, 2).map(([id, label, icon]) => ({ id, label, icon, active: tab === id, onClick: () => go(id) }))}
           right={nav.slice(2, 4).map(([id, label, icon]) => ({ id, label, icon, active: tab === id, onClick: () => go(id) }))}
-          center={{ label: "Profil", ariaLabel: "Profil", icon: UserRound, onClick: () => go("profile") }}
+          center={{ label: "Do‘kon", ariaLabel: "Book Store'ni ochish", icon: Store, onClick: () => { setStore(true); window.scrollTo({ top: 0 }); } }}
         />
 
         <main className="app-main">

@@ -260,3 +260,8 @@ body .app-shell.show-profile .app-main, body .app-shell.show-profile .app-tabs, 
 body .app-shell.show-mobile-shelf .app-main, body .app-shell.show-mobile-shelf .workspace,
 body .app-shell.show-mobile-home .app-main, body .app-shell.show-mobile-home .app-tabs, body .app-shell.show-mobile-home .workspace { background: transparent; }
 @media (max-width: 980px) { body .app-shell.show-community .app-header { display: flex; } }
+
+/* Book Store rejimi: Bir Ilm qobig'i yashiringan, lekin o'chirilmagan */
+body .app-shell[hidden] { display: none; }
+.zb { margin-left: 124px; }
+@media (max-width: 980px) { .zb { margin-left: 0; } }

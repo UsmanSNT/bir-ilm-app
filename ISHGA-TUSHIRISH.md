@@ -26,3 +26,13 @@ Terminal ko‘rsatgan lokal URLni oching. `pnpm build` ishlab chiqarish buildini
 localStorage kaliti: `bir-ilm-v1`. Audio: `bir-ilm-audio` IndexedDB. Brauzer ma’lumotlarini tozalash lokal yozuvlarni o‘chiradi. Backend, login, sinxronlash va fon push bildirishnomalari yo‘q. Hozircha PWA/offline kafolati yo‘q.
 
 Asl logo va illyustratsiyalar `public/assets/README.md` orqali ulanadi. Kitob muqovalari HTML namunadagi kabi matnli demo ko‘rinishlar.
+
+## Book Store
+
+- Do‘konda faqat **narxi qo‘yilgan** kitoblar chiqadi. Narx va janrni admin yoki moderator kitob tahririda («Book Store» bo‘limi) qo‘yadi. Bo‘sh narx — kitob sotuvda emas.
+- Savat serverda saqlanadi (web va mobil ilovada bir xil). Mehmon savat to‘ldira oladi; buyurtma, sharh va AI faqat Google/Telegram bilan kirganlar uchun.
+- Summa har doim serverda, bazadagi narxdan hisoblanadi. Buyurtmadagi nom va narx o‘sha paytdagi holatda saqlanadi.
+- Onlayn to‘lov ulanmagan: buyurtma «Yangi» holatda tushadi, operator mijozga qo‘ng‘iroq qiladi. Buyurtmalar: **Profil → Do‘kon buyurtmalari** (faqat admin). Holatlar: Yangi → Tasdiqlandi → Yo‘lda → Yetkazildi / Bekor qilindi.
+- AI yordamchi (tavsiya, mutolaa rejasi, kitob xulosasi) uchun serverga `GEMINI_API_KEY` o‘rnating (ixtiyoriy: `GEMINI_MODEL`, standart `gemini-2.5-flash`). Kalit faqat serverda; har foydalanuvchiga 10 daqiqada 20 ta so‘rov.
+- Migratsiya: `drizzle/0014_book_store.sql` — yangi jadvallar va `books` ga ikki ustun qo‘shadi, mavjud ma’lumotga tegmaydi. Server ishga tushganda avtomatik qo‘llanadi.
+- Test: `node tests/store-v1.mjs`.

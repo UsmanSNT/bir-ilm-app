@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, CalendarClock, Headphones, ImagePlus, Megaphone, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, Headphones, ImagePlus, Megaphone, Sparkles, Store, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { createBook, deleteBook, deleteTrack, notifyCatalogChanged, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
 import { createLiveSession, fetchLiveSessions, updateLiveSession } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
-import { BOOK_LIMITS, type Book, type LiveSession } from "@/shared/contract";
+import { BOOK_LIMITS, STORE_CATEGORIES, STORE_LIMITS, type Book, type LiveSession } from "@/shared/contract";
 import { WEEKDAYS, clock, dayMonth, localInput, nextTalk, notifyTalksChanged, talkAnnouncement, talkRescheduled } from "./talk-format";
 
 const COLORS = ["#0f4f45", "#294256", "#7a3b2e", "#5b4a8b", "#8a6511", "#2f6f8f", "#374151"];
@@ -44,6 +44,8 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
   const [author, setAuthor] = useState(book?.author ?? "");
   const [summary, setSummary] = useState(book?.summary ?? "");
   const [color, setColor] = useState(book?.color ?? COLORS[0]);
+  const [price, setPrice] = useState(book?.price ? String(book.price) : "");
+  const [category, setCategory] = useState(book?.category ?? "");
   const [active, setActive] = useState(book?.active ?? asWeekBook);
   // Hafta kitobi bilan birga suhbat vaqtini belgilash (faqat admin suhbat yarata oladi).
   const isAdmin = useViewer()?.role === "admin";
@@ -113,7 +115,9 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
     setBusy(true);
     abortRef.current = new AbortController();
     try {
-      const fields = { title: title.trim(), author: author.trim(), summary: summary.trim(), color };
+      const priceValue = price.trim() ? Number(price) : 0;
+      if (!Number.isInteger(priceValue) || priceValue < 0 || priceValue > STORE_LIMITS.maxPrice) throw new Error("Narx butun so‘mda, 0 dan 10 000 000 gacha bo‘lsin.");
+      const fields = { title: title.trim(), author: author.trim(), summary: summary.trim(), color, price: priceValue, category: category.trim() };
       let saved = book ? await updateBook(book.id, { ...fields, active }) : await createBook(fields);
       if (!book && active) saved = await updateBook(saved.id, { active: true });
 
@@ -223,6 +227,22 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
             </div>
           </div>
           <textarea aria-label="Tavsif" placeholder="Qisqacha tavsif (ixtiyoriy)" rows={3} maxLength={BOOK_LIMITS.summary} value={summary} onChange={(e) => setSummary(e.target.value)} />
+
+          <fieldset className="book-editor-store">
+            <legend><Store size={16} /> Book Store</legend>
+            <label>
+              <span>Narx (so‘m)</span>
+              <input inputMode="numeric" pattern="[0-9]*" placeholder="Sotilmaydi" value={price} disabled={busy} onChange={(e) => setPrice(e.target.value.replace(/\D/g, "").slice(0, 8))} />
+            </label>
+            <label>
+              <span>Janr</span>
+              <input list="book-editor-categories" placeholder="Masalan: Badiiy adabiyot" maxLength={STORE_LIMITS.category} value={category} disabled={busy} onChange={(e) => setCategory(e.target.value)} />
+            </label>
+            <datalist id="book-editor-categories">
+              {STORE_CATEGORIES.map((c) => <option key={c} value={c} />)}
+            </datalist>
+            <small>Narx qo‘yilsa kitob do‘konda chiqadi. Bo‘sh qoldirilsa — sotuvda emas.</small>
+          </fieldset>
 
           <label className="book-editor-audio">
             <Headphones size={18} />

@@ -57,6 +57,8 @@ export function toBook(row: BookRow, trackRows: TrackRow[] = []): Book {
     audioSeconds: tracks.reduce((sum, t) => sum + t.seconds, 0),
     audioBytes: tracks.reduce((sum, t) => sum + t.bytes, 0),
     tracks,
+    price: row.price,
+    category: row.category,
   };
 }
 

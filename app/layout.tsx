@@ -8,6 +8,7 @@ import "./mobile-library.css";
 import "./profile-screens.css";
 import "./community/community.css";
 import "./talks.css";
+import "./store.css";
 import "./naqsh.css";
 
 export const metadata: Metadata = {

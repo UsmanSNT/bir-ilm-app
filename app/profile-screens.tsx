@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, LogOut, Mail, MessageCircle, NotebookPen, Settings, ShieldCheck, Smartphone, Sparkles, Trophy, UserRound, Users } from "lucide-react";
+import { ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, LogOut, Mail, MessageCircle, NotebookPen, Settings, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
 import { useCatalog } from "@/lib/api/books-client";
 import type { Book } from "@/shared/contract";
 import { USER_ROLE_LABELS } from "@/shared/contract/roles";
 import AdminPanel from "./admin-panel";
+import AdminOrders from "./admin-orders";
 import LoginCard from "./login-card";
 import { LinkDeviceDialog } from "./device-link";
 import { nativeAuth } from "@/lib/api/native-auth";
@@ -14,7 +15,7 @@ import ReadingDashboard from "./reading-dashboard";
 import type { SocialData } from "./social-types";
 
 type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onEdit: () => void; onProgress: () => void; onNotifications: () => void };
-type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin";
+type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders";
 
 function Cover({ small = false, book }: { small?: boolean; book: Book | null }) {
   if (book?.coverUrl) return <span className={`p-book p-book-image ${small ? "p-book-small" : ""}`} aria-hidden="true"><img src={book.coverUrl} alt="" /></span>;
@@ -66,7 +67,7 @@ export default function ProfileScreens(p: Props) {
   const open = (next: Screen) => { setScreen(next); window.scrollTo({ top: 0, behavior: "instant" }); };
   const percent = Math.min(100, Math.max(0, Math.round(p.page / Math.max(1, p.total) * 100)));
   const replies = (social?.posts ?? []).flatMap(post => post.replies.filter(reply => reply.name !== p.name).map(reply => ({ ...reply, book: post.book }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli" };
+  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari" };
   const count = (value: number | undefined) => status === "ready" ? value ?? 0 : "—";
 
   return <section className={`profile-space p-view-${screen}`}>
@@ -84,7 +85,7 @@ export default function ProfileScreens(p: Props) {
         <div className="p-section-title"><h2><BookOpen size={19} />Mutolaa</h2><button className="p-link" onClick={() => p.onNavigate("shelf")}>Javonim <ArrowRight size={15} /></button></div>
         <button className="p-reading" onClick={p.onProgress}><Cover book={featured} /><span className="p-reading-info"><small>HOZIRGI MUTOLAA</small><strong>{featured?.title ?? "Haftaning kitobi hali yo‘q"}</strong><span>{featured?.author ?? ""}</span><span className="p-progress"><span><i style={{ width: `${percent}%` }} /></span><b>{percent}%</b></span><span className="p-page-count">{p.page} / {p.total} sahifa <ArrowRight size={14} /></span></span></button>
         <div className="p-reading-stats"><span><BookOpen size={17} /><b>{p.shelfCount}</b><small>Kitob</small></span><span><MessageCircle size={17} /><b>{count(social?.sessions)}</b><small>Fokus seansi</small></span><span><ChartNoAxesColumnIncreasing size={17} /><b>{p.streak}</b><small>Kunlik streak</small></span></div>
-        {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /></div>}
+        {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value="Book Store" onClick={() => open("orders")} /></div>}
         <div className="p-menu"><Row icon={<NotebookPen />} title="Mening postlarim" value={count(social?.profile?.posts)} onClick={() => open("posts")} /><Row icon={<MessageCircle />} title="Javoblar va faollik" value={replies.length || undefined} onClick={() => { setActivity("Javoblar"); open("activity"); }} /><Row icon={<Mail />} title="Xabarlar" onClick={() => open("messages")} /><Row icon={<Bookmark />} title="Saqlangan kitoblar" value={p.shelfCount} onClick={() => p.onNavigate("shelf")} /></div>
       </div><div>
         <div className="p-section-title"><h2><CalendarDays size={19} />Bo‘lib o‘tadigan suhbat</h2><button className="p-link" onClick={() => p.onNavigate("talks")}>Barchasi <ArrowRight size={15} /></button></div>
@@ -110,6 +111,7 @@ export default function ProfileScreens(p: Props) {
       <div className="p-settings-brand"><BookOpen size={23} /><strong>BIR ILM</strong><span>Bir hafta. Bir kitob. Bir qadam oldinga.</span><small>Ilova versiyasi 0.1.0</small></div>
     </div>}
     {screen === "admin" && (role === "admin" && viewer ? <AdminPanel selfId={viewer.userId} /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
+    {screen === "orders" && (role === "admin" ? <AdminOrders /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "posts" && <ReadingDashboard mode="profile" name={p.name} pages={p.page} shelfCount={p.shelfCount} streak={p.streak} />}
     {screen === "messages" && <div className="p-empty"><Mail /><h2>Yaxshi suhbat — bir xabardan</h2><p>Shaxsiy yozishmalar hali ishga tushirilmagan. Hozir kitobxonlar bilan hamjamiyatda fikr almashishingiz mumkin.</p><button className="p-primary" onClick={() => p.onNavigate("community")}>Hamjamiyatga o‘tish <ArrowRight size={16} /></button></div>}
     {screen === "privacy" && <div className="p-info"><ShieldCheck /><h2>Ma’lumotlaringiz haqida</h2><p>Mutolaa jarayoni va ilova sozlamalari ushbu brauzerda saqlanadi. Postlar, javoblar va obunalar xizmat bazasida saqlanadi.</p><p>Postlaringizni “Mening postlarim” bo‘limida boshqarishingiz mumkin. Brauzer ma’lumotlarini o‘chirish qurilmada saqlangan jarayonga kirishni yo‘qotishi mumkin.</p></div>}

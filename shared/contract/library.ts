@@ -38,6 +38,10 @@ export type Book = {
   audioBytes: number;
   /** Audiokitob qismlari — tartib bilan ketma-ket ijro etiladi. */
   tracks: BookTrack[];
+  /** Do'kondagi narx (so'm); 0 — sotuvda emas. */
+  price: number;
+  /** Do'kon janri. */
+  category: string;
 };
 
 export type BookTrack = {
@@ -68,6 +72,8 @@ export const createBookSchema = z.object({
   author: z.string().trim().min(1, "Muallifni yozing.").max(BOOK_LIMITS.author),
   summary: z.string().trim().max(BOOK_LIMITS.summary).default(""),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Rang #RRGGBB ko'rinishida bo'lsin.").default("#0f4f45"),
+  price: z.coerce.number().int("Narx butun so'mda bo'lsin.").min(0).max(10_000_000).default(0),
+  category: z.string().trim().max(40).default(""),
 });
 export type CreateBookInput = z.infer<typeof createBookSchema>;
 

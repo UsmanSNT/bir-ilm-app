@@ -164,6 +164,10 @@ export const books = sqliteTable("books", {
   audioMime: text("audio_mime"),
   audioBytes: integer("audio_bytes").notNull().default(0),
   audioSeconds: integer("audio_seconds").notNull().default(0),
+  /** Do'kondagi narx (so'm). 0 — sotuvda emas. */
+  price: integer("price").notNull().default(0),
+  /** Do'kon janri (filtr uchun). */
+  category: text("category").notNull().default(""),
   createdBy: text("created_by"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -319,3 +323,58 @@ export const userActivity = sqliteTable(
     index("idx_user_activity_score").on(table.score, table.streak, table.pagesRead),
   ],
 );
+
+// ── Book Store ──────────────────────────────────────────────────────
+
+/** Savat: har foydalanuvchi uchun bitta; narx bu yerda saqlanmaydi — har doim kitobdan olinadi. */
+export const storeCartItems = sqliteTable("store_cart_items", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bookId: text("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+  qty: integer("qty").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [uniqueIndex("idx_store_cart_user_book").on(t.userId, t.bookId)]);
+
+/**
+ * Buyurtmalar. `id` mijozda yaratiladi (takroriy yuborish xavfsiz — idempotent).
+ * Summalar serverda, bazadagi narxlardan hisoblanadi. To'lov hozircha yetkazishda / admin bog'lanadi.
+ */
+export const storeOrders = sqliteTable("store_orders", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(),
+  address: text("address").notNull(),
+  note: text("note").notNull().default(""),
+  payment: text("payment", { enum: ["cash", "click", "payme", "uzum", "card"] }).notNull(),
+  status: text("status", { enum: ["new", "confirmed", "shipped", "delivered", "cancelled"] }).notNull().default("new"),
+  total: integer("total").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [
+  index("idx_store_orders_user").on(t.userId, t.createdAt),
+  index("idx_store_orders_status").on(t.status, t.createdAt),
+]);
+
+/** Buyurtma qatorlari: nom va narx buyurtma paytidagi holatda muzlatiladi (kitob o'chsa ham qoladi). */
+export const storeOrderItems = sqliteTable("store_order_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  orderId: text("order_id").notNull().references(() => storeOrders.id, { onDelete: "cascade" }),
+  bookId: text("book_id").notNull(),
+  title: text("title").notNull(),
+  qty: integer("qty").notNull(),
+  price: integer("price").notNull(),
+}, (t) => [index("idx_store_order_items_order").on(t.orderId)]);
+
+/** Kitob sharhlari: har kitobxon har kitobga bitta (qayta yozsa yangilanadi). */
+export const bookReviews = sqliteTable("book_reviews", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  bookId: text("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(),
+  body: text("body").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [
+  uniqueIndex("idx_book_reviews_book_user").on(t.bookId, t.userId),
+  index("idx_book_reviews_book").on(t.bookId, t.updatedAt),
+]);
