@@ -316,7 +316,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
     <div className="mobile-library">
       {screen === "catalog" && (
         <div className="lib-screen">
-          <header className="lib-head">
+          <header className="lib-head lib-head-catalog">
             <h1>Kutubxona</h1>
             <div className="lib-head-actions">
               <button type="button" className="lib-mine" onClick={() => setScreen("mine")}><Library size={17} /> Kitoblarim</button>

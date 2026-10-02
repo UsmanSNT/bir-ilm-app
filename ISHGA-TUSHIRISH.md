@@ -118,3 +118,14 @@ Jonli suhbat xonasi "Naqsh" tungi uslubida: sarlavhada kitob nomi va qatnashchil
 - **Suhbat xonasi:** qatnashchilar gorizontal qatorda (kichik avatarlar, so‘zlovchi — tilla halqa, gapirayotgan — yashil); **kamerasi yoqiqlar** alohida kichik video qatorda; **qo‘l ko‘targanlar** tilla ramkali alohida qatorda (boshlovchida «So‘z berish») va sarlavhada soni; chat xonaning pastida kichik panel (Izohlar tugmasi yig‘adi). Telefonda kichraytirilgan panel dock ustida turadi.
 - **Javon** yog‘och tokchaga o‘xshatildi; **Kutubxona** sarlavhasi ikki qatorga ajratildi; **Hamjamiyat** postlari alohida yumaloq kartalar; **profil tepasi** ekran tepasiga ulangan, pastki burchaklari yumaloq panel.
 - Suhbat boshqaruv oynasida «Saqlash» va «O‘chirish» bitta qatorda.
+
+## Ijtimoiy tarmoqlar va qisqa videolar
+
+- **«Bizni kuzating»** bloki: Telegram, YouTube, Instagram, Facebook tugmalari (belgi + nom). Bosh sahifa oxirida, Sozlamalarda va PC pastki satrida chiqadi; havola yangi oynada ochiladi. Havolalar kodda emas — **Profil → Sozlamalar → Ijtimoiy tarmoqlar** (faqat admin): `@kanal` yoki to‘liq havola yoziladi, begona domen va xavfli sxemalar (masalan `javascript:`) rad etiladi, bo‘sh qoldirilgan tarmoq ko‘rinmaydi. API: `GET/PUT /api/v1/site/links`.
+- **Qisqa videolar** (Gurung va bosh sahifa lentasi tepasida): YouTube Shorts / Instagram Reels / Facebook video **havolasi** qo‘shiladi, video serverga yuklanmaydi. Karta bosilganda ilova ichida platformaning o‘z pleyeri (iframe) ochiladi; YouTube `youtube-nocookie.com` orqali. Havolani faqat admin qo‘shadi/o‘chiradi («Havola qo‘shish» tugmasi). API: `/api/v1/site/videos`.
+- **Cheklovlar (halol):** Instagram va Facebook pleyeri faqat *ochiq* postlarni ko‘rsatadi, ba’zan o‘z tizimiga kirishni taklif qilishi mumkin va ularning ishlashi shu kompaniyalarga bog‘liq; YouTube eng ishonchli. Ilova pleyer ochilmasa, pleyer tagidagi «…da ochish» havolasi bilan o‘tish mumkin. Agar Caddy/Nginx'da `Content-Security-Policy` yoki `X-Frame-Options` sarlavhalari qo‘yilgan bo‘lsa, `frame-src` ga `youtube-nocookie.com`, `instagram.com`, `facebook.com` qo‘shing (kodda bunday cheklov yo‘q).
+- Migratsiya: `drizzle/0019_site_links_videos.sql`. Test: `node tests/site-v1.mjs`.
+
+## PC'da audiokitob pleyeri
+
+Javon (kutubxona) endi PC kengligida ham telefon maketidagi pleyer va yog‘och tokchani ko‘rsatadi (avval faqat ≤980 px da chiqardi, PC'da faqat katalog bor edi). Kitob pleyerida ijro, ±15 soniya, tezlik va uyqu taymeri ishlaydi.

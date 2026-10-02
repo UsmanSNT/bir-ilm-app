@@ -371,12 +371,13 @@ body .app-shell[hidden] { display: none; }
 @media (max-width: 420px) { .live-waiting-timer { gap: 5px; } .live-waiting-timer > span { min-width: 54px; padding-inline: 4px; } }
 
 /* ───────── Kutubxona: sarlavha va haqiqiy javonga o'xshash tokcha ───────── */
-.lib-head { flex-direction: column; align-items: stretch; gap: 10px; min-height: 0; }
-.lib-head h1 { flex: none; font-family: var(--f-display); }
+.lib-head-catalog { flex-direction: column; align-items: stretch; gap: 10px; min-height: 0; }
+.lib-head h1 { font-family: var(--f-display); }
+.lib-head-catalog h1 { flex: none; }
 .lib-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.lib-head .lib-mine, .lib-head .lib-add { min-height: 40px; padding: 0 16px; border-radius: 999px; gap: 7px; font-size: 13.5px; font-weight: 800; }
-.lib-head .lib-mine { background: var(--sahifa); color: var(--lojuvard); box-shadow: inset 0 0 0 1.5px var(--chiziq); }
-.lib-head .lib-add { background: var(--lojuvard); color: #fff; }
+.lib-head-catalog .lib-mine, .lib-head-catalog .lib-add { min-height: 40px; padding: 0 16px; border-radius: 999px; gap: 7px; font-size: 13.5px; font-weight: 800; }
+.lib-head-catalog .lib-mine { background: var(--sahifa); color: var(--lojuvard); box-shadow: inset 0 0 0 1.5px var(--chiziq); }
+.lib-head-catalog .lib-add { background: var(--lojuvard); color: #fff; }
 
 /* Yog'och javon: orqa devor, yon ustunlar, qalin taxta; kitoblar taxtada turadi va soya tashlaydi */
 .lib-shelves { gap: 14px; }
@@ -412,3 +413,54 @@ body .app-shell[hidden] { display: none; }
 .post-card { padding: 16px; }
 .reading-post { margin: 0 0 14px; padding: 16px; border: 1px solid var(--chiziq); border-bottom: 1px solid var(--chiziq); border-radius: 20px; background: var(--sahifa); box-shadow: 0 10px 24px -16px rgba(22, 34, 80, .35); }
 .reading-post.is-announcement { border-color: #e9d9a8; background: linear-gradient(180deg, #fffbef, var(--sahifa)); }
+
+/* ───────── Ijtimoiy tarmoq tugmalari ───────── */
+.social-links ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.social-link { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 14px; border-radius: 999px; background: var(--sahifa); color: var(--lojuvard); font: 800 13px var(--f-ui); text-decoration: none; box-shadow: inset 0 0 0 1.5px var(--chiziq); transition: transform .15s, box-shadow .15s; }
+.social-link:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1.5px var(--tilla); }
+.social-link.is-telegram svg { color: #229ed9; }
+.social-link.is-youtube svg { color: #e62117; }
+.social-link.is-instagram svg { color: #d6249f; }
+.social-link.is-facebook svg { color: #1877f2; }
+.social-links-card { display: grid; gap: 12px; margin: 18px 0 0; padding: 16px; border-radius: 22px; background: linear-gradient(180deg, #fffaf0, #f6ecd6); box-shadow: inset 0 0 0 1px #e9dcbb, 0 12px 26px -20px rgba(22, 34, 80, .4); }
+.social-links-text { display: grid; gap: 3px; }
+.social-links-text strong { font: 600 19px var(--f-display); color: var(--siyoh); }
+.social-links-text span { color: var(--siyoh-3); font-size: 13px; line-height: 1.5; }
+.social-links-inline .social-link { min-height: 34px; padding: 0 10px; font-size: 12px; box-shadow: none; background: transparent; text-transform: none; letter-spacing: 0; }
+.p-settings .social-links-card { margin: 14px 0; }
+
+/* ───────── Qisqa videolar ───────── */
+.video-shelf { margin: 0 0 18px; }
+.video-shelf-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.video-shelf-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font: 600 20px var(--f-display); }
+.video-add { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--lojuvard); color: #fff; font: 800 12.5px var(--f-ui); cursor: pointer; }
+.video-form { display: grid; gap: 8px; margin: 0 0 12px; padding: 12px; border-radius: 16px; background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.video-form label { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 12px; background: var(--qogoz-2); }
+.video-form input { flex: 1; min-width: 0; min-height: 42px; border: 0; border-radius: 12px; background: transparent; color: var(--siyoh); font: inherit; font-size: 14px; outline: 0; }
+.video-form > input { padding: 0 12px; background: var(--qogoz-2); }
+.video-submit { min-height: 42px; border: 0; border-radius: 999px; background: var(--lojuvard); color: #fff; font: 800 13px var(--f-ui); cursor: pointer; }
+.video-submit:disabled { opacity: .55; cursor: not-allowed; }
+.video-rail { display: flex; gap: 10px; margin: 0; padding: 2px 2px 8px; overflow-x: auto; list-style: none; scroll-snap-type: x proximity; }
+.video-rail li { position: relative; flex: 0 0 auto; scroll-snap-align: start; }
+.video-card { position: relative; display: grid; align-content: end; width: 122px; aspect-ratio: 9 / 16; padding: 0; overflow: hidden; border: 0; border-radius: 16px; background: linear-gradient(160deg, #1d2d6c, #0b1230); color: #fff; text-align: left; cursor: pointer; box-shadow: 0 10px 22px -14px #000; }
+.video-card.is-instagram { background: linear-gradient(160deg, #833ab4, #fd1d1d 60%, #fcb045); }
+.video-card.is-facebook { background: linear-gradient(160deg, #1877f2, #0b3a82); }
+.video-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.video-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, #000b); }
+.video-card strong { position: relative; z-index: 1; padding: 8px 9px 10px; font-size: 11.5px; line-height: 1.25; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.video-badge { position: absolute; z-index: 1; top: 8px; left: 8px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: #0009; font-size: 10px; font-weight: 800; }
+.video-play { position: absolute; z-index: 1; top: 50%; left: 50%; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #ffffffd9; color: #111; transform: translate(-50%, -60%); }
+.video-remove { position: absolute; z-index: 2; top: 6px; right: 6px; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 50%; background: #e0303e; color: #fff; cursor: pointer; }
+.video-modal { position: fixed; inset: 0; z-index: 1400; display: grid; place-items: center; padding: 12px; background: #050816e6; }
+.video-modal-card { position: relative; display: grid; gap: 8px; width: min(100%, 380px); }
+.video-modal-card iframe { width: 100%; height: min(78vh, 680px); border: 0; border-radius: 18px; background: #000; }
+.video-close { position: absolute; z-index: 2; top: -4px; right: -4px; display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: #fff; color: #111; cursor: pointer; box-shadow: 0 4px 12px #0008; }
+.video-origin { justify-self: center; color: #cfd5f5; font-size: 12.5px; font-weight: 700; }
+
+/* Javon: audiokitob pleyeri va tokcha PC'da ham ko'rinadi (avval faqat telefon kengligida chiqardi) */
+.show-mobile-shelf .desktop-shelf, .show-mobile-shelf .page-heading { display: none; }
+.show-mobile-shelf .mobile-library { display: block; }
+@media (min-width: 981px) {
+  .show-mobile-shelf .mobile-library .lib-screen, .show-mobile-shelf .mobile-library .lib-player-screen { width: min(600px, 100%); }
+  .show-mobile-shelf .workspace { padding-top: 12px; }
+}

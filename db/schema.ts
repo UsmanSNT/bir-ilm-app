@@ -435,3 +435,24 @@ export const storeMessages = sqliteTable("store_messages", {
   imageFile: text("image_file"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_store_messages_user").on(t.userId, t.id)]);
+
+/** Bir Ilm'ning ijtimoiy tarmoq havolalari (telegram, youtube, instagram, facebook) — admin kiritadi. */
+export const siteLinks = sqliteTable("site_links", {
+  key: text("key", { enum: ["telegram", "youtube", "instagram", "facebook"] }).primaryKey(),
+  url: text("url").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+/**
+ * Qisqa videolar: faqat havola saqlanadi (video serverga yuklanmaydi). Ilovada tashqi pleyer (iframe) bilan ijro etiladi.
+ * `externalId` — platformadagi identifikator (YouTube: 11 belgi, Instagram: post kodi; Facebook'da bo'sh).
+ */
+export const videoLinks = sqliteTable("video_links", {
+  id: text("id").primaryKey(),
+  platform: text("platform", { enum: ["youtube", "instagram", "facebook"] }).notNull(),
+  url: text("url").notNull(),
+  externalId: text("external_id").notNull().default(""),
+  title: text("title").notNull().default(""),
+  createdBy: text("created_by"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_video_links_created").on(t.createdAt)]);
