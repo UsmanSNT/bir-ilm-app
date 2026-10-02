@@ -1,114 +1,132 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { BookOpen, Check, Heart, Library, Minus, Plus, ShoppingCart, Sparkles, Star, Store, Trash2 } from "lucide-react";
+import { FormEvent, useMemo, useState } from "react";
+import { BookOpen, Check, Heart, Library, Minus, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import BookDiscovery from "./book-discovery";
-import StoreAi, { askAi } from "./store-ai";
+import StoreAi from "./store-ai";
+import StoreBookPage from "./store-book-page";
+import { BookCover, RatingLine, useReviewSummaries } from "./store-ui";
 import { useStoreState } from "./store-state";
 import { books, type Book } from "./app-data";
 import { formatPrice, getMeta, MAX_QTY, paymentMethods, type Order, type PaymentMethod } from "./store-data";
 
 type Section = "catalog" | "ai" | "cart" | "checkout" | "library";
 type Icon = typeof Store;
+type Cart = ReturnType<typeof useStoreState>;
 
-const left: [Section, string, Icon][] = [["catalog", "Katalog", Store], ["ai", "AI yordamchi", Sparkles]];
+const left: [Section, string, Icon][] = [["catalog", "Do‘kon", Store], ["ai", "AI", Sparkles]];
 const right: [Section, string, Icon][] = [["cart", "Savat", ShoppingCart], ["library", "Kutubxona", Library]];
-const titles: Record<Section, string> = { catalog: "Kitob do‘koni", ai: "AI yordamchi", cart: "Savat", checkout: "Buyurtma berish", library: "Kutubxona" };
+const titles: Record<Section, string> = { catalog: "Kitob do‘koni", ai: "AI yordamchi", cart: "Savat", checkout: "Buyurtma berish", library: "Kutubxonam" };
+const categories = ["Barchasi", ...new Set(books.map(b => getMeta(b).category))];
 const phoneRe = /^\+998\d{9}$/;
 
-export default function BookStore({ shelf, onBack, onToggle }: {
-  shelf: string[]; onBack: () => void; onToggle: (book: Book) => void;
+export default function BookStore({ shelf, name, onBack, onToggle }: {
+  shelf: string[]; name: string; onBack: () => void; onToggle: (book: Book) => void;
 }) {
   const [section, setSection] = useState<Section>("catalog");
   const [detail, setDetail] = useState<Book | null>(null);
   const [placed, setPlaced] = useState<Order | null>(null);
+  const [reviewsVersion, setReviewsVersion] = useState(0);
+  const summaries = useReviewSummaries(reviewsVersion);
   const cart = useStoreState();
 
-  const go = (next: Section) => { setSection(next); setPlaced(null); window.scrollTo({ top: 0 }); };
+  const go = (next: Section) => { setSection(next); setDetail(null); setPlaced(null); window.scrollTo({ top: 0 }); };
+  const open = (book: Book) => { setDetail(book); window.scrollTo({ top: 0 }); };
+  const addToCart = (book: Book) => { cart.add(book.id); toast.success(`«${book.title}» savatga qo‘shildi`); };
   const active = section === "checkout" ? "cart" : section;
   const tab = ([id, label, Icon]: [Section, string, Icon]) => (
-    <button key={id} type="button" aria-current={active === id ? "page" : undefined} onClick={() => go(id)}>
-      <span className="store-icon"><Icon size={22} strokeWidth={1.8} />{id === "cart" && cart.count > 0 && <b className="store-badge">{cart.count}</b>}</span><span>{label}</span>
+    <button key={id} type="button" aria-current={active === id && !detail ? "page" : undefined} onClick={() => go(id)}>
+      <span className="zb-nav-icon"><Icon size={22} strokeWidth={1.8} />{id === "cart" && cart.count > 0 && <b className="zb-badge">{cart.count}</b>}</span><span>{label}</span>
     </button>
   );
-  const addToCart = (book: Book) => { cart.add(book.id); toast.success("Savatga qo‘shildi"); };
 
-  return <>
-    <nav className="store-nav" aria-label="Book Store bo'limlari">
+  return <div className="zb">
+    <nav className="zb-nav" aria-label="Book Store bo'limlari">
       {left.map(tab)}
-      <button type="button" className="store-home" onClick={onBack} aria-label="Bir Ilm bosh sahifasiga qaytish"><BookOpen size={22} strokeWidth={1.8} /><span>Bir Ilm</span></button>
+      <button type="button" className="zb-nav-home" onClick={onBack} aria-label="Bir Ilm bosh sahifasiga qaytish"><span className="zb-nav-home-mark"><BookOpen size={22} strokeWidth={1.8} /></span><span>Bir Ilm</span></button>
       {right.map(tab)}
     </nav>
-    <div className="workspace">
-      <div className="page-heading"><div><p className="eyebrow">BOOK STORE</p><h1>{titles[section]}</h1></div></div>
-      {section === "catalog" && <BookDiscovery library shelf={shelf} page={0} total={1} streak={0} onNavigate={() => {}} onProgress={() => {}} onOpen={setDetail} onToggle={onToggle} />}
-      {section === "ai" && <StoreAi />}
-      {section === "cart" && <Cart cart={cart} onCheckout={() => go("checkout")} onCatalog={() => go("catalog")} />}
-      {section === "checkout" && (placed
-        ? <Confirmation order={placed} onLibrary={() => go("library")} />
-        : <Checkout cart={cart} onBack={() => go("cart")} onPlaced={setPlaced} />)}
-      {section === "library" && <LibraryView shelf={shelf} orders={cart.orders} onOpen={setDetail} />}
+    <div className="zb-page">
+      {detail
+        ? <StoreBookPage key={detail.id} book={detail} name={name} saved={shelf.includes(detail.id)} summaries={summaries}
+            onBack={() => setDetail(null)} onOpen={open} onAdd={() => addToCart(detail)} onToggle={() => onToggle(detail)} onReviewed={() => setReviewsVersion(v => v + 1)} />
+        : <>
+          {section !== "catalog" && <header className="zb-head"><span className="zb-eyebrow">BIR ILM · BOOK STORE</span><h1>{titles[section]}</h1></header>}
+          {section === "catalog" && <StoreHome summaries={summaries} onOpen={open} onAdd={addToCart} onAi={() => go("ai")} />}
+          {section === "ai" && <StoreAi />}
+          {section === "cart" && <CartView cart={cart} onCheckout={() => go("checkout")} onCatalog={() => go("catalog")} onOpen={open} />}
+          {section === "checkout" && (placed
+            ? <Confirmation order={placed} onLibrary={() => go("library")} />
+            : <Checkout cart={cart} onBack={() => go("cart")} onPlaced={setPlaced} />)}
+          {section === "library" && <LibraryView shelf={shelf} orders={cart.orders} onOpen={open} />}
+        </>}
     </div>
-    <Dialog open={!!detail} onOpenChange={open => { if (!open) setDetail(null); }}>
-      <DialogContent>{detail && <Detail key={detail.id} book={detail} saved={shelf.includes(detail.id)} onToggle={() => onToggle(detail)} onAdd={() => addToCart(detail)} />}</DialogContent>
-    </Dialog>
-  </>;
-}
-
-function Detail({ book, saved, onToggle, onAdd }: { book: Book; saved: boolean; onToggle: () => void; onAdd: () => void }) {
-  const meta = getMeta(book);
-  const [summary, setSummary] = useState("");
-  const [busy, setBusy] = useState(false);
-  const generate = async () => { setBusy(true); setSummary(await askAi({ mode: "summary", bookId: book.id })); setBusy(false); };
-  return <>
-    <DialogTitle>{book.title}</DialogTitle>
-    <DialogDescription>{book.author} · {meta.category}</DialogDescription>
-    <p>{book.summary}</p>
-    <p className="book-detail-meta"><Star size={16}/> {meta.rating} ({meta.reviews} sharh) · <BookOpen size={16}/> {book.pages} sahifa</p>
-    <p className="store-price">{formatPrice(meta.price)}</p>
-    <div className="store-actions">
-      <button className="button" onClick={onAdd}><ShoppingCart size={17}/>Savatga</button>
-      <button className="button" aria-pressed={saved} onClick={onToggle}><Heart size={17}/>{saved ? "Javondan olish" : "Javonga"}</button>
-      <button className="button" disabled={busy} onClick={() => void generate()}><Sparkles size={17}/>{busy ? "Tayyorlanmoqda..." : "AI xulosa"}</button>
-    </div>
-    {summary && <div className="store-ai-msg model" style={{ whiteSpace: "pre-wrap" }}>{summary}</div>}
-  </>;
-}
-
-function Cart({ cart, onCheckout, onCatalog }: { cart: ReturnType<typeof useStoreState>; onCheckout: () => void; onCatalog: () => void }) {
-  const [code, setCode] = useState("");
-  if (!cart.lines.length) return <div className="store-empty"><ShoppingCart size={28}/><h3>Savat bo‘sh</h3><button className="button" onClick={onCatalog}>Katalogga o‘tish</button></div>;
-  return <div className="store-cart">
-    {cart.lines.map(({ book, meta, qty }) => <article className="store-line" key={book.id}>
-      <span className="store-thumb" style={{ backgroundColor: book.color }} aria-hidden/>
-      <div><strong>{book.title}</strong><p>{book.author}</p><span>{formatPrice(meta.price)}</span></div>
-      <div className="store-qty">
-        <button aria-label="Kamaytirish" onClick={() => cart.setQty(book.id, qty - 1)}><Minus size={16}/></button><span aria-live="polite">{qty}</span>
-        <button aria-label="Ko‘paytirish" disabled={qty >= MAX_QTY} onClick={() => cart.setQty(book.id, qty + 1)}><Plus size={16}/></button>
-        <button aria-label={`${book.title}ni olib tashlash`} onClick={() => cart.setQty(book.id, 0)}><Trash2 size={16}/></button>
-      </div>
-    </article>)}
-    <form className="store-promo" onSubmit={(e: FormEvent) => { e.preventDefault(); if (cart.applyPromo(code)) { toast.success("Promo kod qo‘llandi"); setCode(""); } else toast.error("Promo kod noto‘g‘ri"); }}>
-      <input aria-label="Promo kod" value={code} onChange={e => setCode(e.target.value)} placeholder="Promo kod" maxLength={20}/>
-      <button className="button" disabled={!code.trim()}>Qo‘llash</button>
-      {cart.promo && <button type="button" className="button" onClick={cart.clearPromo}>{cart.promo} · {cart.percent}% ✕</button>}
-    </form>
-    <Totals cart={cart}/>
-    <button className="button" onClick={onCheckout}>Buyurtma berish</button>
   </div>;
 }
 
-function Totals({ cart }: { cart: ReturnType<typeof useStoreState> }) {
-  return <dl className="store-totals">
-    <div><dt>Jami</dt><dd>{formatPrice(cart.subtotal)}</dd></div>
+function StoreHome({ summaries, onOpen, onAdd, onAi }: { summaries: ReturnType<typeof useReviewSummaries>; onOpen: (b: Book) => void; onAdd: (b: Book) => void; onAi: () => void }) {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("Barchasi");
+  const q = query.trim().toLocaleLowerCase();
+  const list = useMemo(() => books.filter(b => (category === "Barchasi" || getMeta(b).category === category) && `${b.title} ${b.author}`.toLocaleLowerCase().includes(q)), [category, q]);
+  // Trend: eng ko'p baholangan kitoblar (baho bo'lmasa katalog tartibi).
+  const trending = useMemo(() => [...books].sort((a, b) => (summaries[b.id]?.count ?? 0) - (summaries[a.id]?.count ?? 0)).slice(0, 6), [summaries]);
+
+  return <>
+    <header className="zb-head zb-head-home"><span className="zb-eyebrow">BIR ILM · BOOK STORE</span><h1>Har bir kitob —<br /><em>yangi imkoniyat</em></h1></header>
+    <label className="zb-search"><Search size={20} /><input aria-label="Kitob yoki muallifni izlash" placeholder="Kitob yoki muallif..." value={query} onChange={e => setQuery(e.target.value)} />{query && <button type="button" aria-label="Tozalash" onClick={() => setQuery("")}><X size={16} /></button>}</label>
+    {!q && <button className="zb-ai-banner" onClick={onAi}><Sparkles size={26} /><span><strong>AI sizga kitob tanlab beradi</strong><small>Qiziqishingizni yozing — katalogdan mosini topadi</small></span></button>}
+    <div className="zb-chips" role="group" aria-label="Kategoriyalar">{categories.map(c => <button key={c} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>)}</div>
+    {!q && category === "Barchasi" && <section className="zb-section"><h2>Trendda</h2>
+      <div className="zb-rail">{trending.map(b => <button key={b.id} className="zb-rail-item" onClick={() => onOpen(b)}><BookCover book={b} size="md" /><strong>{b.title}</strong><RatingLine summary={summaries[b.id]} /></button>)}</div>
+    </section>}
+    <section className="zb-section"><h2>{q ? `Natija: ${list.length}` : category === "Barchasi" ? "Barcha kitoblar" : category}</h2>
+      {list.length ? <div className="zb-grid">{list.map(b => <article key={b.id} className="zb-card">
+        <button className="zb-card-cover" onClick={() => onOpen(b)} aria-label={`${b.title} haqida`}><BookCover book={b} /></button>
+        <div className="zb-card-body">
+          <button className="zb-card-title" onClick={() => onOpen(b)}>{b.title}</button>
+          <span className="zb-muted">{b.author}</span>
+          <RatingLine summary={summaries[b.id]} />
+          <div className="zb-card-foot"><strong>{formatPrice(getMeta(b).price)}</strong><button className="zb-add" aria-label={`${b.title}ni savatga qo‘shish`} onClick={() => onAdd(b)}><Plus size={18} /></button></div>
+        </div>
+      </article>)}</div>
+        : <div className="zb-empty"><Search size={28} /><h3>Kitob topilmadi</h3><button className="zb-btn zb-btn-ghost" onClick={() => { setQuery(""); setCategory("Barchasi"); }}>Filtrlarni tozalash</button></div>}
+    </section>
+  </>;
+}
+
+function CartView({ cart, onCheckout, onCatalog, onOpen }: { cart: Cart; onCheckout: () => void; onCatalog: () => void; onOpen: (b: Book) => void }) {
+  const [code, setCode] = useState("");
+  if (!cart.lines.length) return <div className="zb-empty"><ShoppingCart size={30} /><h3>Savat bo‘sh</h3><button className="zb-btn zb-btn-primary" onClick={onCatalog}>Do‘konga o‘tish</button></div>;
+  return <div className="zb-cart">
+    {cart.lines.map(({ book, meta, qty }) => <article className="zb-line" key={book.id}>
+      <button className="zb-line-cover" onClick={() => onOpen(book)} aria-label={`${book.title} haqida`}><BookCover book={book} size="sm" /></button>
+      <div className="zb-line-info"><strong>{book.title}</strong><span className="zb-muted">{book.author}</span><span className="zb-line-price">{formatPrice(meta.price * qty)}</span></div>
+      <div className="zb-qty">
+        <button aria-label="Kamaytirish" onClick={() => cart.setQty(book.id, qty - 1)}>{qty === 1 ? <Trash2 size={15} /> : <Minus size={15} />}</button>
+        <span aria-live="polite">{qty}</span>
+        <button aria-label="Ko‘paytirish" disabled={qty >= MAX_QTY} onClick={() => cart.setQty(book.id, qty + 1)}><Plus size={15} /></button>
+      </div>
+    </article>)}
+    <form className="zb-promo" onSubmit={(e: FormEvent) => { e.preventDefault(); if (cart.applyPromo(code)) { toast.success("Promo kod qo‘llandi"); setCode(""); } else toast.error("Promo kod noto‘g‘ri"); }}>
+      {cart.promo
+        ? <span className="zb-promo-on"><Check size={16} />{cart.promo} · −{cart.percent}%<button type="button" aria-label="Promo kodni olib tashlash" onClick={cart.clearPromo}><X size={15} /></button></span>
+        : <><input aria-label="Promo kod" value={code} onChange={e => setCode(e.target.value)} placeholder="Promo kod" maxLength={20} /><button className="zb-btn zb-btn-ghost" disabled={!code.trim()}>Qo‘llash</button></>}
+    </form>
+    <Totals cart={cart} />
+    <button className="zb-btn zb-btn-primary zb-btn-block" onClick={onCheckout}>Rasmiylashtirish · {formatPrice(cart.total)}</button>
+  </div>;
+}
+
+function Totals({ cart }: { cart: Cart }) {
+  return <dl className="zb-totals">
+    <div><dt>Kitoblar ({cart.count})</dt><dd>{formatPrice(cart.subtotal)}</dd></div>
     {cart.discount > 0 && <div><dt>Chegirma</dt><dd>−{formatPrice(cart.discount)}</dd></div>}
-    <div><dt><strong>To‘lash uchun</strong></dt><dd><strong>{formatPrice(cart.total)}</strong></dd></div>
+    <div className="zb-totals-sum"><dt>Jami</dt><dd>{formatPrice(cart.total)}</dd></div>
   </dl>;
 }
 
-function Checkout({ cart, onBack, onPlaced }: { cart: ReturnType<typeof useStoreState>; onBack: () => void; onPlaced: (order: Order) => void }) {
+function Checkout({ cart, onBack, onPlaced }: { cart: Cart; onBack: () => void; onPlaced: (order: Order) => void }) {
   const [form, setForm] = useState({ name: "", phone: "+998", address: "" });
   const [payment, setPayment] = useState<PaymentMethod>("click");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -117,7 +135,7 @@ function Checkout({ cart, onBack, onPlaced }: { cart: ReturnType<typeof useStore
   const [orderId] = useState(() => `ZB-${crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [key]: e.target.value }));
 
-  if (!cart.lines.length) return <div className="store-empty"><ShoppingCart size={28}/><h3>Savat bo‘sh</h3><button className="button" onClick={onBack}>Savatga qaytish</button></div>;
+  if (!cart.lines.length) return <div className="zb-empty"><ShoppingCart size={30} /><h3>Savat bo‘sh</h3><button className="zb-btn zb-btn-ghost" onClick={onBack}>Savatga qaytish</button></div>;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -134,41 +152,43 @@ function Checkout({ cart, onBack, onPlaced }: { cart: ReturnType<typeof useStore
     if (order) onPlaced(order); else toast.error("Buyurtma saqlanmadi. Qayta urinib ko‘ring.");
   };
 
-  return <form className="store-checkout" onSubmit={e => void submit(e)} noValidate>
-    {([["name", "Ism", "name"], ["phone", "Telefon", "tel"], ["address", "Yetkazib berish manzili", "street-address"]] as const).map(([key, label, ac]) => <div key={key}>
-      <label htmlFor={`co-${key}`}>{label}</label>
-      <input id={`co-${key}`} autoComplete={ac} value={form[key]} onChange={set(key)} maxLength={160} aria-invalid={!!errors[key]} aria-describedby={errors[key] ? `co-${key}-err` : undefined}/>
-      {errors[key] && <small id={`co-${key}-err`} role="alert">{errors[key]}</small>}
-    </div>)}
-    <fieldset className="store-pay"><legend>To‘lov usuli</legend>
-      {paymentMethods.map(m => <label key={m.id}><input type="radio" name="payment" checked={payment === m.id} onChange={() => setPayment(m.id)}/>{m.label}</label>)}
+  return <form className="zb-checkout" onSubmit={e => void submit(e)} noValidate>
+    <section className="zb-panel"><h3>Yetkazib berish</h3>
+      {([["name", "Ism", "name"], ["phone", "Telefon", "tel"], ["address", "Manzil", "street-address"]] as const).map(([key, label, ac]) => <div className="zb-field" key={key}>
+        <label htmlFor={`co-${key}`}>{label}</label>
+        <input id={`co-${key}`} autoComplete={ac} inputMode={key === "phone" ? "tel" : undefined} value={form[key]} onChange={set(key)} maxLength={160} aria-invalid={!!errors[key]} aria-describedby={errors[key] ? `co-${key}-err` : undefined} />
+        {errors[key] && <small id={`co-${key}-err`} role="alert">{errors[key]}</small>}
+      </div>)}
+    </section>
+    <fieldset className="zb-panel zb-pay"><legend>To‘lov usuli</legend>
+      {paymentMethods.map(m => <label key={m.id} className={payment === m.id ? "is-on" : ""}><input type="radio" name="payment" checked={payment === m.id} onChange={() => setPayment(m.id)} />{m.label}</label>)}
+      <p className="zb-muted">To‘lov tizimlari hali ulanmagan: buyurtma «To‘lov kutilmoqda» holatida saqlanadi, pul yechilmaydi.</p>
     </fieldset>
-    <p className="muted">To‘lov tizimlari hali ulanmagan: buyurtma serverda «To‘lov kutilmoqda» holatida saqlanadi, pul yechilmaydi.</p>
-    <Totals cart={cart}/>
-    <div className="store-actions"><button type="button" className="button" onClick={onBack}>Orqaga</button><button className="button" disabled={busy}>{busy ? "Saqlanmoqda..." : "Buyurtmani tasdiqlash"}</button></div>
+    <Totals cart={cart} />
+    <div className="zb-row"><button type="button" className="zb-btn zb-btn-ghost" onClick={onBack}>Orqaga</button><button className="zb-btn zb-btn-primary" disabled={busy}>{busy ? "Saqlanmoqda..." : "Buyurtmani tasdiqlash"}</button></div>
   </form>;
 }
 
 function Confirmation({ order, onLibrary }: { order: Order; onLibrary: () => void }) {
-  return <div className="store-empty"><Check size={32}/><h3>Buyurtma qabul qilindi</h3>
-    <p>№ {order.id} · {formatPrice(order.total)} · {paymentMethods.find(m => m.id === order.payment)?.label}</p>
-    <p className="muted">Holat: to‘lov kutilmoqda.</p>
-    <button className="button" onClick={onLibrary}>Buyurtmalarni ko‘rish</button></div>;
+  return <div className="zb-empty zb-success"><span className="zb-success-mark"><Check size={30} /></span><h3>Buyurtma qabul qilindi</h3>
+    <p>№ {order.id}<br />{formatPrice(order.total)} · {paymentMethods.find(m => m.id === order.payment)?.label}</p>
+    <p className="zb-muted">Holat: to‘lov kutilmoqda.</p>
+    <button className="zb-btn zb-btn-primary" onClick={onLibrary}>Buyurtmalarim</button></div>;
 }
 
 function LibraryView({ shelf, orders, onOpen }: { shelf: string[]; orders: Order[]; onOpen: (book: Book) => void }) {
   const [view, setView] = useState<"saved" | "orders">("saved");
   const saved = books.filter(b => shelf.includes(b.id));
-  return <div className="discovery">
-    <div className="genre-chips"><button aria-pressed={view === "saved"} onClick={() => setView("saved")}>Sevimlilar ({saved.length})</button><button aria-pressed={view === "orders"} onClick={() => setView("orders")}>Buyurtmalar ({orders.length})</button></div>
+  return <>
+    <div className="zb-segment" role="tablist"><button role="tab" aria-selected={view === "saved"} onClick={() => setView("saved")}><Heart size={16} />Sevimlilar · {saved.length}</button><button role="tab" aria-selected={view === "orders"} onClick={() => setView("orders")}><Library size={16} />Buyurtmalar · {orders.length}</button></div>
     {view === "saved" && (saved.length
-      ? <div className="discovery-books">{saved.map(book => <article className="discovery-book" key={book.id}>
-          <button className="discovery-cover" style={{ backgroundColor: book.color }} onClick={() => onOpen(book)} aria-label={`${book.title} haqida`}><strong>{book.title}</strong><span className="cover-author">{book.author}</span></button>
-          <button className="catalog-book-title" onClick={() => onOpen(book)}>{book.title}</button><p>{book.author}</p></article>)}</div>
-      : <div className="store-empty"><Heart size={28}/><h3>Sevimlilar bo‘sh</h3></div>)}
+      ? <div className="zb-grid">{saved.map(b => <button key={b.id} className="zb-shelf-item" onClick={() => onOpen(b)}><BookCover book={b} /><strong>{b.title}</strong><span className="zb-muted">{b.author}</span></button>)}</div>
+      : <div className="zb-empty"><Heart size={30} /><h3>Sevimlilar bo‘sh</h3><p className="zb-muted">Kitob sahifasidagi ♡ tugmasi bilan qo‘shing.</p></div>)}
     {view === "orders" && (orders.length
-      ? <div className="store-cart">{orders.map(o => <article className="store-line" key={o.id}>
-          <div><strong>№ {o.id}</strong><p>{new Date(o.createdAt).toLocaleDateString("uz-UZ")} · {o.lines.map(l => `${l.title} ×${l.qty}`).join(", ")}</p><span>{formatPrice(o.total)} · to‘lov kutilmoqda</span></div></article>)}</div>
-      : <div className="store-empty"><Library size={28}/><h3>Buyurtmalar yo‘q</h3></div>)}
-  </div>;
+      ? <div className="zb-cart">{orders.map(o => <article className="zb-order" key={o.id}>
+          <div className="zb-order-head"><strong>№ {o.id}</strong><span className="zb-status">To‘lov kutilmoqda</span></div>
+          <p className="zb-muted">{new Date(o.createdAt).toLocaleDateString("ru-RU")} · {o.lines.map(l => `${l.title} ×${l.qty}`).join(", ")}</p>
+          <strong>{formatPrice(o.total)}</strong></article>)}</div>
+      : <div className="zb-empty"><Library size={30} /><h3>Buyurtmalar yo‘q</h3></div>)}
+  </>;
 }

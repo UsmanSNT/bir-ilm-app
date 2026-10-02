@@ -1,13 +1,13 @@
 "use client";
 
-import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
-import { BookOpen, Send, UserPlus, UserCheck, Flame, Clock, Users, RefreshCw, X, NotebookPen, Pencil, Save } from "lucide-react";
+import { ReactNode, useCallback, useEffect, useState } from "react";
+import { BookOpen, UserPlus, UserCheck, Flame, Clock, Users, RefreshCw, X, NotebookPen, Pencil, Save } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { postKinds, type PostKind, type SocialData, type ReadingPost } from "./social-types";
 import PostCard, { kindLabels } from "./post-card";
-import { books } from "./app-data";
+import PostComposer from "./post-composer";
 
 const empty: SocialData = { userId: "", posts: [], readers: [], following: [], followers: 0, focusMinutes: 0, sessions: 0, profile: null, authorProfile: null };
 
@@ -15,8 +15,6 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
   const [data, setData] = useState<SocialData>(empty);
   const [scope, setScope] = useState(mode === "profile" ? "mine" : "all");
   const [author, setAuthor] = useState("");
-  const [book, setBook] = useState("");
-  const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,7 +24,6 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
   const [editingProfile, setEditingProfile] = useState(false);
   const [writingPost, setWritingPost] = useState(false);
   const [bio, setBio] = useState("");
-  const [kind, setKind] = useState<PostKind>("review");
   const [kindFilter, setKindFilter] = useState<PostKind | "">("");
   const canCompose = mode !== "feed";
 
@@ -82,19 +79,13 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
     finally { setBusy(false); }
   }
 
-  async function publish(e: FormEvent) {
-    e.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    try {
-      await write({ type: "post", book, body, kind });
-      setBook(""); setBody(""); setKind("review"); setWritingPost(false);
-      toast.success("Postingiz joylandi.");
-      if (mode === "gurung" || (scope === "mine" && !author)) {
-        try { await reload(); } catch { setError("Post saqlandi. Lentani yangilang."); }
-      } else { setScope("mine"); setAuthor(""); }
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Post saqlanmadi."); }
-    finally { setBusy(false); }
+  // Composer o'zi yuklash/xatoni boshqaradi; bu yerda faqat yozish va lentani yangilash.
+  async function publish(payload: Record<string, unknown>) {
+    await write(payload);
+    toast.success("Postingiz joylandi.");
+    if (mode === "gurung" || (scope === "mine" && !author)) {
+      try { await reload(); } catch { setError("Post saqlandi. Lentani yangilang."); }
+    } else { setScope("mine"); setAuthor(""); }
   }
 
   async function refresh(before?: string) {
@@ -136,20 +127,14 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
             <span className="reader-avatar">{reader.name.slice(0, 1).toUpperCase()}</span><small>{reader.id === data.userId ? "Siz" : reader.name}</small></button>)}
           {!data.readers.length && <p className="readers-empty">Gurungga qo&apos;shilgan kitobxonlar shu yerda ko&apos;rinadi.</p>}
         </div>}
-        <div className="section-row"><h2>{mode === "gurung" ? "Gurung" : mode === "profile" ? scope === "mine" ? "Mening postlarim" : scope === "following" ? "Obunalarim postlari" : "Barcha postlar" : "Kitobxonlar davrasi"}</h2><button className="icon-btn" aria-label="Lentani yangilash" title="Yangilash" disabled={loading || busy} onClick={() => void refresh()}><RefreshCw size={19}/></button></div>
+        <div className="section-row"><h2>{mode === "gurung" ? "Lenta" : mode === "profile" ? scope === "mine" ? "Mening postlarim" : scope === "following" ? "Obunalarim postlari" : "Barcha postlar" : "Kitobxonlar davrasi"}</h2><button className="icon-btn" aria-label="Lentani yangilash" title="Yangilash" disabled={loading || busy} onClick={() => void refresh()}><RefreshCw size={19}/></button></div>
         {canCompose && <>
         {mode === "gurung"
           ? <button className="ig-compose" disabled={!data.userId} onClick={() => setWritingPost(true)}><span className="reader-avatar">{name.slice(0, 1).toUpperCase()}</span><span>Kitobdan nima ulashmoqchisiz?</span><NotebookPen size={18}/></button>
           : <button className="button" disabled={!data.userId} onClick={() => setWritingPost(true)}><NotebookPen size={18}/>Post yozish</button>}
-        <Dialog open={writingPost} onOpenChange={open => { if (!busy) setWritingPost(open); }}>
-        <DialogContent className="post-editor"><DialogTitle>Post yozish</DialogTitle><DialogDescription>Kitob haqidagi taassurotlaringiz</DialogDescription>
-        <form className="post-compose" onSubmit={e => void publish(e)}>
-          <div className="kind-picker" role="radiogroup" aria-label="Post turi">{postKinds.map(k => <button type="button" key={k} role="radio" aria-checked={kind === k} onClick={() => setKind(k)}>{kindLabels[k]}</button>)}</div>
-          <input aria-label="Kitob nomi" list="catalog-titles" placeholder="Qaysi kitobni o'qidingiz?" maxLength={160} required value={book} onChange={e => setBook(e.target.value)}/>
-          <datalist id="catalog-titles">{books.map(b => <option key={b.id} value={b.title}/>)}</datalist>
-          <textarea aria-label="Post matni" placeholder={kind === "quote" ? "Kitobdan iqtibos..." : kind === "recommendation" ? "Nima uchun bu kitobni tavsiya qilasiz?" : "Taassurot yoki kichik xulosangiz..."} maxLength={2000} rows={3} required value={body} onChange={e => setBody(e.target.value)}/>
-          <div className="compose-footer"><span>{body.length}/2000</span><button className="button" disabled={busy || !data.userId || !book.trim() || !body.trim()}><Send size={17}/>{busy ? "Kutilmoqda..." : "Joylash"}</button></div>
-        </form>
+        <Dialog open={writingPost} onOpenChange={setWritingPost}>
+        <DialogContent className="post-editor ig-composer"><DialogTitle>Yangi post</DialogTitle><DialogDescription>Karta yasang yoki rasm/video ulashing</DialogDescription>
+          {writingPost && <PostComposer submit={publish} onDone={() => setWritingPost(false)} />}
         </DialogContent></Dialog>
         <Tabs value={scope} onValueChange={v => { setScope(v); setAuthor(""); }}><TabsList className="feed-tabs" aria-label="Lenta filtri"><TabsTrigger value="all">Barchasi</TabsTrigger><TabsTrigger value="following">Obunalarim</TabsTrigger><TabsTrigger value="mine">Postlarim</TabsTrigger></TabsList></Tabs>
         <div className="genre-chips kind-filter" aria-label="Post turi bo'yicha"><button aria-pressed={kindFilter === ""} onClick={() => setKindFilter("")}>Hammasi</button>{postKinds.map(k => <button key={k} aria-pressed={kindFilter === k} onClick={() => setKindFilter(kindFilter === k ? "" : k)}>{kindLabels[k]}</button>)}</div>

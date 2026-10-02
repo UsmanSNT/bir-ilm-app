@@ -534,6 +534,7 @@ export default function App() {
           {store ? (
             <BookStore
               shelf={data.shelf}
+              name={data.name}
               onBack={() => { setStore(false); window.scrollTo({ top: 0 }); }}
               onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }}
             />

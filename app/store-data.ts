@@ -1,6 +1,6 @@
 import { books, type Book } from "./app-data";
 
-export type StoreMeta = { price: number; rating: number; reviews: number; category: string };
+export type StoreMeta = { price: number; category: string; about: string };
 export type CartLine = { book: Book; meta: StoreMeta; qty: number };
 export type PaymentMethod = "click" | "payme" | "uzum" | "visa" | "mastercard";
 export type Order = {
@@ -16,17 +16,17 @@ export type Order = {
   createdAt: string;
 };
 
-/** Namuna narxlar (so'm). Haqiqiy narxlar do'kon ma'lumotlari ulangach almashtiriladi. */
+/** Narxlar namuna (so'm); haqiqiy narxlar do'kon ma'lumotlari ulangach almashtiriladi. */
 export const storeMeta: Record<string, StoreMeta> = {
-  "atomic-habits": { price: 89000, rating: 4.8, reviews: 214, category: "Shaxsiy rivojlanish" },
-  alchemist: { price: 59000, rating: 4.7, reviews: 188, category: "Badiiy adabiyot" },
-  "otkan-kunlar": { price: 75000, rating: 4.9, reviews: 302, category: "O‘zbek adabiyoti" },
-  "1984": { price: 69000, rating: 4.6, reviews: 121, category: "Badiiy adabiyot" },
-  ikigai: { price: 65000, rating: 4.5, reviews: 97, category: "Shaxsiy rivojlanish" },
-  "deep-work": { price: 85000, rating: 4.6, reviews: 76, category: "Shaxsiy rivojlanish" },
-  "money-psychology": { price: 92000, rating: 4.8, reviews: 143, category: "Biznes va moliya" },
-  metamorphosis: { price: 45000, rating: 4.4, reviews: 58, category: "Badiiy adabiyot" },
-  "start-with-why": { price: 79000, rating: 4.5, reviews: 64, category: "Biznes va moliya" },
+  "atomic-habits": { price: 89000, category: "Shaxsiy rivojlanish", about: "Kichik, kundalik 1% yaxshilanishlar vaqt o‘tib katta natija berishi haqida. Muallif odat shakllanishining to‘rt qonunini tushuntiradi: odatni ko‘zga tashlanadigan, jozibali, oson va qoniqarli qilish. Asosiy g‘oya — maqsadlarga emas, tizim va o‘zligingizga tayangan odatlar qurish." },
+  alchemist: { price: 59000, category: "Badiiy adabiyot", about: "Andalusiyalik yosh cho‘pon Santyago tushida ko‘rgan xazinani izlab Misr ehromlari tomon yo‘lga chiqadi. Safar davomida u qalbini tinglashni, belgilarni o‘qishni va o‘z «shaxsiy afsona»sini anglashni o‘rganadi. Orzu, sabr va hayot yo‘lini tanlash haqidagi qisqa, ramziy roman." },
+  "otkan-kunlar": { price: 75000, category: "O‘zbek adabiyoti", about: "O‘zbek adabiyotidagi ilk roman. XIX asr Turkistoni, Qo‘qon xonligidagi siyosiy nizolar fonida Otabek va Kumushning fojiali muhabbati hikoya qilinadi. Asar o‘sha davr urf-odatlari, oilaviy munosabatlar va jamiyat illatlarini jonli tasvirlaydi." },
+  "1984": { price: 69000, category: "Badiiy adabiyot", about: "Okeaniya davlatida har bir qadam «Katta Og‘a» nazoratida. Haqiqat vazirligida tarixni qayta yozuvchi Uinston Smit tizimga qarshi ichki isyon boshlaydi. Totalitarizm, tilni boshqarish orqali fikrni cheklash va shaxs erkinligi haqidagi ogohlantiruvchi roman." },
+  ikigai: { price: 65000, category: "Shaxsiy rivojlanish", about: "Yaponiyaning Okinava orolidagi uzoq umr ko‘ruvchilar hayoti asosida yozilgan kitob. «Ikigai» — har kuni ertalab turishga sabab bo‘ladigan mazmun. Mualliflar faol hayot, do‘stlik, sog‘lom ovqatlanish va sevimli ishga berilish haqida amaliy xulosalar beradi." },
+  "deep-work": { price: 85000, category: "Shaxsiy rivojlanish", about: "Chalg‘ituvchilarsiz, to‘liq diqqat bilan ishlash qobiliyati bugun kamyob va qimmatli ekanini isbotlaydi. Muallif chuqur ishlash uchun vaqt ajratish, zerikishga chidash, ijtimoiy tarmoqlardan ongli foydalanish va sayoz ishlarni kamaytirish qoidalarini taklif qiladi." },
+  "money-psychology": { price: 92000, category: "Biznes va moliya", about: "Pul bilan muvaffaqiyat bilimdan ko‘ra xulq-atvorga bog‘liq. Qisqa hikoyalar orqali muallif murakkab foiz, sabr, xavf, omad va «yetarli» tushunchasini tushuntiradi. Moliyaviy qarorlarni hissiyot emas, ongli tanlov asosida qilishga o‘rgatadi." },
+  metamorphosis: { price: 45000, category: "Badiiy adabiyot", about: "Gregor Zamza bir kuni ertalab ulkan hasharotga aylanib uyg‘onadi. Oilasini boqib kelgan odam endi ularga yuk bo‘lib qoladi. Begonalashuv, oila va inson qadri haqidagi qisqa, ammo chuqur ma’noli qissa." },
+  "start-with-why": { price: 79000, category: "Biznes va moliya", about: "Ilhomlantiruvchi yetakchi va kompaniyalar avval «Nima uchun?» savoliga javob beradi, keyin «Qanday?» va «Nima?»ga o‘tadi. Muallif «Oltin doira» modeli orqali odamlar mahsulotga emas, uning ortidagi maqsad va ishonchga ergashishini ko‘rsatadi." },
 };
 
 export const paymentMethods: { id: PaymentMethod; label: string }[] = [
@@ -45,7 +45,7 @@ export const MAX_QTY = 10;
 export const formatPrice = (value: number) => `${value.toLocaleString("ru-RU").replace(/,/g, " ")} so‘m`;
 
 export const getMeta = (book: Book): StoreMeta =>
-  storeMeta[book.id] ?? { price: 60000, rating: 4.5, reviews: 0, category: "Boshqa" };
+  storeMeta[book.id] ?? { price: 60000, category: "Boshqa", about: book.summary };
 
 export const catalogForAi = () =>
   books.map(book => {

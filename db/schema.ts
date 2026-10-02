@@ -7,6 +7,9 @@ export const readingPosts = sqliteTable("reading_posts", {
   book: text("book").notNull(),
   body: text("body").notNull(),
   kind: text("kind").notNull().default("review"),
+  mediaKey: text("media_key"),
+  mediaType: text("media_type"),
+  design: text("design"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_posts_created").on(t.createdAt), index("idx_posts_user").on(t.userId)]);
 
@@ -148,3 +151,21 @@ export const postLikes = sqliteTable("post_likes", {
   postId: text("post_id").notNull().references(() => readingPosts.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
 }, (t) => [uniqueIndex("idx_post_likes_pair").on(t.postId, t.userId)]);
+
+export const mediaUploads = sqliteTable("media_uploads", {
+  key: text("key").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  size: integer("size").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_media_user_created").on(t.userId, t.createdAt)]);
+
+export const bookReviews = sqliteTable("book_reviews", {
+  id: text("id").primaryKey(),
+  bookId: text("book_id").notNull(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(),
+  body: text("body").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [uniqueIndex("idx_reviews_book_user").on(t.bookId, t.userId), index("idx_reviews_book_created").on(t.bookId, t.createdAt)]);

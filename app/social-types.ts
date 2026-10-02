@@ -2,7 +2,9 @@ export type Reader = { id: string; name: string; bio: string; posts: number; fol
 export type PostReply = { id: string; postId: string; name: string; body: string; createdAt: string };
 export const postKinds = ["review", "quote", "recommendation"] as const;
 export type PostKind = (typeof postKinds)[number];
-export type ReadingPost = { id: string; userId: string; name: string; book: string; body: string; kind: PostKind; createdAt: string; likes: number; liked: boolean; replies: PostReply[] };
+import type { PostDesign } from "./post-design";
+import type { MediaType } from "./media-rules";
+export type ReadingPost = { id: string; userId: string; name: string; book: string; body: string; kind: PostKind; createdAt: string; likes: number; liked: boolean; mediaKey: string | null; mediaType: MediaType | null; design: PostDesign | null; replies: PostReply[] };
 export type SocialData = {
   userId: string;
   posts: ReadingPost[];

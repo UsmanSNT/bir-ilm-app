@@ -1,6 +1,8 @@
 import { env } from "cloudflare:workers";
 import { readerIdentity as identity } from "@/lib/reader-identity";
 import { postKinds, type ReadingPost, type PostReply, type Reader } from "@/app/social-types";
+import { parseDesign } from "@/app/post-design";
+import { MEDIA_KEY } from "@/app/media-rules";
 
 export const runtime = "edge";
 
@@ -22,7 +24,7 @@ export async function GET(request: Request) {
     if (author) { conditions.push("p.user_id=?"); args.push(author); }
     if (kind && (postKinds as readonly string[]).includes(kind)) { conditions.push("p.kind=?"); args.push(kind); }
     if (before) { conditions.push("p.rowid < (SELECT rowid FROM reading_posts WHERE id=?)"); args.push(before); }
-    const posts = (await db.prepare(`SELECT p.id, p.user_id AS userId, u.name, p.book, p.body, p.kind, p.created_at AS createdAt FROM reading_posts p JOIN users u ON u.id=p.user_id WHERE ${conditions.join(" AND ")} ORDER BY p.rowid DESC LIMIT 20`).bind(...args).all<Omit<ReadingPost, "replies" | "likes" | "liked">>()).results;
+    const posts = (await db.prepare(`SELECT p.id, p.user_id AS userId, u.name, p.book, p.body, p.kind, p.media_key AS mediaKey, p.media_type AS mediaType, p.design, p.created_at AS createdAt FROM reading_posts p JOIN users u ON u.id=p.user_id WHERE ${conditions.join(" AND ")} ORDER BY p.rowid DESC LIMIT 20`).bind(...args).all<Omit<ReadingPost, "replies" | "likes" | "liked" | "design"> & { design: string | null }>()).results;
     const replies: PostReply[] = [];
     const likeRows = posts.length
       ? (await db.prepare(`SELECT post_id AS postId, count(*) AS likes, COALESCE(sum(user_id=?),0) AS mine FROM post_likes WHERE post_id IN (${posts.map(() => "?").join(",")}) GROUP BY post_id`).bind(id, ...posts.map(p => p.id)).all<{ postId: string; likes: number; mine: number }>()).results
@@ -38,7 +40,8 @@ export async function GET(request: Request) {
     const following = (await db.prepare("SELECT followed_id AS id FROM reader_follows WHERE follower_id=?").bind(id).all<{id: string}>()).results.map(r => r.id);
     const followers = await db.prepare("SELECT count(*) AS total FROM reader_follows WHERE followed_id=?").bind(id).first<{total: number}>();
     const focus = await db.prepare("SELECT COALESCE(sum(minutes),0) AS minutes, count(*) AS sessions FROM focus_sessions WHERE user_id=?").bind(id).first<{minutes: number; sessions: number}>();
-    return Response.json({ userId: id, profile, authorProfile, posts: posts.map(p => { const l = likeRows.find(x => x.postId === p.id); return { ...p, likes: l?.likes ?? 0, liked: !!l?.mine, replies: replies.filter(r => r.postId === p.id) }; }), readers, following, followers: followers?.total ?? 0, focusMinutes: focus?.minutes ?? 0, sessions: focus?.sessions ?? 0 }, { headers });
+    return Response.json({ userId: id, profile, authorProfile, posts: posts.map(p => { const l = likeRows.find(x => x.postId === p.id); let design = null; try { design = p.design ? parseDesign(JSON.parse(p.design)) : null; } catch { design = null; }
+      return { ...p, design, likes: l?.likes ?? 0, liked: !!l?.mine, replies: replies.filter(r => r.postId === p.id) }; }), readers, following, followers: followers?.total ?? 0, focusMinutes: focus?.minutes ?? 0, sessions: focus?.sessions ?? 0 }, { headers });
   } catch {
     return Response.json({ error: "Lenta yuklanmadi. Qayta urinib ko'ring." }, { status: 503, headers });
   }
@@ -71,15 +74,30 @@ export async function POST(request: Request) {
       }
       case "post": {
         const book = value("book", 160), body = value("body", 2000);
-        if (!book || !body) return fail("Kitob nomi va fikringizni yozing.");
         const kind = payload.kind === undefined ? "review" : payload.kind;
         if (typeof kind !== "string" || !(postKinds as readonly string[]).includes(kind)) return fail("Post turi noto'g'ri.");
-        await db.prepare("INSERT INTO reading_posts (id,user_id,book,body,kind) VALUES (?,?,?,?,?)").bind(crypto.randomUUID(), id, book, body, kind).run();
+        const design = payload.design === undefined || payload.design === null ? null : parseDesign(payload.design);
+        if (payload.design != null && !design) return fail("Karta dizayni noto'g'ri.");
+        let mediaKey: string | null = null, mediaType: string | null = null;
+        if (payload.mediaKey != null) {
+          // Faqat shu kitobxon yuklagan fayl postga biriktiriladi.
+          const key = typeof payload.mediaKey === "string" && MEDIA_KEY.test(payload.mediaKey) ? payload.mediaKey : "";
+          const media = key ? await db.prepare("SELECT type FROM media_uploads WHERE key=? AND user_id=?").bind(key, id).first<{ type: string }>() : null;
+          if (!media) return fail("Media topilmadi.", 404);
+          mediaKey = key; mediaType = media.type;
+        }
+        if (design && mediaKey) return fail("Post yoki media, yoki karta bo'lsin.");
+        if (!body && !design && !mediaKey) return fail("Post bo'sh bo'lmasin.");
+        if (!design && !mediaKey && !book) return fail("Kitob nomi va fikringizni yozing.");
+        await db.prepare("INSERT INTO reading_posts (id,user_id,book,body,kind,media_key,media_type,design) VALUES (?,?,?,?,?,?,?,?)")
+          .bind(crypto.randomUUID(), id, book, body, kind, mediaKey, mediaType, design ? JSON.stringify(design) : null).run();
         break;
       }
       case "edit": {
         const book = value("book", 160), body = value("body", 2000);
-        if (!book || !body) return fail("Kitob nomi va fikringizni yozing.");
+        const current = await db.prepare("SELECT media_key AS mediaKey, design FROM reading_posts WHERE id=? AND user_id=?").bind(value("postId", 64), id).first<{ mediaKey: string | null; design: string | null }>();
+        if (!current) return fail("Post topilmadi.", 404);
+        if (!body && !current.mediaKey && !current.design) return fail("Post bo'sh bo'lmasin.");
         const result = await db.prepare("UPDATE reading_posts SET book=?, body=? WHERE id=? AND user_id=?").bind(book, body, value("postId", 64), id).run();
         if (!result.meta.changes) return fail("Post topilmadi.", 404);
         break;
@@ -105,13 +123,22 @@ export async function POST(request: Request) {
         await db.prepare(payload.follow ? "INSERT OR IGNORE INTO reader_follows (follower_id,followed_id) VALUES (?,?)" : "DELETE FROM reader_follows WHERE follower_id=? AND followed_id=?").bind(id, target).run();
         break;
       }
-      case "delete":
+      case "delete": {
+        const postId = value("postId", 64);
+        const owned = await db.prepare("SELECT media_key AS mediaKey FROM reading_posts WHERE id=? AND user_id=?").bind(postId, id).first<{ mediaKey: string | null }>();
+        if (!owned) break;
         await db.batch([
-          db.prepare("DELETE FROM post_replies WHERE post_id IN (SELECT id FROM reading_posts WHERE id=? AND user_id=?)").bind(value("postId", 64), id),
-          db.prepare("DELETE FROM post_likes WHERE post_id IN (SELECT id FROM reading_posts WHERE id=? AND user_id=?)").bind(value("postId", 64), id),
-          db.prepare("DELETE FROM reading_posts WHERE id=? AND user_id=?").bind(value("postId", 64), id),
+          db.prepare("DELETE FROM post_replies WHERE post_id=?").bind(postId),
+          db.prepare("DELETE FROM post_likes WHERE post_id=?").bind(postId),
+          db.prepare("DELETE FROM reading_posts WHERE id=? AND user_id=?").bind(postId, id),
+          ...(owned.mediaKey ? [db.prepare("DELETE FROM media_uploads WHERE key=? AND user_id=? AND NOT EXISTS (SELECT 1 FROM reading_posts WHERE media_key=?)").bind(owned.mediaKey, id, owned.mediaKey)] : []),
         ]);
+        // Fayl boshqa postda ishlatilmasa, saqlashdan ham o'chiriladi.
+        if (owned.mediaKey && env.BUCKET && !await db.prepare("SELECT 1 FROM media_uploads WHERE key=?").bind(owned.mediaKey).first()) {
+          await env.BUCKET.delete(owned.mediaKey).catch(() => {});
+        }
         break;
+      }
       case "focus": {
         const minutes = payload.minutes;
         const sessionId = value("sessionId", 36);

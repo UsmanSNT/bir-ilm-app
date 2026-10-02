@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { mkdirSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // Node-only preview adapter for machines where the native Workers runtime cannot run.
@@ -28,7 +28,27 @@ class Statement {
     return { success: true, meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid) } };
   }
 }
-export const env = { DB: {
+// Minimal R2 shim for the Node preview: objects live in .sites-runtime/r2/.
+const r2Dir = new URL(".sites-runtime/r2/", root);
+mkdirSync(r2Dir, { recursive: true });
+const r2Path = key => { if (!/^[A-Za-z0-9._-]+$/.test(key)) throw Error("bad key"); return fileURLToPath(new URL(key, r2Dir)); };
+const r2Meta = key => { try { return JSON.parse(readFileSync(r2Path(key) + ".meta", "utf8")); } catch { return {}; } };
+const BUCKET = {
+  async put(key, data, options = {}) { writeFileSync(r2Path(key), Buffer.from(data instanceof ArrayBuffer ? new Uint8Array(data) : data)); writeFileSync(r2Path(key) + ".meta", JSON.stringify(options.httpMetadata ?? {})); return { key }; },
+  async head(key) { const path = r2Path(key); return existsSync(path) ? { key, size: statSync(path).size, httpMetadata: r2Meta(key) } : null; },
+  async get(key, options = {}) {
+    const path = r2Path(key);
+    if (!existsSync(path)) return null;
+    const all = readFileSync(path);
+    const offset = options.range?.offset ?? 0;
+    const length = options.range?.length ?? all.length - offset;
+    const chunk = all.subarray(offset, offset + length);
+    return { key, size: all.length, httpMetadata: r2Meta(key), range: { offset, length }, body: new Blob([chunk]).stream() };
+  },
+  async delete(key) { rmSync(r2Path(key), { force: true }); rmSync(r2Path(key) + ".meta", { force: true }); },
+};
+
+export const env = { BUCKET, DB: {
   prepare(sql) { return new Statement(sql); },
   async batch(statements) {
     sqlite.exec("BEGIN");

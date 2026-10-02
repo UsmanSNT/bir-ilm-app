@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 @import "../vendor/shadcn-tailwind-4.13.0.css";
 @import "./reading-dashboard.css";
+@import "./store.css";
+@import "./gurung.css";
 
 :root {
   --background: #ffffff;
@@ -1335,40 +1337,14 @@ input {
 .rail-profile { margin-top: auto; display: flex; align-items: center; gap: 10px; border: 0; border-radius: 8px; padding: 12px; background: #303954; color: #e3e8fb; font-size: 14px; cursor: pointer; }
 .rail-profile:disabled { opacity: .5; cursor: default; }
 .rail-profile + .rail-status { margin-top: 12px; }
-.store-switch, .store-nav button { display: flex; align-items: center; justify-content: center; gap: 9px; height: 56px; border: 0; border-radius: 8px; background: transparent; color: #61737b; font-size: 14px; cursor: pointer; }
+.store-switch { display: flex; align-items: center; justify-content: center; gap: 9px; height: 56px; border: 0; border-radius: 8px; background: transparent; color: #61737b; font-size: 14px; cursor: pointer; }
 .store-switch { background: #5843c2; color: #fff; font-weight: 750; }
-.store-nav { width: 100%; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 10px 32px; border-bottom: 1px solid #e7e8f1; background: #f8f9fc; }
-.store-nav button[aria-current="page"] { background: #eeebff; color: #5843c2; font-weight: 750; }
-.store-nav .store-home { background: #5843c2; color: #fff; font-weight: 750; }
-.store-nav svg, .store-switch svg { width: 22px; height: 22px; }
 .store-empty { display: grid; place-items: center; gap: 10px; padding: 64px 16px; text-align: center; color: #61737b; }
 .store-empty h3 { color: #262b44; font-size: 20px; }
 @media (max-width: 980px) {
-  .store-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 30; min-height: 78px; gap: 2px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid #e0e9e4; border-bottom: 0; box-shadow: 0 -6px 25px #29425608; }
-  .store-switch, .store-nav button { height: 57px; flex-direction: column; gap: 5px; padding: 5px 1px; font-size: 10px; }
+  .store-switch { height: 57px; flex-direction: column; gap: 5px; padding: 5px 1px; font-size: 10px; }
   .rail-profile { display: none; }
 }
-.store-icon { position: relative; display: inline-flex; }
-.store-badge { position: absolute; top: -6px; right: -10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #d4af37; color: #1a1a1a; font-size: 11px; line-height: 18px; text-align: center; }
-.store-price { font-size: 22px; font-weight: 750; color: #0f5132; }
-.store-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
-.store-cart, .store-checkout { display: grid; gap: 14px; max-width: 720px; }
-.store-line { display: flex; align-items: center; gap: 14px; padding: 14px; border: 1px solid #e7e8f1; border-radius: 16px; background: #fff; }
-.store-line > div:nth-child(2) { flex: 1; min-width: 0; }
-.store-line p { color: #61737b; font-size: 13px; }
-.store-thumb { width: 44px; height: 64px; border-radius: 8px; flex: none; }
-.store-qty { display: flex; align-items: center; gap: 8px; }
-.store-qty button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #dfe7e5; border-radius: 8px; background: #fff; cursor: pointer; }
-.store-qty button:disabled { opacity: .4; cursor: default; }
-.store-promo { display: flex; flex-wrap: wrap; gap: 8px; }
-.store-promo input, .store-checkout input[type="text"], .store-checkout input:not([type]), .store-checkout input[type="tel"] { padding: 12px; border: 1px solid #dfe7e5; border-radius: 12px; background: #fff; width: 100%; }
-.store-promo input { flex: 1; width: auto; }
-.store-checkout label { font-size: 13px; font-weight: 650; display: block; margin-bottom: 6px; }
-.store-checkout small { color: #b3261e; display: block; margin-top: 4px; }
-.store-pay { display: flex; flex-wrap: wrap; gap: 10px 18px; border: 1px solid #e7e8f1; border-radius: 12px; padding: 12px; }
-.store-pay label { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 500; }
-.store-totals { display: grid; gap: 6px; padding: 14px; border-radius: 16px; background: #eeebff; }
-.store-totals div { display: flex; justify-content: space-between; }
 .store-ai { display: flex; flex-direction: column; max-width: 760px; min-height: 420px; }
 .store-ai-log { flex: 1; display: flex; flex-direction: column; gap: 10px; padding-bottom: 16px; }
 .store-ai-msg { max-width: 85%; padding: 12px 14px; border-radius: 16px; line-height: 1.55; white-space: pre-wrap; }
