@@ -14,7 +14,7 @@ export type TextMark = (typeof TEXT_MARKS)[number];
 export const REACTIONS = ["👍", "❤️", "🔥", "👏", "😂", "😮", "😢", "🙏", "🤔", "📚"] as const;
 export type Reaction = (typeof REACTIONS)[number];
 
-export const POST_FORMATS = ["post", "article"] as const;
+export const POST_FORMATS = ["post", "article", "card"] as const;
 export type PostFormat = (typeof POST_FORMATS)[number];
 
 const MB = 1024 * 1024;
@@ -125,6 +125,45 @@ export function readingMinutes(text: string): number {
   return Math.max(1, Math.round(words / 200));
 }
 
+// ── Karta post: rangli fon + qisqa matn + stikerlar (Instagram "story" kabi) ──
+
+export const CARD_BACKGROUNDS = {
+  lojuvard: "linear-gradient(135deg, #131f4c 0%, #2c4398 100%)",
+  firuza: "linear-gradient(135deg, #0b4d4d 0%, #17a2a0 100%)",
+  tilla: "linear-gradient(135deg, #c08a2e 0%, #f3d48d 100%)",
+  anor: "linear-gradient(135deg, #7a2620 0%, #d0574a 100%)",
+  tun: "linear-gradient(160deg, #0d1022 0%, #262b55 100%)",
+  shom: "linear-gradient(135deg, #f58529 0%, #dd2a7b 55%, #8134af 100%)",
+  gul: "linear-gradient(135deg, #f8cdda 0%, #c86b98 100%)",
+  qogoz: "linear-gradient(135deg, #fffbf3 0%, #efe5d1 100%)",
+} as const;
+export type CardBackground = keyof typeof CARD_BACKGROUNDS;
+/** Och fonlarda matn to'q bo'ladi. */
+export const CARD_LIGHT_BACKGROUNDS: readonly CardBackground[] = ["tilla", "gul", "qogoz"];
+export const CARD_FONTS = ["serif", "sans", "mono"] as const;
+export type CardFont = (typeof CARD_FONTS)[number];
+export const CARD_STICKERS = ["📚", "📖", "✨", "💡", "❤️", "🔥", "🌙", "☕", "🖋️", "🌿", "⭐", "🎯", "🕌", "🤲", "🌸", "🧠", "🏆", "👏"] as const;
+export const CARD_LIMITS = { text: 280, stickers: 12 } as const;
+
+const round = (value: number, step: number) => Math.round(value / step) * step;
+
+export const cardDesignSchema = z
+  .object({
+    bg: z.enum(Object.keys(CARD_BACKGROUNDS) as [CardBackground, ...CardBackground[]]),
+    font: z.enum(CARD_FONTS),
+    text: z.string().trim().max(CARD_LIMITS.text, `Karta matni ${CARD_LIMITS.text} belgidan oshmasin.`),
+    stickers: z
+      .array(z.object({
+        e: z.enum(CARD_STICKERS),
+        x: z.number().finite().transform((v) => round(Math.min(100, Math.max(0, v)), 0.1)),
+        y: z.number().finite().transform((v) => round(Math.min(100, Math.max(0, v)), 0.1)),
+        s: z.number().finite().transform((v) => round(Math.min(2.5, Math.max(0.6, v)), 0.01)),
+      }))
+      .max(CARD_LIMITS.stickers),
+  })
+  .refine((d) => d.text.length > 0 || d.stickers.length > 0, "Kartaga matn yozing yoki stiker qo'shing.");
+export type CardDesign = z.infer<typeof cardDesignSchema>;
+
 export const createCommunityPostSchema = z.object({
   format: z.enum(POST_FORMATS).default("post"),
   kind: z.enum(["post", "announcement"]).default("post"),
@@ -134,6 +173,8 @@ export const createCommunityPostSchema = z.object({
   content: docSchema,
   /** Tepadagi albom — yuklangan media ID lari, tartib bilan. */
   attachments: z.array(z.string().uuid()).max(COMMUNITY_LIMITS.attachments).default([]),
+  /** Faqat `format: "card"` uchun. */
+  design: cardDesignSchema.nullable().default(null),
 });
 export type CreateCommunityPostInput = z.infer<typeof createCommunityPostSchema>;
 

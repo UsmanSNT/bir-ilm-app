@@ -52,6 +52,7 @@ export const PATCH = defineRoute<UpdateLiveSessionInput, LiveSession>({
         book: session.bookTitle,
         content: plainToDoc(input.announcement.body),
         attachments: [],
+        design: null,
       });
     }
     return session;

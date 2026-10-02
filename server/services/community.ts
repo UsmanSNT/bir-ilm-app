@@ -24,6 +24,9 @@ import {
   canModerate,
   docSchema,
   docToText,
+  plainToDoc,
+  cardDesignSchema,
+  type CardDesign,
   type CreateCommunityPostInput,
   type CreateUploadInput,
   type Doc,
@@ -206,6 +209,13 @@ function mediaIdsIn(doc: Doc): string[] {
 
 /** Bo'sh paragraflarni olib tashlaydi va matnni tekshiradi. */
 function normalize(input: CreateCommunityPostInput) {
+  if (input.format === "card") {
+    // Karta: dizayn majburiy, albom va formatlangan matn yo'q; matnli nusxa — kartadagi matn.
+    if (!input.design) throw validationFailed({ design: ["Karta dizayni kerak."] }, "Karta dizayni kerak.");
+    if (input.attachments.length) throw validationFailed({ attachments: ["Kartaga rasm/video qo'shilmaydi."] }, "Kartaga rasm/video qo'shilmaydi.");
+    const text = input.design.text;
+    return { content: plainToDoc(text), text, inline: [] as string[], design: JSON.stringify(input.design) };
+  }
   const content = input.content.filter((block) =>
     block.type === "p" || block.type === "h" || block.type === "quote"
       ? block.c.some((item) => item.t.trim())
@@ -225,7 +235,7 @@ function normalize(input: CreateCommunityPostInput) {
   }
   if (!text && !inline.length && !input.attachments.length) fields.content = ["Matn yozing yoki rasm/video qo'shing."];
   if (Object.keys(fields).length) throw validationFailed(fields, Object.values(fields)[0][0]);
-  return { content, text, inline };
+  return { content, text, inline, design: null };
 }
 
 /** Post uchun ishlatilayotgan barcha media shu foydalanuvchiniki va yuklanib bo'lgan bo'lsin. */
@@ -268,7 +278,7 @@ export async function createCommunityPost(db: Database, userId: string, input: C
     if ((recent?.n ?? 0) >= 10) throw rateLimited("Juda tez yozyapsiz. Birozdan keyin urinib ko'ring.");
   }
 
-  const { content, text, inline } = normalize(input);
+  const { content, text, inline, design } = normalize(input);
   await claimableMedia(db, userId, [...input.attachments, ...inline], null);
 
   const id = crypto.randomUUID();
@@ -281,6 +291,7 @@ export async function createCommunityPost(db: Database, userId: string, input: C
     book: input.book,
     body: text,
     content: JSON.stringify(content),
+    design,
   });
   await bindMedia(db, id, input.attachments, inline);
   return { id };
@@ -300,7 +311,7 @@ export async function updateCommunityPost(
   // Turini (e'lon/oddiy) faqat moderator o'zgartiradi.
   const kind = canModerate(await getUserRole(db, userId)) ? input.kind : post.kind;
 
-  const { content, text, inline } = normalize({ ...input, kind });
+  const { content, text, inline, design } = normalize({ ...input, kind });
   await claimableMedia(db, userId, [...input.attachments, ...inline], postId);
   await db
     .update(readingPosts)
@@ -311,6 +322,7 @@ export async function updateCommunityPost(
       book: input.book,
       body: text,
       content: JSON.stringify(content),
+      design,
       editedAt: sql`CURRENT_TIMESTAMP`,
     })
     .where(eq(readingPosts.id, postId));
@@ -396,6 +408,17 @@ export function parseContent(raw: string | null): Doc | null {
   if (!raw) return null;
   try {
     const parsed = docSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Karta dizayni JSON'ini xavfsiz o'qiydi: buzilgan bo'lsa null (post oddiy matn sifatida ko'rinadi). */
+export function parseDesign(raw: string | null): CardDesign | null {
+  if (!raw) return null;
+  try {
+    const parsed = cardDesignSchema.safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : null;
   } catch {
     return null;

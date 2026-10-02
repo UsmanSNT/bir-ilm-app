@@ -8,8 +8,8 @@ export const readingPosts = sqliteTable("reading_posts", {
   body: text("body").notNull(),
   /** post — oddiy post; announcement — admin/moderator e'loni (bosh sahifadagi yangiliklarda). */
   kind: text("kind", { enum: ["post", "announcement"] }).notNull().default("post"),
-  /** post — lentadagi qisqa post; article — sarlavhali uzun maqola (alohida o'qish oynasida). */
-  format: text("format", { enum: ["post", "article"] }).notNull().default("post"),
+  /** post — lentadagi qisqa post; article — sarlavhali uzun maqola; card — rangli karta (stikerlar bilan). */
+  format: text("format", { enum: ["post", "article", "card"] }).notNull().default("post"),
   /** Maqola yoki e'lon sarlavhasi (oddiy postda bo'sh bo'lishi mumkin). */
   title: text("title").notNull().default(""),
   /**
@@ -18,6 +18,8 @@ export const readingPosts = sqliteTable("reading_posts", {
    * `body` doim to'ldiriladi (matnli nusxa: qidiruv, e'lonlar, eski mijozlar uchun).
    */
   content: text("content"),
+  /** Karta dizayni (JSON, `cardDesignSchema`); faqat format = card. */
+  design: text("design"),
   editedAt: text("edited_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [

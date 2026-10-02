@@ -200,6 +200,7 @@ export async function createPost(
     book: input.book,
     content: plainToDoc(input.body),
     attachments: [],
+    design: null,
   });
   const created = (await db.query.readingPosts.findFirst({ where: eq(readingPosts.id, id) }))!;
 

@@ -7,7 +7,7 @@ import { COMMUNITY_LIMITS, plainToDoc, readingMinutes } from "@/shared/contract/
 import { tryGetDb } from "@/server/db/client";
 import { isSignedIn } from "@/server/services/accounts";
 import { ApiException } from "@/server/http/errors";
-import { createCommunityPost, loadPostExtras, parseContent, removePost, requireSignedIn } from "@/server/services/community";
+import { createCommunityPost, loadPostExtras, parseContent, parseDesign, removePost, requireSignedIn } from "@/server/services/community";
 
 export const runtime = "edge";
 
@@ -46,7 +46,7 @@ async function identity(request: Request) {
   return { id: resolved.userId, headers };
 }
 
-type PostRow = Omit<ReadingPost, "replies" | "content" | "media" | "attachments" | "reactions" | "myReaction" | "readMinutes" | "truncated"> & { content: string | null };
+type PostRow = Omit<ReadingPost, "replies" | "content" | "design" | "media" | "attachments" | "reactions" | "myReaction" | "readMinutes" | "truncated"> & { content: string | null; design: string | null };
 
 /**
  * Formatlangan matn, rasm/video va reaksiyalarni qo'shadi. Lentada maqolaning
@@ -62,6 +62,7 @@ async function decorate(rows: PostRow[], viewerId: string, full: boolean): Promi
       ...row,
       body: truncated && row.body.length > COMMUNITY_LIMITS.excerpt ? `${row.body.slice(0, COMMUNITY_LIMITS.excerpt).trimEnd()}…` : row.body,
       content,
+      design: row.format === "card" ? parseDesign(row.design) : null,
       truncated,
       readMinutes: readingMinutes(row.body),
       media: extras?.media.get(row.id) ?? [],
@@ -102,7 +103,7 @@ export async function GET(request: Request) {
     if (before) { conditions.push("p.rowid < (SELECT rowid FROM reading_posts WHERE id=?)"); args.push(before); }
     if (single) { conditions.push("p.id=?"); args.push(single); }
     const reportsColumn = moderator ? "(SELECT count(*) FROM post_reports r WHERE r.post_id=p.id)" : "0";
-    const rows = (await db.prepare(`SELECT p.id, p.user_id AS userId, u.name, u.avatar_url AS avatarUrl, p.book, p.body, p.kind, p.format, p.title, p.content, p.edited_at AS editedAt, p.created_at AS createdAt, ${reportsColumn} AS reports FROM reading_posts p JOIN users u ON u.id=p.user_id WHERE ${conditions.join(" AND ")} ORDER BY p.rowid DESC LIMIT 20`).bind(...args).all<PostRow>()).results;
+    const rows = (await db.prepare(`SELECT p.id, p.user_id AS userId, u.name, u.avatar_url AS avatarUrl, p.book, p.body, p.kind, p.format, p.title, p.content, p.design, p.edited_at AS editedAt, p.created_at AS createdAt, ${reportsColumn} AS reports FROM reading_posts p JOIN users u ON u.id=p.user_id WHERE ${conditions.join(" AND ")} ORDER BY p.rowid DESC LIMIT 20`).bind(...args).all<PostRow>()).results;
     const posts = await decorate(rows, id, Boolean(single));
     const replies: PostReply[] = [];
     if (posts.length) {
@@ -180,6 +181,7 @@ export async function POST(request: Request) {
           book: kind === "announcement" ? "" : book,
           content: plainToDoc(body),
           attachments: [],
+          design: null,
         });
         break;
       }

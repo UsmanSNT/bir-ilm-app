@@ -7,10 +7,11 @@
  * va formatlangan matn. Fayllar tanlanishi bilan fonda yuklanadi.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, ImagePlus, Loader2, Megaphone, Newspaper, RotateCcw, Send, StickyNote, X } from "lucide-react";
+import { BookOpen, ImagePlus, Loader2, Megaphone, Newspaper, Palette, RotateCcw, Send, StickyNote, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { COMMUNITY_LIMITS, type MediaItem, type PostFormat } from "@/shared/contract/community";
+import { CARD_LIMITS, COMMUNITY_LIMITS, type CardDesign, type MediaItem, type PostFormat } from "@/shared/contract/community";
+import { CardEditor, EMPTY_CARD } from "./card-editor";
 import type { ReadingPost } from "../social-types";
 import { RichEditor, type RichEditorHandle } from "./editor";
 import { mediaSrc } from "./rich-text";
@@ -51,6 +52,8 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
   const [announce, setAnnounce] = useState(editing?.kind === "announcement");
   const [title, setTitle] = useState(editing?.title ?? "");
   const [book, setBook] = useState(editing?.book ?? "");
+  const [design, setDesign] = useState<CardDesign>(editing?.design ?? EMPTY_CARD);
+  const card = format === "card";
   const [length, setLength] = useState(editing?.body.length ?? 0);
   const [inlinePending, setInlinePending] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -62,9 +65,10 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
     }),
   );
 
-  const limit = format === "article" ? COMMUNITY_LIMITS.articleText : COMMUNITY_LIMITS.postText;
+  const limit = format === "article" ? COMMUNITY_LIMITS.articleText : card ? CARD_LIMITS.text : COMMUNITY_LIMITS.postText;
+  const used = card ? design.text.length : length;
   const uploading = slots.some((slot) => !slot.item && !slot.error) || inlinePending > 0;
-  const needsTitle = format === "article" || announce;
+  const needsTitle = !card && (format === "article" || announce);
 
   const patch = (key: string, value: Partial<Slot>) => setSlots((list) => list.map((slot) => (slot.key === key ? { ...slot, ...value } : slot)));
 
@@ -122,7 +126,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
   });
 
   const close = () => {
-    if ((dirty || length > 0) && !busy && !window.confirm("Yozganlaringiz saqlanmaydi. Yopilsinmi?")) return;
+    if ((dirty || length > 0 || design.text || design.stickers.length) && !busy && !window.confirm("Yozganlaringiz saqlanmaydi. Yopilsinmi?")) return;
     onClose();
   };
 
@@ -130,12 +134,14 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
     if (busy) return;
     if (uploading) { toast("Fayllar yuklanib bo'lishini kuting."); return; }
     if (needsTitle && !title.trim()) { toast.error(announce ? "E'lon sarlavhasini yozing." : "Maqola sarlavhasini yozing."); return; }
-    const content = editor.current?.getDoc() ?? [];
-    const attachments = slots.flatMap((slot) => (slot.item ? [slot.item.id] : []));
-    if (!content.length && !attachments.length) { toast.error("Matn yozing yoki rasm/video qo'shing."); return; }
+    const content = card ? [] : editor.current?.getDoc() ?? [];
+    const attachments = card ? [] : slots.flatMap((slot) => (slot.item ? [slot.item.id] : []));
+    const cardDesign = card ? { ...design, text: design.text.trim() } : null;
+    if (cardDesign && !cardDesign.text && !cardDesign.stickers.length) { toast.error("Kartaga matn yozing yoki stiker qo'shing."); return; }
+    if (!cardDesign && !content.length && !attachments.length) { toast.error("Matn yozing yoki rasm/video qo'shing."); return; }
     setBusy(true);
     try {
-      const input = { format, kind: announce ? "announcement" : "post", title: needsTitle ? title.trim() : "", book: book.trim(), content, attachments };
+      const input = { format, kind: announce ? "announcement" : "post", title: needsTitle ? title.trim() : "", book: book.trim(), content, attachments, design: cardDesign };
       const result = editing
         ? await apiCall<{ id: string }>(`/community/posts/${editing.id}`, { method: "PUT", body: JSON.stringify(input) })
         : await apiCall<{ id: string }>("/community/posts", { method: "POST", body: JSON.stringify(input) });
@@ -149,7 +155,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
     }
   };
 
-  const heading = editing ? "Tahrirlash" : announce ? "E'lon yozish" : format === "article" ? "Maqola yozish" : "Post yozish";
+  const heading = editing ? "Tahrirlash" : announce ? "E'lon yozish" : format === "article" ? "Maqola yozish" : card ? "Karta yasash" : "Post yozish";
 
   return (
     <DialogContent
@@ -162,7 +168,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
       <header className="composer-head">
         <button type="button" className="icon-btn" onClick={close} aria-label="Yopish" title="Yopish"><X size={22} /></button>
         <DialogTitle>{heading}</DialogTitle>
-        <button type="button" className="button composer-publish" onClick={() => void publish()} disabled={busy || uploading || length > limit}>
+        <button type="button" className="button composer-publish" onClick={() => void publish()} disabled={busy || (!card && uploading) || used > limit}>
           {busy ? <Loader2 size={17} className="spin" /> : <Send size={17} />}
           {editing ? "Saqlash" : "Joylash"}
         </button>
@@ -173,12 +179,15 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
         <div className="composer-modes" role="radiogroup" aria-label="Turi">
           <button type="button" role="radio" aria-checked={format === "post"} onClick={() => setFormat("post")}><StickyNote size={16} />Post</button>
           <button type="button" role="radio" aria-checked={format === "article"} onClick={() => setFormat("article")}><Newspaper size={16} />Maqola</button>
+          <button type="button" role="radio" aria-checked={card} onClick={() => setFormat("card")}><Palette size={16} />Karta</button>
           {moderator && (
             <label className="announce-toggle"><input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} /><Megaphone size={16} />E&apos;lon</label>
           )}
         </div>
 
-        <section className={`composer-album count-${Math.min(slots.length, 10)}`} aria-label="Rasm va videolar">
+        {card && <CardEditor design={design} onChange={(next) => { setDesign(next); setDirty(true); }} />}
+
+        {!card && <section className={`composer-album count-${Math.min(slots.length, 10)}`} aria-label="Rasm va videolar">
           {slots.map((slot, i) => (
             <div className={`composer-slot${slot.error ? " has-error" : ""}`} key={slot.key}>
               {slot.kind === "video"
@@ -204,7 +213,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
             </button>
           )}
           <input ref={fileInput} type="file" accept={MEDIA_ACCEPT} multiple hidden onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
-        </section>
+        </section>}
 
         {needsTitle && (
           <textarea
@@ -225,7 +234,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
           </label>
         )}
 
-        <RichEditor
+        {!card && <RichEditor
           ref={editor}
           initial={editing?.content ?? null}
           media={editing?.media}
@@ -234,12 +243,12 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
           onChange={setLength}
           onPendingChange={setInlinePending}
           onLoginRequired={onLoginRequired}
-        />
+        />}
       </div>
 
       <footer className="composer-foot">
-        <span className={length > limit ? "is-over" : ""}>{length.toLocaleString("ru-RU")} / {limit.toLocaleString("ru-RU")}</span>
-        <span className="composer-hint">Matnni belgilang — qalin, kursiv, spoiler, havola…</span>
+        <span className={used > limit ? "is-over" : ""}>{used.toLocaleString("ru-RU")} / {limit.toLocaleString("ru-RU")}</span>
+        <span className="composer-hint">{card ? "Stikerni kartada sudrab joylang" : "Matnni belgilang — qalin, kursiv, spoiler, havola…"}</span>
       </footer>
     </DialogContent>
   );

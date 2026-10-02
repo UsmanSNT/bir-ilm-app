@@ -1,5 +1,5 @@
 import type { UserRole } from "@/shared/contract/roles";
-import type { Doc, MediaItem, PostFormat, ReactionCount } from "@/shared/contract/community";
+import type { CardDesign, Doc, MediaItem, PostFormat, ReactionCount } from "@/shared/contract/community";
 
 export type Reader = { id: string; name: string; bio: string; posts: number; followers: number };
 export type PostReply = { id: string; postId: string; userId: string; name: string; body: string; createdAt: string };
@@ -18,6 +18,8 @@ export type ReadingPost = {
   title: string;
   /** Formatlangan matn. null — eski post (body ko'rsatiladi) yoki lentadagi maqola (`truncated`). */
   content: Doc | null;
+  /** Karta post dizayni (format = card). */
+  design: CardDesign | null;
   /** Lentadagi maqola: to'liq matn `?post=<id>` bilan olinadi. */
   truncated: boolean;
   readMinutes: number;

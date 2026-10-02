@@ -287,3 +287,28 @@ body .app-shell[hidden] { display: none; }
 .live-rec.paused { background: #f6e7c6; color: #6b4a12; }
 .live-rec.paused i { background: var(--tilla); animation: none; }
 .live-save-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
+/* Gurung: karta postlar */
+.design-card { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; padding: 12% 10%; border-radius: var(--r-md); touch-action: pan-y; }
+.reading-post > .design-card { margin: 10px 0 6px; }
+.design-card-text { position: relative; z-index: 1; margin: 0; max-width: 100%; text-align: center; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; text-shadow: 0 1px 12px #0000001f; }
+.design-card-placeholder { opacity: .55; font-style: italic; }
+.design-sticker { position: absolute; z-index: 2; transform: translate(-50%, -50%); line-height: 1; filter: drop-shadow(0 4px 8px #00000033); user-select: none; }
+.design-card.is-editable { touch-action: none; }
+.design-card.is-editable .design-sticker { cursor: grab; touch-action: none; }
+.design-sticker.is-selected { outline: 2px dashed #ffffffcc; outline-offset: 4px; border-radius: 8px; }
+.card-editor { display: grid; gap: 10px; margin-bottom: 12px; }
+.card-editor-text { width: 100%; padding: 10px 12px; border: 1.5px solid var(--chiziq); border-radius: var(--r-sm); background: var(--sahifa); font-size: 16px; resize: vertical; }
+.card-editor-row { display: flex; gap: 8px; overflow-x: auto; padding: 3px; scrollbar-width: none; }
+.card-swatch { width: 36px; height: 36px; flex: none; border: 3px solid var(--sahifa); border-radius: 50%; box-shadow: 0 0 0 1px var(--chiziq); }
+.card-swatch[aria-checked="true"] { box-shadow: 0 0 0 2.5px var(--lojuvard); }
+.card-font { flex: none; height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--qogoz-2); color: var(--siyoh-2); font-weight: 700; }
+.card-font[aria-checked="true"] { background: var(--lojuvard); color: #fff; }
+.card-stickers { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
+.card-stickers button { aspect-ratio: 1; border: 0; border-radius: 12px; background: var(--qogoz); font-size: 22px; }
+.card-stickers button:hover { background: var(--qogoz-2); }
+.card-stickers button:disabled { opacity: .4; }
+.card-sticker-tools { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--qogoz); font-size: 13px; font-weight: 600; }
+.card-sticker-tools span { flex: 1; }
+.card-sticker-tools button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); }
+@media (max-width: 520px) { .card-stickers { grid-template-columns: repeat(6, 1fr); } }

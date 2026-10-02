@@ -33,6 +33,7 @@ export const POST = defineRoute<CreateLiveSessionInput, LiveSession>({
         book: input.bookTitle,
         content: plainToDoc(input.announcement.body),
         attachments: [],
+        design: null,
       });
     }
     return session;

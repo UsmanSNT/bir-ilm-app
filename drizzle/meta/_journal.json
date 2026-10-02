@@ -113,6 +113,13 @@
       "when": 1790938960827,
       "tag": "0015_email_login",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1790941914023,
+      "tag": "0016_card_posts",
+      "breakpoints": true
     }
   ]
 }
