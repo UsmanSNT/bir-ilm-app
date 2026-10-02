@@ -215,7 +215,7 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
     <Dialog open onOpenChange={(value) => { if (!value && !busy) onClose(); }}>
       <DialogContent className="book-editor">
         <DialogTitle>{store ? (book ? "Mahsulotni tahrirlash" : "Do‘konga yangi kitob") : book ? "Kitobni tahrirlash" : asWeekBook ? "Yangi hafta kitobi" : "Yangi kitob"}</DialogTitle>
-        <DialogDescription>{store ? "Do‘kon uchun muqova, tavsif va narx. Bu kitob suhbat/kutubxona kitoblaridan alohida." : "Muqova rasmini chapdagi katakdan, audio qismlarni pastdagi tugmadan yuklang. Faqat admin va moderator ko‘radi."}</DialogDescription>
+        <DialogDescription className="sr-only">{store ? "Do‘kon mahsuloti: muqova, tavsif va narx." : "Kitob: muqova, tavsif va audio qismlar."}</DialogDescription>
         <form onSubmit={save}>
           <div className="book-editor-top">
             <label className="book-editor-cover" style={{ backgroundColor: color }}>
@@ -247,14 +247,13 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
             <datalist id="book-editor-categories">
               {STORE_CATEGORIES.map((c) => <option key={c} value={c} />)}
             </datalist>
-            <small>Narx qo‘yilsa kitob do‘konda chiqadi. Bo‘sh qoldirilsa — sotuvda emas.</small>
           </fieldset>}
 
           {!store && <label className="book-editor-audio">
             <Headphones size={18} />
             <span>
               <strong>{parts.length ? "Yana qism qo‘shish" : "Audiokitob fayllarini tanlang"}</strong>
-              <small>Bir nechta faylni birdan tanlang · {BOOK_LIMITS.maxTracks} tagacha, jami 1 GB{totalBytes ? ` · hozir ${mb(totalBytes)}` : ""}</small>
+              <small>{BOOK_LIMITS.maxTracks} tagacha · jami 1 GB{totalBytes ? ` · hozir ${mb(totalBytes)}` : ""}</small>
             </span>
             <Upload size={16} />
             <input type="file" accept="audio/*" multiple disabled={busy} onChange={(e) => { pickAudio(e.target.files); e.target.value = ""; }} />
@@ -284,7 +283,7 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
 
           {!store && <label className="book-editor-active">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-            <Sparkles size={16} /> Haftaning kitobi (bosh sahifada ko‘rinadi)
+            <Sparkles size={16} /> Haftaning kitobi
           </label>}
 
           {!store && isAdmin && active && (
@@ -309,11 +308,10 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
                   <input aria-label="Suhbat sarlavhasi" placeholder="Suhbat sarlavhasi" maxLength={200} value={talkTitle} onChange={(e) => setTalkTitle(e.target.value)} />
                   <label className="book-editor-announce">
                     <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />
-                    <Megaphone size={15} /> {existingTalk ? "Vaqt o‘zgarganini bosh sahifada e’lon qilish" : "Bosh sahifada e’lon qilish (yangiliklar va qo‘ng‘iroqcha)"}
+                    <Megaphone size={15} /> {existingTalk ? "Vaqt o‘zgarganini e’lon qilish" : "Bosh sahifada e’lon qilish"}
                   </label>
                 </>
               )}
-              {!talkWhen && !existingTalk && <small>Ixtiyoriy: sanani tanlasangiz, suhbat «Suhbatlar»da va bosh sahifada e’lon qilinadi.</small>}
             </fieldset>
           )}
 

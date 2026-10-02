@@ -41,7 +41,6 @@ export default function AdminStoreBooks() {
 
   return (
     <div className="admin-panel admin-books">
-      <p className="admin-intro">Bu yerdagi kitoblar faqat do‘kon uchun: muqova, tavsif va narx. Suhbat va kutubxona kitoblaridan alohida (u yerdagi audiokitob bu yerga o‘zi tushmaydi). Narxi qo‘yilgan kitob sotuvga chiqadi, narx 0 bo‘lsa — sotuvdan olinadi.</p>
       <button type="button" className="admin-add-book" onClick={() => setEditing({ book: null })}><Plus size={18} />Yangi kitob qo‘shish</button>
 
       <label className="admin-search">

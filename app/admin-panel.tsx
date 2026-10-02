@@ -42,7 +42,6 @@ export default function AdminPanel({ selfId }: { selfId: string }) {
 
   return (
     <div className="admin-panel">
-      <p className="admin-intro">Foydalanuvchiga rol bering. Moderator jonli suhbatlarda so‘z beradi, izohlarni o‘chiradi va qatnashchini chiqaradi. Suhbatni e’lon qilish va boshlash faqat adminda.</p>
 
       <div className="admin-counts">
         {counts.map(([role, n]) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, BookOpen, Headphones, Heart, MessageCircle, ShoppingCart, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Headphones, Heart, MessageCircle, Pencil, ShoppingCart, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteReview, fetchReviews, notifyStoreChanged, saveReview, StoreError } from "@/lib/api/store-client";
 import { formatPrice, STORE_LIMITS, type ReviewSummary, type StoreBook } from "@/shared/contract";
@@ -13,7 +13,7 @@ const reviewDate = (value: string) => {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ru-RU");
 };
 
-export default function StoreBookPage({ book, related, saved, onBack, onOpen, onAdd, onToggle, onNeedLogin, onAsk }: {
+export default function StoreBookPage({ book, related, saved, onBack, onOpen, onAdd, onToggle, onNeedLogin, onAsk, onEdit }: {
   book: StoreBook;
   related: StoreBook[];
   saved: boolean;
@@ -23,6 +23,8 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
   onToggle: () => void;
   onNeedLogin: () => void;
   onAsk: () => void;
+  /** Faqat admin uchun. */
+  onEdit?: () => void;
 }) {
   const [summaryText, setSummaryText] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
@@ -54,6 +56,7 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
           <div className="zb-book-actions">
             <button className="zb-btn zb-btn-primary" onClick={onAdd}><ShoppingCart size={18} />Savatga qo‘shish</button>
             <button className="zb-btn zb-btn-ghost" onClick={onAsk}><MessageCircle size={18} />Adminga yozish</button>
+            {onEdit && <button className="zb-btn zb-btn-ghost" onClick={onEdit}><Pencil size={17} />Tahrirlash</button>}
             <button className={`zb-btn zb-btn-icon ${saved ? "is-on" : ""}`} aria-pressed={saved} aria-label={saved ? "Javondan olish" : "Javonga qo‘shish"} onClick={onToggle}>
               <Heart size={20} fill={saved ? "currentColor" : "none"} />
             </button>

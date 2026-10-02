@@ -44,7 +44,6 @@ function LinksForm({ initial }: { initial: SiteLinks }) {
 
   return (
     <form className="admin-panel admin-site" onSubmit={(e) => void submit(e)}>
-      <p className="admin-intro">Bir Ilm sahifalari havolalari bosh sahifada «Bizni kuzating» blokida chiqadi. Kerak bo‘lmagan tarmoqni bo‘sh qoldiring.</p>
       {SOCIAL_KEYS.map((key) => {
         const Icon = ICONS[key];
         return (

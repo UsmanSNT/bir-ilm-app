@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { BookOpen, Check, Heart, Library, MessageCircle, Minus, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, X } from "lucide-react";
+import { BookOpen, Check, Heart, Library, MessageCircle, Minus, Pencil, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useViewer } from "@/lib/api/roles-client";
@@ -19,6 +19,8 @@ import LoginCard from "./login-card";
 import StoreAi from "./store-ai";
 import StoreBookPage from "./store-book-page";
 import StoreChatThread from "./store-chat";
+import BookEditor from "./book-editor";
+import { notifyCatalogChanged, useStoreCatalog } from "@/lib/api/books-client";
 import { BookCover, RatingLine } from "./store-ui";
 
 type Section = "catalog" | "ai" | "cart" | "checkout" | "library" | "chat";
@@ -39,7 +41,10 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
   /** Chat kitob sahifasidan ochilsa — birinchi xabar shu kitob haqida bo'ladi. */
   const [chatBook, setChatBook] = useState<StoreBook | null>(null);
   const [unread, setUnread] = useState(0);
+  /** Admin: do'kon mahsulotini qo'shish/tahrirlash (id yo'q — yangi). */
+  const [editing, setEditing] = useState<{ id: string | null } | null>(null);
   const viewer = useViewer();
+  const isAdmin = viewer?.role === "admin";
   const store = useStoreBooks();
   const cart = useCart(store.items);
   const detail = detailId ? store.items.find((b) => b.id === detailId) ?? null : null;
@@ -90,6 +95,7 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
             onToggle={() => onToggle(detail.id)}
             onNeedLogin={() => setLoginOpen(true)}
             onAsk={() => askAdmin(detail)}
+            onEdit={isAdmin ? () => setEditing({ id: detail.id }) : undefined}
           />
         ) : (
           <>
@@ -99,11 +105,11 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
               </button>
             )}
             {section !== "catalog" && <header className="zb-head"><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles[section]}</h1></header>}
-            {section === "catalog" && <StoreHome books={store.items} loading={store.loading} error={store.error} onRetry={store.reload} onOpen={open} onAdd={addToCart} onAi={() => go("ai")} />}
+            {section === "catalog" && <StoreHome books={store.items} loading={store.loading} error={store.error} onRetry={store.reload} onOpen={open} onAdd={addToCart} onAi={() => go("ai")} isAdmin={isAdmin} onCreate={() => setEditing({ id: null })} onEdit={(b) => setEditing({ id: b.id })} />}
             {section === "ai" && <StoreAi onNeedLogin={() => setLoginOpen(true)} />}
             {section === "cart" && <CartView cart={cart} onCheckout={() => go("checkout")} onCatalog={() => go("catalog")} onOpen={open} />}
             {section === "chat" && (signedIn
-              ? <StoreChatThread key={chatBook?.id ?? "general"} me="user" bookId={chatBook?.id} bookTitle={chatBook?.title} onNeedLogin={() => setLoginOpen(true)} empty="Kitob, narx yoki yetkazish haqida savolingizni yozing. Admin shu yerda javob beradi." />
+              ? <StoreChatThread key={chatBook?.id ?? "general"} me="user" bookId={chatBook?.id} bookTitle={chatBook?.title} onNeedLogin={() => setLoginOpen(true)} empty="Savolingizni yozing." />
               : <div className="zb-empty"><MessageCircle size={30} /><h3>Yozish uchun kiring</h3><p className="zb-muted">Admin bilan yozishish faqat ro‘yxatdan o‘tgan kitobxonlar uchun.</p><button className="zb-btn zb-btn-primary" onClick={() => setLoginOpen(true)}>Kirish</button></div>)}
             {section === "checkout" && (placed
               ? <Confirmation order={placed} onChat={() => go("chat")} onLibrary={() => go("library")} />
@@ -113,6 +119,8 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
         )}
         <footer className="zb-foot"><span><b>Bir Ilm</b> · Book Store</span><span>Har bir kitob — yangi imkoniyat</span></footer>
       </div>
+
+      {isAdmin && editing && <StoreBookEditor id={editing.id} onClose={() => { setEditing(null); store.reload(); }} />}
 
       <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
         <DialogContent className="app-dialog">
@@ -125,9 +133,18 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
   );
 }
 
-function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, onAi }: {
+/** Admin: do'kon mahsuloti muharriri (audio va hafta kitobisiz). Mahsulot ro'yxati yuklangach ochiladi. */
+function StoreBookEditor({ id, onClose }: { id: string | null; onClose: () => void }) {
+  const catalog = useStoreCatalog();
+  const book = id ? catalog.items.find((b) => b.id === id) ?? null : null;
+  if (id && !book) return null;
+  return <BookEditor kind="store" open book={book} onClose={() => { notifyCatalogChanged(); onClose(); }} />;
+}
+
+function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, onAi, isAdmin, onCreate, onEdit }: {
   books: StoreBook[]; loading: boolean; error: string; onRetry: () => void;
   onOpen: (b: StoreBook) => void; onAdd: (b: StoreBook) => void; onAi: () => void;
+  isAdmin: boolean; onCreate: () => void; onEdit: (b: StoreBook) => void;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(ALL);
@@ -143,6 +160,7 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, onAi }: {
   return (
     <>
       <header className="zb-head zb-head-home"><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>Har bir kitob —<br /><em>yangi imkoniyat</em></h1></header>
+      {isAdmin && <button type="button" className="zb-btn zb-btn-primary zb-admin-add" onClick={onCreate}><Plus size={18} />Kitob qo‘shish</button>}
       <label className="zb-search">
         <Search size={20} />
         <input aria-label="Kitob yoki muallifni izlash" placeholder="Kitob yoki muallif..." value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -175,6 +193,7 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, onAi }: {
             {list.map((b) => (
               <article key={b.id} className="zb-card">
                 <button className="zb-card-cover" onClick={() => onOpen(b)} aria-label={`${b.title} haqida`}><BookCover book={b} /></button>
+                {isAdmin && <button type="button" className="zb-card-edit" onClick={() => onEdit(b)} aria-label={`${b.title} ni tahrirlash`}><Pencil size={15} /></button>}
                 <div className="zb-card-body">
                   <button className="zb-card-title" onClick={() => onOpen(b)}>{b.title}</button>
                   <span className="zb-muted">{b.author}</span>
@@ -190,7 +209,7 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, onAi }: {
         ) : books.length ? (
           <div className="zb-empty"><Search size={28} /><h3>Kitob topilmadi</h3><button className="zb-btn zb-btn-ghost" onClick={() => { setQuery(""); setCategory(ALL); }}>Filtrlarni tozalash</button></div>
         ) : (
-          <div className="zb-empty"><Store size={28} /><h3>Do‘kon tez orada ochiladi</h3><p className="zb-muted">Kitoblar sotuvga qo‘yilganda shu yerda ko‘rinadi.</p></div>
+          <div className="zb-empty"><Store size={28} /><h3>Do‘kon tez orada ochiladi</h3>{isAdmin && <button className="zb-btn zb-btn-primary" onClick={onCreate}><Plus size={18} />Birinchi kitobni qo‘shish</button>}</div>
         )}
       </section>
     </>
@@ -296,7 +315,7 @@ function Checkout({ cart, signedIn, defaultName, onLogin, onBack, onPlaced }: {
       </section>
       <section className="zb-panel zb-pay">
         <h3>To‘lov</h3>
-        <p className="zb-note">To‘lov ilovada qilinmaydi. Buyurtmadan keyin admin shu ilovadagi chatda hisob raqamni yuboradi, siz to‘lab, chek rasmini o‘sha chatga tashlaysiz.</p>
+        <p className="zb-note">To‘lov chatda: admin hisob raqam yuboradi, siz chek rasmini shu chatga tashlaysiz.</p>
       </section>
       <Totals cart={cart} />
       <div className="zb-row"><button type="button" className="zb-btn zb-btn-ghost" onClick={onBack}>Orqaga</button><button className="zb-btn zb-btn-primary" disabled={busy}>{busy ? "Saqlanmoqda..." : "Buyurtmani tasdiqlash"}</button></div>
@@ -310,7 +329,7 @@ function Confirmation({ order, onChat, onLibrary }: { order: StoreOrder; onChat:
       <span className="zb-success-mark"><Check size={30} /></span>
       <h3>Buyurtma qabul qilindi</h3>
       <p>№ {order.id}<br />{formatPrice(order.total)}</p>
-      <p className="zb-muted">Admin chatda hisob raqamni yuboradi. Chatni oching va to‘lovdan keyin chek rasmini shu yerga tashlang.</p>
+      <p className="zb-muted">Admin chatda hisob raqam yuboradi.</p>
       <div className="zb-row"><button className="zb-btn zb-btn-ghost" onClick={onLibrary}>Buyurtmalarim</button><button className="zb-btn zb-btn-primary" onClick={onChat}><MessageCircle size={17} />Chatga o‘tish</button></div>
     </div>
   );

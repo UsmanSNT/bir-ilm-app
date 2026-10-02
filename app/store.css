@@ -291,3 +291,8 @@
 .admin-price { display: flex; flex: 1; align-items: center; gap: 6px; padding: 0 12px; border-radius: 12px; background: var(--qogoz-2); box-shadow: inset 0 0 0 1px var(--chiziq); font-size: 12.5px; color: var(--siyoh-3); }
 .admin-price input { flex: 1; min-width: 0; min-height: 40px; border: 0; background: none; outline: 0; color: var(--siyoh); font: 800 15px var(--f-ui); }
 .admin-edit-book { display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 12px; background: var(--qogoz-2); color: var(--lojuvard); box-shadow: inset 0 0 0 1px var(--chiziq); cursor: pointer; }
+
+/* Admin: do'konda kitob qo'shish/tahrirlash */
+.zb-admin-add { margin: 0 0 12px; }
+.zb-card { position: relative; }
+.zb-card-edit { position: absolute; z-index: 2; top: 8px; right: 8px; display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: #ffffffee; color: var(--lojuvard); box-shadow: 0 2px 8px #0004; cursor: pointer; }

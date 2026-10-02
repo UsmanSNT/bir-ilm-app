@@ -53,7 +53,6 @@ export default function DeviceSettings() {
 
   return (
     <div className="p-settings device-settings">
-      <p className="p-settings-intro">Jonli suhbatda ishlatiladigan kamera va mikrofonni shu yerda tanlang. Suhbat oynasida qurilma tanlash yo‘q — tanlov o‘zi qo‘llanadi.</p>
       {!named && <button type="button" className="p-primary" onClick={() => void allow()} disabled={busy}>{busy ? "So‘ralmoqda…" : "Ruxsat berish va qurilmalarni ko‘rsatish"}</button>}
       {error && <p className="admin-error" role="alert">{error}</p>}
       <label className="device-field">
@@ -70,7 +69,6 @@ export default function DeviceSettings() {
           {devices.mics.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || `Mikrofon ${i + 1}`}</option>)}
         </select>
       </label>
-      <p className="p-settings-intro">Tanlov faqat shu brauzerda saqlanadi. Boshqa qurilmada alohida tanlanadi.</p>
     </div>
   );
 }

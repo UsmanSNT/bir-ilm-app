@@ -148,3 +148,7 @@ node scripts\restore-store-products.mjs C:\bir-ilm\backups\before-deploy-2026-10
 ```
 
 Birinchi buyruq faqat nima yaratilishini ko‘rsatadi. Takror yurgizish xavfsiz (shu nomli mahsulot bor bo‘lsa, o‘tkazib yuboradi). Narx zaxiradagi son bilan olinadi (so‘m edi) — won bilan **Do‘kon kitoblari** da tuzating.
+
+## Do'konga kitob qo'shish (admin)
+
+Do‘konning o‘zida (Book Store) admin uchun **«Kitob qo‘shish»** tugmasi, kartalarda qalam (tahrirlash) va kitob sahifasida «Tahrirlash» bor. Oyna faqat do‘kon maydonlarini ko‘rsatadi: muqova, nom, muallif, tavsif, janr, narx (audio va «Haftaning kitobi» yo‘q). Kutubxona kitobi alohida: Javon → «Kitob qo‘shish». Shu yerning o‘zi Profil → Sozlamalar → Do‘kon kitoblari bilan bir xil ro‘yxatni boshqaradi.

@@ -19,7 +19,6 @@ export default function SocialLinks({ variant = "card" }: { variant?: "card" | "
       {variant === "card" && (
         <div className="social-links-text">
           <strong>Bizni kuzating</strong>
-          <span>Yangiliklar, suhbat e’lonlari va kitoblar haqida — ijtimoiy tarmoqlarda.</span>
         </div>
       )}
       <ul>

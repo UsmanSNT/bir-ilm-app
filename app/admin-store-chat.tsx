@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, MessageCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { fetchAdminThreads } from "@/lib/api/store-client";
 import type { StoreThread } from "@/shared/contract";
 import StoreChatThread from "./store-chat";
@@ -41,7 +41,6 @@ export default function AdminStoreChat() {
 
   return (
     <div className="admin-panel admin-chat">
-      <p className="admin-intro">Xaridorlarning buyurtmalari va kitoblar bo‘yicha savollari shu yerga tushadi. Hisob raqamni shu yerda yuboring, chek rasmini ham shu yerda qabul qilasiz.</p>
       {error && <p className="admin-error" role="alert">{error}</p>}
       {threads === null && <p className="admin-empty">Yuklanmoqda…</p>}
       {threads?.length === 0 && !error && <p className="admin-empty">Hali yozishma yo‘q.</p>}
@@ -62,7 +61,6 @@ export default function AdminStoreChat() {
           </li>
         ))}
       </ul>
-      {threads && threads.length > 0 && <p className="admin-empty"><MessageCircle size={14} /> Ro‘yxat o‘zi yangilanadi.</p>}
     </div>
   );
 }

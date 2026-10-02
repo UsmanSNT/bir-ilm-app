@@ -200,7 +200,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
         {card && <CardEditor design={design} onChange={(next) => { setDesign(next); setDirty(true); }} />}
 
         {!card && slots.length > 1 && (
-          <p className="composer-order-hint"><GripVertical size={15} aria-hidden="true" /><span>Rasmlar shu tartibda <strong>karusel</strong> bo‘lib ko‘rinadi. Raqam — ko‘rsatish tartibi: sudrang yoki ‹ › tugmalari bilan suring.</span></p>
+          <p className="composer-order-hint"><GripVertical size={15} aria-hidden="true" /><span>Raqam — ko‘rsatish tartibi (karusel). Sudrang yoki ‹ › bilan suring.</span></p>
         )}
         {!card && <section className={`composer-album count-${Math.min(slots.length, 10)}`} aria-label="Rasm va videolar">
           {slots.map((slot, i) => (
