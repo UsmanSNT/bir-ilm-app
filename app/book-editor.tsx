@@ -29,24 +29,28 @@ export default function BookEditor({
   open,
   onClose,
   asWeekBook = false,
+  kind = "library",
 }: {
   book: Book | null;
   open: boolean;
   onClose: () => void;
+  /** library — suhbat/kutubxona kitobi (audio, hafta kitobi); store — do'kon mahsuloti (narx, janr, muqova). */
+  kind?: "library" | "store";
   /** Yangi kitob «Haftaning kitobi» belgisi bilan ochiladi (bosh sahifadan). */
   asWeekBook?: boolean;
 }) {
-  return open ? <EditorDialog key={book?.id ?? "new"} book={book} onClose={onClose} asWeekBook={asWeekBook} /> : null;
+  return open ? <EditorDialog key={book?.id ?? "new"} book={book} onClose={onClose} asWeekBook={asWeekBook} kind={book?.kind ?? kind} /> : null;
 }
 
-function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClose: () => void; asWeekBook: boolean }) {
+function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; onClose: () => void; asWeekBook: boolean; kind: "library" | "store" }) {
+  const store = kind === "store";
   const [title, setTitle] = useState(book?.title ?? "");
   const [author, setAuthor] = useState(book?.author ?? "");
   const [summary, setSummary] = useState(book?.summary ?? "");
   const [color, setColor] = useState(book?.color ?? COLORS[0]);
   const [price, setPrice] = useState(book?.price ? String(book.price) : "");
   const [category, setCategory] = useState(book?.category ?? "");
-  const [active, setActive] = useState(book?.active ?? asWeekBook);
+  const [active, setActive] = useState(store ? false : book?.active ?? asWeekBook);
   // Hafta kitobi bilan birga suhbat vaqtini belgilash (faqat admin suhbat yarata oladi).
   const isAdmin = useViewer()?.role === "admin";
   const [talkWhen, setTalkWhen] = useState("");
@@ -117,9 +121,11 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
     try {
       const priceValue = price.trim() ? Number(price) : 0;
       if (!Number.isInteger(priceValue) || priceValue < 0 || priceValue > STORE_LIMITS.maxPrice) throw new Error("Narx butun wonda (₩), 0 dan 10 000 000 gacha bo‘lsin.");
-      const fields = { title: title.trim(), author: author.trim(), summary: summary.trim(), color, price: priceValue, category: category.trim() };
-      let saved = book ? await updateBook(book.id, { ...fields, active }) : await createBook(fields);
-      if (!book && active) saved = await updateBook(saved.id, { active: true });
+      const base = { title: title.trim(), author: author.trim(), summary: summary.trim(), color };
+      // Do'kon mahsuloti: narx va janr bor, audio/hafta kitobi yo'q. Kutubxona kitobida aksincha.
+      const fields = store ? { ...base, price: priceValue, category: category.trim() } : base;
+      let saved = book ? await updateBook(book.id, store ? fields : { ...fields, active }) : await createBook({ ...fields, kind });
+      if (!book && active && !store) saved = await updateBook(saved.id, { active: true });
 
       // Suhbat fayllardan oldin saqlanadi: yuklash uzilsa ham suhbat belgilanib qoladi.
       const talkName = talkTitle.trim() || "Birga tahlil qilamiz";
@@ -208,8 +214,8 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
   return (
     <Dialog open onOpenChange={(value) => { if (!value && !busy) onClose(); }}>
       <DialogContent className="book-editor">
-        <DialogTitle>{book ? "Kitobni tahrirlash" : asWeekBook ? "Yangi hafta kitobi" : "Yangi kitob"}</DialogTitle>
-        <DialogDescription>Muqova rasmini chapdagi katakdan, audio qismlarni pastdagi tugmadan yuklang. Faqat admin va moderator ko‘radi.</DialogDescription>
+        <DialogTitle>{store ? (book ? "Mahsulotni tahrirlash" : "Do‘konga yangi kitob") : book ? "Kitobni tahrirlash" : asWeekBook ? "Yangi hafta kitobi" : "Yangi kitob"}</DialogTitle>
+        <DialogDescription>{store ? "Do‘kon uchun muqova, tavsif va narx. Bu kitob suhbat/kutubxona kitoblaridan alohida." : "Muqova rasmini chapdagi katakdan, audio qismlarni pastdagi tugmadan yuklang. Faqat admin va moderator ko‘radi."}</DialogDescription>
         <form onSubmit={save}>
           <div className="book-editor-top">
             <label className="book-editor-cover" style={{ backgroundColor: color }}>
@@ -228,7 +234,7 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
           </div>
           <textarea aria-label="Tavsif" placeholder="Qisqacha tavsif (ixtiyoriy)" rows={3} maxLength={BOOK_LIMITS.summary} value={summary} onChange={(e) => setSummary(e.target.value)} />
 
-          <fieldset className="book-editor-store">
+          {store && <fieldset className="book-editor-store">
             <legend><Store size={16} /> Book Store</legend>
             <label>
               <span>Narx (₩ won)</span>
@@ -242,9 +248,9 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
               {STORE_CATEGORIES.map((c) => <option key={c} value={c} />)}
             </datalist>
             <small>Narx qo‘yilsa kitob do‘konda chiqadi. Bo‘sh qoldirilsa — sotuvda emas.</small>
-          </fieldset>
+          </fieldset>}
 
-          <label className="book-editor-audio">
+          {!store && <label className="book-editor-audio">
             <Headphones size={18} />
             <span>
               <strong>{parts.length ? "Yana qism qo‘shish" : "Audiokitob fayllarini tanlang"}</strong>
@@ -252,9 +258,9 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
             </span>
             <Upload size={16} />
             <input type="file" accept="audio/*" multiple disabled={busy} onChange={(e) => { pickAudio(e.target.files); e.target.value = ""; }} />
-          </label>
+          </label>}
 
-          {parts.length > 0 && (
+          {!store && parts.length > 0 && (
             <ol className="book-editor-parts" aria-label="Audiokitob qismlari (ijro tartibi)">
               {parts.map((part, index) => (
                 <li key={part.key} className={part.file ? "is-new" : undefined}>
@@ -276,12 +282,12 @@ function EditorDialog({ book, onClose, asWeekBook }: { book: Book | null; onClos
             </ol>
           )}
 
-          <label className="book-editor-active">
+          {!store && <label className="book-editor-active">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
             <Sparkles size={16} /> Haftaning kitobi (bosh sahifada ko‘rinadi)
-          </label>
+          </label>}
 
-          {isAdmin && active && (
+          {!store && isAdmin && active && (
             <fieldset className="book-editor-talk" disabled={busy}>
               <legend><CalendarClock size={16} /> Suhbat vaqti</legend>
               {existingTalk && (

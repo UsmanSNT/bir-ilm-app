@@ -166,7 +166,12 @@ export const books = sqliteTable("books", {
   audioMime: text("audio_mime"),
   audioBytes: integer("audio_bytes").notNull().default(0),
   audioSeconds: integer("audio_seconds").notNull().default(0),
-  /** Do'kondagi narx (so'm). 0 — sotuvda emas. */
+  /**
+   * library — suhbat/kutubxona kitobi (audio, haftaning kitobi); store — sotuv uchun alohida mahsulot
+   * (o'z muqovasi, tavsifi, narxi). Ikkalasi aralashmaydi.
+   */
+  kind: text("kind", { enum: ["library", "store"] }).notNull().default("library"),
+  /** Do'kondagi narx (Koreya woni, ₩). 0 — sotuvda emas. Faqat kind=store uchun. */
   price: integer("price").notNull().default(0),
   /** Do'kon janri (filtr uchun). */
   category: text("category").notNull().default(""),

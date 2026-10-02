@@ -57,13 +57,15 @@ export function toBook(row: BookRow, trackRows: TrackRow[] = []): Book {
     audioSeconds: tracks.reduce((sum, t) => sum + t.seconds, 0),
     audioBytes: tracks.reduce((sum, t) => sum + t.bytes, 0),
     tracks,
+    kind: row.kind,
     price: row.price,
     category: row.category,
   };
 }
 
-export async function listCatalog(db: Database): Promise<Book[]> {
-  const rows = await db.select().from(books).orderBy(desc(books.active), desc(books.createdAt));
+/** `library` — suhbat/kutubxona kitoblari; `store` — do'kon mahsulotlari (alohida ro'yxat). */
+export async function listCatalog(db: Database, kind: "library" | "store" = "library"): Promise<Book[]> {
+  const rows = await db.select().from(books).where(eq(books.kind, kind)).orderBy(desc(books.active), desc(books.createdAt));
   const tracks = await db.select().from(bookTracks);
   return rows.map((row) => toBook(row, tracks));
 }
@@ -137,15 +139,20 @@ const now = () => new Date().toISOString();
 export async function createBook(db: Database, userId: string, input: CreateBookInput): Promise<Book> {
   const id = newBookId();
   const stamp = now();
-  await db.insert(books).values({ id, ...input, createdBy: userId, createdAt: stamp, updatedAt: stamp });
+  // Ikki ro'yxat aralashmaydi: kutubxona kitobida narx/janr yo'q, do'kon mahsuloti haftaning kitobi bo'lmaydi.
+  const fields = input.kind === "store" ? input : { ...input, price: 0, category: "" };
+  await db.insert(books).values({ id, ...fields, createdBy: userId, createdAt: stamp, updatedAt: stamp });
   return getBook(db, id);
 }
 
 export async function updateBook(db: Database, id: string, input: UpdateBookInput): Promise<Book> {
-  await getBookRow(db, id);
-  // Haftaning kitobi bitta bo'ladi.
-  if (input.active) await db.update(books).set({ active: false }).where(ne(books.id, id));
-  await db.update(books).set({ ...input, updatedAt: now() }).where(eq(books.id, id));
+  const row = await getBookRow(db, id);
+  const store = row.kind === "store";
+  const { active, price, category, ...common } = input;
+  const patch = store ? { ...common, price, category } : { ...common, active };
+  // Haftaning kitobi bitta bo'ladi (faqat kutubxona kitoblari orasida).
+  if (!store && active) await db.update(books).set({ active: false }).where(and(ne(books.id, id), eq(books.kind, "library")));
+  await db.update(books).set({ ...patch, updatedAt: now() }).where(eq(books.id, id));
   return getBook(db, id);
 }
 

@@ -120,6 +120,13 @@ export default function TalkManage({
 
   const percent = progress ? Math.floor((progress.sent / Math.max(1, progress.total)) * 100) : 0;
 
+  // «Saqlash» bilan bir qatorda turadi (vaqtni o'zgartirish bo'limi bo'lmasa — pastda alohida).
+  const deleteButton = (
+    <button type="button" className="tb-danger" disabled={busy || session.status === "live"} onClick={dropSession} title={session.status === "live" ? "Jonli suhbatni avval tugating" : undefined}>
+      <Trash2 size={16} /> {session.status === "live" ? "Avval tugating" : "O‘chirish"}
+    </button>
+  );
+
   return (
     <div className="tb-sheet-backdrop" onClick={() => !busy && onClose()}>
       <div className="tb-sheet" role="dialog" aria-modal="true" aria-label="Suhbatni boshqarish" onClick={(e) => e.stopPropagation()}>
@@ -150,7 +157,10 @@ export default function TalkManage({
               </label>
             )}
             {session.status === "live" && <small className="tb-sheet-empty">Suhbat boshlangan — vaqti o‘zgarmaydi, faqat sarlavha.</small>}
-            <button type="button" className="tb-sheet-btn tb-resched-save" disabled={busy} onClick={reschedule}>Saqlash</button>
+            <div className="tb-actions-row">
+              <button type="button" className="tb-sheet-btn tb-resched-save" disabled={busy} onClick={reschedule}>Saqlash</button>
+              {isAdmin && deleteButton}
+            </div>
           </section>
         )}
 
@@ -207,11 +217,7 @@ export default function TalkManage({
           </>
         )}
 
-        {isAdmin && (
-          <button type="button" className="tb-danger" disabled={busy || session.status === "live"} onClick={dropSession}>
-            <Trash2 size={16} /> {session.status === "live" ? "Jonli suhbatni avval tugating" : "Suhbatni o‘chirish"}
-          </button>
-        )}
+        {isAdmin && session.status === "ended" && deleteButton}
       </div>
     </div>
   );

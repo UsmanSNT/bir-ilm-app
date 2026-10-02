@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Flame, Timer, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, KeyRound, LogOut, Mail, MessageCircle, Settings, ShieldCheck, ShoppingBag, Smartphone, Trophy, UserRound, Users } from "lucide-react";
+import { Flame, Timer, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camera, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, KeyRound, LogOut, Mail, MessageCircle, Settings, ShieldCheck, ShoppingBag, Smartphone, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
 import { useCatalog } from "@/lib/api/books-client";
 import type { Book } from "@/shared/contract";
@@ -10,6 +10,7 @@ import AdminPanel from "./admin-panel";
 import AdminOrders from "./admin-orders";
 import AdminStoreBooks from "./admin-store-books";
 import AdminStoreChat from "./admin-store-chat";
+import DeviceSettings from "./device-settings";
 import { ChangePasswordForm } from "./password-auth";
 import LoginCard from "./login-card";
 import { LinkDeviceDialog } from "./device-link";
@@ -18,9 +19,9 @@ import ReadingDashboard from "./reading-dashboard";
 import type { SocialData } from "./social-types";
 
 type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onEdit: () => void; onProgress: () => void; onNotifications: () => void };
-type ProfileTab = "reading" | "posts" | "activity" | "settings";
-const PROFILE_TABS: [ProfileTab, string][] = [["reading", "Mutolaa"], ["posts", "Postlar"], ["activity", "Faollik"], ["settings", "Sozlamalar"]];
-type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "password";
+type ProfileTab = "reading" | "posts" | "activity";
+const PROFILE_TABS: [ProfileTab, string][] = [["reading", "Mutolaa"], ["posts", "Postlar"], ["activity", "Faollik"]];
+type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "devices" | "password";
 
 function Cover({ small = false, book }: { small?: boolean; book: Book | null }) {
   if (book?.coverUrl) return <span className={`p-book p-book-image ${small ? "p-book-small" : ""}`} aria-hidden="true"><img src={book.coverUrl} alt="" /></span>;
@@ -72,13 +73,13 @@ export default function ProfileScreens(p: Props) {
   }, [retry, screen]);
   const open = (next: Screen) => {
     // Faollik, postlar va sozlamalar — profil ichidagi tablar.
-    if (next === "activity" || next === "posts" || next === "settings") { setTab(next); next = "profile"; }
+    if (next === "activity" || next === "posts") { setTab(next); next = "profile"; }
     setScreen(next);
     window.scrollTo({ top: 0, behavior: "instant" });
   };
   const percent = Math.min(100, Math.max(0, Math.round(p.page / Math.max(1, p.total) * 100)));
   const replies = (social?.posts ?? []).flatMap(post => post.replies.filter(reply => reply.name !== p.name).map(reply => ({ ...reply, book: post.book }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari", storebooks: "Do‘kon kitoblari", storechat: "Do‘kon chati", password: "Parol" };
+  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari", storebooks: "Do‘kon kitoblari", storechat: "Do‘kon chati", devices: "Kamera va mikrofon", password: "Parol" };
   const count = (value: number | undefined) => status === "ready" ? value ?? 0 : "—";
 
   const activityView = <>
@@ -91,22 +92,26 @@ export default function ProfileScreens(p: Props) {
       <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={p.onEdit} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} /><Row icon={<Copy />} title={copied ? "Nusxa olindi" : "Hisob ID"} value={viewer ? `${viewer.userId.slice(7, 15)}… · ${USER_ROLE_LABELS[role]}` : "—"} onClick={copyId} />{viewer?.signedIn && <Row icon={<Smartphone />} title="Boshqa qurilmani ulash" value="Kod" onClick={() => setLinkOpen(true)} />}{viewer?.accounts.map(a => <div key={a.provider} className="p-row p-static"><span className="p-row-icon"><ShieldCheck /></span><span>{a.provider === "google" ? "Google" : a.provider === "telegram" ? "Telegram" : "Email"}</span><small>{a.label}</small></div>)}{viewer?.accounts.some(a => a.provider === "email") && <Row icon={<KeyRound />} title={viewer.hasPassword ? "Parolni o‘zgartirish" : "Parol o‘rnatish"} onClick={() => open("password")} />}{viewer && viewer.accounts.length > 0 && <Row icon={<LogOut />} title="Chiqish" onClick={signOut} />}</div>
       {screen !== "profile" && viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
       <LinkDeviceDialog open={linkOpen} onClose={() => setLinkOpen(false)} />
-      <h2>Ilova</h2><div className="p-menu"><Row icon={<Bell />} title="Bildirishnomalar" onClick={p.onNotifications} /><div className="p-row p-static"><span className="p-row-icon"><Globe /></span><span>Til</span><small>O‘zbekcha</small></div><Row icon={<BookOpen />} title="Mutolaa rejasi" onClick={p.onProgress} /></div>
+      <h2>Ilova</h2><div className="p-menu"><Row icon={<Bell />} title="Bildirishnomalar" onClick={p.onNotifications} /><div className="p-row p-static"><span className="p-row-icon"><Globe /></span><span>Til</span><small>O‘zbekcha</small></div><Row icon={<BookOpen />} title="Mutolaa rejasi" onClick={p.onProgress} /><Row icon={<Camera />} title="Kamera va mikrofon" value="Suhbat uchun" onClick={() => open("devices")} /></div>
       <h2>Yordam</h2><div className="p-menu"><Row icon={<CircleHelp />} title="Ko‘p so‘raladigan savollar" onClick={() => open("faq")} /><Row icon={<Info />} title="Loyiha haqida" onClick={() => open("about")} /></div>
       <div className="p-settings-brand"><BookOpen size={23} /><strong>BIR ILM</strong><span>Bir hafta. Bir kitob. Bir qadam oldinga.</span><small>Ilova versiyasi 0.1.0</small></div>
   </div>;
 
   return <section className={`profile-space p-view-${screen}`}>
+    <div className={screen === "profile" ? "p-hero" : "p-top"}>
     <header className="p-header">
-      {screen === "profile" ? <span className="p-brand-mark"><BookOpen size={21} /></span> : <button className="p-icon" aria-label="Orqaga" onClick={() => open(["privacy", "faq", "about", "password", "admin", "orders", "storebooks", "storechat"].includes(screen) ? "settings" : "profile")}><ChevronLeft size={23} /></button>}
+      {screen === "profile" ? <span className="p-brand-mark"><BookOpen size={21} /></span> : <button className="p-icon" aria-label="Orqaga" onClick={() => open(["privacy", "faq", "about", "password", "admin", "orders", "storebooks", "storechat", "devices"].includes(screen) ? "settings" : "profile")}><ChevronLeft size={23} /></button>}
       <h1>{titles[screen]}</h1>
-      {screen === "profile" ? <button className="p-icon" aria-label="Sozlamalar" onClick={() => setTab("settings")}><Settings size={23} /></button> : screen === "activity" ? <button className="p-icon" aria-label="Xabarlar" onClick={() => open("messages")}><Mail size={22} /></button> : <span />}
+      {screen === "profile" ? <button className="p-icon" aria-label="Sozlamalar" onClick={() => open("settings")}><Settings size={23} /></button> : screen === "activity" ? <button className="p-icon" aria-label="Xabarlar" onClick={() => open("messages")}><Mail size={22} /></button> : <span />}
     </header>
-
     {screen === "profile" && <>
       <div className="p-identity"><div className="p-avatar">{p.name.trim().slice(0, 1).toUpperCase() || "K"}<span><BookOpen size={13} /></span></div><div><span className="p-eyebrow">BIR ILM KITOBXONI{role !== "user" && <span className={`p-role-badge role-${role}`}>{role === "admin" ? <Crown size={11} /> : <ShieldCheck size={11} />}{USER_ROLE_LABELS[role]}</span>}</span><h2>{p.name || "Kitobxon"}</h2><p>{social?.profile?.bio || "Har kuni bir sahifa oldinga."}</p><button className="p-link" onClick={p.onEdit}>Profilni tahrirlash <ArrowRight size={15} /></button></div></div>
       {viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
       <div className="p-stats"><button onClick={() => { setActivity("Obunalar"); open("activity"); }}><strong>{count(social?.followers)}</strong><span>Obunachilar</span></button><button onClick={() => { setActivity("Obunalar"); open("activity"); }}><strong>{count(social?.following.length)}</strong><span>Obunalar</span></button><button onClick={() => open("posts")}><strong>{count(social?.profile?.posts)}</strong><span>Postlar</span></button></div>
+    </>}
+    </div>
+
+    {screen === "profile" && <>
       <div className="p-tiles">
         <button onClick={() => setTab("activity")}><span className="p-tile-icon is-anor"><Flame size={20} /></span><span><b>{p.streak}</b><small>kun streak</small></span></button>
         <button onClick={() => p.onNavigate("leaders")}><span className="p-tile-icon is-tilla"><Trophy size={20} /></span><span><b>#{p.rank}</b><small>reyting</small></span></button>
@@ -125,17 +130,17 @@ export default function ProfileScreens(p: Props) {
       </div>}
       {tab === "posts" && <div className="p-tab-panel"><ReadingDashboard mode="profile" name={p.name} pages={p.page} shelfCount={p.shelfCount} streak={p.streak} /></div>}
       {tab === "activity" && <div className="p-tab-panel">{activityView}</div>}
-      {tab === "settings" && <div className="p-tab-panel">
-        {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value="Book Store" onClick={() => open("orders")} /><Row icon={<BookOpen />} title="Do‘kon kitoblari" value="Rasm, narx" onClick={() => open("storebooks")} /><Row icon={<Mail />} title="Do‘kon chati" value="Savol va buyurtmalar" onClick={() => open("storechat")} /></div>}
-        {settingsView}
-      </div>}
     </>}
 
     {screen === "activity" && <>{activityView}</>}
 
-    {screen === "settings" && settingsView}
+    {screen === "settings" && <>
+      {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value="Book Store" onClick={() => open("orders")} /><Row icon={<BookOpen />} title="Do‘kon kitoblari" value="Rasm, narx" onClick={() => open("storebooks")} /><Row icon={<Mail />} title="Do‘kon chati" value="Savol va buyurtmalar" onClick={() => open("storechat")} /></div>}
+      {settingsView}
+    </>}
     {screen === "password" && <div className="p-settings"><ChangePasswordForm hasPassword={Boolean(viewer?.hasPassword)} /></div>}
     {screen === "admin" && (role === "admin" && viewer ? <AdminPanel selfId={viewer.userId} /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
+    {screen === "devices" && <DeviceSettings />}
     {screen === "storebooks" && (role === "admin" ? <AdminStoreBooks /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "storechat" && (role === "admin" ? <AdminStoreChat /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "orders" && (role === "admin" ? <AdminOrders /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}

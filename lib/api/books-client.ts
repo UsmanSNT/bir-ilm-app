@@ -2,7 +2,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BOOK_LIMITS, type Book, type CreateBookInput, type UpdateBookInput } from "@/shared/contract";
+import type { z } from "zod";
+import { BOOK_LIMITS, createBookSchema, type Book, type UpdateBookInput } from "@/shared/contract";
 import { API_PREFIX, absoluteUrl } from "./config";
 
 type Envelope<T> = { ok?: boolean; data?: T; error?: { message?: string; received?: number } };
@@ -22,6 +23,22 @@ const CHANGED = "bir-catalog-changed";
 export const notifyCatalogChanged = () => window.dispatchEvent(new Event(CHANGED));
 
 export type Catalog = { items: Book[]; active: Book | null; loading: boolean; error: string };
+
+/** Do'kon mahsulotlari (admin/moderator): kutubxona kitoblaridan alohida ro'yxat. */
+export function useStoreCatalog(): { items: Book[]; loading: boolean; error: string; reload: () => void } {
+  const [state, setState] = useState<{ items: Book[]; loading: boolean; error: string }>({ items: [], loading: true, error: "" });
+  const reload = useCallback(() => {
+    call<{ items: Book[] }>("/books?kind=store")
+      .then((data) => setState({ items: data.items.map((b) => ({ ...b, coverUrl: absoluteUrl(b.coverUrl) })), loading: false, error: "" }))
+      .catch((e: Error) => setState((s) => ({ ...s, loading: false, error: e.message })));
+  }, []);
+  useEffect(() => {
+    reload();
+    window.addEventListener(CHANGED, reload);
+    return () => window.removeEventListener(CHANGED, reload);
+  }, [reload]);
+  return { ...state, reload };
+}
 
 /** Katalog: bir joyda o'zgarsa (kitob qo'shildi/tahrirlandi), hamma joyda yangilanadi. */
 export function useCatalog(): Catalog & { reload: () => void } {
@@ -48,7 +65,7 @@ export function useCatalog(): Catalog & { reload: () => void } {
   return { ...state, reload };
 }
 
-export const createBook = (input: CreateBookInput) => call<Book>("/books", { method: "POST", body: JSON.stringify(input) });
+export const createBook = (input: z.input<typeof createBookSchema>) => call<Book>("/books", { method: "POST", body: JSON.stringify(input) });
 export const updateBook = (id: string, input: UpdateBookInput) =>
   call<Book>(`/books/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
 export const deleteBook = (id: string) => call(`/books/${encodeURIComponent(id)}`, { method: "DELETE" });

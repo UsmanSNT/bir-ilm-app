@@ -106,3 +106,15 @@ Jonli suhbat xonasi "Naqsh" tungi uslubida: sarlavhada kitob nomi va qatnashchil
 - Yangilanish: ochiq chat har 4 soniyada, admin ro‘yxati har 8 soniyada o‘zi yangilanadi (WebSocket emas, oddiy so‘rov — qo‘shimcha server kerak emas).
 - Migratsiya: `drizzle/0017_store_chat.sql` (yangi jadvallar, mavjud ma’lumotga tegmaydi) — server ishga tushganda o‘zi qo‘llanadi. Rasmlar `BIR_ILM_MEDIA_DIR/store-chat/` papkasida saqlanadi (zaxira nusxaga shu papkani ham qo‘shing).
 - Test: `node tests/store-v1.mjs` (chat, o‘qilmaganlar, rasm ruxsatlari).
+
+## Kitoblar ajratildi, xona dizayni, sozlamalar (oxirgi yangilanish)
+
+- **Ikki xil kitob, aralashmaydi** (`books.kind`, migratsiya `0018_book_kind.sql`):
+  - *Kutubxona/suhbat kitobi* — audio, haftaning kitobi, suhbat vaqti. Javon, bosh sahifa va suhbatlarda ko‘rinadi. Narx va janr yo‘q.
+  - *Do‘kon mahsuloti* — o‘z muqovasi, tavsifi va narxi (**Profil → Sozlamalar → Do‘kon kitoblari**). Faqat do‘konda chiqadi; audio va «Haftaning kitobi» yo‘q.
+- **Mavjud ma’lumotga ta’siri:** migratsiya audiosiz, narxi bor kitoblarni do‘kon mahsulotiga aylantiradi. **Audiosi bor** (kutubxona) kitoblarda narx 0 ga tushadi — ularni do‘konga **alohida mahsulot** qilib qo‘shing (muqova va tavsifni qayta yuklash kerak).
+- **Sozlamalar** endi alohida ekran: profil tepasidagi tishli g‘ildirak tugmasi orqali ochiladi, orqaga tugmasi profilga qaytaradi. Profildagi «Sozlamalar» tabi olib tashlandi. Admin bo‘limlari (rollar, buyurtmalar, kitoblar, chat) ham shu ekranda.
+- **Kamera va mikrofon** suhbat oynasidan olib tashlandi: **Sozlamalar → Kamera va mikrofon** da tanlanadi (shu brauzerda saqlanadi, suhbatda o‘zi qo‘llanadi).
+- **Suhbat xonasi:** qatnashchilar gorizontal qatorda (kichik avatarlar, so‘zlovchi — tilla halqa, gapirayotgan — yashil); **kamerasi yoqiqlar** alohida kichik video qatorda; **qo‘l ko‘targanlar** tilla ramkali alohida qatorda (boshlovchida «So‘z berish») va sarlavhada soni; chat xonaning pastida kichik panel (Izohlar tugmasi yig‘adi). Telefonda kichraytirilgan panel dock ustida turadi.
+- **Javon** yog‘och tokchaga o‘xshatildi; **Kutubxona** sarlavhasi ikki qatorga ajratildi; **Hamjamiyat** postlari alohida yumaloq kartalar; **profil tepasi** ekran tepasiga ulangan, pastki burchaklari yumaloq panel.
+- Suhbat boshqaruv oynasida «Saqlash» va «O‘chirish» bitta qatorda.

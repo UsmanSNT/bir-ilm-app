@@ -369,3 +369,46 @@ body .app-shell[hidden] { display: none; }
 .live-waiting-due span { color: #e6e3f4; font-size: 13px; }
 .live-waiting-start { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; margin-top: 6px; padding: 0 22px; border: 0; border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 40%, var(--tilla)); color: var(--lojuvard-3); font-weight: 800; box-shadow: 0 1px 0 #fff8 inset, 0 10px 22px -12px #000; }
 @media (max-width: 420px) { .live-waiting-timer { gap: 5px; } .live-waiting-timer > span { min-width: 54px; padding-inline: 4px; } }
+
+/* ───────── Kutubxona: sarlavha va haqiqiy javonga o'xshash tokcha ───────── */
+.lib-head { flex-direction: column; align-items: stretch; gap: 10px; min-height: 0; }
+.lib-head h1 { flex: none; font-family: var(--f-display); }
+.lib-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lib-head .lib-mine, .lib-head .lib-add { min-height: 40px; padding: 0 16px; border-radius: 999px; gap: 7px; font-size: 13.5px; font-weight: 800; }
+.lib-head .lib-mine { background: var(--sahifa); color: var(--lojuvard); box-shadow: inset 0 0 0 1.5px var(--chiziq); }
+.lib-head .lib-add { background: var(--lojuvard); color: #fff; }
+
+/* Yog'och javon: orqa devor, yon ustunlar, qalin taxta; kitoblar taxtada turadi va soya tashlaydi */
+.lib-shelves { gap: 14px; }
+.lib-shelf { position: relative; }
+.lib-shelf-books {
+  min-height: 150px; padding: 22px 12px 0; margin-bottom: 0; gap: 10px; border-inline: 9px solid #6b4422; border-radius: 4px 4px 0 0;
+  background:
+    repeating-linear-gradient(90deg, #ffffff08 0 2px, transparent 2px 22px),
+    linear-gradient(180deg, #3b2412 0%, #5a3a1d 100%);
+  box-shadow: inset 0 14px 22px -8px #000a, inset 8px 0 14px -8px #0008, inset -8px 0 14px -8px #0008;
+}
+.lib-stood { position: relative; transform-origin: 50% 100%; transition: transform .18s ease; filter: drop-shadow(5px 2px 5px #0009); }
+.lib-stood:hover, .lib-stood:focus-visible { transform: translateY(-5px) rotate(-1deg); }
+.lib-shelf-books > :nth-child(1) { transform: rotate(-.8deg); }
+.lib-shelf-books > :nth-child(2) { transform: scale(.95); }
+.lib-shelf-books > :nth-child(3) { transform: rotate(1.2deg) scale(.98); }
+.lib-shelf-books > :nth-child(1):hover, .lib-shelf-books > :nth-child(2):hover, .lib-shelf-books > :nth-child(3):hover { transform: translateY(-5px); }
+.lib-plank {
+  height: 22px; margin: 0; border-radius: 3px; z-index: 4;
+  background:
+    repeating-linear-gradient(90deg, #00000012 0 1px, transparent 1px 7px),
+    linear-gradient(180deg, #d9a366 0%, #b97c3d 28%, #9a6229 70%, #6e4119 100%);
+  box-shadow: inset 0 1px 0 #f3cf9c, inset 0 -2px 0 #4f2d10, 0 6px 0 #3f240d, 0 14px 18px -4px #0007;
+}
+.lib-plank::before, .lib-plank::after { display: none; }
+.lib-shelf-captions { padding-top: 22px; }
+
+/* Lenta kartalari: telefonda ham alohida, yumaloq burchakli kartalar (chetlari kesilmaydi) */
+.post-card, .media-post {
+  border: 1px solid var(--chiziq); border-radius: 20px; background: var(--sahifa);
+  box-shadow: 0 10px 24px -16px rgba(22, 34, 80, .35);
+}
+.post-card { padding: 16px; }
+.reading-post { margin: 0 0 14px; padding: 16px; border: 1px solid var(--chiziq); border-bottom: 1px solid var(--chiziq); border-radius: 20px; background: var(--sahifa); box-shadow: 0 10px 24px -16px rgba(22, 34, 80, .35); }
+.reading-post.is-announcement { border-color: #e9d9a8; background: linear-gradient(180deg, #fffbef, var(--sahifa)); }

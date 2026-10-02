@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, ChevronLeft, Headphones, Moon, Pause, Pencil, Play, Plus, Search, SkipBack, SkipForward } from "lucide-react";
+import { Bookmark, ChevronLeft, Headphones, Library, Moon, Pause, Pencil, Play, Plus, Search, SkipBack, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
@@ -318,12 +318,14 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
         <div className="lib-screen">
           <header className="lib-head">
             <h1>Kutubxona</h1>
-            <button type="button" onClick={() => setScreen("mine")}>Kitoblarim</button>
-            {editor && (
-              <button type="button" className="lib-add" onClick={() => setEditing({ book: null })}>
-                <Plus size={17} /> Kitob qo‘shish
-              </button>
-            )}
+            <div className="lib-head-actions">
+              <button type="button" className="lib-mine" onClick={() => setScreen("mine")}><Library size={17} /> Kitoblarim</button>
+              {editor && (
+                <button type="button" className="lib-add" onClick={() => setEditing({ book: null })}>
+                  <Plus size={17} /> Kitob qo‘shish
+                </button>
+              )}
+            </div>
           </header>
           <label className="lib-search">
             <Search size={18} />

@@ -31,7 +31,9 @@ type ItemRow = typeof storeOrderItems.$inferSelect;
 // Jadval nomlari to'g'ridan-to'g'ri: drizzle korrelyatsion subquery'da ustunni jadvalsiz yozadi.
 const ratingSql = sql<number>`coalesce((select avg(rating) from book_reviews where book_reviews.book_id = books.id), 0)`;
 const reviewsSql = sql<number>`(select count(*) from book_reviews where book_reviews.book_id = books.id)`;
-const audioSql = sql<number>`exists(select 1 from book_tracks where book_tracks.book_id = books.id)`;
+
+/** Sotuvdagi mahsulot: do'kon turidagi va narxi qo'yilgan. Kutubxona (suhbat) kitoblari bu yerga kirmaydi. */
+const onSale = and(eq(books.kind, "store"), gt(books.price, 0));
 
 function coverUrl(id: string, file: string | null, updatedAt: string): string | null {
   return file ? `/media/books/${id}/${file}?v=${encodeURIComponent(updatedAt)}` : null;
@@ -51,18 +53,17 @@ export async function listStoreBooks(db: Database): Promise<StoreBook[]> {
       pages: books.pages,
       price: books.price,
       category: books.category,
-      hasAudio: audioSql,
       rating: ratingSql,
       reviews: reviewsSql,
     })
     .from(books)
-    .where(gt(books.price, 0))
+    .where(onSale)
     .orderBy(desc(books.active), desc(books.createdAt));
 
-  return rows.map(({ coverFile, updatedAt, hasAudio, rating, reviews, ...row }) => ({
+  return rows.map(({ coverFile, updatedAt, rating, reviews, ...row }) => ({
     ...row,
     coverUrl: coverUrl(row.id, coverFile, updatedAt),
-    hasAudio: Boolean(hasAudio),
+    hasAudio: false,
     rating: Math.round(Number(rating) * 10) / 10,
     reviews: Number(reviews),
   }));
@@ -76,7 +77,7 @@ export async function getCart(db: Database, userId: string): Promise<CartLine[]>
     .select({ bookId: storeCartItems.bookId, qty: storeCartItems.qty })
     .from(storeCartItems)
     .innerJoin(books, eq(books.id, storeCartItems.bookId))
-    .where(and(eq(storeCartItems.userId, userId), gt(books.price, 0)))
+    .where(and(eq(storeCartItems.userId, userId), onSale))
     .orderBy(storeCartItems.updatedAt);
 }
 
@@ -87,7 +88,7 @@ export async function replaceCart(db: Database, userId: string, input: CartInput
     const forSale = await db
       .select({ id: books.id })
       .from(books)
-      .where(and(inArray(books.id, ids), gt(books.price, 0)));
+      .where(and(inArray(books.id, ids), onSale));
     const known = new Set(forSale.map((row) => row.id));
     const missing = ids.filter((id) => !known.has(id));
     if (missing.length) throw validationFailed({ items: ["Ba'zi kitoblar sotuvda yo'q."] });
@@ -155,7 +156,7 @@ export async function placeOrder(db: Database, userId: string, input: PlaceOrder
     .select({ bookId: books.id, title: books.title, price: books.price, qty: storeCartItems.qty })
     .from(storeCartItems)
     .innerJoin(books, eq(books.id, storeCartItems.bookId))
-    .where(and(eq(storeCartItems.userId, userId), gt(books.price, 0)));
+    .where(and(eq(storeCartItems.userId, userId), onSale));
   if (!lines.length) throw badRequest("Savat bo'sh.");
 
   const total = lines.reduce((sum, line) => sum + line.price * line.qty, 0);

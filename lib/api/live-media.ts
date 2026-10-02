@@ -59,12 +59,17 @@ export type LocalDevices = { cameras: MediaDeviceInfo[]; mics: MediaDeviceInfo[]
 
 const EMPTY: ParticipantMedia = { micOn: false, speaking: false };
 
-const CAMERA_KEY = "bir-live-camera";
-const MIC_KEY = "bir-live-mic";
+export const CAMERA_KEY = "bir-live-camera";
+export const MIC_KEY = "bir-live-mic";
 // Windows ko'pincha Phone Link / OBS kabi virtual kamerani birinchi qo'yadi — ular faqat logotip ko'rsatadi.
 const VIRTUAL_CAMERA = /virtual|phone link|link to windows|obs|snap camera|manycam|droidcam|epoccam|iriun|xsplit/i;
 
-function rememberDevice(key: string, id: string) {
+/** Sozlamalarda tanlangan qurilma (yo'q bo'lsa — brauzer standarti). */
+export function savedDevice(key: string): string | undefined {
+  try { return localStorage.getItem(key) ?? undefined; } catch { return undefined; }
+}
+
+export function rememberDevice(key: string, id: string) {
   try { localStorage.setItem(key, id); } catch { /* shaxsiy rejimda saqlanmasa ham ishlaydi */ }
 }
 
@@ -261,7 +266,17 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
     busy,
     byUser,
     screenSharer,
-    toggleMic: () => run("mic", (r) => r.localParticipant.setMicrophoneEnabled(!r.localParticipant.isMicrophoneEnabled)),
+    toggleMic: () => run("mic", async (r) => {
+      if (r.localParticipant.isMicrophoneEnabled) return r.localParticipant.setMicrophoneEnabled(false);
+      const deviceId = savedDevice(MIC_KEY);
+      try {
+        await r.localParticipant.setMicrophoneEnabled(true, deviceId ? { deviceId } : undefined);
+      } catch (error) {
+        // Saqlangan mikrofon endi ulanmagan bo'lsa, standart mikrofon bilan qayta urinamiz.
+        if (!deviceId || !(error instanceof Error) || error.name === "NotAllowedError") throw error;
+        await r.localParticipant.setMicrophoneEnabled(true);
+      }
+    }),
     toggleCamera: () => run("camera", async (r) => {
       if (r.localParticipant.isCameraEnabled) return r.localParticipant.setCameraEnabled(false);
       const deviceId = await pickCamera();

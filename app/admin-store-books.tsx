@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Eye, EyeOff, Pencil, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-client";
+import { notifyCatalogChanged, updateBook, useStoreCatalog } from "@/lib/api/books-client";
 import { notifyStoreChanged } from "@/lib/api/store-client";
 import { formatPrice, STORE_LIMITS } from "@/shared/contract";
 import type { Book } from "@/shared/contract";
@@ -11,7 +11,7 @@ import BookEditor from "./book-editor";
 
 /** Admin: do'kon kitoblari — qo'shish, rasm/tavsif/narxni tahrirlash, sotuvdan olish. Kod emas, shu yerdan boshqariladi. */
 export default function AdminStoreBooks() {
-  const catalog = useCatalog();
+  const catalog = useStoreCatalog();
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<{ book: Book | null } | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
@@ -41,7 +41,7 @@ export default function AdminStoreBooks() {
 
   return (
     <div className="admin-panel admin-books">
-      <p className="admin-intro">Do‘konda ko‘rinadigan kitoblar shu yerdan boshqariladi: muqova, tavsif va narx. Narxi qo‘yilgan kitob do‘konda sotuvga chiqadi, narx 0 bo‘lsa — sotuvdan olinadi.</p>
+      <p className="admin-intro">Bu yerdagi kitoblar faqat do‘kon uchun: muqova, tavsif va narx. Suhbat va kutubxona kitoblaridan alohida (u yerdagi audiokitob bu yerga o‘zi tushmaydi). Narxi qo‘yilgan kitob sotuvga chiqadi, narx 0 bo‘lsa — sotuvdan olinadi.</p>
       <button type="button" className="admin-add-book" onClick={() => setEditing({ book: null })}><Plus size={18} />Yangi kitob qo‘shish</button>
 
       <label className="admin-search">
@@ -87,7 +87,7 @@ export default function AdminStoreBooks() {
         })}
       </ul>
 
-      <BookEditor open={Boolean(editing)} book={editing?.book ?? null} onClose={() => { setEditing(null); notifyStoreChanged(); }} />
+      <BookEditor kind="store" open={Boolean(editing)} book={editing?.book ?? null} onClose={() => { setEditing(null); notifyStoreChanged(); }} />
     </div>
   );
 }

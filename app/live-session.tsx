@@ -16,7 +16,6 @@ import {
   Pause,
   Play,
   Send,
-  Settings2,
   ShieldCheck,
   Square,
   Trash2,
@@ -146,7 +145,6 @@ export default function LiveSession({
   const [selected, setSelected] = useState<LiveParticipant | null>(null);
   const [notice, setNotice] = useState("");
   const [media, setMedia] = useState<LiveMedia | null>(null);
-  const [devicesOpen, setDevicesOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const rejoinTried = useRef(false);
   // Yozib olish adminning brauzerida ishlaydi va suhbatdan mustaqil: o'z tugmasi bilan boshlanadi/tugaydi.
@@ -219,7 +217,8 @@ export default function LiveSession({
     setListNotice("");
     setMessages([]);
     setParticipants([]);
-    setCommentsOpen(false);
+    // Izohlar xonaning pastida kichik panel bo'lib doim ochiq turadi (Izohlar tugmasi yig'adi).
+    setCommentsOpen(true);
     setSelected(null);
     setHandRaised(false);
     setMedia(null);
@@ -458,11 +457,6 @@ export default function LiveSession({
   const selectable = (p: LiveParticipant) => canMod && p.userId !== me?.userId;
   const pick = (p: LiveParticipant) => selectable(p) && setSelected(p);
 
-  function openDevices() {
-    setDevicesOpen(true);
-    av.loadDevices();
-  }
-
   // Tinglovchi so'z berilmaguncha mikrofon, kamera va ekranni yoqa olmaydi (ruxsat LiveKit serverida).
   const publishLocked = av.status !== "connected" || !av.canPublish;
   const lockedHint = av.status !== "connected" ? "Ovoz/video serveriga ulanilmagan" : "So'z berilganda yoqiladi";
@@ -471,7 +465,6 @@ export default function LiveSession({
     { label: "Mikrofon", icon: av.micOn ? Mic : MicOff, active: av.micOn, disabled: publishLocked, pending: av.busy === "mic", action: av.toggleMic },
     { label: "Kamera", icon: av.cameraOn ? Camera : CameraOff, active: av.cameraOn, disabled: publishLocked, pending: av.busy === "camera", action: av.toggleCamera },
     { label: "Ekran ulashish", icon: MonitorUp, active: av.screenOn, disabled: publishLocked, pending: av.busy === "screen", action: av.toggleScreen },
-    { label: "Qurilma", icon: Settings2, active: devicesOpen, disabled: publishLocked, pending: false, action: openDevices, tool: true },
     ...(canMod
       ? []
       : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, disabled: false, pending: false, action: toggleHand }]),
@@ -540,6 +533,9 @@ export default function LiveSession({
                   <i /> {recPaused ? "PAUZA" : "REC"}{ownRecording ? ` ${clockOf(recElapsed)}` : ""}
                 </span>
               )}
+              {handQueue.length > 0 && (
+                <span className="live-hand-chip" title="Qo'l ko'targanlar"><Hand size={13} /> {handQueue.length}</span>
+              )}
               <span
                 className={`live-media-pill media-${media ? av.status : "none"}`}
                 title={!media ? "Ovoz va video serveri sozlanmagan — faqat izohlar ishlaydi." : av.status === "connected" ? (av.canPublish ? "Ovoz/video ulangan." : "Ovoz/video ulangan. Gapirish uchun qo'l ko'taring.") : av.status === "error" ? "Ovoz/video serveriga ulanib bo'lmadi." : "Ovoz/video ulanmoqda…"}
@@ -558,13 +554,6 @@ export default function LiveSession({
           {connState === "joined" && status === "ended" && (
             <div className="live-status-banner ended">Suhbat tugadi. Izohlarni o&apos;qishingiz mumkin.</div>
           )}
-          {canMod && connState === "joined" && (
-            <div className="live-mod-hint">
-              <ShieldCheck size={14} />
-              {roomAdmin ? "Admin" : "Moderator"} — qatnashchini bosib, so&apos;z bering yoki chiqaring
-            </div>
-          )}
-
           <div className="live-main">
             {/* Ulanmoqda / Xatolik */}
             {connState === "connecting" && (
@@ -604,61 +593,54 @@ export default function LiveSession({
                 )}
 
                 {stage === "cameras" && (
-                  <section className={`live-stage live-camera-grid n${Math.min(cameraPeople.length, 4)}`}>
-                    {cameraPeople.slice(0, 4).map(cameraTile)}
-                    {cameraPeople.length > 4 && (
-                      <span className="live-more-cams">+{cameraPeople.length - 4} kamera</span>
-                    )}
+                  <section className="live-camera-strip live-camera-row" aria-label="Video yoqqanlar">
+                    {cameraPeople.map(cameraTile)}
                   </section>
                 )}
 
-                <section className="live-audio-view">
-                  {canMod && handQueue.length > 0 && (
-                    <div className="live-hand-queue">
-                      <h3><Hand size={15} /> Navbatda ({handQueue.length})</h3>
-                      {handQueue.map((p) => (
-                        <div key={p.userId}>
-                          <Avatar name={p.name} />
-                          <strong>{p.name}</strong>
-                          <button onClick={() => modAction("grant", p)}>So&apos;z berish</button>
-                        </div>
-                      ))}
+                <section className="live-roster">
+                  {handQueue.length > 0 && (
+                    <div className="live-hands" aria-label="Qo'l ko'targanlar">
+                      <h3><Hand size={14} /> Qo&apos;l ko&apos;targanlar ({handQueue.length})</h3>
+                      <div className="live-strip">
+                        {handQueue.map((p) => (
+                          <div key={p.userId} className="live-chip is-hand">
+                            <Avatar name={p.name} />
+                            <strong>{p.userId === me?.userId ? "Siz" : p.name}</strong>
+                            {canMod && <button type="button" onClick={() => modAction("grant", p)}>So&apos;z berish</button>}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
-                  <h3>Gapirayotganlar ({speakers.length})</h3>
-                  <div className="live-speakers">
-                    {speakers.map((p) => {
+                  <h3>Qatnashchilar ({allParticipants.length})</h3>
+                  {allParticipants.length === 0 && <p className="live-empty">Hozircha hech kim yo&apos;q</p>}
+                  <div className="live-strip" role="list">
+                    {[...speakers, ...listenersList].filter((p) => !av.byUser(p.userId).camera).map((p) => {
                       const m = av.byUser(p.userId);
+                      const host = p.role === "moderator";
                       return (
-                        <div key={p.userId} onClick={() => pick(p)} className={`${selectable(p) ? "selectable" : ""}${m.speaking ? " speaking" : ""}`}>
-                          <Avatar name={p.name} />
-                          <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
-                          <span className="live-person-icons">
-                            {p.role === "moderator" && <small>Boshlovchi</small>}
-                            {m.camera && <Camera size={13} />}
-                            {!m.micOn && <MicOff size={13} />}
+                        <div
+                          key={p.userId}
+                          role="listitem"
+                          onClick={() => pick(p)}
+                          className={`live-chip${p.role !== "listener" ? " is-speaker" : ""}${m.speaking ? " speaking" : ""}${p.handRaised ? " has-hand" : ""}${selectable(p) ? " selectable" : ""}`}
+                          title={`${p.name}${host ? " · boshlovchi" : p.role === "speaker" ? " · so'zlovchi" : ""}${p.handRaised ? " · qo'l ko'targan" : ""}`}
+                        >
+                          <span className="live-chip-avatar">
+                            <Avatar name={p.name} />
+                            {p.handRaised && <i className="live-hand-badge" aria-label="Qo'l ko'targan"><Hand size={11} /></i>}
+                            {!m.micOn && p.role !== "listener" && <i className="live-mic-badge" aria-label="Mikrofon o'chiq"><MicOff size={10} /></i>}
                           </span>
+                          <strong>{p.userId === me?.userId ? "Siz" : p.name}</strong>
+                          {host && <small>Boshlovchi</small>}
                         </div>
                       );
                     })}
-                    {speakers.length === 0 && (
-                      <p className="live-empty">Hali so&apos;zlovchi yo&apos;q</p>
-                    )}
-                  </div>
-                  <h3>Tinglovchilar ({listenersList.length})</h3>
-                  {listenersList.length === 0 && <p className="live-empty">Hozircha tinglovchi yo&apos;q</p>}
-                  <div className="live-listeners">
-                    {listenersList.map((p) => (
-                      <div key={p.userId} onClick={() => pick(p)} className={selectable(p) ? "selectable" : ""}>
-                        <Avatar name={p.name} />
-                        <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
-                        {p.handRaised ? <Hand size={13} /> : <MicOff size={13} />}
-                      </div>
-                    ))}
                   </div>
                   {!canMod && (
                     <span className="live-queue">
-                      <Hand size={16} /> {handRaised ? "Navbatdasiz" : "Qo'l ko'tarib navbatga turing"}
+                      <Hand size={14} /> {handRaised ? "Navbatdasiz" : "Qo'l ko'tarib navbatga turing"}
                     </span>
                   )}
                 </section>
@@ -754,40 +736,6 @@ export default function LiveSession({
                 <Volume2 size={16} /> Ovozni eshitish uchun bosing
               </button>
             )}
-            {/* ── Kamera va mikrofonni tanlash ── */}
-            {devicesOpen && (
-              <div className="live-sheet-backdrop" onClick={() => setDevicesOpen(false)}>
-                <div className="live-sheet live-devices" role="dialog" aria-label="Qurilmalarni tanlash" onClick={(e) => e.stopPropagation()}>
-                  <h3><Camera size={16} /> Kamera</h3>
-                  {av.devices.cameras.length === 0 && <p className="muted">Kamera topilmadi.</p>}
-                  {av.devices.cameras.map((d, i) => (
-                    <button
-                      key={d.deviceId || i}
-                      className={d.deviceId === av.activeCameraId ? "on" : ""}
-                      onClick={() => av.selectCamera(d.deviceId)}
-                    >
-                      {d.label || `Kamera ${i + 1}`}
-                    </button>
-                  ))}
-                  <h3><Mic size={16} /> Mikrofon</h3>
-                  {av.devices.mics.length === 0 && <p className="muted">Mikrofon topilmadi.</p>}
-                  {av.devices.mics.map((d, i) => (
-                    <button
-                      key={d.deviceId || i}
-                      className={d.deviceId === av.activeMicId ? "on" : ""}
-                      onClick={() => av.selectMic(d.deviceId)}
-                    >
-                      {d.label || `Mikrofon ${i + 1}`}
-                    </button>
-                  ))}
-                  {av.devices.cameras.some((d) => !d.label) && (
-                    <p className="live-devices-hint">Nomlar ko&apos;rinishi uchun avval kamera yoki mikrofonni bir marta yoqing.</p>
-                  )}
-                  <button className="ghost" onClick={() => setDevicesOpen(false)}>Yopish</button>
-                </div>
-              </div>
-            )}
-
             {notice && <div className="live-toast" role="status">{notice}</div>}
           </div>
 

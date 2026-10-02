@@ -38,7 +38,9 @@ export type Book = {
   audioBytes: number;
   /** Audiokitob qismlari — tartib bilan ketma-ket ijro etiladi. */
   tracks: BookTrack[];
-  /** Do'kondagi narx (Koreya woni, ₩); 0 — sotuvda emas. */
+  /** library — suhbat/kutubxona kitobi; store — sotuv uchun alohida mahsulot. */
+  kind: BookKind;
+  /** Do'kondagi narx (Koreya woni, ₩); 0 — sotuvda emas. Faqat store mahsulotida. */
   price: number;
   /** Do'kon janri. */
   category: string;
@@ -51,6 +53,9 @@ export type BookTrack = {
   seconds: number;
   bytes: number;
 };
+
+export const BOOK_KINDS = ["library", "store"] as const;
+export type BookKind = (typeof BOOK_KINDS)[number];
 
 export const BOOK_LIMITS = {
   title: 160,
@@ -68,6 +73,7 @@ export const BOOK_LIMITS = {
 } as const;
 
 export const createBookSchema = z.object({
+  kind: z.enum(BOOK_KINDS).default("library"),
   title: z.string().trim().min(1, "Kitob nomini yozing.").max(BOOK_LIMITS.title),
   author: z.string().trim().min(1, "Muallifni yozing.").max(BOOK_LIMITS.author),
   summary: z.string().trim().max(BOOK_LIMITS.summary).default(""),
@@ -77,7 +83,7 @@ export const createBookSchema = z.object({
 });
 export type CreateBookInput = z.infer<typeof createBookSchema>;
 
-export const updateBookSchema = createBookSchema.partial().extend({ active: z.boolean().optional() });
+export const updateBookSchema = createBookSchema.omit({ kind: true }).partial().extend({ active: z.boolean().optional() });
 export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 
 /** Qismlar tartibi va nomlari: ro'yxatdagi tartib — ijro tartibi. */

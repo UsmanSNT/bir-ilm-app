@@ -128,8 +128,8 @@ try {
   signIn(other.userId, "Boshqa");
 
   // --- Narx: admin qo'yadi; narxsiz kitob do'konda yo'q -----------------
-  const forSale = (await admin.call(booksRoute.POST, "/api/v1/books", { method: "POST", body: { title: "Do'kon kitobi", author: "Muallif", price: 59000, category: "Badiiy adabiyot" }, expect: 201 })).data;
-  const notForSale = (await admin.call(booksRoute.POST, "/api/v1/books", { method: "POST", body: { title: "Faqat kutubxona", author: "Muallif" }, expect: 201 })).data;
+  const forSale = (await admin.call(booksRoute.POST, "/api/v1/books", { method: "POST", body: { kind: "store", title: "Do'kon kitobi", author: "Muallif", price: 59000, category: "Badiiy adabiyot" }, expect: 201 })).data;
+  const notForSale = (await admin.call(booksRoute.POST, "/api/v1/books", { method: "POST", body: { kind: "store", title: "Narxsiz mahsulot", author: "Muallif" }, expect: 201 })).data;
   createdBooks.push(forSale.id, notForSale.id);
   assert.equal(forSale.price, 59000);
   assert.equal(notForSale.price, 0);
@@ -141,6 +141,24 @@ try {
   let vitrina = (await guest.call(storeBooks.GET, "/api/v1/store/books")).data.items;
   assert.ok(vitrina.some((b) => b.id === forSale.id));
   assert.ok(!vitrina.some((b) => b.id === notForSale.id), "Narxsiz kitob vitrinada bo'lmasin");
+  // Ikki ro'yxat aralashmaydi: kutubxona (suhbat) kitobi do'konda yo'q, do'kon mahsuloti kutubxonada yo'q.
+  const libraryBook = (await admin.call(booksRoute.POST, "/api/v1/books", { method: "POST", body: { title: "Suhbat kitobi", author: "Muallif", price: 99000, category: "Tarix" }, expect: 201 })).data;
+  createdBooks.push(libraryBook.id);
+  assert.equal(libraryBook.kind, "library");
+  assert.equal(libraryBook.price, 0, "Kutubxona kitobida narx bo'lmaydi");
+  const patched = (await admin.call(bookRoute.PATCH, `/api/v1/books/${libraryBook.id}`, { method: "PATCH", params: { id: libraryBook.id }, body: { price: 5000, category: "Tarix" } })).data;
+  assert.equal(patched.price, 0, "Kutubxona kitobiga narx qo'yib bo'lmaydi");
+  const lib = (await guest.call(booksRoute.GET, "/api/v1/books")).data.items;
+  assert.ok(lib.some((b) => b.id === libraryBook.id));
+  assert.ok(!lib.some((b) => b.id === forSale.id || b.id === notForSale.id), "Do'kon mahsuloti kutubxona ro'yxatida bo'lmasin");
+  assert.ok(!(await guest.call(storeBooks.GET, "/api/v1/store/books")).data.items.some((b) => b.id === libraryBook.id), "Kutubxona kitobi do'konda bo'lmasin");
+  await guest.call(booksRoute.GET, "/api/v1/books?kind=store", { expect: 403 });
+  await buyer.call(booksRoute.GET, "/api/v1/books?kind=store", { expect: 403 });
+  const products = (await admin.call(booksRoute.GET, "/api/v1/books?kind=store")).data.items;
+  assert.deepEqual(products.map((b) => b.id).sort(), [forSale.id, notForSale.id].sort(), "Admin do'kon ro'yxatida narxsizlarni ham ko'radi");
+  const activated = (await admin.call(bookRoute.PATCH, `/api/v1/books/${forSale.id}`, { method: "PATCH", params: { id: forSale.id }, body: { active: true } })).data;
+  assert.equal(activated.active, false, "Do'kon mahsuloti haftaning kitobi bo'lmaydi");
+  await admin.call(cart.PUT, "/api/v1/store/cart", { method: "PUT", body: { items: [{ bookId: libraryBook.id, qty: 1 }] }, expect: 422 });
   console.log("PASS: Vitrina faqat narxi qo'yilgan kitoblar; narxni faqat admin o'zgartiradi.");
 
   // --- Savat: mehmon ham to'ldiradi; faqat sotuvdagi kitob; validatsiya --

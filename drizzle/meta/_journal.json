@@ -127,6 +127,13 @@
       "when": 1790954515064,
       "tag": "0017_store_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1790956056682,
+      "tag": "0018_book_kind",
+      "breakpoints": true
     }
   ]
 }

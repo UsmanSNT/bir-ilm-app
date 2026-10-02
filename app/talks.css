@@ -495,3 +495,8 @@ button.tb-wave:disabled { cursor: default; }
   .tb-share-copy small { font-size: 13px; }
   .tb-share-art { display: none; }
 }
+
+/* «Saqlash» va «O'chirish» bitta qatorda */
+.tb-actions-row { display: flex; align-items: stretch; gap: 8px; }
+.tb-actions-row .tb-resched-save { flex: none; }
+.tb-actions-row .tb-danger { flex: 1; margin-top: 0; padding: 0 12px; }

@@ -177,3 +177,28 @@ button.p-row:hover { background: #fcf9f2; }
 .admin-role-switch button.on.role-moderator { color: var(--p-green); }
 .admin-role-switch button:disabled:not(.on) { opacity: .45; cursor: default; }
 @media (max-width: 420px) { .admin-role-switch { width: calc(100% - 51px); margin-left: 51px; } .admin-role-switch button { flex: 1; } }
+
+/* Profil tepasi: ekran tepasiga ulangan, pastki ikki burchagi yumaloq, alohida ajralib turadigan panel */
+.p-hero {
+  --p-pad: 30px;
+  position: relative; margin: 0 calc(-1 * var(--p-pad)) 18px; padding: 0 var(--p-pad) 4px;
+  border-radius: 0 0 30px 30px; overflow: hidden;
+  background: linear-gradient(180deg, #fffaf0 0%, #f6ecd6 100%);
+  box-shadow: 0 18px 30px -20px rgba(22, 34, 80, .45), inset 0 -1px 0 #e9dcbb;
+}
+.p-hero .p-stats { margin: 0 -6px; padding: 14px 0 16px; border-top: 1px solid #e6d9b8; }
+.p-hero .p-stats button { border-right-color: #e6d9b8; }
+@media (max-width: 980px) { .p-hero { --p-pad: 22px; } }
+@media (max-width: 650px) { .p-hero { --p-pad: 20px; } }
+@media (max-width: 980px) {
+  /* Telefonda panel ekran chetlari va tepasigacha cho'ziladi (ish maydonining 16/22 px bo'sh joyini yutadi) */
+  .p-hero { margin: -22px calc(-1 * (var(--p-pad) + 16px)) 18px; padding: 0 calc(var(--p-pad) + 16px) 4px; }
+  .p-hero .p-stats { margin: 0 -10px; }
+}
+
+/* Kamera va mikrofon sozlamalari */
+.device-settings { display: grid; gap: 14px; }
+.device-settings .p-primary { justify-self: stretch; min-height: 46px; border: 0; border-radius: 999px; background: var(--p-green); color: #fff; font-weight: 800; }
+.device-field { display: grid; gap: 6px; padding: 14px; border-radius: 16px; background: #fffaf0; box-shadow: inset 0 0 0 1px #e9dcbb; }
+.device-field > span { display: inline-flex; align-items: center; gap: 7px; color: var(--p-ink); font-size: 13px; font-weight: 800; }
+.device-field select { width: 100%; min-height: 44px; padding: 0 12px; border: 1.5px solid #e2d4af; border-radius: 12px; background: #fff; color: var(--p-ink); font: inherit; font-size: 14px; }
