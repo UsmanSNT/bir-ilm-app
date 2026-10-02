@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { authRequired, readerIdentity as identity } from "@/lib/reader-identity";
+import { authRequired, HAS_ACCOUNT_SQL, readerIdentity as identity } from "@/lib/reader-identity";
 import { postKinds, type ReadingPost, type PostReply, type Reader } from "@/app/social-types";
 import { parseDesign } from "@/app/post-design";
 import { MEDIA_KEY } from "@/app/media-rules";
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     }
     const profileQuery = "SELECT u.id, u.name, u.bio, (SELECT count(*) FROM reading_posts p WHERE p.user_id=u.id) AS posts, (SELECT count(*) FROM reader_follows f WHERE f.followed_id=u.id) AS followers FROM users u";
     // Faqat hisob ochgan kitobxonlar ko'rsatiladi (mehmonlar ro'yxatni to'ldirmasin).
-    const readers = (await db.prepare(`${profileQuery} WHERE EXISTS (SELECT 1 FROM accounts a WHERE a.user_id=u.id) ORDER BY posts DESC, u.created_at DESC LIMIT 100`).all<Reader>()).results;
+    const readers = (await db.prepare(`${profileQuery} WHERE ${HAS_ACCOUNT_SQL} ORDER BY posts DESC, u.created_at DESC LIMIT 100`).all<Reader>()).results;
     const followersList = (await db.prepare(`${profileQuery} JOIN reader_follows f ON f.follower_id=u.id WHERE f.followed_id=? ORDER BY u.name LIMIT 200`).bind(id).all<Reader>()).results;
     const followingList = (await db.prepare(`${profileQuery} JOIN reader_follows f ON f.followed_id=u.id WHERE f.follower_id=? ORDER BY u.name LIMIT 200`).bind(id).all<Reader>()).results;
     const profile = await db.prepare(`${profileQuery} WHERE u.id=?`).bind(id).first<Reader>();
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       case "follow": {
         const target = value("target", 80);
         if (target === id || typeof payload.follow !== "boolean") return fail("Obuna noto'g'ri.");
-        if (!await db.prepare("SELECT 1 FROM accounts WHERE user_id=?").bind(target).first()) return fail("Kitobxon topilmadi.", 404);
+        if (!await db.prepare(`SELECT 1 FROM users u WHERE u.id=? AND ${HAS_ACCOUNT_SQL}`).bind(target).first()) return fail("Kitobxon topilmadi.", 404);
         await db.prepare(payload.follow ? "INSERT OR IGNORE INTO reader_follows (follower_id,followed_id) VALUES (?,?)" : "DELETE FROM reader_follows WHERE follower_id=? AND followed_id=?").bind(id, target).run();
         break;
       }

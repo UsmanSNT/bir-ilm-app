@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
-import { clearSessionCookie, randomToken, readerIdentity, sessionCookie, sha256, SESSION_DAYS } from "@/lib/reader-identity";
+import { clearSessionCookie, randomToken, readerIdentity, sha256 } from "@/lib/reader-identity";
+import { currentUser, newAccountUserId, openSession, sameHash } from "@/lib/auth-session";
 
 export const runtime = "edge";
 
@@ -15,32 +16,12 @@ async function hashPassword(password: string, saltHex: string, iterations: numbe
   return Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2, "0")).join("");
 }
 
-function sameHash(a: string, b: string) {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
-async function openSession(db: D1Database, request: Request, userId: string, headers: Headers) {
-  const token = randomToken();
-  await db.batch([
-    db.prepare("DELETE FROM sessions WHERE user_id=? AND expires_at <= datetime('now')").bind(userId),
-    db.prepare(`INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, datetime('now', '+${SESSION_DAYS} days'))`).bind(await sha256(token), userId),
-  ]);
-  headers.append("Set-Cookie", sessionCookie(request, token));
-}
-
-async function me(db: D1Database, id: string, login: string | null) {
-  if (!login) return null;
-  const user = await db.prepare("SELECT name FROM users WHERE id=?").bind(id).first<{ name: string }>();
-  return { id, login, name: user?.name ?? "Kitobxon" };
-}
-
 export async function GET(request: Request) {
-  const { id, headers, login } = await readerIdentity(request);
-  if (!env.DB) return Response.json({ user: null }, { headers });
-  return Response.json({ user: await me(env.DB, id, login) }, { headers });
+  const identity = await readerIdentity(request);
+  // Qaysi tashqi kirish usullari sozlangan: tugmalar faqat shularda ko'rsatiladi.
+  const providers = { google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), telegram: env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_BOT_USERNAME ? env.TELEGRAM_BOT_USERNAME : null };
+  if (!env.DB) return Response.json({ user: null, providers }, { headers: identity.headers });
+  return Response.json({ user: await currentUser(env.DB, identity), providers }, { headers: identity.headers });
 }
 
 export async function POST(request: Request) {
@@ -77,8 +58,7 @@ export async function POST(request: Request) {
       if (name.length < 2) return fail("Ismingizni kiriting.");
       if (await db.prepare("SELECT 1 FROM accounts WHERE login=?").bind(login).first()) return fail("Bu login band. Boshqasini tanlang.", 409);
       // Mehmon sifatida qilingan ishlar (savat va h.k.) yangi hisobga o'tadi; u mehmon allaqachon hisobga bog'langan bo'lsa yangi ID.
-      const guestTaken = await db.prepare("SELECT 1 FROM accounts WHERE user_id=?").bind(identity.id).first();
-      const userId = identity.authed || guestTaken ? "reader_" + await sha256(randomToken()) : identity.id;
+      const userId = await newAccountUserId(db, identity);
       const salt = randomToken().slice(0, 32);
       const hash = await hashPassword(password, salt, ITERATIONS);
       await db.batch([
@@ -86,7 +66,7 @@ export async function POST(request: Request) {
         db.prepare("INSERT INTO accounts (user_id, login, password_hash, salt, iterations) VALUES (?,?,?,?,?)").bind(userId, login, hash, salt, ITERATIONS),
       ]);
       await openSession(db, request, userId, headers);
-      return Response.json({ user: { id: userId, login, name } }, { headers });
+      return Response.json({ user: { id: userId, login, name, providers: [] } }, { headers });
     }
 
     if (p.type === "login") {
@@ -101,7 +81,7 @@ export async function POST(request: Request) {
       }
       await db.prepare("DELETE FROM auth_attempts WHERE login=?").bind(login).run();
       await openSession(db, request, account.userId, headers);
-      return Response.json({ user: await me(db, account.userId, login) }, { headers });
+      return Response.json({ user: await currentUser(db, { id: account.userId, headers, authed: true, login }) }, { headers });
     }
     return fail("Noma'lum amal.");
   } catch {

@@ -151,7 +151,7 @@ export default function ReadingDashboard({ name, mode, highlights = [], tabs = [
         <span className="pf-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>
         <div className="pf-who">
           <h2>{name}</h2>
-          {user && <span className="pf-login">@{user.login}</span>}
+          {user && <span className="pf-login">{user.login ? `@${user.login}` : user.providers?.includes("google") ? "Google hisobi" : user.providers?.includes("telegram") ? "Telegram hisobi" : ""}</span>}
           <p>{data.profile?.bio || "O'zingiz haqingizda qisqacha yozing."}</p>
         </div>
         <button className="pf-edit" onClick={() => { setBio(data.profile?.bio || ""); setEditingProfile(true); }}><Pencil size={15} />Tahrirlash</button>

@@ -531,7 +531,7 @@ function App() {
       ))}
       <button className="setting setting-danger" onClick={() => { void logout().then(() => go("home")); }}>
         <LogOut size={22} />
-        <span><strong>Hisobdan chiqish</strong><small>@{user?.login}</small></span>
+        <span><strong>Hisobdan chiqish</strong><small>{user?.login ? `@${user.login}` : user?.providers?.join(", ")}</small></span>
       </button>
     </div>
   );

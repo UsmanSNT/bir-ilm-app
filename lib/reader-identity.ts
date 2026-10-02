@@ -12,6 +12,9 @@ export const clearSessionCookie = (request: Request) => `bir_session=; HttpOnly;
 
 export type Identity = { id: string; headers: Headers; authed: boolean; login: string | null };
 
+/** Foydalanuvchi ro'yxatdan o'tganmi (login-parol yoki Google/Telegram). SQL ichida `u.id` bilan ishlatiladi. */
+export const HAS_ACCOUNT_SQL = "(EXISTS (SELECT 1 FROM accounts a WHERE a.user_id=u.id) OR EXISTS (SELECT 1 FROM oauth_identities o WHERE o.user_id=u.id))";
+
 /**
  * Foydalanuvchini aniqlaydi. Avval `bir_session` (hisobga kirgan), bo'lmasa mehmon cookie'si.
  * Mehmon uchun tasodifiy HttpOnly token: mijoz yuborgan user ID qabul qilinmaydi.
@@ -20,8 +23,9 @@ export async function readerIdentity(request: Request): Promise<Identity> {
   const headers = new Headers({ "Cache-Control": "no-store" });
   const session = cookie(request, "bir_session");
   if (session && env.DB) {
-    const row = await env.DB.prepare("SELECT s.user_id AS userId, a.login FROM sessions s JOIN accounts a ON a.user_id=s.user_id WHERE s.token_hash=? AND s.expires_at > datetime('now')")
-      .bind(await sha256(session)).first<{ userId: string; login: string }>().catch(() => null);
+    // Sessiya login-parol hisobiga ham, Google/Telegram orqali kirganga ham tegishli bo'lishi mumkin (login bo'lmasligi mumkin).
+    const row = await env.DB.prepare("SELECT s.user_id AS userId, a.login FROM sessions s LEFT JOIN accounts a ON a.user_id=s.user_id WHERE s.token_hash=? AND s.expires_at > datetime('now')")
+      .bind(await sha256(session)).first<{ userId: string; login: string | null }>().catch(() => null);
     if (row) return { id: row.userId, headers, authed: true, login: row.login };
   }
   const existing = cookie(request, "bir_reader");

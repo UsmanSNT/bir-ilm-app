@@ -561,3 +561,12 @@ audio { width: 100%; }
 .auth-error { padding: 10px 12px; border-radius: var(--r-sm); background: var(--anor-och); color: var(--anor) !important; font-size: 14px; font-weight: 700; }
 .auth-switch { text-align: center; color: var(--siyoh-3) !important; font-size: 14px; }
 @media (max-width: 440px) { .brand-tag { display: none; } }
+.auth-providers { display: grid; gap: 10px; }
+.auth-provider { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; border-radius: 999px; font-weight: 800; font-size: 15px; text-decoration: none; }
+.auth-google { background: #fff; color: var(--siyoh); box-shadow: inset 0 0 0 1.5px var(--chiziq); }
+.auth-google:hover { box-shadow: inset 0 0 0 1.5px var(--siyoh-3); }
+.auth-telegram { min-height: 48px; }
+.auth-telegram iframe { max-width: 100%; }
+.auth-or { display: flex; align-items: center; gap: 12px; color: var(--siyoh-3) !important; font-size: 13px; font-weight: 700; }
+.auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--chiziq); }
+.auth-provider-error { text-align: center; color: var(--siyoh-3) !important; font-size: 13px; }

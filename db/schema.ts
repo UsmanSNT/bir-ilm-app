@@ -191,3 +191,11 @@ export const authAttempts = sqliteTable("auth_attempts", {
   login: text("login").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_auth_attempts_login").on(t.login, t.createdAt)]);
+
+export const oauthIdentities = sqliteTable("oauth_identities", {
+  provider: text("provider").notNull(),
+  subject: text("subject").notNull(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  email: text("email"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [uniqueIndex("idx_oauth_provider_subject").on(t.provider, t.subject), index("idx_oauth_user").on(t.userId)]);
