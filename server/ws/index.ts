@@ -292,8 +292,9 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         send(client.ws, { type: "error", message: "Yozib olish faqat jonli suhbatda ishlaydi." });
         return;
       }
-      await live.setRecordingBy(db, client.sessionId, msg.on ? client.userId : null);
-      broadcastToSession(client.sessionId, { type: "recording", active: msg.on });
+      const on = msg.on === true;
+      await live.setRecordingBy(db, client.sessionId, on ? client.userId : null);
+      broadcastToSession(client.sessionId, { type: "recording", active: on, paused: on && msg.paused === true });
       return;
     }
   }

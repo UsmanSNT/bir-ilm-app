@@ -282,3 +282,8 @@ body .app-shell[hidden] { display: none; }
 .pw-links button { padding: 0; border: 0; background: none; color: var(--firuza); font-weight: 800; }
 .login-or { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; color: var(--siyoh-3); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
 .login-or::before, .login-or::after { content: ""; flex: 1; height: 1px; background: var(--chiziq); }
+
+/* Efir yozuvi: pauza va faylga saqlash */
+.live-rec.paused { background: #f6e7c6; color: #6b4a12; }
+.live-rec.paused i { background: var(--tilla); animation: none; }
+.live-save-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }

@@ -5,6 +5,8 @@
  * xonadagi barcha ovozlar (o'zining mikrofoni + boshqalar) Web Audio orqali bitta oqimga
  * qo'shiladi va MediaRecorder har 10 soniyada bo'lak beradi. Bo'laklar serverga ketma-ket
  * yuboriladi: brauzer yopilib qolsa ham oxirgi ~10 soniyagacha yozuv saqlanib qoladi.
+ * Yozuvni pauza qilish va to'xtagan joydan davom ettirish mumkin; to'xtatilgach admin
+ * uning nusxasini o'zi tanlagan faylga saqlay oladi (bo'laklar brauzer xotirasida ham turadi).
  */
 "use client";
 
@@ -31,6 +33,11 @@ export class RoomRecorder {
   private sources = new Map<MediaStreamTrack, MediaStreamAudioSourceNode>();
   private recorder: MediaRecorder | null = null;
   private queue: Blob[] = [];
+  /** Mahalliy nusxa (faylga saqlash uchun): ~28 MB / soat. */
+  private chunks: Blob[] = [];
+  private pausedAt = 0;
+  private pausedTotal = 0;
+  private mime = "";
   private pumping: Promise<void> | null = null;
   private offset = 0;
   private startedAt = 0;
@@ -46,6 +53,7 @@ export class RoomRecorder {
   async start(): Promise<void> {
     const type = pickType();
     if (!type) throw new Error("Bu brauzer yozib olishni qo'llab-quvvatlamaydi.");
+    this.mime = type;
 
     const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(this.sessionId)}/recordings`, {
       method: "POST",
@@ -70,6 +78,7 @@ export class RoomRecorder {
     this.recorder = new MediaRecorder(this.dest.stream, { mimeType: type, audioBitsPerSecond: 64_000 });
     this.recorder.ondataavailable = (event) => {
       if (event.data.size) {
+        this.chunks.push(event.data);
         this.queue.push(event.data);
         this.pump();
       }
@@ -78,8 +87,39 @@ export class RoomRecorder {
     this.recorder.start(SLICE_MS);
   }
 
+  get paused(): boolean {
+    return this.recorder?.state === "paused";
+  }
+
+  /** Pauzalarsiz o'tgan vaqt (ms). */
+  elapsed(now = Date.now()): number {
+    if (!this.startedAt) return 0;
+    return now - this.startedAt - this.pausedTotal - (this.pausedAt ? now - this.pausedAt : 0);
+  }
+
+  pause(): void {
+    if (this.recorder?.state !== "recording") return;
+    this.recorder.pause();
+    this.pausedAt = Date.now();
+  }
+
+  /** To'xtagan joydan davom: o'sha faylga qo'shiladi. */
+  resume(): void {
+    if (this.recorder?.state !== "paused") return;
+    this.recorder.resume();
+    this.pausedTotal += Date.now() - this.pausedAt;
+    this.pausedAt = 0;
+  }
+
+  /** To'xtatilgandan keyin: butun yozuv bitta fayl sifatida. */
+  file(): { blob: Blob; extension: string } {
+    const extension = this.mime.includes("mp4") ? "m4a" : this.mime.includes("ogg") ? "ogg" : "webm";
+    return { blob: new Blob(this.chunks, { type: this.mime.split(";")[0] || "audio/webm" }), extension };
+  }
+
   /** Yozuvni to'xtatadi va oxirgi bo'laklar serverga yetib borguncha kutadi. */
   async stop(): Promise<void> {
+    if (this.pausedAt) this.resume();
     const recorder = this.recorder;
     this.recorder = null;
     if (recorder && recorder.state !== "inactive") {
@@ -144,7 +184,7 @@ export class RoomRecorder {
               headers: {
                 "Content-Type": "application/octet-stream",
                 "X-Upload-Offset": String(this.offset),
-                "X-Recording-Seconds": String(Math.round((Date.now() - this.startedAt) / 1000)),
+                "X-Recording-Seconds": String(Math.round(this.elapsed() / 1000)),
               },
             },
           );
@@ -175,4 +215,40 @@ export class RoomRecorder {
     });
     return this.pumping;
   }
+}
+
+type SavePicker = (options: {
+  suggestedName: string;
+  types: { description: string; accept: Record<string, string[]> }[];
+}) => Promise<{ createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }> }>;
+
+/**
+ * Yozuvni faylga saqlash: brauzer qo'llasa — tizimning «Saqlash» oynasi (papka va nomni admin tanlaydi),
+ * aks holda ko'rsatilgan nom bilan yuklab olinadi. Bekor qilinsa false.
+ */
+export async function saveRecordingFile(blob: Blob, name: string, extension: string): Promise<boolean> {
+  const clean = name.trim().replace(/[\\/:*?"<>|]+/g, "-").slice(0, 120) || "Bir-Ilm-suhbat";
+  const fileName = clean.toLowerCase().endsWith(`.${extension}`) ? clean : `${clean}.${extension}`;
+  const picker = (window as unknown as { showSaveFilePicker?: SavePicker }).showSaveFilePicker;
+  if (picker) {
+    try {
+      const handle = await picker({ suggestedName: fileName, types: [{ description: "Audio yozuv", accept: { [blob.type || "audio/webm"]: [`.${extension}`] } }] });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return false;
+      // Boshqa xato (ruxsat, iframe) — oddiy yuklab olishga o'tamiz.
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return true;
 }

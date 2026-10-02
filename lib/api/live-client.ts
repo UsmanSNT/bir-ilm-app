@@ -35,7 +35,7 @@ export type LiveEventMap = {
   role_update: { userId: string; role: string };
   session_started: { startedAt: string };
   session_ended: { endedAt: string };
-  recording: { active: boolean };
+  recording: { active: boolean; paused: boolean };
   error: string;
 };
 
@@ -66,7 +66,7 @@ function resolveWsUrl(): string {
 export class LiveClient {
   private ws: WebSocket | null = null;
   private token: string | null = null;
-  private listeners = new Map<string, Set<Function>>();
+  private listeners = new Map<string, Set<(data: unknown) => void>>();
   private _state: LiveConnectionState = "idle";
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private sessionId: string | null = null;
@@ -77,9 +77,11 @@ export class LiveClient {
 
   on<K extends keyof LiveEventMap>(event: K, fn: Listener<K>): () => void {
     const set = this.listeners.get(event) ?? new Set();
-    set.add(fn);
+    // Hodisa nomi va ma'lumot tipi `LiveEventMap` orqali `emit` bilan bog'langan.
+    const handler = fn as (data: unknown) => void;
+    set.add(handler);
     this.listeners.set(event, set);
-    return () => set.delete(fn);
+    return () => set.delete(handler);
   }
 
   private emit<K extends keyof LiveEventMap>(event: K, data: LiveEventMap[K]) {
@@ -203,7 +205,7 @@ export class LiveClient {
         this.emit("session_ended", { endedAt: msg.endedAt });
         break;
       case "recording":
-        this.emit("recording", { active: msg.active });
+        this.emit("recording", { active: msg.active, paused: msg.paused === true });
         break;
     }
   }
@@ -246,9 +248,9 @@ export class LiveClient {
     this.send({ type: "mod:end" });
   }
 
-  /** Faqat admin: yozib olish holatini hammaga e'lon qiladi. */
-  setRecording(on: boolean) {
-    this.send({ type: "mod:recording", on });
+  /** Faqat admin: yozib olish holatini (pauza bilan) hammaga e'lon qiladi. */
+  setRecording(on: boolean, paused = false) {
+    this.send({ type: "mod:recording", on, paused });
   }
 
   leave() {

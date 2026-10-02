@@ -13,6 +13,7 @@ import {
   Mic,
   MicOff,
   MonitorUp,
+  Pause,
   Play,
   Send,
   Settings2,
@@ -33,7 +34,8 @@ import {
   type LiveConnectionState,
 } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
-import { RoomRecorder, recordingSupported } from "@/lib/api/live-recorder";
+import { RoomRecorder, recordingSupported, saveRecordingFile } from "@/lib/api/live-recorder";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import LoginCard from "./login-card";
 import TalksBoard from "./talks-board";
 import { TALKS_CHANGED, notifyTalksChanged, talkAnnouncement } from "./talk-format";
@@ -150,6 +152,12 @@ export default function LiveSession({
   const recorderRef = useRef<RoomRecorder | null>(null);
   const autoRecord = useRef(false);
   const [recBusy, setRecBusy] = useState(false);
+  const [recPaused, setRecPaused] = useState(false);
+  /** Yozuv aynan shu brauzerda ketyaptimi (pauza va vaqt faqat yozayotgan adminda). */
+  const [ownRecording, setOwnRecording] = useState(false);
+  const [recElapsed, setRecElapsed] = useState(0);
+  /** To'xtatilgan yozuvning mahalliy nusxasi — admin uni faylga saqlaydi. */
+  const [recFile, setRecFile] = useState<{ blob: Blob; extension: string; name: string } | null>(null);
 
   const av = useLiveMedia(activeSessionId ? media : null, setNotice);
   const sharerId = av.screenSharer?.userId ?? null;
@@ -166,7 +174,7 @@ export default function LiveSession({
   }, []);
 
   useEffect(() => {
-    loadSessions();
+    queueMicrotask(() => void loadSessions());
     // Kitob oynasidan yoki boshqa joydan suhbat qo'shilsa/o'chirilsa — ro'yxat yangilanadi.
     window.addEventListener(TALKS_CHANGED, loadSessions);
     return () => window.removeEventListener(TALKS_CHANGED, loadSessions);
@@ -282,11 +290,12 @@ export default function LiveSession({
       setNotice("Suhbat boshlandi");
     });
 
-    client.on("recording", ({ active }) => {
+    client.on("recording", ({ active, paused }) => {
       setSessionData((prev) => (prev ? { ...prev, recording: active } : prev));
+      setRecPaused(active && paused);
       // Boshqa admin to'xtatgan bo'lsa, shu brauzerdagi yozuvni ham yakunlaymiz.
       if (!active && recorderRef.current) void finishRecording(false);
-      setNotice(active ? "Suhbat yozib olinmoqda" : "Yozib olish to'xtatildi");
+      setNotice(active ? (paused ? "Yozuv pauzada" : "Suhbat yozib olinmoqda") : "Yozib olish to'xtatildi");
     });
 
     client.on("session_ended", ({ endedAt }) => {
@@ -334,6 +343,8 @@ export default function LiveSession({
     try {
       await recorder.start();
       recorderRef.current = recorder;
+      setOwnRecording(true);
+      setRecElapsed(0);
       clientRef.current?.setRecording(true);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Yozib olishni boshlab bo'lmadi.");
@@ -342,16 +353,34 @@ export default function LiveSession({
     }
   }
 
+  /** Pauza: yozuv to'xtaydi, lekin fayl yopilmaydi — «Davom ettirish» o'sha faylga qo'shadi. */
+  function toggleRecordingPause() {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    if (recorder.paused) recorder.resume();
+    else recorder.pause();
+    setRecPaused(recorder.paused);
+    clientRef.current?.setRecording(true, recorder.paused);
+  }
+
   /** `announce` — boshqalarga «yozuv to'xtadi» deb xabar berish (server orqali). */
   async function finishRecording(announce = true) {
     const recorder = recorderRef.current;
     if (announce) clientRef.current?.setRecording(false);
     if (!recorder) return;
     recorderRef.current = null;
+    setOwnRecording(false);
     setRecBusy(true);
     await recorder.stop();
     setRecBusy(false);
-    setNotice("Yozuv saqlandi. Uni «Suhbatlar» bo'limidagi boshqaruvdan yuklab olasiz.");
+    setRecPaused(false);
+    setNotice("Yozuv serverda saqlandi. Nusxasini kompyuteringizga ham saqlashingiz mumkin.");
+    const file = recorder.file();
+    if (file.blob.size) {
+      const day = new Date().toISOString().slice(0, 10);
+      const title = (sessionData?.bookTitle ?? "suhbat").replace(/\s+/g, "-");
+      setRecFile({ ...file, name: `Bir-Ilm-${title}-${day}` });
+    }
   }
 
   function leaveSession() {
@@ -451,7 +480,24 @@ export default function LiveSession({
           hint: status !== "live" ? "Suhbat boshlangach yozib olinadi" : "Ovoz serveriga ulanilmagan",
         }]
       : []),
+    ...(roomAdmin && recording && ownRecording
+      ? [{
+          label: recPaused ? "Davom ettirish" : "Pauza",
+          icon: recPaused ? Play : Pause,
+          active: recPaused,
+          disabled: recBusy,
+          pending: false,
+          action: toggleRecordingPause,
+        }]
+      : []),
   ];
+
+  // Admin ekranida yozuv vaqti (pauzalarsiz).
+  useEffect(() => {
+    if (!recording || !ownRecording) return;
+    const timer = setInterval(() => setRecElapsed(recorderRef.current?.elapsed() ?? 0), 500);
+    return () => clearInterval(timer);
+  }, [recording, ownRecording]);
 
   // «Boshlash» bosilgan bo'lsa: suhbat jonli bo'lib, ovoz ulangach yozuv o'zi yoqiladi.
   useEffect(() => {
@@ -485,7 +531,9 @@ export default function LiveSession({
               <span className="live-indicator"><i /> LIVE</span>
             )}
             {recording && (
-              <span className="live-rec" title="Suhbat yozib olinmoqda"><i /> REC</span>
+              <span className={`live-rec${recPaused ? " paused" : ""}`} title={recPaused ? "Yozuv pauzada" : "Suhbat yozib olinmoqda"}>
+                <i /> {recPaused ? "PAUZA" : "REC"}{ownRecording ? ` ${clockOf(recElapsed)}` : ""}
+              </span>
             )}
             {roomAdmin && status === "planned" && (
               <button className="live-admin-btn start" onClick={() => { autoRecord.current = true; clientRef.current?.startSession(); }}>
@@ -512,7 +560,7 @@ export default function LiveSession({
           {canMod && connState === "joined" && (
             <div className="live-mod-hint">
               <ShieldCheck size={14} />
-              {roomAdmin ? "Admin" : "Moderator"} — qatnashchini bosib, so'z bering yoki chiqaring
+              {roomAdmin ? "Admin" : "Moderator"} — qatnashchini bosib, so&apos;z bering yoki chiqaring
             </div>
           )}
 
@@ -571,7 +619,7 @@ export default function LiveSession({
                         <div key={p.userId}>
                           <Avatar name={p.name} />
                           <strong>{p.name}</strong>
-                          <button onClick={() => modAction("grant", p)}>So'z berish</button>
+                          <button onClick={() => modAction("grant", p)}>So&apos;z berish</button>
                         </div>
                       ))}
                     </div>
@@ -593,7 +641,7 @@ export default function LiveSession({
                       );
                     })}
                     {speakers.length === 0 && (
-                      <p className="muted" style={{ fontSize: 12 }}>Hali so'zlovchi yo'q</p>
+                      <p className="muted" style={{ fontSize: 12 }}>Hali so&apos;zlovchi yo&apos;q</p>
                     )}
                   </div>
                   <h3>Tinglovchilar ({listenersList.length})</h3>
@@ -627,7 +675,7 @@ export default function LiveSession({
                 <div className="live-comment-list">
                   {messages.length === 0 && (
                     <p className="muted" style={{ textAlign: "center", padding: "2rem", fontSize: 13 }}>
-                      Hali izohlar yo'q. Birinchi bo'ling!
+                      Hali izohlar yo&apos;q. Birinchi bo&apos;ling!
                     </p>
                   )}
                   {messages.map((msg) => (
@@ -653,7 +701,7 @@ export default function LiveSession({
                   <div ref={messagesEndRef} />
                 </div>
                 {status === "ended" ? (
-                  <p className="live-comments-closed">Suhbat tugagan — izoh yozib bo'lmaydi.</p>
+                  <p className="live-comments-closed">Suhbat tugagan — izoh yozib bo&apos;lmaydi.</p>
                 ) : (
                   <form className="live-comment-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
                     <input
@@ -686,10 +734,10 @@ export default function LiveSession({
                     </div>
                   </div>
                   {selected.role === "listener" && (
-                    <button onClick={() => modAction("grant", selected)}><Mic size={17} /> So'z berish</button>
+                    <button onClick={() => modAction("grant", selected)}><Mic size={17} /> So&apos;z berish</button>
                   )}
                   {selected.role === "speaker" && (
-                    <button onClick={() => modAction("revoke", selected)}><MicOff size={17} /> So'zni olish</button>
+                    <button onClick={() => modAction("revoke", selected)}><MicOff size={17} /> So&apos;zni olish</button>
                   )}
                   {selected.role !== "moderator" && (
                     <button className="danger" onClick={() => modAction("kick", selected)}><UserMinus size={17} /> Suhbatdan chiqarish</button>
@@ -822,6 +870,7 @@ export default function LiveSession({
       )}
       {overlay}
       {miniBar}
+      {recFile && <SaveRecordingDialog file={recFile} onClose={() => setRecFile(null)} />}
     </>
   );
 }
@@ -886,7 +935,7 @@ function CreateSessionDialog({
           </button>
           <div className="live-room-title">
             <strong>Yangi suhbat</strong>
-            <span>Faqat admin e'lon qiladi</span>
+            <span>Faqat admin e&apos;lon qiladi</span>
           </div>
         </header>
         <form
@@ -919,5 +968,45 @@ function CreateSessionDialog({
         </form>
       </div>
     </div>
+  );
+}
+
+const clockOf = (ms: number) => {
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const sec = String(total % 60).padStart(2, "0");
+  return h ? `${h}:${m}:${sec}` : `${m}:${sec}`;
+};
+
+/** To'xtatilgan yozuvni faylga saqlash: nomini admin yozadi, papkani tizim oynasida tanlaydi. */
+function SaveRecordingDialog({ file, onClose }: { file: { blob: Blob; extension: string; name: string }; onClose: () => void }) {
+  const [name, setName] = useState(file.name);
+  const [busy, setBusy] = useState(false);
+  const mb = (file.blob.size / (1024 * 1024)).toFixed(1);
+
+  async function save() {
+    setBusy(true);
+    const saved = await saveRecordingFile(file.blob, name, file.extension);
+    setBusy(false);
+    if (saved) onClose();
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
+      <DialogContent className="app-dialog live-save">
+        <DialogTitle>Yozuvni faylga saqlash</DialogTitle>
+        <DialogDescription>Yozuv serverda ham saqlandi ({mb} MB). Kompyuteringizga nusxa olish uchun fayl nomini yozing — keyin qaysi papkaga saqlashni tanlaysiz.</DialogDescription>
+        <label className="pw-field" htmlFor="rec-name">
+          <span>Fayl nomi</span>
+          <input id="rec-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <small className="pw-hint">Fayl turi: .{file.extension} (Opus audio)</small>
+        <div className="live-save-actions">
+          <button type="button" className="button secondary" disabled={busy} onClick={onClose}>Keyinroq</button>
+          <button type="button" className="button" disabled={busy || !name.trim()} onClick={() => void save()}>{busy ? "Saqlanmoqda…" : "Saqlash"}</button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

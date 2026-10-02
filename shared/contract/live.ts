@@ -116,8 +116,8 @@ export type WsClientMessage =
   | { type: "mod:delete_message"; messageId: number }
   | { type: "mod:start" }
   | { type: "mod:end" }
-  /** Faqat admin: yozib olishni yoqish/o'chirish. */
-  | { type: "mod:recording"; on: boolean };
+  /** Faqat admin: yozib olishni yoqish/o'chirish; `paused` — yozuv pauzada (davom ettirish mumkin). */
+  | { type: "mod:recording"; on: boolean; paused?: boolean };
 
 /** Serverdan mijozga. */
 export type WsServerMessage =
@@ -141,4 +141,4 @@ export type WsServerMessage =
   | { type: "kicked" }
   | { type: "session_started"; startedAt: string }
   | { type: "session_ended"; endedAt: string }
-  | { type: "recording"; active: boolean };
+  | { type: "recording"; active: boolean; paused?: boolean };

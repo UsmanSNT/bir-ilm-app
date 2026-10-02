@@ -50,3 +50,9 @@ Asl logo va illyustratsiyalar `public/assets/README.md` orqali ulanadi. Kitob mu
 - Havola `PUBLIC_URL` (masalan `https://birilm.uz`) asosida yasaladi — Caddy orqasida ham to‘g‘ri domen chiqadi.
 - Parolni o‘zgartirish: **Profil → Sozlamalar → Parolni o‘zgartirish**.
 - Migratsiya: `drizzle/0015_email_login.sql` (faqat yangi jadvallar). Test: `node tests/auth-password-v1.mjs`.
+
+## Efir yozuvi: pauza va faylga saqlash
+
+- Yozuvni admin boshqaradi: «Yozib olish» → **Pauza** / **Davom ettirish** (to‘xtagan joydan o‘sha faylga qo‘shiladi) → «Yozuvni to‘xtatish».
+- Hammaga «REC» yoki «PAUZA» belgisi ko‘rinadi; adminda pauzalarsiz vaqt hisoblagichi.
+- Yozuv avvalgidek serverga bo‘laklab yuklanadi (Suhbatlar → o‘tganlar → yozuv). To‘xtatilgach admin oynasida **«Yozuvni faylga saqlash»** chiqadi: fayl nomini yozadi, Chrome/Edge’da papkani tizim oynasida tanlaydi, boshqa brauzerlarda shu nom bilan yuklab olinadi. «Keyinroq» — faqat serverdagi nusxa qoladi.
