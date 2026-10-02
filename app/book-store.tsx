@@ -112,23 +112,29 @@ function Checkout({ cart, onBack, onPlaced }: { cart: ReturnType<typeof useStore
   const [form, setForm] = useState({ name: "", phone: "+998", address: "" });
   const [payment, setPayment] = useState<PaymentMethod>("click");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  // Qayta urinishda bir xil raqam yuboriladi, shuning uchun buyurtma ikki marta yozilmaydi.
+  const [orderId] = useState(() => `ZB-${crypto.randomUUID().toUpperCase()}`);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [key]: e.target.value }));
 
   if (!cart.lines.length) return <div className="store-empty"><ShoppingCart size={28}/><h3>Savat bo‘sh</h3><button className="button" onClick={onBack}>Savatga qaytish</button></div>;
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     const next: Record<string, string> = {};
     if (form.name.trim().length < 2) next.name = "Ismni kiriting";
     if (!phoneRe.test(form.phone.replace(/\s/g, ""))) next.phone = "Telefon +998901234567 ko‘rinishida bo‘lsin";
     if (form.address.trim().length < 8) next.address = "Manzilni to‘liq kiriting";
     setErrors(next);
     if (Object.keys(next).length) return;
-    const order = cart.placeOrder({ name: form.name.trim(), phone: form.phone.replace(/\s/g, ""), address: form.address.trim(), payment });
-    if (order) onPlaced(order);
+    setBusy(true);
+    const order = await cart.placeOrder(orderId, { name: form.name.trim(), phone: form.phone.replace(/\s/g, ""), address: form.address.trim(), payment });
+    setBusy(false);
+    if (order) onPlaced(order); else toast.error("Buyurtma saqlanmadi. Qayta urinib ko‘ring.");
   };
 
-  return <form className="store-checkout" onSubmit={submit} noValidate>
+  return <form className="store-checkout" onSubmit={e => void submit(e)} noValidate>
     {([["name", "Ism", "name"], ["phone", "Telefon", "tel"], ["address", "Yetkazib berish manzili", "street-address"]] as const).map(([key, label, ac]) => <div key={key}>
       <label htmlFor={`co-${key}`}>{label}</label>
       <input id={`co-${key}`} autoComplete={ac} value={form[key]} onChange={set(key)} maxLength={160} aria-invalid={!!errors[key]} aria-describedby={errors[key] ? `co-${key}-err` : undefined}/>
@@ -137,9 +143,9 @@ function Checkout({ cart, onBack, onPlaced }: { cart: ReturnType<typeof useStore
     <fieldset className="store-pay"><legend>To‘lov usuli</legend>
       {paymentMethods.map(m => <label key={m.id}><input type="radio" name="payment" checked={payment === m.id} onChange={() => setPayment(m.id)}/>{m.label}</label>)}
     </fieldset>
-    <p className="muted">To‘lov tizimlari hali ulanmagan: buyurtma «To‘lov kutilmoqda» holatida saqlanadi, pul yechilmaydi.</p>
+    <p className="muted">To‘lov tizimlari hali ulanmagan: buyurtma serverda «To‘lov kutilmoqda» holatida saqlanadi, pul yechilmaydi.</p>
     <Totals cart={cart}/>
-    <div className="store-actions"><button type="button" className="button" onClick={onBack}>Orqaga</button><button className="button">Buyurtmani tasdiqlash</button></div>
+    <div className="store-actions"><button type="button" className="button" onClick={onBack}>Orqaga</button><button className="button" disabled={busy}>{busy ? "Saqlanmoqda..." : "Buyurtmani tasdiqlash"}</button></div>
   </form>;
 }
 

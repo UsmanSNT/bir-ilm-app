@@ -52,3 +52,26 @@ export const catalogForAi = () =>
     const meta = getMeta(book);
     return `${book.id} | ${book.title} | ${book.author} | ${meta.category} | ${meta.price} so'm | ${book.pages} bet`;
   }).join("\n");
+
+/** Xom kirishni tekshiradi: faqat katalogdagi kitoblar, butun miqdor 1..MAX_QTY. Noto'g'ri bo'lsa null. */
+export function sanitizeCart(raw: unknown): Record<string, number> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const entries = Object.entries(raw as Record<string, unknown>);
+  if (entries.length > books.length) return null;
+  const cart: Record<string, number> = {};
+  for (const [id, qty] of entries) {
+    if (!books.some(b => b.id === id) || typeof qty !== "number" || !Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) return null;
+    cart[id] = qty;
+  }
+  return cart;
+}
+
+export function computeTotals(cart: Record<string, number>, promo: string) {
+  const subtotal = Object.entries(cart).reduce((sum, [id, qty]) => {
+    const book = books.find(b => b.id === id);
+    return sum + (book ? getMeta(book).price * qty : 0);
+  }, 0);
+  const percent = promo in promoCodes ? promoCodes[promo] : 0;
+  const discount = Math.round(subtotal * percent / 100);
+  return { subtotal, percent, discount, total: subtotal - discount };
+}

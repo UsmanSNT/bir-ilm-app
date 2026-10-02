@@ -106,3 +106,39 @@ export const userActivity = sqliteTable(
     index("idx_user_activity_score").on(table.score, table.streak, table.pagesRead),
   ],
 );
+
+export const storeCartItems = sqliteTable("store_cart_items", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bookId: text("book_id").notNull(),
+  qty: integer("qty").notNull(),
+}, (t) => [uniqueIndex("idx_store_cart_user_book").on(t.userId, t.bookId)]);
+
+export const storeCartMeta = sqliteTable("store_cart_meta", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  promo: text("promo").notNull().default(""),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const storeOrders = sqliteTable("store_orders", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(),
+  address: text("address").notNull(),
+  payment: text("payment").notNull(),
+  promo: text("promo").notNull().default(""),
+  subtotal: integer("subtotal").notNull(),
+  discount: integer("discount").notNull().default(0),
+  total: integer("total").notNull(),
+  status: text("status").notNull().default("pending_payment"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_store_orders_user").on(t.userId, t.createdAt)]);
+
+export const storeOrderItems = sqliteTable("store_order_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  orderId: text("order_id").notNull().references(() => storeOrders.id, { onDelete: "cascade" }),
+  bookId: text("book_id").notNull(),
+  title: text("title").notNull(),
+  qty: integer("qty").notNull(),
+  price: integer("price").notNull(),
+}, (t) => [index("idx_store_order_items_order").on(t.orderId)]);
