@@ -118,7 +118,10 @@ export function RichContent({ doc, text, media, className = "" }: { doc: Doc | n
 
 // ── Albom ───────────────────────────────────────────────────────────
 
-/** Post tepasidagi rasm/videolar — Telegram albomi kabi to'r. */
+/**
+ * Post tepasidagi rasm/videolar. Bittasi — katta ko'rinishda; ikki va undan ko'pi — Instagram kabi
+ * **karusel**: barmoq bilan surib (yoki ‹ › tugmalari bilan) ko'riladi, tagida nuqtalar va «2 / 10».
+ */
 export function MediaAlbum({ items }: { items: MediaItem[] }) {
   const [viewer, setViewer] = useState<number | null>(null);
   if (!items.length) return null;
@@ -135,25 +138,88 @@ export function MediaAlbum({ items }: { items: MediaItem[] }) {
 
   return (
     <>
-      <div className={`rt-album count-${Math.min(items.length, 10)}`}>
-        {items.map((item, i) => {
-          const style = single && single.width && single.height ? { aspectRatio: `${single.width} / ${single.height}` } : undefined;
-          return (
-            <button type="button" key={item.id} className="rt-album-item" style={style} onClick={() => setViewer(i)} aria-label={item.kind === "video" ? "Videoni ochish" : "Rasmni ochish"}>
-              {item.kind === "video" ? (
-                <>
-                  <video src={`${mediaSrc(item)}#t=0.1`} muted playsInline preload="metadata" />
-                  <span className="rt-play"><Play size={22} fill="currentColor" /></span>
-                </>
-              ) : (
-                <img src={mediaSrc(item)} alt="" loading="lazy" decoding="async" />
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {single ? (
+        <div className="rt-album count-1">
+          <button
+            type="button"
+            className="rt-album-item"
+            style={single.width && single.height ? { aspectRatio: `${single.width} / ${single.height}` } : undefined}
+            onClick={() => setViewer(0)}
+            aria-label="Rasmni ochish"
+          >
+            <img src={mediaSrc(single)} alt="" loading="lazy" decoding="async" />
+          </button>
+        </div>
+      ) : (
+        <Carousel items={items} onOpen={setViewer} />
+      )}
       {viewer !== null && <Lightbox items={items} start={viewer} onClose={() => setViewer(null)} />}
     </>
+  );
+}
+
+/** Karusel nisbati: birinchi rasmniki, lekin Instagram kabi 4:5 dan 1.91:1 gacha cheklanadi. */
+function carouselRatio(first: MediaItem): number {
+  const ratio = first.width && first.height ? first.width / first.height : 1;
+  return Math.min(1.91, Math.max(0.8, ratio));
+}
+
+function Carousel({ items, onOpen }: { items: MediaItem[]; onOpen: (index: number) => void }) {
+  const track = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+  const frame = useRef(0);
+
+  const go = useCallback((index: number) => {
+    const el = track.current;
+    if (!el) return;
+    const next = Math.min(items.length - 1, Math.max(0, index));
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ left: next * el.clientWidth, behavior: smooth ? "smooth" : "auto" });
+  }, [items.length]);
+
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+
+  const onScroll = () => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const el = track.current;
+      if (el && el.clientWidth) setActive(Math.round(el.scrollLeft / el.clientWidth));
+    });
+  };
+
+  return (
+    <div className="rt-carousel" role="group" aria-roledescription="karusel" aria-label={`${items.length} ta rasm`}>
+      <div
+        ref={track}
+        className="rt-carousel-track"
+        style={{ aspectRatio: carouselRatio(items[0]) }}
+        tabIndex={0}
+        onScroll={onScroll}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") { e.preventDefault(); go(active + 1); }
+          if (e.key === "ArrowLeft") { e.preventDefault(); go(active - 1); }
+        }}
+      >
+        {items.map((item, i) => (
+          <button type="button" key={item.id} className="rt-carousel-slide" onClick={() => onOpen(i)} aria-label={`${i + 1} / ${items.length}: ${item.kind === "video" ? "videoni" : "rasmni"} ochish`} aria-hidden={i === active ? undefined : true} tabIndex={i === active ? 0 : -1}>
+            {item.kind === "video" ? (
+              <>
+                <video src={`${mediaSrc(item)}#t=0.1`} muted playsInline preload="metadata" />
+                <span className="rt-play"><Play size={26} fill="currentColor" /></span>
+              </>
+            ) : (
+              <img src={mediaSrc(item)} alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" draggable={false} />
+            )}
+          </button>
+        ))}
+      </div>
+      <span className="rt-carousel-count" aria-hidden="true">{active + 1} / {items.length}</span>
+      {active > 0 && <button type="button" className="rt-carousel-nav is-prev" onClick={() => go(active - 1)} aria-label="Oldingi rasm"><ChevronLeft size={22} /></button>}
+      {active < items.length - 1 && <button type="button" className="rt-carousel-nav is-next" onClick={() => go(active + 1)} aria-label="Keyingi rasm"><ChevronRight size={22} /></button>}
+      <div className="rt-carousel-dots" aria-hidden="true">
+        {items.map((item, i) => <i key={item.id} className={i === active ? "is-on" : undefined} />)}
+      </div>
+    </div>
   );
 }
 

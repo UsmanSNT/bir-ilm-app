@@ -129,3 +129,9 @@ Jonli suhbat xonasi "Naqsh" tungi uslubida: sarlavhada kitob nomi va qatnashchil
 ## PC'da audiokitob pleyeri
 
 Javon (kutubxona) endi PC kengligida ham telefon maketidagi pleyer va yog‘och tokchani ko‘rsatadi (avval faqat ≤980 px da chiqardi, PC'da faqat katalog bor edi). Kitob pleyerida ijro, ±15 soniya, tezlik va uyqu taymeri ishlaydi.
+
+## Post albomi: tartib va karusel
+
+- **Joylashda tartib:** har bir rasmda raqam (1, 2, 3…) — postda ko‘rinish tartibi. Tartibni **sudrab** (kompyuterda) yoki rasm pastidagi katta **‹ ›** tugmalari bilan (telefonda) o‘zgartirasiz; × — olib tashlash. Tahrirlashda ham shu ishlaydi.
+- **Postda karusel:** ikki va undan ko‘p rasm/video Instagram kabi karusel bo‘lib ko‘rinadi — barmoq bilan suriladi (kompyuterda ‹ › tugmalari va klaviatura strelkalari), tagida nuqtalar, yuqorida «2 / 10». Karusel nisbati birinchi rasmniki (4:5 dan 1.91:1 gacha). Rasm bosilsa, to‘liq ekranli ko‘ruvchi ochiladi. Bitta rasm/video avvalgidek katta ko‘rinadi.
+- Bu o‘zgarish faqat interfeys: ma’lumotlar bazasi va API o‘zgarmagan, migratsiya yo‘q.

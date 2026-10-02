@@ -7,7 +7,7 @@
  * va formatlangan matn. Fayllar tanlanishi bilan fonda yuklanadi.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, ImagePlus, Loader2, Megaphone, Newspaper, Palette, RotateCcw, Send, StickyNote, X } from "lucide-react";
+import { BookOpen, GripVertical, ImagePlus, Loader2, Megaphone, Newspaper, Palette, RotateCcw, Send, StickyNote, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { CARD_LIMITS, COMMUNITY_LIMITS, type CardDesign, type MediaItem, type PostFormat } from "@/shared/contract/community";
@@ -125,6 +125,18 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
     return next;
   });
 
+  /** Sudrab tartiblash (kompyuterda); telefonda ‹ › tugmalari. */
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const reorder = (from: string, to: string) => setSlots((list) => {
+    const i = list.findIndex((slot) => slot.key === from);
+    const j = list.findIndex((slot) => slot.key === to);
+    if (i < 0 || j < 0 || i === j) return list;
+    const next = [...list];
+    const [moved] = next.splice(i, 1);
+    next.splice(j, 0, moved);
+    return next;
+  });
+
   const close = () => {
     if ((dirty || length > 0 || design.text || design.stickers.length) && !busy && !window.confirm("Yozganlaringiz saqlanmaydi. Yopilsinmi?")) return;
     onClose();
@@ -187,9 +199,21 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
 
         {card && <CardEditor design={design} onChange={(next) => { setDesign(next); setDirty(true); }} />}
 
+        {!card && slots.length > 1 && (
+          <p className="composer-order-hint"><GripVertical size={15} aria-hidden="true" /><span>Rasmlar shu tartibda <strong>karusel</strong> bo‘lib ko‘rinadi. Raqam — ko‘rsatish tartibi: sudrang yoki ‹ › tugmalari bilan suring.</span></p>
+        )}
         {!card && <section className={`composer-album count-${Math.min(slots.length, 10)}`} aria-label="Rasm va videolar">
           {slots.map((slot, i) => (
-            <div className={`composer-slot${slot.error ? " has-error" : ""}`} key={slot.key}>
+            <div
+              className={`composer-slot${slot.error ? " has-error" : ""}${dragKey === slot.key ? " is-dragging" : ""}`}
+              key={slot.key}
+              draggable={slots.length > 1}
+              onDragStart={(e) => { setDragKey(slot.key); e.dataTransfer.effectAllowed = "move"; }}
+              onDragOver={(e) => { if (dragKey) e.preventDefault(); }}
+              onDrop={(e) => { e.preventDefault(); if (dragKey) reorder(dragKey, slot.key); setDragKey(null); }}
+              onDragEnd={() => setDragKey(null)}
+            >
+              {slots.length > 1 && <span className="composer-slot-num" aria-label={`${i + 1}-o‘rin`}>{i + 1}</span>}
               {slot.kind === "video"
                 ? <video src={slot.item ? `${mediaSrc(slot.item)}#t=0.1` : slot.preview} muted playsInline preload="metadata" />
                 : <img src={slot.item ? mediaSrc(slot.item) : slot.preview} alt="" />}
@@ -200,10 +224,14 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
                 </button>
               )}
               <div className="composer-slot-tools">
-                {slots.length > 1 && i > 0 && <button type="button" onClick={() => move(slot.key, -1)} aria-label="Oldinga surish">‹</button>}
-                {slots.length > 1 && i < slots.length - 1 && <button type="button" onClick={() => move(slot.key, 1)} aria-label="Orqaga surish">›</button>}
                 <button type="button" onClick={() => remove(slot.key)} aria-label="Olib tashlash"><X size={15} /></button>
               </div>
+              {slots.length > 1 && (
+                <div className="composer-slot-move">
+                  <button type="button" onClick={() => move(slot.key, -1)} disabled={i === 0} aria-label={`${i + 1}-rasmni oldinga surish`}>‹</button>
+                  <button type="button" onClick={() => move(slot.key, 1)} disabled={i === slots.length - 1} aria-label={`${i + 1}-rasmni orqaga surish`}>›</button>
+                </div>
+              )}
             </div>
           ))}
           {slots.length < COMMUNITY_LIMITS.attachments && (
