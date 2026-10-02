@@ -10,6 +10,7 @@ import "./community/community.css";
 import "./talks.css";
 import "./store.css";
 import "./naqsh.css";
+import "./live-room.css";
 
 export const metadata: Metadata = {
   title: "Bir Ilm — kitobxonlik ilovasi",

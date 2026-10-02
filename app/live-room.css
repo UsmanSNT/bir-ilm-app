@@ -1,0 +1,156 @@
+/*
+ * Jonli suhbat xonasi — "Naqsh" tungi ko'rinishi.
+ * Eski qoidalar globals.css/talks.css da; bu fayl layout'da OXIRIDA ulanadi va ularni bekor qiladi.
+ * Ranglar naqsh.css'dagi o'zgaruvchilardan (lojuvard, firuza, tilla, anor).
+ */
+
+.live-overlay { padding: 14px; background: radial-gradient(120% 80% at 50% 0%, #1d2d6c 0%, #0b1230 70%); }
+.live-overlay .live-window {
+  position: relative; width: min(100%, 460px); border-radius: 30px; color: #f1efff;
+  background: linear-gradient(180deg, #17235c 0%, #0f1842 46%, #0a1030 100%);
+  border: 1px solid #e2b65c3d; box-shadow: 0 30px 80px -24px #000c, inset 0 1px 0 #ffffff14;
+}
+.live-overlay .live-window::before { content: ""; position: absolute; inset: 0; z-index: 0; background: var(--girih) center / 64px; opacity: .1; pointer-events: none; }
+.live-overlay .live-window > * { position: relative; z-index: 1; }
+
+/* ───────── Sarlavha ───────── */
+.live-overlay .live-topbar { height: auto; flex-direction: column; align-items: stretch; gap: 0; padding: 14px 16px 14px; border-bottom: 0; }
+.live-overlay .live-topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--koshin) repeat-x; background-size: 28px 6px; opacity: .85; }
+.live-topbar-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.live-overlay .live-plain-btn { width: 40px; height: 40px; flex: none; padding: 0; border-radius: 50%; background: #ffffff14; color: #fff; transition: background .15s; }
+.live-overlay .live-plain-btn:hover { background: #ffffff26; }
+.live-overlay .live-room-title { gap: 2px; }
+.live-overlay .live-room-title strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: #fff; font: 600 20px/1.12 var(--f-display); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.live-overlay .live-room-title span { overflow: hidden; color: #aab4e6; font-size: 12.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.live-overlay .live-count { flex: none; gap: 6px; padding: 7px 12px; border-radius: 999px; background: #ffffff14; color: #eceaff; font-size: 13px; font-weight: 800; box-shadow: inset 0 0 0 1px #ffffff1a; }
+
+.live-status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 6px; }
+.live-status-spacer { flex: 1 1 0; min-width: 0; }
+.live-overlay .live-indicator, .live-overlay .live-rec, .live-overlay .live-planned, .live-ended-chip, .live-media-pill {
+  display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 800; letter-spacing: .06em; white-space: nowrap; box-shadow: inset 0 0 0 1px #ffffff1f;
+}
+.live-overlay .live-indicator { background: #e521362e; color: #ffb3bb; box-shadow: inset 0 0 0 1px #e5213655; }
+.live-overlay .live-indicator i, .live-overlay .live-rec i, .live-media-pill i { width: 8px; height: 8px; flex: none; border-radius: 50%; background: #ff4d5e; }
+.live-overlay .live-rec { background: #ffffff14; color: #ffd6da; font-variant-numeric: tabular-nums; }
+.live-overlay .live-rec.paused { background: #e2b65c26; color: var(--tilla-2); }
+.live-overlay .live-rec.paused i { background: var(--tilla-2); animation: none; }
+.live-overlay .live-planned { background: #e2b65c2e; color: var(--tilla-2); box-shadow: inset 0 0 0 1px #e2b65c66; letter-spacing: .04em; }
+.live-ended-chip { background: #ffffff14; color: #c3c9ea; }
+.live-media-pill { background: #ffffff0f; color: #d6dbf7; letter-spacing: .02em; font-weight: 700; }
+.live-media-pill.media-connected i { background: #3ddc97; box-shadow: 0 0 0 3px #3ddc9733; }
+.live-media-pill.media-connecting i, .live-media-pill.media-idle i { background: var(--tilla-2); }
+.live-media-pill.media-error i { background: #ff4d5e; }
+.live-media-pill.media-none i { background: #7d89c0; }
+.live-overlay .live-admin-btn { height: 34px; gap: 6px; padding: 0 16px; border-radius: 999px; font-size: 12.5px; font-weight: 800; }
+.live-overlay .live-admin-btn.start { background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 40%, var(--tilla)); color: var(--lojuvard-3); box-shadow: 0 1px 0 #fff8 inset, 0 8px 18px -10px #000; }
+.live-overlay .live-admin-btn.end { background: #e0303e1f; color: #ffb3bb; box-shadow: inset 0 0 0 1.5px #e0303e88; }
+.live-overlay .live-admin-btn.end:hover { background: #e0303e; color: #fff; }
+
+.live-overlay .live-status-banner.ended { margin: 6px 14px 0; padding: 10px 14px; border: 0; border-radius: 14px; background: #ffffff12; color: #cfd5f5; font-size: 12.5px; }
+.live-overlay .live-mod-hint { margin: 4px 14px 0; padding: 7px 12px; border: 0; border-radius: 12px; background: #ffffff0d; color: #b9c2ee; font-size: 11.5px; }
+
+/* ───────── Qatnashchilar ───────── */
+.live-overlay .live-main { background: none; }
+.live-overlay .live-audio-view { padding: 16px 16px 22px; }
+.live-overlay .live-audio-view h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--tilla-2); font: 800 11.5px/1 var(--f-ui); letter-spacing: .16em; text-transform: uppercase; }
+.live-overlay .live-audio-view h3::before { content: ""; width: 9px; height: 9px; flex: none; background: currentColor; clip-path: var(--star); }
+.live-empty { margin: 0 0 22px; padding: 14px; border-radius: 16px; background: #ffffff0a; color: #8f9ac9; font-size: 13px; font-weight: 600; text-align: center; box-shadow: inset 0 0 0 1px #ffffff12; }
+.live-overlay .live-audio-view > .live-empty { margin-top: -2px; }
+
+.live-overlay .live-speakers { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); justify-content: stretch; gap: 12px; margin-bottom: 26px; }
+.live-overlay .live-speakers > div { gap: 7px; min-width: 0; padding: 18px 10px 14px; border-radius: 22px; background: #ffffff0f; box-shadow: inset 0 0 0 1px #e2b65c2e; transition: background .15s, box-shadow .2s; }
+.live-overlay .live-speakers > div.selectable:hover { background: #ffffff1a; }
+.live-overlay .live-speakers .live-avatar-circle { width: 76px; font-size: 30px; outline: 2px solid var(--tilla-2); outline-offset: 3px; box-shadow: 0 8px 18px -8px #000a; }
+.live-overlay .live-speakers > div.speaking { background: #17a2a01f; box-shadow: inset 0 0 0 1.5px #17a2a0aa; }
+.live-overlay .live-speakers > div.speaking .live-avatar-circle { outline-color: #3ddc97; box-shadow: 0 0 0 7px #3ddc9733; animation: live-speak 1.4s ease-in-out infinite; }
+.live-overlay .live-speakers strong, .live-overlay .live-listeners strong { max-width: 100%; overflow: hidden; color: #fff; font-size: 13px; font-weight: 700; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.live-overlay .live-speakers small { padding: 3px 10px; border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2)); color: var(--lojuvard-3); font-size: 10.5px; font-weight: 800; letter-spacing: .03em; }
+.live-overlay .live-person-icons svg { color: #8f9ac9; }
+.live-overlay .live-person-icons svg.lucide-camera { color: #3ddc97; }
+
+.live-overlay .live-listeners { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 16px 8px; }
+.live-overlay .live-listeners > div { gap: 6px; min-width: 0; }
+.live-overlay .live-listeners .live-avatar-circle { width: 54px; font-size: 21px; box-shadow: 0 6px 14px -8px #000a; }
+.live-overlay .live-listeners strong { font-size: 12px; font-weight: 600; color: #dfe3fa; }
+.live-overlay .live-listeners svg { color: #7d89c0; }
+.live-overlay .live-listeners svg.lucide-hand { color: var(--tilla-2); }
+.live-overlay .live-listeners > div.selectable:hover .live-avatar-circle { outline: 2px solid #ffffff55; outline-offset: 2px; }
+
+.live-overlay .live-queue { margin: 22px auto 4px; padding: 9px 14px; border-radius: 999px; background: #e2b65c24; color: var(--tilla-2); font-size: 12.5px; font-weight: 700; box-shadow: inset 0 0 0 1px #e2b65c55; }
+.live-overlay .live-hand-queue { margin: 0 0 20px; padding: 14px; border: 0; border-radius: 18px; background: #e2b65c1f; box-shadow: inset 0 0 0 1px #e2b65c55; }
+.live-overlay .live-hand-queue h3 { margin-bottom: 8px !important; }
+.live-overlay .live-hand-queue > div { padding: 6px 0; color: #fff; }
+.live-overlay .live-hand-queue button { padding: 8px 14px; border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2)); color: var(--lojuvard-3); font-weight: 800; }
+
+/* Kamera va ekran sahnasi */
+.live-overlay .live-stage, .live-overlay .live-camera-strip { background: #070b22; }
+.live-overlay .live-video-tile { border-radius: 14px; background: #131a45; }
+.live-overlay .live-video-tile.speaking { outline-color: #3ddc97; }
+.live-overlay .live-share-banner { background: #0f1842; border-bottom: 1px solid #e2b65c33; }
+
+/* ───────── Pastki boshqaruv ───────── */
+.live-tools { display: flex; flex: none; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 6px 14px 0; }
+.live-tools button { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: #ffffff12; color: #e6e9ff; font-size: 12.5px; font-weight: 700; box-shadow: inset 0 0 0 1px #ffffff1f; transition: background .15s; }
+.live-tools button:hover:not(:disabled) { background: #ffffff22; }
+.live-tools button.active { background: #e5213633; color: #ffd0d5; box-shadow: inset 0 0 0 1px #e5213677; }
+.live-tools button.pending { opacity: .6; }
+.live-tools button:disabled { cursor: not-allowed; opacity: .38; }
+
+.live-overlay .live-controls { border-top: 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); }
+.live-overlay .live-control-actions { align-items: flex-end; justify-content: space-between; gap: 2px; padding: 10px 8px 9px; border-radius: 30px; background: #ffffff14; box-shadow: inset 0 0 0 1px #e2b65c3d, 0 14px 30px -16px #000; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.live-overlay .live-control-actions button { gap: 6px; color: #e9ecff; }
+.live-overlay .live-control-actions button span { width: 48px; height: 48px; background: #ffffff1a; color: #fff; box-shadow: inset 0 0 0 1px #ffffff14; transition: background .15s, transform .12s; }
+.live-overlay .live-control-actions button:hover:not(:disabled) span { background: #ffffff2c; }
+.live-overlay .live-control-actions button:active:not(:disabled) span { transform: scale(.94); }
+.live-overlay .live-control-actions button:first-child span { width: 56px; height: 56px; }
+.live-overlay .live-control-actions button.active span { background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 45%, var(--tilla)); color: var(--lojuvard-3); box-shadow: 0 6px 16px -8px #000; }
+.live-overlay .live-control-actions button.live-hangup span { background: #e0303e; color: #fff; box-shadow: 0 6px 16px -8px #e0303e; }
+.live-overlay .live-control-actions small { max-width: 64px; color: #c9d0f2; font-size: 10.5px; font-weight: 700; line-height: 1.15; }
+.live-overlay .live-control-actions button:disabled { opacity: .38; }
+
+.live-overlay .live-toast { top: 12px; bottom: auto; padding: 10px 16px; border-radius: 999px; background: #070b22ec; color: #fff; font-weight: 700; box-shadow: 0 10px 28px -10px #000, inset 0 0 0 1px #e2b65c55; backdrop-filter: blur(8px); }
+.live-overlay .live-audio-unlock { bottom: 14px; border: 0; border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2)); color: var(--lojuvard-3); font-weight: 800; }
+
+/* Kutish paneli (suhbat boshlanmagan) — qorong'i fonda ajralib tursin */
+.live-overlay .live-waiting { margin: 4px 14px 0; background: linear-gradient(120deg, #22397f, #2c4398 60%, #22397f); box-shadow: inset 0 0 0 1px #e2b65c4d, 0 14px 30px -18px #000; }
+
+/* ───────── Izohlar paneli va oynalar: o'qish uchun qog'oz ko'rinishi ───────── */
+.live-overlay .live-comments { background: var(--sahifa); color: var(--siyoh); border-radius: 26px 26px 0 0; box-shadow: 0 -16px 40px -16px #000a; }
+.live-overlay .live-comments-head { position: relative; height: 62px; font: 600 18px var(--f-display); color: var(--siyoh); }
+.live-overlay .live-comments-head::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--koshin) repeat-x; background-size: 28px 6px; opacity: .8; }
+.live-overlay .live-comments .live-plain-btn { background: var(--qogoz-2); color: var(--siyoh); }
+.live-overlay .live-comment-list { padding: 18px 16px; gap: 18px; }
+.live-overlay .live-comment { font-size: 13.5px; }
+.live-overlay .live-comment strong { color: var(--siyoh); }
+.live-overlay .live-comment time { color: var(--siyoh-3); }
+.live-overlay .live-comment p { color: var(--siyoh-2); }
+.live-overlay .live-comment-form { margin: 8px 12px 14px; border: 1.5px solid var(--chiziq); border-radius: 999px; background: var(--qogoz); }
+.live-overlay .live-comment-form input { color: var(--siyoh); font-size: 14px; }
+.live-overlay .live-comment-form button { width: 38px; height: 38px; background: var(--lojuvard); }
+.live-overlay .live-comments .muted, .live-overlay .live-comments-closed { color: var(--siyoh-3); }
+.live-overlay .live-sheet-backdrop { background: #070b2299; }
+.live-overlay .live-sheet { padding: 18px 16px 14px; border-radius: 26px 26px 0 0; background: var(--sahifa); color: var(--siyoh); }
+.live-overlay .live-sheet-head { border-bottom-color: var(--chiziq); }
+.live-overlay .live-sheet-head small { color: var(--siyoh-3); }
+.live-overlay .live-sheet button { border-radius: 14px; background: var(--qogoz); color: var(--siyoh); font-weight: 700; }
+.live-overlay .live-sheet button.danger { background: var(--anor-och); color: var(--anor); }
+.live-overlay .live-sheet button.ghost { background: none; color: var(--siyoh-3); }
+.live-overlay .live-devices button.on { background: var(--lojuvard); color: #fff; }
+
+/* ───────── Animatsiya va moslashuv ───────── */
+@keyframes live-speak { 50% { box-shadow: 0 0 0 11px #3ddc9722; } }
+@media (prefers-reduced-motion: reduce) {
+  .live-overlay .live-speakers > div.speaking .live-avatar-circle { animation: none; }
+}
+@media (max-width: 500px) {
+  .live-overlay { padding: 0; }
+  .live-overlay .live-window { width: 100%; border: 0; border-radius: 0; }
+  .live-overlay .live-room-title strong { font-size: 19px; }
+  .live-overlay .live-speakers { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 360px) {
+  .live-overlay .live-control-actions button span { width: 42px; height: 42px; }
+  .live-overlay .live-control-actions button:first-child span { width: 50px; height: 50px; }
+  .live-overlay .live-control-actions small { font-size: 9.5px; max-width: 54px; }
+}

@@ -90,3 +90,7 @@ Qiymatni qo‘shtirnoq ichida yozing (`%`, `&`, `!` belgilari cmd'ni buzmasin). 
 - Kichraytirilgan suhbat panelida va Suhbatlar ro‘yxatidagi kartada (24 soatdan kam qolganda) ham jonli hisoblagich bor.
 - Hisoblagich qurilmaning soatiga tayanadi (boshlanish vaqti esa serverdan keladi); qurilma soati noto‘g‘ri bo‘lsa, hisoblagich shuncha farq qiladi.
 - Test: `node tests/talk-countdown.mjs`.
+
+## Suhbat xonasi ko‘rinishi
+
+Jonli suhbat xonasi "Naqsh" tungi uslubida: sarlavhada kitob nomi va qatnashchilar soni, ostida holat chiplari (**LIVE**, **REC** + vaqt, **Boshlanmagan**, ovoz holati: «Ovoz ulangan» / «Faqat izohlar»), admin uchun «Boshlash» / «Tugatish». So‘zlovchilar katta kartalarda (gapirayotganning atrofida yashil halqa), tinglovchilar ixcham ro‘yxatda, qo‘l ko‘targanlar alohida «Navbatda» kartasida. Pastda suzuvchi panel: Mikrofon, Kamera, Ekran ulashish, Izohlar, Chiqish; admin uchun ustida qo‘shimcha amallar (Qurilma, Yozib olish, Pauza). Izohlar va moderator oynalari o‘qish uchun qog‘oz rangida. Uslublar: `app/live-room.css`.

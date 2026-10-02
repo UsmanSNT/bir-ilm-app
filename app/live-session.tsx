@@ -56,10 +56,11 @@ function timeStr(iso: string) {
   });
 }
 
+// Naqsh ranglari: oq harf bilan kontrasti yetarli (WCAG AA), efir foniga mos.
 const AVATAR_COLORS = [
-  "#0b6148", "#1a73e8", "#e8710a", "#9334e6",
-  "#c5221f", "#0d652d", "#8430ce", "#d93025",
-  "#188038", "#1967d2", "#a142f4", "#e37400",
+  "#2c4398", "#0d7a79", "#b83a2f", "#a8741a",
+  "#5b4a8b", "#0b6a68", "#8e3b34", "#3b5bb5",
+  "#7a5a0c", "#2f6f8f", "#7d3c98", "#1e2f6e",
 ];
 
 function avatarColor(name: string): string {
@@ -461,11 +462,11 @@ export default function LiveSession({
   const publishLocked = av.status !== "connected" || !av.canPublish;
   const lockedHint = av.status !== "connected" ? "Ovoz/video serveriga ulanilmagan" : "So'z berilganda yoqiladi";
   const recording = Boolean(sessionData?.recording);
-  const controls: Array<{ label: string; icon: typeof Mic; active: boolean; disabled: boolean; pending: boolean; action: () => unknown; hint?: string }> = [
+  const controls: Array<{ label: string; icon: typeof Mic; active: boolean; disabled: boolean; pending: boolean; action: () => unknown; hint?: string; tool?: boolean }> = [
     { label: "Mikrofon", icon: av.micOn ? Mic : MicOff, active: av.micOn, disabled: publishLocked, pending: av.busy === "mic", action: av.toggleMic },
     { label: "Kamera", icon: av.cameraOn ? Camera : CameraOff, active: av.cameraOn, disabled: publishLocked, pending: av.busy === "camera", action: av.toggleCamera },
     { label: "Ekran ulashish", icon: MonitorUp, active: av.screenOn, disabled: publishLocked, pending: av.busy === "screen", action: av.toggleScreen },
-    { label: "Qurilma", icon: Settings2, active: devicesOpen, disabled: publishLocked, pending: false, action: openDevices },
+    { label: "Qurilma", icon: Settings2, active: devicesOpen, disabled: publishLocked, pending: false, action: openDevices, tool: true },
     ...(canMod
       ? []
       : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, disabled: false, pending: false, action: toggleHand }]),
@@ -479,6 +480,7 @@ export default function LiveSession({
           pending: recBusy,
           action: () => (recording ? finishRecording() : startRecording()),
           hint: status !== "live" ? "Suhbat boshlangach yozib olinadi" : "Ovoz serveriga ulanilmagan",
+          tool: true,
         }]
       : []),
     ...(roomAdmin && recording && ownRecording
@@ -489,6 +491,7 @@ export default function LiveSession({
           disabled: recBusy,
           pending: false,
           action: toggleRecordingPause,
+          tool: true,
         }]
       : []),
   ];
@@ -521,35 +524,47 @@ export default function LiveSession({
       <div className="live-overlay" role="dialog" aria-modal="true" aria-label={`${bookTitle} jonli suhbat`}>
         <div className="live-window">
           <header className="live-topbar">
-            <button className="live-plain-btn" aria-label="Suhbat oynasini kichraytirish" title="Kichraytirish — suhbatda qolasiz" onClick={() => setMinimized(true)}>
-              <ArrowLeft size={22} />
-            </button>
-            <div className="live-room-title">
-              <strong>{bookTitle}</strong>
-              <span>{sessionTitle}</span>
+            <div className="live-topbar-main">
+              <button className="live-plain-btn" aria-label="Suhbat oynasini kichraytirish" title="Kichraytirish — suhbatda qolasiz" onClick={() => setMinimized(true)}>
+                <ArrowLeft size={22} />
+              </button>
+              <div className="live-room-title">
+                <strong>{bookTitle}</strong>
+                <span>{sessionTitle}</span>
+              </div>
+              <span className="live-count" title="Qatnashchilar soni"><Users size={15} /> {participantCount}</span>
             </div>
-            {status === "live" && (
-              <span className="live-indicator"><i /> LIVE</span>
-            )}
-            {status === "planned" && (
-              <span className="live-planned" title="Suhbat hali boshlanmagan">Boshlanmagan</span>
-            )}
-            {recording && (
-              <span className={`live-rec${recPaused ? " paused" : ""}`} title={recPaused ? "Yozuv pauzada" : "Suhbat yozib olinmoqda"}>
-                <i /> {recPaused ? "PAUZA" : "REC"}{ownRecording ? ` ${clockOf(recElapsed)}` : ""}
+            <div className="live-status-row">
+              {status === "live" && (
+                <span className="live-indicator"><i /> LIVE</span>
+              )}
+              {status === "planned" && (
+                <span className="live-planned" title="Suhbat hali boshlanmagan">Boshlanmagan</span>
+              )}
+              {status === "ended" && <span className="live-ended-chip">Tugagan</span>}
+              {recording && (
+                <span className={`live-rec${recPaused ? " paused" : ""}`} title={recPaused ? "Yozuv pauzada" : "Suhbat yozib olinmoqda"}>
+                  <i /> {recPaused ? "PAUZA" : "REC"}{ownRecording ? ` ${clockOf(recElapsed)}` : ""}
+                </span>
+              )}
+              <span
+                className={`live-media-pill media-${media ? av.status : "none"}`}
+                title={!media ? "Ovoz va video serveri sozlanmagan — faqat izohlar ishlaydi." : av.status === "connected" ? (av.canPublish ? "Ovoz/video ulangan." : "Ovoz/video ulangan. Gapirish uchun qo'l ko'taring.") : av.status === "error" ? "Ovoz/video serveriga ulanib bo'lmadi." : "Ovoz/video ulanmoqda…"}
+              >
+                <i />{!media ? "Faqat izohlar" : av.status === "connected" ? "Ovoz ulangan" : av.status === "error" ? "Ovoz uzildi" : "Ulanmoqda…"}
               </span>
-            )}
-            {roomAdmin && status === "planned" && (
-              <button className="live-admin-btn start" onClick={() => { autoRecord.current = true; clientRef.current?.startSession(); }}>
-                <Play size={13} /> Boshlash
-              </button>
-            )}
-            {roomAdmin && status === "live" && (
-              <button className="live-admin-btn end" onClick={async () => { await finishRecording(); clientRef.current?.endSession(); }}>
-                <Square size={12} /> Tugatish
-              </button>
-            )}
-            <span className="live-count"><Users size={14} /> {participantCount}</span>
+              <span className="live-status-spacer" />
+              {roomAdmin && status === "planned" && (
+                <button className="live-admin-btn start" onClick={() => { autoRecord.current = true; clientRef.current?.startSession(); }}>
+                  <Play size={13} /> Boshlash
+                </button>
+              )}
+              {roomAdmin && status === "live" && (
+                <button className="live-admin-btn end" onClick={async () => { await finishRecording(); clientRef.current?.endSession(); }}>
+                  <Square size={12} /> Tugatish
+                </button>
+              )}
+            </div>
           </header>
 
           {connState === "joined" && status === "planned" && sessionData && (
@@ -648,10 +663,11 @@ export default function LiveSession({
                       );
                     })}
                     {speakers.length === 0 && (
-                      <p className="muted" style={{ fontSize: 12 }}>Hali so&apos;zlovchi yo&apos;q</p>
+                      <p className="live-empty">Hali so&apos;zlovchi yo&apos;q</p>
                     )}
                   </div>
                   <h3>Tinglovchilar ({listenersList.length})</h3>
+                  {listenersList.length === 0 && <p className="live-empty">Hozircha tinglovchi yo&apos;q</p>}
                   <div className="live-listeners">
                     {listenersList.map((p) => (
                       <div key={p.userId} onClick={() => pick(p)} className={selectable(p) ? "selectable" : ""}>
@@ -797,9 +813,26 @@ export default function LiveSession({
           </div>
 
           {/* ── Boshqaruv paneli ── */}
+          {controls.some((c) => c.tool) && (
+            <div className="live-tools" role="toolbar" aria-label="Qo'shimcha amallar">
+              {controls.filter((c) => c.tool).map(({ label, icon: Icon, active, disabled, pending, action, hint }) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={`${active ? "active" : ""}${pending ? " pending" : ""}`}
+                  onClick={action}
+                  disabled={disabled || pending}
+                  aria-busy={pending}
+                  title={disabled ? hint ?? lockedHint : label}
+                >
+                  <Icon size={16} />{label}
+                </button>
+              ))}
+            </div>
+          )}
           <footer className="live-controls">
             <div className="live-control-actions">
-              {controls.map(({ label, icon: Icon, active, disabled, pending, action, hint }) => (
+              {controls.filter((c) => !c.tool).map(({ label, icon: Icon, active, disabled, pending, action, hint }) => (
                 <button
                   className={`${active ? "active" : ""}${pending ? " pending" : ""}`}
                   key={label}
@@ -809,23 +842,16 @@ export default function LiveSession({
                   aria-busy={pending}
                   title={disabled ? hint ?? lockedHint : pending ? "Yoqilmoqda…" : label}
                 >
-                  <span><Icon size={20} /></span>
+                  <span><Icon size={21} /></span>
                   <small>{label}</small>
                 </button>
               ))}
               <button className="live-hangup" onClick={leaveSession} aria-label="Suhbatdan chiqish" title="Suhbatdan chiqish">
-                <span><LogOut size={20} /></span>
+                <span><LogOut size={21} /></span>
                 <small>Chiqish</small>
               </button>
             </div>
           </footer>
-          <p className={`live-demo-note media-${media ? av.status : "none"}`}>
-            {!media
-              ? "Ovoz va video serveri sozlanmagan — faqat izohlar ishlaydi."
-              : av.status === "connected"
-                ? av.canPublish ? "Ovoz/video ulangan." : "Ovoz/video ulangan. Gapirish uchun qo'l ko'taring."
-                : av.status === "error" ? "Ovoz/video serveriga ulanib bo'lmadi." : "Ovoz/video ulanmoqda…"}
-          </p>
         </div>
       </div>
       , document.body);
