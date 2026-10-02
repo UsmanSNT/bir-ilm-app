@@ -344,3 +344,28 @@ body .app-shell[hidden] { display: none; }
   .p-main-tabs button { flex: 1 1 0; min-width: 0; padding: 0 6px; font-size: 12.5px; }
   .p-main-tabs i { min-width: 18px; padding: 0 5px; font-size: 11px; }
 }
+
+/* Suhbat boshlanmagan: kutish paneli va hisoblagich */
+.live-planned { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--tilla-och); color: #6b4a12; font-size: 11px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+.live-waiting {
+  position: relative; isolation: isolate; overflow: hidden; flex: none;
+  display: grid; justify-items: center; gap: 8px; margin: 10px 12px 0; padding: 18px 16px 24px;
+  border-radius: var(--r-md); color: #f3eedf; text-align: center;
+  background: linear-gradient(120deg, var(--lojuvard-3), var(--lojuvard) 55%, #22397f);
+  box-shadow: var(--soya-1);
+}
+.live-waiting::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--girih) center / 64px; opacity: .18; }
+.live-waiting::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--koshin) repeat-x; background-size: 28px 6px; }
+.live-waiting-state { display: inline-flex; align-items: center; gap: 7px; margin: 0; color: var(--tilla-2); font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.live-waiting-title { margin: 0; color: #fff; font: 600 clamp(19px, 5vw, 26px)/1.15 var(--f-display); overflow-wrap: anywhere; }
+.live-waiting-when { display: inline-flex; align-items: center; gap: 6px; margin: 0; color: #cfcde3; font-size: 13px; font-weight: 700; }
+.live-waiting-timer { display: flex; justify-content: center; gap: 8px; margin: 6px 0 2px; }
+.live-waiting-timer > span { display: grid; justify-items: center; gap: 2px; min-width: 62px; padding: 10px 6px 8px; border-radius: 14px; background: #ffffff14; box-shadow: inset 0 0 0 1px #e2b65c55; }
+.live-waiting-timer b { font: 600 clamp(26px, 8vw, 38px)/1 var(--f-display); font-variant-numeric: tabular-nums; color: #fff; }
+.live-waiting-timer small { color: var(--tilla-2); font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.live-waiting-hint { margin: 0; color: #cfcde3; font-size: 12.5px; }
+.live-waiting-due { display: grid; gap: 2px; margin: 6px 0 2px; padding: 12px 16px; border-radius: 14px; background: #ffffff14; box-shadow: inset 0 0 0 1px #e2b65c55; }
+.live-waiting-due strong { color: var(--tilla-2); font: 600 20px var(--f-display); }
+.live-waiting-due span { color: #e6e3f4; font-size: 13px; }
+.live-waiting-start { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; margin-top: 6px; padding: 0 22px; border: 0; border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 40%, var(--tilla)); color: var(--lojuvard-3); font-weight: 800; box-shadow: 0 1px 0 #fff8 inset, 0 10px 22px -12px #000; }
+@media (max-width: 420px) { .live-waiting-timer { gap: 5px; } .live-waiting-timer > span { min-width: 54px; padding-inline: 4px; } }

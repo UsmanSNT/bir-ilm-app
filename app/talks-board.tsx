@@ -1,5 +1,6 @@
 "use client";
 
+import { TalkCountdownText } from "./talk-waiting";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Bell,
@@ -24,7 +25,7 @@ import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
 import type { LiveSession } from "@/shared/contract/live";
 import TalkManage, { length } from "./talk-manage";
-import { WEEKDAYS, clock, dayMonth, toggleTalkReminder, useTalkReminders } from "./talk-format";
+import { WEEKDAYS, clock, dayMonth, toggleTalkReminder, useNow, useTalkReminders } from "./talk-format";
 
 // Suhbatlar bo'limining asosiy oynasi (xonaga kirishdan oldingi holat).
 
@@ -52,6 +53,15 @@ function untilLabel(iso: string) {
   if (days <= 0) return "Bugun";
   if (days === 1) return "Ertaga";
   return `${days} kundan keyin`;
+}
+
+/** Kartada: 24 soatdan kam qolsa — jonli hisoblagich, aks holda "Ertaga" / "N kundan keyin". */
+function UntilText({ iso }: { iso: string }) {
+  const now = useNow(60_000);
+  const left = Date.parse(iso) - now;
+  if (left > 0 && left < 86_400_000) return <>Boshlanishiga <TalkCountdownText scheduledAt={iso} /></>;
+  if (left <= 0) return <>Boshlanishi kutilmoqda</>;
+  return <>{untilLabel(iso)}</>;
 }
 
 // To'lqin chizig'i suhbat id'sidan hosil bo'ladi — har safar bir xil ko'rinadi.
@@ -203,7 +213,7 @@ export default function TalksBoard({
               {live || s.participantCount > 0 ? (
                 <><Users size={16} /> {s.participantCount} kishi qatnashmoqda</>
               ) : (
-                <><Clock3 size={16} /> {untilLabel(s.scheduledAt)}</>
+                <><Clock3 size={16} /> <UntilText iso={s.scheduledAt} /></>
               )}
             </span>
             {isAdmin && (

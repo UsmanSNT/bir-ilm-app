@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { LiveSession } from "@/shared/contract/live";
 
 // Suhbatlar uchun umumiy: sana ko'rinishi, e'lon matni va eslatmalar (Suhbatlar va Home).
@@ -21,6 +21,54 @@ export function countdown(iso: string, now = Date.now()) {
   if (days) return `${days} kun ${hours} soat qoldi`;
   if (hours) return `${hours} soat ${minutes % 60} daqiqa qoldi`;
   return `${minutes} daqiqa qoldi`;
+}
+
+export type CountdownParts = {
+  /** Boshlanish vaqti keldi yoki o'tdi. */
+  done: boolean;
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  /** Boshlanish vaqtidan necha millisekund o'tgan (kechikish); done bo'lmasa 0. */
+  lateMs: number;
+};
+
+/** Boshlanishigacha kun/soat/daqiqa/soniya. Noto'g'ri sana yoki o'tib ketgan vaqt — `done`. */
+export function countdownParts(iso: string, now = Date.now()): CountdownParts {
+  const target = Date.parse(iso);
+  if (Number.isNaN(target) || target <= now) {
+    return { done: true, days: 0, hours: 0, minutes: 0, seconds: 0, lateMs: Number.isNaN(target) ? 0 : now - target };
+  }
+  const total = Math.ceil((target - now) / 1000);
+  return {
+    done: false,
+    days: Math.floor(total / 86_400),
+    hours: Math.floor((total % 86_400) / 3600),
+    minutes: Math.floor((total % 3600) / 60),
+    seconds: total % 60,
+    lateMs: 0,
+  };
+}
+
+const two = (n: number) => String(n).padStart(2, "0");
+
+/** Qisqa ko'rinish: "2 kun 05:10:03" yoki "12:03" (soatsiz). */
+export function countdownShort(iso: string, now = Date.now()): string {
+  const c = countdownParts(iso, now);
+  if (c.done) return "Boshlanishi kutilmoqda";
+  const time = c.hours || c.days ? `${two(c.hours)}:${two(c.minutes)}:${two(c.seconds)}` : `${two(c.minutes)}:${two(c.seconds)}`;
+  return c.days ? `${c.days} kun ${time}` : time;
+}
+
+/** Hozirgi vaqt: har `intervalMs` da yangilanadi (hisoblagichlar uchun). Faqat kerakli komponentda ishlating. */
+export function useNow(intervalMs = 1000): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
 }
 
 /** Bosh sahifa yangiliklari va qo'ng'iroqcha uchun e'lon (vaqt foydalanuvchining mahalliy vaqtida). */

@@ -38,6 +38,7 @@ import { RoomRecorder, recordingSupported, saveRecordingFile } from "@/lib/api/l
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import LoginCard from "./login-card";
 import TalksBoard from "./talks-board";
+import TalkWaiting, { TalkCountdownText } from "./talk-waiting";
 import { TALKS_CHANGED, notifyTalksChanged, talkAnnouncement } from "./talk-format";
 import { useCatalog } from "@/lib/api/books-client";
 import type {
@@ -530,6 +531,9 @@ export default function LiveSession({
             {status === "live" && (
               <span className="live-indicator"><i /> LIVE</span>
             )}
+            {status === "planned" && (
+              <span className="live-planned" title="Suhbat hali boshlanmagan">Boshlanmagan</span>
+            )}
             {recording && (
               <span className={`live-rec${recPaused ? " paused" : ""}`} title={recPaused ? "Yozuv pauzada" : "Suhbat yozib olinmoqda"}>
                 <i /> {recPaused ? "PAUZA" : "REC"}{ownRecording ? ` ${clockOf(recElapsed)}` : ""}
@@ -548,14 +552,17 @@ export default function LiveSession({
             <span className="live-count"><Users size={14} /> {participantCount}</span>
           </header>
 
-          {connState === "joined" && status !== "live" && (
-            <div className={`live-status-banner ${status}`}>
-              {status === "planned"
-                ? roomAdmin
-                  ? "Suhbat hali boshlanmagan. Tayyor bo'lsangiz, \"Boshlash\"ni bosing."
-                  : "Suhbat hali boshlanmagan. Admin boshlashini kuting."
-                : "Suhbat tugadi. Izohlarni o'qishingiz mumkin."}
-            </div>
+          {connState === "joined" && status === "planned" && sessionData && (
+            <TalkWaiting
+              scheduledAt={sessionData.scheduledAt}
+              bookTitle={sessionData.bookTitle}
+              title={sessionData.title}
+              canStart={roomAdmin}
+              onStart={() => { autoRecord.current = true; clientRef.current?.startSession(); }}
+            />
+          )}
+          {connState === "joined" && status === "ended" && (
+            <div className="live-status-banner ended">Suhbat tugadi. Izohlarni o&apos;qishingiz mumkin.</div>
           )}
           {canMod && connState === "joined" && (
             <div className="live-mod-hint">
@@ -828,7 +835,7 @@ export default function LiveSession({
     <div className="live-minibar" role="status">
       <button type="button" className="live-minibar-open" onClick={() => setMinimized(false)}>
         <span className="live-minibar-dot" aria-hidden="true" />
-        <span><strong>{sessionData?.bookTitle ?? "Jonli suhbat"}</strong><small>{av.micOn ? "Mikrofon yoqiq · " : ""}Qaytish uchun bosing</small></span>
+        <span><strong>{sessionData?.bookTitle ?? "Jonli suhbat"}</strong><small>{sessionData?.status === "planned" ? <>Boshlanmagan · <TalkCountdownText scheduledAt={sessionData.scheduledAt} doneText="vaqti keldi" /> · </> : null}{av.micOn ? "Mikrofon yoqiq · " : ""}Qaytish uchun bosing</small></span>
       </button>
       <button type="button" className="live-minibar-mic" aria-label={av.micOn ? "Mikrofonni o'chirish" : "Mikrofonni yoqish"} disabled={!av.canPublish} onClick={av.toggleMic}>{av.micOn ? <Mic size={18} /> : <MicOff size={18} />}</button>
       <button type="button" className="live-minibar-leave" aria-label="Suhbatdan chiqish" onClick={leaveSession}><LogOut size={18} /></button>

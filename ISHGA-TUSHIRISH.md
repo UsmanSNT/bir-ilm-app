@@ -81,3 +81,12 @@ Qiymatni qo‘shtirnoq ichida yozing (`%`, `&`, `!` belgilari cmd'ni buzmasin). 
 **Google:** [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials) → *Create credentials → OAuth client ID* → *Web application*. *Authorized redirect URIs*: `https://birilm.uz/api/auth/google/callback`. OAuth consent screen'da ilova nomi va support email to‘ldiriladi. `GOOGLE_CLIENT_ID` va `GOOGLE_CLIENT_SECRET` shu yerdan.
 
 **Telegram:** [@BotFather](https://t.me/BotFather) → `/newbot` → token (`TELEGRAM_BOT_TOKEN`) va bot nomi (`TELEGRAM_BOT_USERNAME`, `@` siz). Keyin `/setdomain` → botni tanlang → `birilm.uz`. Telegram tugmasi faqat shu domenda ishlaydi.
+
+## Suhbat boshlanmagan: kutish paneli va hisoblagich
+
+- Suhbat xonasida u boshlanmaguncha **"Suhbat hali boshlanmagan"** paneli ko‘rinadi: kitob va suhbat nomi, sana va vaqt, boshlanishigacha **jonli hisoblagich** (kun, soat, daqiqa, soniya). Sarlavhada «Boshlanmagan» belgisi turadi.
+- Vaqt kelib, admin hali boshlamagan bo‘lsa: «Boshlanish vaqti keldi» va kechikish (necha daqiqa) ko‘rsatiladi. Admin shu panelning o‘zidan «Suhbatni boshlash» ni bosadi.
+- Admin boshlashi bilan panel o‘zi yo‘qoladi va «LIVE» belgisi chiqadi (sahifani yangilash shart emas).
+- Kichraytirilgan suhbat panelida va Suhbatlar ro‘yxatidagi kartada (24 soatdan kam qolganda) ham jonli hisoblagich bor.
+- Hisoblagich qurilmaning soatiga tayanadi (boshlanish vaqti esa serverdan keladi); qurilma soati noto‘g‘ri bo‘lsa, hisoblagich shuncha farq qiladi.
+- Test: `node tests/talk-countdown.mjs`.
