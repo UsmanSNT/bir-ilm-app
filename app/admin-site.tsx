@@ -1,10 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { Facebook, Instagram, Telegram, YouTube } from "./brand-icons";
 import { toast } from "sonner";
 import { notifySiteChanged, saveSiteLinks, useSiteLinks } from "@/lib/api/site-client";
-import { SOCIAL_KEYS, SOCIAL_LABELS, type SocialKey } from "@/shared/contract";
+import { SOCIAL_KEYS, SOCIAL_LABELS, type SiteLinks, type SocialKey } from "@/shared/contract";
 
 const ICONS = { telegram: Telegram, youtube: YouTube, instagram: Instagram, facebook: Facebook } as const;
 const HINTS: Record<SocialKey, string> = {
@@ -17,13 +17,14 @@ const HINTS: Record<SocialKey, string> = {
 /** Admin: Bir Ilm'ning ijtimoiy tarmoq havolalari. Bo'sh qoldirilgan tarmoq ilovada ko'rinmaydi. */
 export default function AdminSite() {
   const { value: links, loading } = useSiteLinks();
-  const [form, setForm] = useState<Record<SocialKey, string>>({ telegram: "", youtube: "", instagram: "", facebook: "" });
+  if (loading) return <p className="admin-empty">Yuklanmoqda…</p>;
+  return <LinksForm initial={links} />;
+}
+
+function LinksForm({ initial }: { initial: SiteLinks }) {
+  const [form, setForm] = useState<Record<SocialKey, string>>({ telegram: initial.telegram ?? "", youtube: initial.youtube ?? "", instagram: initial.instagram ?? "", facebook: initial.facebook ?? "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!loading) setForm({ telegram: links.telegram ?? "", youtube: links.youtube ?? "", instagram: links.instagram ?? "", facebook: links.facebook ?? "" });
-  }, [loading, links]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
