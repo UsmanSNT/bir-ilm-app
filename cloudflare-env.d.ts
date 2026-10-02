@@ -10,5 +10,10 @@ declare namespace Cloudflare {
     TELEGRAM_BOT_USERNAME?: string;
     RESEND_API_KEY?: string;
     MAIL_FROM?: string;
+    CALLS_APP_ID?: string;
+    CALLS_APP_TOKEN?: string;
+    TURN_KEY_ID?: string;
+    TURN_KEY_TOKEN?: string;
+    TALK_ADMINS?: string;
   }
 }

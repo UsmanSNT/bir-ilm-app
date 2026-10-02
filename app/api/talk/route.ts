@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
-import { activeBookId, books } from "@/app/app-data";
 import { authRequired, readerIdentity } from "@/lib/reader-identity";
+import { canStartTalk, ensureRoom } from "@/lib/talk";
 import { TALK_REACTIONS, type TalkMessage, type TalkParticipant, type TalkRole, type TalkState } from "@/app/talk-types";
 
 export const runtime = "edge";
@@ -9,27 +9,12 @@ const ONLINE_SECONDS = 40;
 const MAX_TEXT = 500;
 const roleOrder: Record<TalkRole, number> = { host: 0, speaker: 1, listener: 2 };
 
-/** Joriy xona: Toshkent vaqti bilan shu haftaning yakshanbasi 18:00 (UTC+5 → 13:00 UTC). */
-function currentRoom(now = new Date()) {
-  const tashkent = new Date(now.getTime() + 5 * 3600_000);
-  const sunday = new Date(Date.UTC(tashkent.getUTCFullYear(), tashkent.getUTCMonth(), tashkent.getUTCDate() + ((7 - tashkent.getUTCDay()) % 7)));
-  const id = sunday.toISOString().slice(0, 10);
-  const book = books.find(b => b.id === activeBookId) ?? books[0];
-  return { id, title: `${book.title} — birga tahlil qilamiz`, book: book.title, startsAt: `${id}T13:00:00.000Z` };
-}
-
-async function ensureRoom(db: D1Database) {
-  const r = currentRoom();
-  await db.prepare("INSERT OR IGNORE INTO talk_rooms (id, title, book, starts_at) VALUES (?,?,?,?)").bind(r.id, r.title, r.book, r.startsAt).run();
-  return (await db.prepare("SELECT id, title, book, starts_at AS startsAt, status, host_id AS hostId FROM talk_rooms WHERE id=?").bind(r.id).first<TalkState["room"]>())!;
-}
-
 const iso = (v: string) => (v.includes("T") ? v : `${v.replace(" ", "T")}Z`);
 
-async function snapshot(db: D1Database, room: TalkState["room"], userId: string, authed: boolean, after: number): Promise<TalkState> {
-  const participants = (await db.prepare(`SELECT p.user_id AS userId, u.name, p.role, p.hand FROM talk_participants p JOIN users u ON u.id=p.user_id WHERE p.room_id=? AND p.last_seen > datetime('now', '-${ONLINE_SECONDS} seconds')`)
-    .bind(room.id).all<{ userId: string; name: string; role: TalkRole; hand: number }>()).results
-    .map(p => ({ ...p, hand: !!p.hand }) as TalkParticipant)
+async function snapshot(db: D1Database, room: TalkState["room"], userId: string, authed: boolean, after: number, login: string | null = null): Promise<TalkState> {
+  const participants = (await db.prepare(`SELECT p.user_id AS userId, u.name, p.role, p.hand, p.mic, p.pub_audio AS audio, p.pub_video AS video, p.pub_screen AS screen FROM talk_participants p JOIN users u ON u.id=p.user_id WHERE p.room_id=? AND p.last_seen > datetime('now', '-${ONLINE_SECONDS} seconds')`)
+    .bind(room.id).all<{ userId: string; name: string; role: TalkRole; hand: number; mic: number; audio: number; video: number; screen: number }>()).results
+    .map(p => ({ ...p, hand: !!p.hand, mic: !!p.mic, audio: !!p.audio, video: !!p.video, screen: !!p.screen }) as TalkParticipant)
     .sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || Number(b.hand) - Number(a.hand) || a.name.localeCompare(b.name));
   // Birinchi so'rovda oxirgi 60 xabar, keyingilarida faqat yangilari.
   const rows = after > 0
@@ -38,20 +23,21 @@ async function snapshot(db: D1Database, room: TalkState["room"], userId: string,
   const mine = participants.find(p => p.userId === userId);
   return {
     room,
-    me: { userId, authed, joined: !!mine, role: mine?.role ?? null, hand: mine?.hand ?? false },
+    me: { userId, authed, joined: !!mine, role: mine?.role ?? null, hand: mine?.hand ?? false, canStart: authed && canStartTalk(login) },
+    media: !!(env.CALLS_APP_ID && env.CALLS_APP_TOKEN),
     participants,
     messages: rows.map(m => ({ ...m, createdAt: iso(m.createdAt) })),
   };
 }
 
 export async function GET(request: Request) {
-  const { id, headers, authed } = await readerIdentity(request);
+  const { id, headers, authed, login } = await readerIdentity(request);
   const db = env.DB;
   if (!db) return Response.json({ error: "Suhbat hozir mavjud emas." }, { status: 503, headers });
   const after = Math.max(0, Number(new URL(request.url).searchParams.get("after")) || 0);
   try {
     const room = await ensureRoom(db);
-    return Response.json(await snapshot(db, room, id, authed, after), { headers });
+    return Response.json(await snapshot(db, room, id, authed, after, login), { headers });
   } catch {
     return Response.json({ error: "Suhbat yuklanmadi." }, { status: 503, headers });
   }
@@ -60,7 +46,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return Response.json({ error: "So'rov rad etildi." }, { status: 403 });
-  const { id, headers, authed } = await readerIdentity(request);
+  const { id, headers, authed, login } = await readerIdentity(request);
   if (!authed) return authRequired(headers);
   const fail = (error: string, status = 400) => Response.json({ error }, { status, headers });
   const db = env.DB;
@@ -93,6 +79,22 @@ export async function POST(request: Request) {
       case "leave":
         if (me) await db.batch([db.prepare("DELETE FROM talk_participants WHERE room_id=? AND user_id=?").bind(room.id, id), system("left")]);
         break;
+      case "mic": {
+        if (!me) return fail("Avval xonaga kiring.", 409);
+        if (typeof p.on !== "boolean") return fail("So'rov noto'g'ri.");
+        if (p.on && me.role === "listener") return fail("Gapirish uchun moderator so'z berishi kerak.", 403);
+        await db.prepare("UPDATE talk_participants SET mic=?, last_seen=CURRENT_TIMESTAMP WHERE room_id=? AND user_id=?").bind(p.on ? 1 : 0, room.id, id).run();
+        break;
+      }
+      case "recording": {
+        if (!isHost) return fail("Faqat moderator yozib ola oladi.", 403);
+        if (p.state !== 0 && p.state !== 1 && p.state !== 2) return fail("So'rov noto'g'ri.");
+        await db.batch([
+          db.prepare("UPDATE talk_rooms SET recording=? WHERE id=?").bind(p.state, room.id),
+          ...(p.state === 1 && room.recording === 0 ? [system("rec_on")] : p.state === 0 && room.recording !== 0 ? [system("rec_off")] : []),
+        ]);
+        break;
+      }
       case "ping":
         if (!me) return fail("Avval xonaga kiring.", 409);
         await db.prepare("UPDATE talk_participants SET last_seen=CURRENT_TIMESTAMP WHERE room_id=? AND user_id=?").bind(room.id, id).run();
@@ -119,9 +121,10 @@ export async function POST(request: Request) {
         break;
       }
       case "start": {
+        if (!canStartTalk(login)) return fail("Efirni faqat admin boshlay oladi.", 403);
         if (room.status === "live") return fail("Muhokama allaqachon boshlangan.", 409);
         await db.batch([
-          db.prepare("UPDATE talk_rooms SET status='live', host_id=?, started_at=CURRENT_TIMESTAMP, ended_at=NULL WHERE id=?").bind(id, room.id),
+          db.prepare("UPDATE talk_rooms SET status='live', host_id=?, recording=0, started_at=CURRENT_TIMESTAMP, ended_at=NULL WHERE id=?").bind(id, room.id),
           db.prepare("INSERT INTO talk_participants (room_id, user_id, role) VALUES (?,?, 'host') ON CONFLICT(room_id, user_id) DO UPDATE SET role='host', hand=0, last_seen=CURRENT_TIMESTAMP").bind(room.id, id),
           system("started"),
         ]);
@@ -130,7 +133,7 @@ export async function POST(request: Request) {
       case "end":
         if (!isHost) return fail("Faqat moderator yakunlay oladi.", 403);
         await db.batch([
-          db.prepare("UPDATE talk_rooms SET status='ended', ended_at=CURRENT_TIMESTAMP WHERE id=?").bind(room.id),
+          db.prepare("UPDATE talk_rooms SET status='ended', recording=0, ended_at=CURRENT_TIMESTAMP WHERE id=?").bind(room.id),
           db.prepare("DELETE FROM talk_participants WHERE room_id=?").bind(room.id),
           system("ended"),
         ]);
@@ -139,7 +142,10 @@ export async function POST(request: Request) {
         if (!isHost) return fail("Faqat moderator so'z bera oladi.", 403);
         const target = typeof p.target === "string" ? p.target : "";
         if (target === id || (p.role !== "speaker" && p.role !== "listener")) return fail("So'rov noto'g'ri.");
-        const res = await db.prepare("UPDATE talk_participants SET role=?, hand=0 WHERE room_id=? AND user_id=?").bind(p.role, room.id, target).run();
+        // Tinglovchiga qaytarilsa mikrofon va kamera belgilari ham o'chadi (boshqalar uning trekini olmaydi).
+        const res = await db.prepare(p.role === "listener"
+          ? "UPDATE talk_participants SET role=?, hand=0, mic=0, pub_audio=0, pub_video=0 WHERE room_id=? AND user_id=?"
+          : "UPDATE talk_participants SET role=?, hand=0 WHERE room_id=? AND user_id=?").bind(p.role, room.id, target).run();
         if (!res.meta.changes) return fail("Ishtirokchi topilmadi.", 404);
         break;
       }
@@ -147,7 +153,7 @@ export async function POST(request: Request) {
         return fail("Noma'lum amal.");
     }
     const fresh = await ensureRoom(db);
-    return Response.json(await snapshot(db, fresh, id, true, Math.max(0, Number(p.after) || 0)), { headers });
+    return Response.json(await snapshot(db, fresh, id, true, Math.max(0, Number(p.after) || 0), login), { headers });
   } catch {
     return fail("Saqlanmadi. Qayta urinib ko'ring.", 503);
   }

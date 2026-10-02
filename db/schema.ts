@@ -216,6 +216,7 @@ export const talkRooms = sqliteTable("talk_rooms", {
   startsAt: text("starts_at").notNull(),
   status: text("status").notNull().default("scheduled"),
   hostId: text("host_id"),
+  recording: integer("recording").notNull().default(0),
   startedAt: text("started_at"),
   endedAt: text("ended_at"),
 });
@@ -225,6 +226,11 @@ export const talkParticipants = sqliteTable("talk_participants", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   role: text("role").notNull().default("listener"),
   hand: integer("hand").notNull().default(0),
+  mic: integer("mic").notNull().default(0),
+  rtcSession: text("rtc_session"),
+  pubAudio: integer("pub_audio").notNull().default(0),
+  pubVideo: integer("pub_video").notNull().default(0),
+  pubScreen: integer("pub_screen").notNull().default(0),
   joinedAt: text("joined_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   lastSeen: text("last_seen").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [uniqueIndex("idx_talk_participant").on(t.roomId, t.userId), index("idx_talk_participants_seen").on(t.roomId, t.lastSeen)]);
