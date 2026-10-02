@@ -658,7 +658,7 @@ function App() {
               </TabsContent>
 
               <TabsContent value="talks">
-                <LiveSession name={displayName} date={session} onComments={() => go("community")} />
+                <LiveSession name={displayName} />
                 <div className="section-row">
                   <h3>O&apos;tgan kitoblar suhbatlari</h3>
                   <Headphones size={22} />

@@ -4,6 +4,7 @@
 @import "./reading-dashboard.css";
 @import "./gurung.css";
 @import "./store.css";
+@import "./talk.css";
 
 /*
  * Bir Ilm — "Naqsh" dizayn tizimi.
@@ -401,30 +402,11 @@ audio { width: 100%; }
 .setting [data-slot="switch"][data-state="checked"], .setting [role="switch"][data-state="checked"] { background: var(--firuza); }
 
 /* ───────────── Suhbat ───────────── */
-.live-card { position: relative; overflow: hidden; display: grid; gap: 14px; padding: clamp(22px, 3vw, 34px); margin-bottom: 30px; border-radius: var(--r-lg); color: #fff; background: var(--girih) center / 64px, linear-gradient(135deg, var(--firuza), #07403f); background-blend-mode: soft-light, normal; box-shadow: var(--soya-2); }
-.live-card::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: var(--koshin) repeat-x; background-size: 28px 8px; }
-.live-heading { display: flex; align-items: center; gap: 14px; }
-.live-heading > div { display: grid; gap: 6px; }
-.live-heading h3 { color: #fff; font-size: clamp(20px, 2.4vw, 26px); }
-.live-card .eyebrow { color: var(--tilla-2); }
-.live-icon { display: grid; place-items: center; width: 56px; height: 56px; flex: none; clip-path: var(--star); background: linear-gradient(135deg, #f3d48d, var(--tilla-2)); color: #07403f; }
-.session-date { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-weight: 750; }
-.session-date small { color: #cdeeea; font-weight: 600; }
-.session-status { color: #cdeeea; font-size: 14px; }
-.live-card .button { justify-self: start; background: #fff; color: #07403f; box-shadow: none; }
-.live-dock { position: fixed; z-index: 45; left: 50%; bottom: 100px; transform: translateX(-50%); width: min(560px, calc(100% - 24px)); display: flex; gap: 8px; padding: 8px; border-radius: 999px; background: var(--firuza); color: #fff; box-shadow: var(--soya-2); }
+.live-dock { position: fixed; z-index: 45; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(560px, calc(100% - 24px)); display: flex; gap: 8px; padding: 8px; border-radius: 999px; background: var(--firuza); color: #fff; box-shadow: var(--soya-2); }
 .live-dock button { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border: 0; border-radius: 999px; background: transparent; color: inherit; text-align: left; }
 .live-dock button:first-child { flex: 1; }
 .live-dock button span { display: grid; }
 .live-dock small { color: #cdeeea; font-size: 12px; }
-.participants { display: grid; gap: 8px; }
-.participant { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--qogoz); }
-.participant > div { flex: 1; display: grid; }
-.participant small { color: var(--siyoh-3); font-size: 12px; }
-.live-dialog .live-heading { color: var(--firuza); }
-.live-dialog .live-heading h2 { flex: 1; }
-.live-dialog h3 { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; }
-.end-session { min-height: 46px; border: 0; border-radius: 999px; background: var(--anor-och); color: var(--anor); font-weight: 800; }
 .upload-card { display: grid; gap: 14px; padding: 20px; margin: 8px 0 18px; }
 .upload-card label { display: grid; gap: 8px; }
 .upload { position: relative; overflow: hidden; justify-self: start; }

@@ -208,3 +208,32 @@ export const passwordResets = sqliteTable("password_resets", {
   usedAt: text("used_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_password_resets_user").on(t.userId)]);
+
+export const talkRooms = sqliteTable("talk_rooms", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  book: text("book").notNull(),
+  startsAt: text("starts_at").notNull(),
+  status: text("status").notNull().default("scheduled"),
+  hostId: text("host_id"),
+  startedAt: text("started_at"),
+  endedAt: text("ended_at"),
+});
+
+export const talkParticipants = sqliteTable("talk_participants", {
+  roomId: text("room_id").notNull().references(() => talkRooms.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("listener"),
+  hand: integer("hand").notNull().default(0),
+  joinedAt: text("joined_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  lastSeen: text("last_seen").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [uniqueIndex("idx_talk_participant").on(t.roomId, t.userId), index("idx_talk_participants_seen").on(t.roomId, t.lastSeen)]);
+
+export const talkMessages = sqliteTable("talk_messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  roomId: text("room_id").notNull().references(() => talkRooms.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  kind: text("kind").notNull().default("text"),
+  body: text("body").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_talk_messages_room").on(t.roomId, t.id), index("idx_talk_messages_user").on(t.userId, t.createdAt)]);
