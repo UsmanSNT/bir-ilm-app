@@ -114,7 +114,7 @@ function Checkout({ cart, onBack, onPlaced }: { cart: ReturnType<typeof useStore
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   // Qayta urinishda bir xil raqam yuboriladi, shuning uchun buyurtma ikki marta yozilmaydi.
-  const [orderId] = useState(() => `ZB-${crypto.randomUUID().toUpperCase()}`);
+  const [orderId] = useState(() => `ZB-${crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [key]: e.target.value }));
 
   if (!cart.lines.length) return <div className="store-empty"><ShoppingCart size={28}/><h3>Savat bo‘sh</h3><button className="button" onClick={onBack}>Savatga qaytish</button></div>;
