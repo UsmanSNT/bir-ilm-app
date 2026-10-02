@@ -464,3 +464,12 @@ body .app-shell[hidden] { display: none; }
   .show-mobile-shelf .mobile-library .lib-screen, .show-mobile-shelf .mobile-library .lib-player-screen { width: min(600px, 100%); }
   .show-mobile-shelf .workspace { padding-top: 12px; }
 }
+
+/* Profil tepa paneli telefonda ekranning butun kengligida: tashqi karta uni kesmaydi, pastki burchaklari yumaloq */
+@media (max-width: 980px) {
+  body .app-shell.show-profile .workspace { padding: 0 0 calc(110px + env(safe-area-inset-bottom)); }
+  .p-hero { margin: 0 calc(-1 * var(--p-pad)) 18px; padding: 0 var(--p-pad) 4px; }
+}
+@media (max-width: 650px) {
+  .show-profile .profile-space { max-width: none; }
+}

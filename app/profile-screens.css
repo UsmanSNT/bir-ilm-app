@@ -190,11 +190,6 @@ button.p-row:hover { background: #fcf9f2; }
 .p-hero .p-stats button { border-right-color: #e6d9b8; }
 @media (max-width: 980px) { .p-hero { --p-pad: 22px; } }
 @media (max-width: 650px) { .p-hero { --p-pad: 20px; } }
-@media (max-width: 980px) {
-  /* Telefonda panel ekran chetlari va tepasigacha cho'ziladi (ish maydonining 16/22 px bo'sh joyini yutadi) */
-  .p-hero { margin: -22px calc(-1 * (var(--p-pad) + 16px)) 18px; padding: 0 calc(var(--p-pad) + 16px) 4px; }
-  .p-hero .p-stats { margin: 0 -10px; }
-}
 
 /* Kamera va mikrofon sozlamalari */
 .device-settings { display: grid; gap: 14px; }
