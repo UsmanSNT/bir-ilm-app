@@ -23,6 +23,7 @@ import {
   Settings,
   Smartphone,
   Star,
+  Store,
   Trophy,
   Upload,
   Users,
@@ -45,6 +46,7 @@ import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
+import BookStore from "./book-store";
 import {
   Book,
   CommunityComment,
@@ -91,8 +93,9 @@ const nav = [
   ["community", "Chat", MessageSquare],
   ["talks", "Suhbat", Headphones],
   ["shelf", "Javon", LibraryBig],
-  ["profile", "Profil", UserRound],
 ] as const;
+const mainNavLeft = nav.slice(0, 2);
+const mainNavRight = nav.slice(2);
 
 const initial: State = {
   name: "Kitobxon",
@@ -260,6 +263,7 @@ export default function App() {
   const [data, setData] = useState<State>(initial);
   const [ready, setReady] = useState(false);
   const [tab, setTab] = useState("home");
+  const [store, setStore] = useState(false);
   const [now, setNow] = useState(0);
   const [session, setSession] = useState(0);
   const [modal, setModal] = useState("");
@@ -521,6 +525,7 @@ export default function App() {
         <aside className="desktop-rail">
           <Brand />
           <div className="rail-intro"><span>KITOB BILAN</span><strong>Har kuningiz<br/>mazmunli.</strong><p>O‘qing. Fikrlashing.<br/>Birga o‘sing.</p></div>
+          <button className="rail-profile" disabled={store} onClick={() => go("profile")}><UserRound size={18} />Profil</button>
           <div className="rail-status">
             <Wifi size={18} />
             <span>{backendLabel}</span>
@@ -530,18 +535,47 @@ export default function App() {
         <main className="app-main">
           <header className="app-header">
             <Brand />
-            <button
-              className="icon-btn"
-              aria-label="Bildirishnomalar"
-              onClick={() => setModal("notifications")}
-            >
-              <Bell size={22} />
-            </button>
+            <div className="header-actions">
+              <button
+                className="icon-btn"
+                aria-label="Profil"
+                disabled={store}
+                onClick={() => go("profile")}
+              >
+                <UserRound size={22} />
+              </button>
+              <button
+                className="icon-btn"
+                aria-label="Bildirishnomalar"
+                onClick={() => setModal("notifications")}
+              >
+                <Bell size={22} />
+              </button>
+            </div>
           </header>
+
+          {store ? (
+            <BookStore
+              shelf={data.shelf}
+              onBack={() => { setStore(false); window.scrollTo({ top: 0 }); }}
+              onOpen={book => { setSelected(book); setModal("book"); }}
+              onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }}
+            />
+          ) : (
 
           <Tabs value={tab} onValueChange={go} className="app-tabs">
             <TabsList className="navigation" aria-label="Asosiy bo'limlar">
-              {nav.map(([id, label, Icon]) => (
+              {mainNavLeft.map(([id, label, Icon]) => (
+                <TabsTrigger value={id} key={id}>
+                  <Icon size={22} strokeWidth={1.8} />
+                  <span>{label}</span>
+                </TabsTrigger>
+              ))}
+              <button type="button" className="store-switch" onClick={() => { setStore(true); window.scrollTo({ top: 0 }); }}>
+                <Store size={22} strokeWidth={1.8} />
+                <span>Book Store</span>
+              </button>
+              {mainNavRight.map(([id, label, Icon]) => (
                 <TabsTrigger value={id} key={id}>
                   <Icon size={22} strokeWidth={1.8} />
                   <span>{label}</span>
@@ -556,7 +590,7 @@ export default function App() {
                   <h1>
                     {tab === "home"
                       ? `Salom, ${data.name}`
-                      : tab === "leaders" ? "Faollar" : nav.find((item) => item[0] === tab)?.[1]}
+                      : tab === "leaders" ? "Faollar" : tab === "profile" ? "Profil" : nav.find((item) => item[0] === tab)?.[1]}
                   </h1>
                 </div>
                 <FocusTimer onComplete={async session => {
@@ -866,6 +900,7 @@ export default function App() {
               </TabsContent>
             </div>
           </Tabs>
+          )}
 
           <footer className="desktop-footer">
             SINANG, QO&apos;LLANG, ULASHING <span>Bir Ilm · Appga tayyor web</span>
