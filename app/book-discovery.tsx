@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowUpRight, BookOpen, Bookmark, Check, Flame, Headphones, Search, Sparkles, X } from "lucide-react";
+import { ArrowUpRight, BookOpen, Bookmark, Check, Flame, Headphones, Search, X } from "lucide-react";
+import { BookCover } from "./store-ui";
 import { books, type Book } from "./app-data";
 
 const genres: Record<string, string> = {
@@ -29,22 +30,25 @@ export default function BookDiscovery({ shelf, onOpen, onToggle, onNavigate, pag
   ).sort((a, b) => sort === "short" ? a.pages - b.pages : sort === "title" ? a.title.localeCompare(b.title) : 0), [query, genre, savedOnly, shelf, sort]);
 
   return <div className="discovery">
-    {!library && <div className="discovery-intro">
-      <section className="discovery-feature">
-        <span className="discovery-kicker"><Sparkles size={16}/> HAFTA KITOBI</span>
-        <h2>Kichik odatlar.<br/><em>Katta o‘zgarishlar.</em></h2>
+    {!library && <section className="portal" aria-label="Hafta kitobi">
+      <div className="portal-arch"><BookCover book={books[0]} size="lg" /></div>
+      <div className="portal-body">
+        <span className="kicker">Hafta kitobi</span>
+        <h2>Kichik odatlar —<br/><em>katta o‘zgarishlar</em></h2>
         <p>James Clear bilan har kuni bir qadam oldinga. Bu hafta «Atom odatlar»ni birga mutolaa qilamiz.</p>
-        <button onClick={() => onOpen(books[0])}>Kitob bilan tanishish <ArrowUpRight size={19}/></button>
-      </section>
-      <section className="discovery-progress">
-        <span className="discovery-kicker"><Flame size={17}/> MENING MUTOLAAM</span>
-        <div className="reading-number">{page}<span> / {total} sahifa</span></div>
-        <p>Atom odatlar · haftalik mutolaa</p>
-        <progress value={page} max={total} aria-label="Haftalik mutolaa"/>
-        <div className="reading-meta"><span>{Math.round(page / total * 100)}% o‘qildi</span><span>{streak} kun ketma-ket</span></div>
-        <button onClick={onProgress}>Natijamni yangilash <ArrowUpRight size={18}/></button>
-      </section>
-    </div>}
+        <div className="portal-actions">
+          <button className="btn-gold" onClick={() => onOpen(books[0])}>Kitob bilan tanishish <ArrowUpRight size={18}/></button>
+          <button className="btn-glass" onClick={onProgress}>Natijamni yangilash</button>
+        </div>
+      </div>
+      <div className="portal-progress">
+        <ProgressRing value={total ? page / total : 0} />
+        <div className="portal-stats">
+          <span><strong>{page}</strong> / {total} bet</span>
+          <span><Flame size={15}/> {streak} kun ketma-ket</span>
+        </div>
+      </div>
+    </section>}
 
     <div className="discovery-title"><div><span className="discovery-kicker">SIZNING KEYINGI KITOBINGIZ</span><h2>{library ? "Kitoblar kutubxonasi" : "Mutolaa olamini kashf eting"}</h2></div><span className="catalog-count">{books.length} kitob</span></div>
     <div className="discovery-controls">
@@ -55,14 +59,25 @@ export default function BookDiscovery({ shelf, onOpen, onToggle, onNavigate, pag
     <div className="genre-chips" aria-label="Janrlar">{categories.map((category, index) => <button key={category} className={`genre-${index}`} aria-pressed={genre === category} onClick={() => setGenre(category)}>{category}</button>)}</div>
     <div className="catalog-results" aria-live="polite">{filtered.length} ta kitob{savedOnly ? " · mening javonimda" : ""}</div>
     <div className="discovery-books">{filtered.map((book, index) => <article className="discovery-book" key={book.id}>
-      <button className={`discovery-cover cover-style-${books.indexOf(book) % 3}`} style={{ backgroundColor: book.color }} onClick={() => onOpen(book)} aria-label={`${book.title} haqida`}>
-        <span className="cover-edition">BIR ILM / {String(books.indexOf(book) + 1).padStart(2, "0")}</span><strong>{book.title}</strong><span className="cover-author">{book.author}</span><BookOpen className="cover-symbol" size={30} strokeWidth={1}/>
-      </button>
+      <button className="discovery-cover" onClick={() => onOpen(book)} aria-label={`${book.title} haqida`}><BookCover book={book} /></button>
       <button className="catalog-save" aria-label={`${book.title}: ${shelf.includes(book.id) ? "javondan olish" : "javonga qo‘shish"}`} aria-pressed={shelf.includes(book.id)} onClick={() => onToggle(book)}>{shelf.includes(book.id) ? <Check size={17}/> : <Bookmark size={17}/>}</button>
       <span className="catalog-genre">{genres[book.id]}</span><button className="catalog-book-title" onClick={() => onOpen(book)}>{book.title}</button><p>{book.author}</p><span className="catalog-pages"><BookOpen size={13}/>{book.pages} sahifa{index === 0 && sort === "short" ? " · qisqa mutolaa" : ""}</span>
     </article>)}</div>
     {!filtered.length && <div className="catalog-empty"><Search size={28}/><h3>Kitob topilmadi</h3><p>Boshqa nom yoki janrni sinab ko‘ring.</p><button onClick={() => { setQuery(""); setGenre("Barchasi"); setSavedOnly(false); }}>Filtrlarni tozalash</button></div>}
     <p className="catalog-disclaimer">Kitoblar haqida ma’lumot va shaxsiy javon. To‘liq matn hamda audiokitoblar hozircha mavjud emas.</p>
     {!library && <div className="discovery-collections"><button onClick={() => { setGenre("Badiiy adabiyot"); setSavedOnly(false); setQuery(""); }}><BookOpen size={25}/><span><strong>Bir kitob, ming olam</strong><small>Badiiy adabiyot bilan tanishing</small></span><ArrowUpRight size={20}/></button><button onClick={() => onNavigate("talks")}><Headphones size={25}/><span><strong>O‘qiganlaringiz haqida suhbat</strong><small>Jonli davra va suhbat yozuvlari</small></span><ArrowUpRight size={20}/></button></div>}
+  </div>;
+}
+
+/** Sakkiz qirrali yulduz ichidagi o'qish halqasi. */
+function ProgressRing({ value }: { value: number }) {
+  const pct = Math.max(0, Math.min(1, value));
+  const r = 52, c = 2 * Math.PI * r;
+  return <div className="pring" role="img" aria-label={`Haftalik mutolaa: ${Math.round(pct * 100)}%`}>
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <circle cx="60" cy="60" r={r} className="pring-track" />
+      <circle cx="60" cy="60" r={r} className="pring-value" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
+    </svg>
+    <span className="pring-text"><strong>{Math.round(pct * 100)}%</strong><small>o‘qildi</small></span>
   </div>;
 }

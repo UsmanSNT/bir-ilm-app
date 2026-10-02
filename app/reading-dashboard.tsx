@@ -122,7 +122,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
     {mode === "profile" && extra}
     <div className="social-layout">
       <div className="social-main">
-        {mode === "gurung" && <div className="ig-stories" aria-label="Kitobxonlar">
+        {mode !== "profile" && <div className="ig-stories" aria-label="Kitobxonlar">
           {data.readers.map(reader => <button key={reader.id} className={`ig-story ${author === reader.id ? "is-active" : ""}`} onClick={() => { setAuthor(author === reader.id ? "" : reader.id); setScope("all"); }}>
             <span className="reader-avatar">{reader.name.slice(0, 1).toUpperCase()}</span><small>{reader.id === data.userId ? "Siz" : reader.name}</small></button>)}
           {!data.readers.length && <p className="readers-empty">Gurungga qo&apos;shilgan kitobxonlar shu yerda ko&apos;rinadi.</p>}
@@ -145,7 +145,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
         {loading ? <p className="feed-empty" role="status">Lenta yuklanmoqda...</p> : data.posts.length ? data.posts.map(postView) : !error && <div className="feed-empty"><BookOpen size={28}/><h3>{mode === "feed" ? "Hozircha postlar yo'q" : scope === "following" ? "Fikirdoshlaringizni toping" : "Hozircha postlar yo'q"}</h3><p>{mode === "feed" ? "Kitobxonlarning yangi postlari shu yerda ko'rinadi." : scope === "following" ? "Obuna bo'lgan kitobxonlaringizning postlari shu yerda ko'rinadi." : "O'qigan kitobingizdan sizga eng ta'sir qilgan fikrni ulashing."}</p></div>}
         {more && !loading && <button className="text-btn load-more" onClick={() => void refresh(data.posts.at(-1)?.id)}>Yana ko&apos;rsatish</button>}
       </div>
-      {mode === "profile" && <aside className="social-aside">
+      {mode !== "feed" && <aside className="social-aside">
         <section className="readers-section"><div className="section-row tight"><h3>Fikirdoshlar</h3><Users size={19}/></div>
           {!data.readers.some(r => r.id !== data.userId) && <p className="readers-empty">Davraga qo&apos;shilgan kitobxonlar shu yerda ko&apos;rinadi.</p>}
           {data.readers.filter(r => r.id !== data.userId).map(reader => <div className="reader-row" key={reader.id}><span className="reader-avatar">{reader.name.slice(0,1).toUpperCase()}</span><div><button className="author-link" onClick={() => { setAuthor(reader.id); setScope("all"); }}>{reader.name}</button><small>{reader.posts} post · {reader.followers} kuzatuvchi</small></div>{followButton(reader.id)}</div>)}

@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { BookOpen, Check, Heart, Library, Minus, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import StoreAi from "./store-ai";
+import Dock, { type DockItem } from "./dock";
 import StoreBookPage from "./store-book-page";
 import { BookCover, RatingLine, useReviewSummaries } from "./store-ui";
 import { useStoreState } from "./store-state";
@@ -34,18 +35,14 @@ export default function BookStore({ shelf, name, onBack, onToggle }: {
   const open = (book: Book) => { setDetail(book); window.scrollTo({ top: 0 }); };
   const addToCart = (book: Book) => { cart.add(book.id); toast.success(`«${book.title}» savatga qo‘shildi`); };
   const active = section === "checkout" ? "cart" : section;
-  const tab = ([id, label, Icon]: [Section, string, Icon]) => (
-    <button key={id} type="button" aria-current={active === id && !detail ? "page" : undefined} onClick={() => go(id)}>
-      <span className="zb-nav-icon"><Icon size={22} strokeWidth={1.8} />{id === "cart" && cart.count > 0 && <b className="zb-badge">{cart.count}</b>}</span><span>{label}</span>
-    </button>
-  );
+  const tab = ([id, label, icon]: [Section, string, Icon]): DockItem => ({
+    id, label, icon, active: active === id && !detail, badge: id === "cart" ? cart.count : undefined, onClick: () => go(id),
+  });
 
   return <div className="zb">
-    <nav className="zb-nav" aria-label="Book Store bo'limlari">
-      {left.map(tab)}
-      <button type="button" className="zb-nav-home" onClick={onBack} aria-label="Bir Ilm bosh sahifasiga qaytish"><span className="zb-nav-home-mark"><BookOpen size={22} strokeWidth={1.8} /></span><span>Bir Ilm</span></button>
-      {right.map(tab)}
-    </nav>
+    <Dock mode="store" label="Book Store bo'limlari"
+      left={left.map(tab)} right={right.map(tab)}
+      center={{ label: "Bir Ilm", ariaLabel: "Bir Ilm bosh sahifasiga qaytish", icon: BookOpen, onClick: onBack }} />
     <div className="zb-page">
       {detail
         ? <StoreBookPage key={detail.id} book={detail} name={name} saved={shelf.includes(detail.id)} summaries={summaries}

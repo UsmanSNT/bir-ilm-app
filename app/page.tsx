@@ -23,11 +23,10 @@ import {
   Trophy,
   Upload,
   Users,
-  UserRound,
   Wifi,
   X,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogClose,
@@ -43,6 +42,8 @@ import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
 import BookStore from "./book-store";
+import Dock from "./dock";
+import { uzDate } from "./uz-date";
 import MyBooks from "./my-books";
 import {
   Book,
@@ -91,6 +92,13 @@ const nav = [
   ["talks", "Suhbat", Headphones],
   ["shelf", "Javon", LibraryBig],
 ] as const;
+const headings: Record<string, [string, string]> = {
+  community: ["Kitobxonlar davrasi", "Gurung"],
+  talks: ["Haftalik muhokama", "Suhbat"],
+  shelf: ["Shaxsiy kutubxona", "Javon"],
+  profile: ["Kitobxon sahifasi", "Profil"],
+  leaders: ["Hafta faollari", "Faollar"],
+};
 const mainNavLeft = nav.slice(0, 2);
 const mainNavRight = nav.slice(2);
 
@@ -196,12 +204,12 @@ function audioDB(
 
 function Brand() {
   return (
-    <div className="brand brand-with-logo">
-      <Image src="/assets/bir-ilm-logo.jpg" alt="BIR ILM" width={62} height={62} />
-      <div>
-        <span className="wordmark">BIR ILM</span>
-        <span className="brand-tag">SINANG, QO&apos;LLANG, ULASHING</span>
-      </div>
+    <div className="brand">
+      <span className="brand-mark"><Image src="/assets/bir-ilm-logo.jpg" alt="" width={44} height={44} /></span>
+      <span className="brand-text">
+        <span className="wordmark">Bir Ilm</span>
+        <span className="brand-tag">Sinang · qo‘llang · ulashing</span>
+      </span>
     </div>
   );
 }
@@ -332,6 +340,10 @@ export default function App() {
 
   const go = (value: string) => {
     setTab(value);
+    window.scrollTo({ top: 0 });
+  };
+  const openStore = () => {
+    setStore(true);
     window.scrollTo({ top: 0 });
   };
 
@@ -498,36 +510,19 @@ export default function App() {
   return (
     <>
       <Toaster richColors position="top-center" />
-      <div className="app-shell">
-        <aside className="desktop-rail">
-          <Brand />
-          <div className="rail-intro"><span>KITOB BILAN</span><strong>Har kuningiz<br/>mazmunli.</strong><p>O‘qing. Fikrlashing.<br/>Birga o‘sing.</p></div>
-          <button className="rail-profile" disabled={store} onClick={() => go("profile")}><UserRound size={18} />Profil</button>
-          <div className="rail-status">
-            <Wifi size={18} />
-            <span>{backendLabel}</span>
-          </div>
-        </aside>
+      <div className="shell" data-mode={store ? "store" : "main"}>
+        {!store && <Dock mode="main" label="Asosiy bo'limlar"
+          left={mainNavLeft.map(([id, label, icon]) => ({ id, label, icon, active: tab === id, onClick: () => go(id) }))}
+          right={mainNavRight.map(([id, label, icon]) => ({ id, label, icon, active: tab === id, onClick: () => go(id) }))}
+          center={{ label: "Do‘kon", ariaLabel: "Book Store — kitob do‘koniga o‘tish", icon: Store, onClick: openStore }} />}
 
-        <main className="app-main">
-          <header className="app-header">
+        <div className="stage">
+          <header className="topbar">
             <Brand />
-            <div className="header-actions">
-              <button
-                className="icon-btn"
-                aria-label="Profil"
-                disabled={store}
-                onClick={() => go("profile")}
-              >
-                <UserRound size={22} />
-              </button>
-              <button
-                className="icon-btn"
-                aria-label="Bildirishnomalar"
-                onClick={() => setModal("notifications")}
-              >
-                <Bell size={22} />
-              </button>
+            <div className="topbar-actions">
+              <span className="topbar-status" title="Ma'lumotlar qayerda saqlanmoqda"><Wifi size={15} />{backendLabel}</span>
+              <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={20} /></button>
+              <button className="topbar-avatar" aria-label="Profil" disabled={store} onClick={() => go("profile")}><span>{(data.name.trim() || "K").slice(0, 1).toUpperCase()}</span></button>
             </div>
           </header>
 
@@ -541,34 +536,12 @@ export default function App() {
           ) : (
 
           <Tabs value={tab} onValueChange={go} className="app-tabs">
-            <TabsList className="navigation" aria-label="Asosiy bo'limlar">
-              {mainNavLeft.map(([id, label, Icon]) => (
-                <TabsTrigger value={id} key={id}>
-                  <Icon size={22} strokeWidth={1.8} />
-                  <span>{label}</span>
-                </TabsTrigger>
-              ))}
-              <button type="button" className="store-switch" onClick={() => { setStore(true); window.scrollTo({ top: 0 }); }}>
-                <Store size={22} strokeWidth={1.8} />
-                <span>Book Store</span>
-              </button>
-              {mainNavRight.map(([id, label, Icon]) => (
-                <TabsTrigger value={id} key={id}>
-                  <Icon size={22} strokeWidth={1.8} />
-                  <span>{label}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
 
             <div className="workspace">
               <div className="page-heading">
                 <div>
-                  <p className="eyebrow">BIR HAFTA. BIR KITOB.</p>
-                  <h1>
-                    {tab === "home"
-                      ? `Salom, ${data.name}`
-                      : tab === "leaders" ? "Faollar" : tab === "profile" ? "Profil" : nav.find((item) => item[0] === tab)?.[1]}
-                  </h1>
+                  <p className="eyebrow">{tab === "home" ? uzDate(new Date()) : headings[tab]?.[0]}</p>
+                  <h1>{tab === "home" ? <>Assalomu alaykum,<br /><em>{data.name}</em></> : headings[tab]?.[1]}</h1>
                 </div>
                 <FocusTimer onComplete={async session => {
                   const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", name: data.name, ...session }) });
@@ -583,7 +556,7 @@ export default function App() {
               </TabsContent>
               <TabsContent value="profile">
                 <ReadingDashboard mode="profile" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} extra={<>
-                  <MyBooks onStore={() => { setStore(true); window.scrollTo({ top: 0 }); }} onOpen={book => { setSelected(book); setModal("book"); }} />
+                  <MyBooks onStore={openStore} onOpen={book => { setSelected(book); setModal("book"); }} />
                   <section className="profile-settings" aria-label="Umumiy sozlamalar">
                     <div className="section-row tight"><h3>Sozlamalar</h3></div>
                     <label htmlFor="profile-name">Ism</label>
@@ -831,10 +804,11 @@ export default function App() {
           </Tabs>
           )}
 
-          <footer className="desktop-footer">
-            SINANG, QO&apos;LLANG, ULASHING <span>Bir Ilm · Appga tayyor web</span>
+          <footer className="site-foot">
+            <span>Sinang, qo‘llang, ulashing</span>
+            <span>Bir Ilm · {backendLabel}</span>
           </footer>
-        </main>
+        </div>
       </div>
 
       <Dialog

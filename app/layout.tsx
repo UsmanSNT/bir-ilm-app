@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/fraunces";
+import "@fontsource-variable/manrope";
 import "./globals.css";
-import "./discovery.css";
 
 export const metadata: Metadata = {
   title: "Bir Ilm — kitobxonlik ilovasi",
@@ -22,6 +23,8 @@ export const metadata: Metadata = {
     apple: "/assets/bir-ilm-logo.jpg",
   },
 };
+
+export const viewport: Viewport = { themeColor: "#1E2F6E" };
 
 export default function RootLayout({
   children,
