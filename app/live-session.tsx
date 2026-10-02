@@ -1,294 +1,923 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, ChevronDown, Circle, Crown, Gauge, Hand, LogOut, MessageCircle, Mic, MicOff, MonitorUp, Pause, Play, Radio, Save, Send, Square, Trash2, Users, Video, VideoOff } from "lucide-react";
-import { toast } from "sonner";
-import { Dialog as DialogPrimitive } from "radix-ui";
-import { useAuth } from "./auth";
-import { uzDateTimeTashkent } from "./uz-date";
-import { TALK_REACTIONS, type TalkMessage, type TalkParticipant, type TalkState } from "./talk-types";
-import { useTalkMedia } from "./talk-media";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  ArrowLeft,
+  Camera,
+  CameraOff,
+  CircleDot,
+  Hand,
+  LogOut,
+  MessageCircle,
+  Mic,
+  MicOff,
+  MonitorUp,
+  Play,
+  Send,
+  Settings2,
+  ShieldCheck,
+  Square,
+  Trash2,
+  UserMinus,
+  Users,
+  Volume2,
+  X,
+} from "lucide-react";
+import type { Track } from "livekit-client";
+import { useLiveMedia } from "@/lib/api/live-media";
+import {
+  LiveClient,
+  fetchLiveSessions,
+  createLiveSession,
+  type LiveConnectionState,
+} from "@/lib/api/live-client";
+import { useViewer } from "@/lib/api/roles-client";
+import { RoomRecorder, recordingSupported } from "@/lib/api/live-recorder";
+import LoginCard from "./login-card";
+import TalksBoard from "./talks-board";
+import { TALKS_CHANGED, notifyTalksChanged, talkAnnouncement } from "./talk-format";
+import { useCatalog } from "@/lib/api/books-client";
+import type {
+  LiveSession as LiveSessionType,
+  LiveParticipant,
+  LiveMessage,
+  LiveMedia,
+} from "@/shared/contract/live";
+import { canModerate, type UserRole } from "@/shared/contract/roles";
 
-const MAX_MESSAGES = 300;
-const statusLabel = { scheduled: "Rejalashtirilgan", live: "Jonli", ended: "Yakunlandi" } as const;
-const clock = (ms: number) => { const t = Math.floor(ms / 1000); const h = Math.floor(t / 3600); return `${h ? `${h}:` : ""}${String(Math.floor(t / 60) % 60).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`; };
-const timeOf = (iso: string) => new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-
-function countdown(target: number, now: number) {
-  const s = Math.max(0, Math.floor((target - now) / 1000));
-  const d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60;
-  return d ? `${d} kun ${h} soat` : h ? `${h} soat ${m} daqiqa` : `${m} daqiqa`;
+function timeStr(iso: string) {
+  return new Date(iso).toLocaleTimeString("uz-UZ", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-function systemText(m: TalkMessage) {
-  return ({ joined: `${m.name} qo‘shildi`, left: `${m.name} chiqdi`, started: `${m.name} efirni boshladi`, ended: "Efir yakunlandi", rec_on: "● Efir yozib olinmoqda", rec_off: "Yozib olish to‘xtatildi" } as Record<string, string>)[m.body] ?? m.body;
+const AVATAR_COLORS = [
+  "#0b6148", "#1a73e8", "#e8710a", "#9334e6",
+  "#c5221f", "#0d652d", "#8430ce", "#d93025",
+  "#188038", "#1967d2", "#a142f4", "#e37400",
+];
+
+function avatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++)
+    hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-/**
- * Haftalik jonli muhokama xonasi: sahna (moderator va ma'ruzachilar), tinglovchilar, jonli chat,
- * reaksiyalar va qo'l ko'tarish. Holat serverda; mijoz har 3 soniyada yangilaydi (xona ochiq bo'lsa).
- */
-export default function LiveSession({ name }: { name: string }) {
-  const { user, requireAuth } = useAuth();
-  const [state, setState] = useState<TalkState | null>(null);
-  const [messages, setMessages] = useState<TalkMessage[]>([]);
-  const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"stage" | "chat">("stage");
-  const [unread, setUnread] = useState(0);
-  const [floating, setFloating] = useState<{ key: number; emoji: string; x: number }[]>([]);
+function Avatar({ name, className }: { name: string; className?: string }) {
+  return (
+    <span
+      className={`live-avatar-circle ${className ?? ""}`}
+      style={{ background: avatarColor(name) }}
+    >
+      {name.charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+function VideoTrackView({ track, mirror = false, fit = "cover" }: { track: Track; mirror?: boolean; fit?: "cover" | "contain" }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    track.attach(el);
+    return () => {
+      track.detach(el);
+    };
+  }, [track]);
+  return (
+    <video
+      ref={ref}
+      className="live-video-el"
+      autoPlay
+      playsInline
+      muted
+      style={{ objectFit: fit, transform: mirror ? "scaleX(-1)" : undefined }}
+    />
+  );
+}
+
+type Me = { userId: string; role: UserRole };
+
+// Qaysi suhbatda ekanimiz: sahifa yangilansa yoki yopilib qayta ochilsa, o'sha suhbatga qaytamiz.
+const ACTIVE_KEY = "bir-live-active";
+function rememberActive(id: string | null) {
+  try { if (id) localStorage.setItem(ACTIVE_KEY, id); else localStorage.removeItem(ACTIVE_KEY); } catch { /* shaxsiy rejim */ }
+}
+function readActive(): string | null {
+  try { return localStorage.getItem(ACTIVE_KEY); } catch { return null; }
+}
+
+// ── Main Component ──────────────────────────────────────────────────
+
+export default function LiveSession({
+  name,
+  onComments,
+}: {
+  name: string;
+  date: number;
+  onComments: () => void;
+}) {
+  const viewer = useViewer();
+  const isAdmin = viewer?.role === "admin";
+  // Viewer yuklanguncha tugmani bloklamaymiz; server baribir tekshiradi.
+  const signedIn = viewer?.signedIn ?? true;
+
+  const [sessions, setSessions] = useState<LiveSessionType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [listNotice, setListNotice] = useState("");
+
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [connState, setConnState] = useState<LiveConnectionState>("idle");
+  const [sessionData, setSessionData] = useState<LiveSessionType | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
+  const [participants, setParticipants] = useState<LiveParticipant[]>([]);
+  const [messages, setMessages] = useState<LiveMessage[]>([]);
+  const [participantCount, setParticipantCount] = useState(0);
+  const [handRaised, setHandRaised] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
-  const lastId = useRef(0);
-  const roomId = useRef("");
-  const seen = useRef({ open, tab });
-  const listRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { seen.current = { open, tab }; }, [open, tab]);
+  const [selected, setSelected] = useState<LiveParticipant | null>(null);
+  const [notice, setNotice] = useState("");
+  const [media, setMedia] = useState<LiveMedia | null>(null);
+  const [devicesOpen, setDevicesOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+  const rejoinTried = useRef(false);
+  // Yozib olish adminning brauzerida ishlaydi; «Boshlash» bosilganda o'zi yoqiladi.
+  const recorderRef = useRef<RoomRecorder | null>(null);
+  const autoRecord = useRef(false);
+  const [recBusy, setRecBusy] = useState(false);
 
-  const apply = useCallback((next: TalkState) => {
-    if (roomId.current !== next.room.id) { roomId.current = next.room.id; lastId.current = 0; setMessages([]); }
-    const fresh = next.messages.filter(m => m.id > lastId.current);
-    const initial = lastId.current === 0;
-    if (fresh.length) {
-      lastId.current = fresh[fresh.length - 1].id;
-      setMessages(old => [...old, ...fresh].slice(-MAX_MESSAGES));
-      if (!initial) {
-        const reactions = fresh.filter(m => m.kind === "reaction");
-        if (reactions.length) {
-          const items = reactions.slice(-8).map(m => ({ key: m.id, emoji: m.body, x: 10 + Math.random() * 80 }));
-          setFloating(f => [...f, ...items]);
-          setTimeout(() => setFloating(f => f.filter(x => !items.some(i => i.key === x.key))), 2600);
-        }
-        const texts = fresh.filter(m => m.kind === "text" && m.userId !== next.me.userId).length;
-        if (texts && !(seen.current.open && (seen.current.tab === "chat" || window.matchMedia("(min-width: 981px)").matches))) setUnread(u => u + texts);
-      }
-    }
-    setState(next);
+  const av = useLiveMedia(activeSessionId ? media : null, setNotice);
+  const sharerId = av.screenSharer?.userId ?? null;
+
+  const clientRef = useRef<LiveClient | null>(null);
+  const meRef = useRef<Me | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const loadSessions = useCallback(async () => {
+    setLoading(true);
+    const list = await fetchLiveSessions();
+    setSessions(list);
+    setLoading(false);
   }, []);
 
-  const load = useCallback(async () => {
-    const res = await fetch(`/api/talk?after=${lastId.current}`, { cache: "no-store" });
-    if (res.ok) apply(await res.json() as TalkState);
-  }, [apply]);
-
-  const joined = !!state?.me.joined;
-  // Xona ochiq yoki ishtirokchi bo'lsa tez-tez, aks holda kamroq yangilanadi; yashirin tabda to'xtaydi.
   useEffect(() => {
-    queueMicrotask(() => { void load().catch(() => {}); });
-    const every = open || joined ? 3000 : 20000;
-    const timer = setInterval(() => { if (document.visibilityState === "visible") void load().catch(() => {}); setNow(Date.now()); }, every);
-    return () => clearInterval(timer);
-  }, [load, open, joined]);
+    loadSessions();
+    // Kitob oynasidan yoki boshqa joydan suhbat qo'shilsa/o'chirilsa — ro'yxat yangilanadi.
+    window.addEventListener(TALKS_CHANGED, loadSessions);
+    return () => window.removeEventListener(TALKS_CHANGED, loadSessions);
+  }, [loadSessions]);
 
-  const act = useCallback(async (action: string, extra: Record<string, unknown> = {}) => {
-    setBusy(true);
+  useEffect(() => {
+    if (loading || !viewer || rejoinTried.current || activeSessionId) return;
+    rejoinTried.current = true;
+    const saved = readActive();
+    const session = saved ? sessions.find((s) => s.id === saved) : null;
+    if (session && session.status !== "ended" && viewer.signedIn) joinSession(session.id);
+    else if (saved) rememberActive(null);
+    // joinSession barqaror emas, lekin bu effekt faqat bir marta ishlaydi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, viewer, sessions, activeSessionId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      void recorderRef.current?.stop();
+      clientRef.current?.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(""), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  function joinSession(sessionId: string) {
+    clientRef.current?.dispose();
+    const client = new LiveClient();
+    clientRef.current = client;
+
+    setActiveSessionId(sessionId);
+    rememberActive(sessionId);
+    setMinimized(false);
+    setListNotice("");
+    setMessages([]);
+    setParticipants([]);
+    setCommentsOpen(false);
+    setSelected(null);
+    setHandRaised(false);
+    setMedia(null);
+
+    // Server qo'shilishni rad etsa (suhbat yo'q, login kerak), xona ochiq qolib ketmasin.
+    let joined = false;
+    client.on("state", setConnState);
+
+    client.on("joined", (data) => {
+      joined = true;
+      setMedia(data.media);
+      setSessionData(data.session);
+      setParticipants(data.participants);
+      setMessages(data.recentMessages);
+      setParticipantCount(data.session.participantCount);
+      meRef.current = data.you;
+      setMe(data.you);
+    });
+
+    client.on("chat", (msg) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    client.on("message_deleted", ({ messageId }) => {
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    });
+
+    client.on("participant_joined", ({ participant, count }) => {
+      setParticipants((prev) => {
+        const exists = prev.some((p) => p.userId === participant.userId);
+        return exists ? prev : [...prev, participant];
+      });
+      setParticipantCount(count);
+    });
+
+    client.on("participant_left", ({ userId, count }) => {
+      setParticipants((prev) => prev.filter((p) => p.userId !== userId));
+      setSelected((prev) => (prev?.userId === userId ? null : prev));
+      setParticipantCount(count);
+    });
+
+    client.on("hand_update", ({ userId, raised }) => {
+      setParticipants((prev) =>
+        prev.map((p) =>
+          p.userId === userId ? { ...p, handRaised: raised } : p,
+        ),
+      );
+    });
+
+    client.on("role_update", ({ userId, role }) => {
+      setParticipants((prev) =>
+        prev.map((p) =>
+          p.userId === userId
+            ? { ...p, role: role as LiveParticipant["role"], handRaised: false }
+            : p,
+        ),
+      );
+      if (meRef.current?.userId === userId) {
+        setHandRaised(false);
+        setNotice(role === "speaker" ? "Sizga so'z berildi" : "So'z navbatingiz tugadi");
+      }
+    });
+
+    client.on("session_started", ({ startedAt }) => {
+      setSessionData((prev) =>
+        prev ? { ...prev, status: "live", startedAt } : prev,
+      );
+      setNotice("Suhbat boshlandi");
+    });
+
+    client.on("recording", ({ active }) => {
+      setSessionData((prev) => (prev ? { ...prev, recording: active } : prev));
+      // Boshqa admin to'xtatgan bo'lsa, shu brauzerdagi yozuvni ham yakunlaymiz.
+      if (!active && recorderRef.current) void finishRecording(false);
+      setNotice(active ? "Suhbat yozib olinmoqda" : "Yozib olish to'xtatildi");
+    });
+
+    client.on("session_ended", ({ endedAt }) => {
+      setSessionData((prev) =>
+        prev ? { ...prev, status: "ended", endedAt } : prev,
+      );
+      setMedia(null);
+      rememberActive(null);
+    });
+
+    client.on("kicked", () => {
+      rememberActive(null);
+      setMinimized(false);
+      setActiveSessionId(null);
+      setSessionData(null);
+      setMedia(null);
+      setListNotice("Moderator sizni suhbatdan chiqardi.");
+      loadSessions();
+    });
+
+    client.on("error", (msg) => {
+      if (!joined) {
+        leaveSession();
+        setListNotice(msg);
+        return;
+      }
+      setNotice(msg);
+    });
+
+    client.join(sessionId);
+  }
+
+  async function startRecording() {
+    if (recorderRef.current || recBusy || !activeSessionId) return;
+    if (!av.room || av.status !== "connected") {
+      setNotice("Ovoz serveriga ulanilmagan — yozib bo'lmaydi.");
+      return;
+    }
+    if (!recordingSupported()) {
+      setNotice("Bu brauzer yozib olishni qo'llab-quvvatlamaydi.");
+      return;
+    }
+    setRecBusy(true);
+    const recorder = new RoomRecorder(av.room, activeSessionId, setNotice);
     try {
-      const res = await fetch("/api/talk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, after: lastId.current, ...extra }) });
-      const data = await res.json().catch(() => ({})) as TalkState & { error?: string };
-      if (!res.ok) throw Error(data.error ?? "Saqlanmadi.");
-      apply(data);
-      return true;
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Saqlanmadi."); return false; }
-    finally { setBusy(false); }
-  }, [apply]);
+      await recorder.start();
+      recorderRef.current = recorder;
+      clientRef.current?.setRecording(true);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Yozib olishni boshlab bo'lmadi.");
+    } finally {
+      setRecBusy(false);
+    }
+  }
 
-  const media = useTalkMedia({ state, act });
-  const [saveName, setSaveName] = useState("");
+  /** `announce` — boshqalarga «yozuv to'xtadi» deb xabar berish (server orqali). */
+  async function finishRecording(announce = true) {
+    const recorder = recorderRef.current;
+    if (announce) clientRef.current?.setRecording(false);
+    if (!recorder) return;
+    recorderRef.current = null;
+    setRecBusy(true);
+    await recorder.stop();
+    setRecBusy(false);
+    setNotice("Yozuv saqlandi. Uni «Suhbatlar» bo'limidagi boshqaruvdan yuklab olasiz.");
+  }
 
-  // Ishtirokchi "onlayn" turishi uchun har 15 soniyada belgi beriladi.
-  useEffect(() => {
-    if (!joined) return;
-    const t = setInterval(() => { if (document.visibilityState === "visible") void fetch("/api/talk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ping" }) }).catch(() => {}); }, 15000);
-    return () => clearInterval(t);
-  }, [joined]);
+  function leaveSession() {
+    if (recorderRef.current) void finishRecording();
+    rememberActive(null);
+    setMinimized(false);
+    clientRef.current?.leave();
+    setActiveSessionId(null);
+    setSessionData(null);
+    setMe(null);
+    setMedia(null);
+    setConnState("idle");
+    loadSessions();
+  }
 
-  useEffect(() => {
-    const el = listRef.current;
-    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 160) el.scrollTop = el.scrollHeight;
-  }, [messages, tab, open]);
+  function sendComment() {
+    const body = draft.trim();
+    if (!body) return;
+    clientRef.current?.sendChat(body);
+    setDraft("");
+  }
 
-  const leave = async () => {
-    if (media.rec !== "idle") await media.recStop();
-    const ok = await act("leave");
-    if (ok) setOpen(false);
+  function toggleHand() {
+    const next = !handRaised;
+    setHandRaised(next);
+    clientRef.current?.toggleHand(next);
+  }
+
+  function modAction(action: "grant" | "revoke" | "kick", target: LiveParticipant) {
+    const client = clientRef.current;
+    if (!client) return;
+    if (action === "grant") client.grantSpeaker(target.userId);
+    if (action === "revoke") client.revokeSpeaker(target.userId);
+    if (action === "kick") client.kick(target.userId);
+    setSelected(null);
+  }
+
+  const canMod = canModerate(me?.role);
+  const roomAdmin = me?.role === "admin";
+  const status = sessionData?.status ?? "planned";
+  const sharerName = sharerId ? participants.find((p) => p.userId === sharerId)?.name ?? "Qatnashchi" : null;
+
+  const allParticipants = participants;
+  // Sahna o'zi paydo bo'ladi: taqdimot bo'lsa ekran, kamera yoqilgan bo'lsa videolar, aks holda faqat ovozli ro'yxat.
+  const cameraPeople = participants.filter((p) => av.byUser(p.userId).camera);
+  const stage: "screen" | "cameras" | null = sharerId ? "screen" : cameraPeople.length > 0 ? "cameras" : null;
+  const cameraTile = (p: LiveParticipant) => {
+    const m = av.byUser(p.userId);
+    return (
+      <div
+        key={p.userId}
+        className={`live-video-tile${m.speaking ? " speaking" : ""}${selectable(p) ? " selectable" : ""}`}
+        onClick={() => pick(p)}
+      >
+        {m.camera && <VideoTrackView track={m.camera} mirror={p.userId === me?.userId} />}
+        <div className="live-video-label">
+          <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
+          {m.speaking ? <span className="live-level">▂▅▃</span> : m.micOn ? <Mic size={14} /> : <MicOff size={14} />}
+        </div>
+      </div>
+    );
   };
-  const join = () => requireAuth(() => { void act("join").then(ok => { if (ok) setOpen(true); }); });
-  const send = (e: FormEvent) => { e.preventDefault(); const body = draft.trim(); if (!body || busy) return; void act("message", { body }).then(ok => { if (ok) setDraft(""); }); };
+  const speakers = allParticipants.filter((p) => p.role !== "listener");
+  const listenersList = allParticipants.filter((p) => p.role === "listener");
+  const handQueue = listenersList.filter((p) => p.handRaised);
 
-  const room = state?.room;
-  const people = useMemo(() => state?.participants ?? [], [state]);
-  const stage = people.filter(p => p.role !== "listener");
-  const listeners = people.filter(p => p.role === "listener");
-  const me = state?.me;
-  const isHost = me?.role === "host" && room?.status === "live";
-  const startsAt = room ? new Date(room.startsAt).getTime() : 0;
-  const chatItems = messages.filter(m => m.kind !== "reaction");
+  // Faqat moderator boshqa qatnashchini tanlay oladi (o'zini emas).
+  const selectable = (p: LiveParticipant) => canMod && p.userId !== me?.userId;
+  const pick = (p: LiveParticipant) => selectable(p) && setSelected(p);
 
-  const person = (p: TalkParticipant, big: boolean) => <div key={p.userId} className={`tr-person ${big ? "is-big" : ""} ${p.userId === me?.userId ? "is-me" : ""} ${media.speaking.has(p.userId) ? "is-speaking" : ""}`}>
-    <span className="tr-avatar">{p.name.slice(0, 1).toUpperCase()}
-      {p.hand && <span className="tr-hand" aria-label="Qo'l ko'targan"><Hand size={14} /></span>}
-      {p.role !== "listener" && (!p.audio || !p.mic) && <span className="tr-muted" aria-label="Mikrofon o'chiq"><MicOff size={12} /></span>}
-    </span>
-    <strong>{p.userId === me?.userId ? "Siz" : p.name}</strong>
-    <small>{p.role === "host" ? <><Crown size={12} />Admin</> : p.role === "speaker" ? <><Mic size={12} />Ma’ruzachi</> : p.hand ? "So‘z so‘radi" : "Tinglovchi"}</small>
-    {isHost && p.userId !== me?.userId && <button className="tr-mod" disabled={busy} onClick={() => void act("role", { target: p.userId, role: p.role === "listener" ? "speaker" : "listener" })}>{p.role === "listener" ? "So‘z berish" : "So‘zni olish"}</button>}
-  </div>;
+  function openDevices() {
+    setDevicesOpen(true);
+    av.loadDevices();
+  }
 
-  // Video maydoni: kimdir kamera yoki ekran yoqsa ochiladi; qolganlar ovozli holatda qoladi.
-  const nameOf = (id: string) => people.find(p => p.userId === id)?.name ?? "";
-  const tiles = [
-    ...(media.local.screen ? [{ key: "me:screen", stream: media.local.screen, label: "Ekraningiz", screen: true, mine: true }] : []),
-    ...media.remote.filter(r => r.kind === "screen").map(r => ({ key: `${r.userId}:screen`, stream: r.stream, label: `${nameOf(r.userId)} · ekran`, screen: true, mine: false })),
-    ...(media.local.video ? [{ key: "me:video", stream: media.local.video, label: "Siz", screen: false, mine: true }] : []),
-    ...media.remote.filter(r => r.kind === "video").map(r => ({ key: `${r.userId}:video`, stream: r.stream, label: nameOf(r.userId), screen: false, mine: false })),
+  // Tinglovchi so'z berilmaguncha mikrofon, kamera va ekranni yoqa olmaydi (ruxsat LiveKit serverida).
+  const publishLocked = av.status !== "connected" || !av.canPublish;
+  const lockedHint = av.status !== "connected" ? "Ovoz/video serveriga ulanilmagan" : "So'z berilganda yoqiladi";
+  const recording = Boolean(sessionData?.recording);
+  const controls: Array<{ label: string; icon: typeof Mic; active: boolean; disabled: boolean; pending: boolean; action: () => unknown; hint?: string }> = [
+    { label: "Mikrofon", icon: av.micOn ? Mic : MicOff, active: av.micOn, disabled: publishLocked, pending: av.busy === "mic", action: av.toggleMic },
+    { label: "Kamera", icon: av.cameraOn ? Camera : CameraOff, active: av.cameraOn, disabled: publishLocked, pending: av.busy === "camera", action: av.toggleCamera },
+    { label: "Ekran ulashish", icon: MonitorUp, active: av.screenOn, disabled: publishLocked, pending: av.busy === "screen", action: av.toggleScreen },
+    { label: "Qurilma", icon: Settings2, active: devicesOpen, disabled: publishLocked, pending: false, action: openDevices },
+    ...(canMod
+      ? []
+      : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, disabled: false, pending: false, action: toggleHand }]),
+    { label: "Izohlar", icon: MessageCircle, active: commentsOpen, disabled: false, pending: false, action: () => setCommentsOpen(!commentsOpen) },
+    ...(roomAdmin
+      ? [{
+          label: recording ? "Yozuvni to'xtatish" : "Yozib olish",
+          icon: CircleDot,
+          active: recording,
+          disabled: status !== "live" || av.status !== "connected",
+          pending: recBusy,
+          action: () => (recording ? finishRecording() : startRecording()),
+          hint: status !== "live" ? "Suhbat boshlangach yozib olinadi" : "Ovoz serveriga ulanilmagan",
+        }]
+      : []),
   ];
-  const hiddenVideo = media.saver && people.some(p => p.userId !== me?.userId && (p.video || p.screen));
-  const canSpeak = me?.role === "host" || me?.role === "speaker";
 
-  return <>
-    <section className={`talk-card status-${room?.status ?? "scheduled"}`}>
-      <div className="talk-card-top">
-        <span className="talk-status"><i />{room ? statusLabel[room.status] : "Yuklanmoqda"}</span>
-        {people.length > 0 && <span className="talk-stack" aria-label={`${people.length} ishtirokchi`}>
-          {people.slice(0, 4).map(p => <span key={p.userId}>{p.name.slice(0, 1).toUpperCase()}</span>)}
-          <b>{people.length}</b>
-        </span>}
-      </div>
-      <span className="eyebrow">Haftalik muhokama</span>
-      <h3>{room?.title ?? "Atom odatlar — birga tahlil qilamiz"}</h3>
-      <p className="talk-when"><CalendarDays size={17} />{startsAt ? `${uzDateTimeTashkent(startsAt)} (Toshkent)` : "Yakshanba · 18:00"}
-        {room?.status === "scheduled" && startsAt > now && <small>· {countdown(startsAt, now)} qoldi</small>}</p>
-      <div className="talk-actions">
-        <button className="btn-gold" onClick={() => (joined ? setOpen(true) : join())}><Radio size={18} />{joined ? "Xonaga qaytish" : room?.status === "live" ? "Muhokamaga qo‘shilish" : "Xonaga kirish"}</button>
-        {!joined && <button className="btn-glass" onClick={() => setOpen(true)}>Tomosha qilish</button>}
-      </div>
-      <p className="talk-note"><Mic size={15} />{state?.media ? "Ovozli efir: avval ovoz, xohlagan kamera yoqadi, admin ekranini ulashadi. Tejamkor rejimda faqat ovoz." : "Ovoz serveri hali sozlanmagan — hozircha jonli matnli muhokama."}</p>
-    </section>
+  // «Boshlash» bosilgan bo'lsa: suhbat jonli bo'lib, ovoz ulangach yozuv o'zi yoqiladi.
+  useEffect(() => {
+    if (!autoRecord.current || !roomAdmin || status !== "live" || av.status !== "connected") return;
+    autoRecord.current = false;
+    queueMicrotask(() => void startRecording());
+    // startRecording har renderda yangi; shart bajarilganda bir marta chaqiriladi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomAdmin, status, av.status]);
 
-    {joined && !open && <div className="live-dock">
-      <button onClick={() => { setOpen(true); setUnread(0); }}><span className="tr-pulse" /><span><strong>{room?.status === "live" ? "Jonli muhokama" : "Muhokama xonasi"}</strong><small>{room?.book} · {people.length} ishtirokchi{unread ? ` · ${unread} yangi xabar` : ""}</small></span></button>
-      <button aria-label="Xonadan chiqish" onClick={() => void act("leave")}><LogOut size={20} /></button>
-    </div>}
+  // ── Active session overlay ─────────────────────────────────────────
 
-    <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="tr-overlay" />
-        <DialogPrimitive.Content className="talk-room" aria-describedby={undefined}>
-          <header className="tr-head">
-            <button className="tr-icon" aria-label="Xonani kichraytirish" onClick={() => setOpen(false)}><ChevronDown size={22} /></button>
-            <div className="tr-title">
-              <span className="tr-chips"><span className={`tr-chip status-${room?.status}`}><i />{room ? statusLabel[room.status] : ""}</span>
-                {!!room?.recording && <span className={`tr-chip tr-rec ${room.recording === 2 ? "is-paused" : ""}`}><i />{room.recording === 2 ? "Yozuv pauzada" : "Yozilmoqda"}</span>}</span>
-              <DialogPrimitive.Title asChild><strong>{room?.book ?? "Muhokama"}</strong></DialogPrimitive.Title>
-              <small><Users size={13} />{people.length} ishtirokchi</small>
+  const roomOpen = Boolean(activeSessionId && connState !== "idle");
+  let overlay: React.ReactNode = null;
+  if (roomOpen && !minimized) {
+    const bookTitle = sessionData?.bookTitle ?? "Yuklanmoqda...";
+    const sessionTitle = sessionData?.title ?? "";
+
+    overlay = createPortal(
+      <div className="live-overlay" role="dialog" aria-modal="true" aria-label={`${bookTitle} jonli suhbat`}>
+        <div className="live-window">
+          <header className="live-topbar">
+            <button className="live-plain-btn" aria-label="Suhbat oynasini kichraytirish" title="Kichraytirish — suhbatda qolasiz" onClick={() => setMinimized(true)}>
+              <ArrowLeft size={22} />
+            </button>
+            <div className="live-room-title">
+              <strong>{bookTitle}</strong>
+              <span>{sessionTitle}</span>
             </div>
-            {joined ? <button className="tr-leave" onClick={() => void leave()}><LogOut size={16} />Chiqish</button>
-              : <button className="tr-join" onClick={join}>Qo‘shilish</button>}
+            {status === "live" && (
+              <span className="live-indicator"><i /> LIVE</span>
+            )}
+            {recording && (
+              <span className="live-rec" title="Suhbat yozib olinmoqda"><i /> REC</span>
+            )}
+            {roomAdmin && status === "planned" && (
+              <button className="live-admin-btn start" onClick={() => { autoRecord.current = true; clientRef.current?.startSession(); }}>
+                <Play size={13} /> Boshlash
+              </button>
+            )}
+            {roomAdmin && status === "live" && (
+              <button className="live-admin-btn end" onClick={async () => { await finishRecording(); clientRef.current?.endSession(); }}>
+                <Square size={12} /> Tugatish
+              </button>
+            )}
+            <span className="live-count"><Users size={14} /> {participantCount}</span>
           </header>
 
-          <div className="tr-tabs" role="tablist">
-            <button role="tab" aria-selected={tab === "stage"} onClick={() => setTab("stage")}><Users size={16} />Sahna</button>
-            <button role="tab" aria-selected={tab === "chat"} onClick={() => { setTab("chat"); setUnread(0); }}><MessageCircle size={16} />Chat{unread > 0 && <b>{unread}</b>}</button>
-          </div>
+          {connState === "joined" && status !== "live" && (
+            <div className={`live-status-banner ${status}`}>
+              {status === "planned"
+                ? roomAdmin
+                  ? "Suhbat hali boshlanmagan. Tayyor bo'lsangiz, \"Boshlash\"ni bosing."
+                  : "Suhbat hali boshlanmagan. Admin boshlashini kuting."
+                : "Suhbat tugadi. Izohlarni o'qishingiz mumkin."}
+            </div>
+          )}
+          {canMod && connState === "joined" && (
+            <div className="live-mod-hint">
+              <ShieldCheck size={14} />
+              {roomAdmin ? "Admin" : "Moderator"} — qatnashchini bosib, so'z bering yoki chiqaring
+            </div>
+          )}
 
-          <div className="tr-body" data-tab={tab}>
-            <section className="tr-stage" aria-label="Sahna">
-              {room?.status !== "live" && <div className="tr-banner">
-                <strong>{room?.status === "ended" ? "Muhokama yakunlandi" : "Muhokama hali boshlanmadi"}</strong>
-                <span>{room?.status === "ended" ? "Keyingi yakshanba yana uchrashamiz. Chat tarixi saqlanadi." : startsAt > now ? `Boshlanishiga ${countdown(startsAt, now)} qoldi. Shu vaqtgacha chatda fikr almashishingiz mumkin.` : "Moderator boshlashini kutyapmiz."}</span>
-                {joined && me?.canStart && <button className="btn-gold" disabled={busy} onClick={() => void act("start")}><Radio size={17} />Efirni boshlash</button>}
-                {joined && !me?.canStart && room?.status !== "ended" && <span className="tr-wait">Efirni admin boshlaydi. Boshlanganda shu yerda ovoz eshitiladi.</span>}
-              </div>}
-              {tiles.length > 0 && <div className={`tr-media ${tiles.some(t => t.screen) ? "has-screen" : ""}`} data-count={tiles.length}>
-                {tiles.map(t => <figure key={t.key} className={`tr-tile ${t.screen ? "is-screen" : ""}`}>
-                  <VideoView stream={t.stream} mirrored={t.mine && !t.screen} />
-                  <figcaption>{t.label}</figcaption>
-                </figure>)}
-              </div>}
-              {hiddenVideo && <p className="tr-saver-note"><Gauge size={15} />Tejamkor rejim: video va ekran yuklanmayapti.</p>}
-              {joined && room?.status === "live" && !state?.media && <p className="tr-saver-note"><MicOff size={15} />Ovoz serveri hali sozlanmagan — hozircha matnli rejim.</p>}
-              {joined && room?.status === "live" && state?.media && media.status === "connecting" && <p className="tr-saver-note">Ovozga ulanmoqda...</p>}
-              <h4>Sahna</h4>
-              <div className="tr-speakers">{stage.length ? stage.map(p => person(p, true)) : <p className="tr-empty">Hali hech kim sahnada emas.</p>}</div>
-              <h4>Tinglovchilar · {listeners.length}</h4>
-              <div className="tr-listeners">{listeners.length ? listeners.map(p => person(p, false)) : <p className="tr-empty">Tinglovchilar shu yerda ko‘rinadi.</p>}</div>
-              <div className="tr-floating" aria-hidden="true">{floating.map(f => <span key={f.key} style={{ left: `${f.x}%` }}>{f.emoji}</span>)}</div>
-              {joined && <div className="tr-controls">
-                {canSpeak && room?.status === "live" && state?.media && <>
-                  <button className={`tr-ctl ${media.micOn ? "is-on" : "is-off"}`} aria-pressed={media.micOn} disabled={media.status !== "on"} onClick={() => void media.toggleMic()}>{media.micOn ? <Mic size={20} /> : <MicOff size={20} />}<span>{media.micOn ? "Mikrofon" : "Ovozsiz"}</span></button>
-                  <button className={`tr-ctl ${media.local.video ? "is-on" : ""}`} aria-pressed={!!media.local.video} disabled={media.status !== "on"} onClick={() => void media.toggleCam()}>{media.local.video ? <Video size={20} /> : <VideoOff size={20} />}<span>Kamera</span></button>
-                  {me?.role === "host" && <button className={`tr-ctl ${media.local.screen ? "is-on" : ""}`} aria-pressed={!!media.local.screen} disabled={media.status !== "on" || !navigator.mediaDevices?.getDisplayMedia} onClick={() => void media.toggleScreen()}><MonitorUp size={20} /><span>Ekran</span></button>}
-                </>}
-                {me?.role === "listener" && room?.status === "live" && <button className={`tr-ctl ${me.hand ? "is-on" : ""}`} aria-pressed={me.hand} disabled={busy} onClick={() => void act("hand", { raised: !me.hand })}><Hand size={20} /><span>{me.hand ? "Tushirish" : "So‘z so‘rash"}</span></button>}
-                <button className={`tr-ctl ${media.saver ? "is-on" : ""}`} aria-pressed={media.saver} onClick={() => media.setSaver(!media.saver)} title="Video yuklanmaydi — internet tejaladi"><Gauge size={20} /><span>Tejamkor</span></button>
-                <div className="tr-reactions">{TALK_REACTIONS.map(e => <button key={e} aria-label={`Reaksiya ${e}`} onClick={() => void act("react", { emoji: e })}>{e}</button>)}</div>
-                {isHost && <div className="tr-admin">
-                  {media.rec === "idle"
-                    ? <button className="tr-ctl tr-recbtn" onClick={() => void media.recStart()}><Circle size={18} fill="currentColor" /><span>Yozib olish</span></button>
-                    : <span className="tr-recbox"><i className={media.rec === "paused" ? "is-paused" : ""} />{clock(media.recElapsed)}
-                        {media.rec === "recording"
-                          ? <button aria-label="Yozuvni pauza qilish" onClick={media.recPause}><Pause size={16} /></button>
-                          : <button aria-label="Yozuvni davom ettirish" onClick={media.recResume}><Play size={16} /></button>}
-                        <button aria-label="Yozuvni tugatish va saqlash" onClick={() => void media.recStop()}><Square size={15} /></button>
-                      </span>}
-                  <button className="tr-end" disabled={busy} onClick={() => void (media.rec !== "idle" ? media.recStop() : Promise.resolve()).then(() => act("end"))}>Yakunlash</button>
-                </div>}
-              </div>}
-            </section>
-
-            <section className="tr-chat" aria-label="Chat">
-              <div className="tr-messages" ref={listRef} aria-live="polite">
-                {!chatItems.length && <p className="tr-empty">Hali xabar yo‘q. Birinchi fikrni siz yozing.</p>}
-                {chatItems.map((m, i) => {
-                  if (m.kind === "system") return <p key={m.id} className="tr-system">{systemText(m)}</p>;
-                  const mine = m.userId === me?.userId;
-                  const prev = chatItems[i - 1];
-                  const head = !prev || prev.kind !== "text" || prev.userId !== m.userId;
-                  return <div key={m.id} className={`tr-msg ${mine ? "is-mine" : ""} ${head ? "is-head" : ""}`}>
-                    {!mine && head && <span className="tr-msg-avatar">{m.name.slice(0, 1).toUpperCase()}</span>}
-                    <div className="tr-bubble">{!mine && head && <b>{m.name}</b>}<p>{m.body}</p><time>{timeOf(m.createdAt)}</time></div>
-                  </div>;
-                })}
+          <div className="live-main">
+            {/* Ulanmoqda / Xatolik */}
+            {connState === "connecting" && (
+              <div className="live-audio-view">
+                <p className="muted" style={{ textAlign: "center", padding: "3rem" }}>
+                  Ulanmoqda...
+                </p>
               </div>
-              {joined
-                ? <form className="tr-compose" onSubmit={send}>
-                    <input aria-label="Xabar" maxLength={500} placeholder={`${name}, fikringizni yozing...`} value={draft} onChange={e => setDraft(e.target.value)} />
-                    <button aria-label="Yuborish" disabled={busy || !draft.trim()}><Send size={18} /></button>
+            )}
+            {connState === "error" && (
+              <div className="live-audio-view">
+                <p className="muted" style={{ textAlign: "center", padding: "3rem", color: "#e5484d" }}>
+                  Ulanish uzildi. Qayta ulanmoqda...
+                </p>
+              </div>
+            )}
+
+            {/* ── Yagona xona: ovozli asos + kerak bo'lsa video/taqdimot sahnasi ── */}
+            {connState === "joined" && (
+              <div className={`live-room${stage ? " has-stage" : ""}`}>
+                {stage === "screen" && av.screenSharer && (
+                  <section className="live-stage live-stage-screen">
+                    <div className="live-share-banner">
+                      <MonitorUp size={17} />
+                      {sharerName && <Avatar name={sharerName} />}
+                      {sharerName} ekranini ulashmoqda
+                    </div>
+                    <div className="live-shared-screen">
+                      <VideoTrackView track={av.screenSharer.track} fit="contain" />
+                    </div>
+                    {cameraPeople.length > 0 && (
+                      <div className="live-camera-strip">
+                        {cameraPeople.map(cameraTile)}
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {stage === "cameras" && (
+                  <section className={`live-stage live-camera-grid n${Math.min(cameraPeople.length, 4)}`}>
+                    {cameraPeople.slice(0, 4).map(cameraTile)}
+                    {cameraPeople.length > 4 && (
+                      <span className="live-more-cams">+{cameraPeople.length - 4} kamera</span>
+                    )}
+                  </section>
+                )}
+
+                <section className="live-audio-view">
+                  {canMod && handQueue.length > 0 && (
+                    <div className="live-hand-queue">
+                      <h3><Hand size={15} /> Navbatda ({handQueue.length})</h3>
+                      {handQueue.map((p) => (
+                        <div key={p.userId}>
+                          <Avatar name={p.name} />
+                          <strong>{p.name}</strong>
+                          <button onClick={() => modAction("grant", p)}>So'z berish</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <h3>Gapirayotganlar ({speakers.length})</h3>
+                  <div className="live-speakers">
+                    {speakers.map((p) => {
+                      const m = av.byUser(p.userId);
+                      return (
+                        <div key={p.userId} onClick={() => pick(p)} className={`${selectable(p) ? "selectable" : ""}${m.speaking ? " speaking" : ""}`}>
+                          <Avatar name={p.name} />
+                          <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
+                          <span className="live-person-icons">
+                            {p.role === "moderator" && <small>Boshlovchi</small>}
+                            {m.camera && <Camera size={13} />}
+                            {!m.micOn && <MicOff size={13} />}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {speakers.length === 0 && (
+                      <p className="muted" style={{ fontSize: 12 }}>Hali so'zlovchi yo'q</p>
+                    )}
+                  </div>
+                  <h3>Tinglovchilar ({listenersList.length})</h3>
+                  <div className="live-listeners">
+                    {listenersList.map((p) => (
+                      <div key={p.userId} onClick={() => pick(p)} className={selectable(p) ? "selectable" : ""}>
+                        <Avatar name={p.name} />
+                        <strong>{p.name}{p.userId === me?.userId ? " (siz)" : ""}</strong>
+                        {p.handRaised ? <Hand size={13} /> : <MicOff size={13} />}
+                      </div>
+                    ))}
+                  </div>
+                  {!canMod && (
+                    <span className="live-queue">
+                      <Hand size={16} /> {handRaised ? "Navbatdasiz" : "Qo'l ko'tarib navbatga turing"}
+                    </span>
+                  )}
+                </section>
+              </div>
+            )}
+
+            {/* ── Izohlar paneli ── */}
+            {commentsOpen && (
+              <aside className="live-comments">
+                <div className="live-comments-head">
+                  <strong>Jonli izohlar</strong>
+                  <button className="live-plain-btn" aria-label="Izohlarni yopish" onClick={() => setCommentsOpen(false)}>
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="live-comment-list">
+                  {messages.length === 0 && (
+                    <p className="muted" style={{ textAlign: "center", padding: "2rem", fontSize: 13 }}>
+                      Hali izohlar yo'q. Birinchi bo'ling!
+                    </p>
+                  )}
+                  {messages.map((msg) => (
+                    <div className="live-comment" key={msg.id}>
+                      <Avatar name={msg.userName} />
+                      <div>
+                        <strong>{msg.userName}</strong>
+                        <time>{timeStr(msg.createdAt)}</time>
+                        <p>{msg.body}</p>
+                      </div>
+                      {canMod && (
+                        <button
+                          className="live-comment-delete"
+                          aria-label="Izohni o'chirish"
+                          title="Izohni o'chirish"
+                          onClick={() => clientRef.current?.deleteMessage(msg.id)}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+                {status === "ended" ? (
+                  <p className="live-comments-closed">Suhbat tugagan — izoh yozib bo'lmaydi.</p>
+                ) : (
+                  <form className="live-comment-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
+                    <input
+                      aria-label="Izoh yozing"
+                      placeholder="Izoh yozing..."
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      maxLength={500}
+                    />
+                    <button aria-label="Izoh yuborish" disabled={!draft.trim()}>
+                      <Send size={18} />
+                    </button>
                   </form>
-                : <button className="tr-compose-join" onClick={join}>{user ? "Yozish uchun xonaga qo‘shiling" : "Yozish uchun hisobingizga kiring"}</button>}
-            </section>
-          </div>
-          <div hidden>{media.remote.filter(r => r.kind === "audio").map(r => <AudioSink key={`${r.userId}:audio`} stream={r.stream} />)}</div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+                )}
+              </aside>
+            )}
 
-    <DialogPrimitive.Root open={!!media.pending} onOpenChange={o => { if (!o && media.pending && window.confirm("Yozuv saqlanmasdan o'chirilsinmi?")) media.discardPending(); }}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="tr-overlay tr-overlay-top" />
-        <DialogPrimitive.Content className="app-dialog tr-save" aria-describedby={undefined}>
-          <DialogPrimitive.Title>Yozuvni saqlash</DialogPrimitive.Title>
-          <p>Fayl nomini kiriting. Keyingi oynada saqlash joyini (papkani) tanlaysiz.{media.pending && ` Hajmi: ${(media.pending.blob.size / 1024 / 1024).toFixed(1)} MB.`}</p>
-          <label>Fayl nomi<input autoFocus value={saveName || `Bir-Ilm-${room?.book ?? "efir"}-${room?.id ?? ""}`.replace(/[^\p{L}\p{N}_-]+/gu, "-")} onChange={e => setSaveName(e.target.value)} /></label>
-          <div className="tr-save-actions">
-            <button className="button" onClick={() => void media.savePending(saveName || `Bir-Ilm-${room?.book ?? "efir"}-${room?.id ?? ""}`.replace(/[^\p{L}\p{N}_-]+/gu, "-")).then(() => setSaveName(""))}><Save size={17} />Saqlash</button>
-            <button className="button secondary" onClick={() => { if (window.confirm("Yozuv saqlanmasdan o'chirilsinmi?")) media.discardPending(); }}><Trash2 size={17} />O‘chirish</button>
+            {/* ── Moderator: qatnashchi bilan amallar ── */}
+            {selected && (
+              <div className="live-sheet-backdrop" onClick={() => setSelected(null)}>
+                <div className="live-sheet" role="dialog" aria-label={`${selected.name} bilan amallar`} onClick={(e) => e.stopPropagation()}>
+                  <div className="live-sheet-head">
+                    <Avatar name={selected.name} />
+                    <div>
+                      <strong>{selected.name}</strong>
+                      <small>
+                        {selected.role === "moderator" ? "Boshlovchi" : selected.role === "speaker" ? "So'zlovchi" : "Tinglovchi"}
+                        {selected.handRaised ? " · qo'l ko'targan" : ""}
+                      </small>
+                    </div>
+                  </div>
+                  {selected.role === "listener" && (
+                    <button onClick={() => modAction("grant", selected)}><Mic size={17} /> So'z berish</button>
+                  )}
+                  {selected.role === "speaker" && (
+                    <button onClick={() => modAction("revoke", selected)}><MicOff size={17} /> So'zni olish</button>
+                  )}
+                  {selected.role !== "moderator" && (
+                    <button className="danger" onClick={() => modAction("kick", selected)}><UserMinus size={17} /> Suhbatdan chiqarish</button>
+                  )}
+                  <button className="ghost" onClick={() => setSelected(null)}>Bekor qilish</button>
+                </div>
+              </div>
+            )}
+
+            {av.audioBlocked && (
+              <button className="live-audio-unlock" onClick={av.startAudio}>
+                <Volume2 size={16} /> Ovozni eshitish uchun bosing
+              </button>
+            )}
+            {/* ── Kamera va mikrofonni tanlash ── */}
+            {devicesOpen && (
+              <div className="live-sheet-backdrop" onClick={() => setDevicesOpen(false)}>
+                <div className="live-sheet live-devices" role="dialog" aria-label="Qurilmalarni tanlash" onClick={(e) => e.stopPropagation()}>
+                  <h3><Camera size={16} /> Kamera</h3>
+                  {av.devices.cameras.length === 0 && <p className="muted">Kamera topilmadi.</p>}
+                  {av.devices.cameras.map((d, i) => (
+                    <button
+                      key={d.deviceId || i}
+                      className={d.deviceId === av.activeCameraId ? "on" : ""}
+                      onClick={() => av.selectCamera(d.deviceId)}
+                    >
+                      {d.label || `Kamera ${i + 1}`}
+                    </button>
+                  ))}
+                  <h3><Mic size={16} /> Mikrofon</h3>
+                  {av.devices.mics.length === 0 && <p className="muted">Mikrofon topilmadi.</p>}
+                  {av.devices.mics.map((d, i) => (
+                    <button
+                      key={d.deviceId || i}
+                      className={d.deviceId === av.activeMicId ? "on" : ""}
+                      onClick={() => av.selectMic(d.deviceId)}
+                    >
+                      {d.label || `Mikrofon ${i + 1}`}
+                    </button>
+                  ))}
+                  {av.devices.cameras.some((d) => !d.label) && (
+                    <p className="live-devices-hint">Nomlar ko&apos;rinishi uchun avval kamera yoki mikrofonni bir marta yoqing.</p>
+                  )}
+                  <button className="ghost" onClick={() => setDevicesOpen(false)}>Yopish</button>
+                </div>
+              </div>
+            )}
+
+            {notice && <div className="live-toast" role="status">{notice}</div>}
           </div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
-  </>;
+
+          {/* ── Boshqaruv paneli ── */}
+          <footer className="live-controls">
+            <div className="live-control-actions">
+              {controls.map(({ label, icon: Icon, active, disabled, pending, action, hint }) => (
+                <button
+                  className={`${active ? "active" : ""}${pending ? " pending" : ""}`}
+                  key={label}
+                  onClick={action}
+                  disabled={disabled || pending}
+                  aria-label={label}
+                  aria-busy={pending}
+                  title={disabled ? hint ?? lockedHint : pending ? "Yoqilmoqda…" : label}
+                >
+                  <span><Icon size={20} /></span>
+                  <small>{label}</small>
+                </button>
+              ))}
+              <button className="live-hangup" onClick={leaveSession} aria-label="Suhbatdan chiqish" title="Suhbatdan chiqish">
+                <span><LogOut size={20} /></span>
+                <small>Chiqish</small>
+              </button>
+            </div>
+          </footer>
+          <p className={`live-demo-note media-${media ? av.status : "none"}`}>
+            {!media
+              ? "Ovoz va video serveri sozlanmagan — faqat izohlar ishlaydi."
+              : av.status === "connected"
+                ? av.canPublish ? "Ovoz/video ulangan." : "Ovoz/video ulangan. Gapirish uchun qo'l ko'taring."
+                : av.status === "error" ? "Ovoz/video serveriga ulanib bo'lmadi." : "Ovoz/video ulanmoqda…"}
+          </p>
+        </div>
+      </div>
+      , document.body);
+  }
+
+  const miniBar = roomOpen && minimized ? createPortal(
+    <div className="live-minibar" role="status">
+      <button type="button" className="live-minibar-open" onClick={() => setMinimized(false)}>
+        <span className="live-minibar-dot" aria-hidden="true" />
+        <span><strong>{sessionData?.bookTitle ?? "Jonli suhbat"}</strong><small>{av.micOn ? "Mikrofon yoqiq · " : ""}Qaytish uchun bosing</small></span>
+      </button>
+      <button type="button" className="live-minibar-mic" aria-label={av.micOn ? "Mikrofonni o'chirish" : "Mikrofonni yoqish"} disabled={!av.canPublish} onClick={av.toggleMic}>{av.micOn ? <Mic size={18} /> : <MicOff size={18} />}</button>
+      <button type="button" className="live-minibar-leave" aria-label="Suhbatdan chiqish" onClick={leaveSession}><LogOut size={18} /></button>
+    </div>,
+    document.body,
+  ) : null;
+
+  // ── Suhbatlar ro'yxati ─────────────────────────────────────────────
+
+  return (
+    <>
+      <TalksBoard
+        sessions={sessions}
+        loading={loading}
+        signedIn={signedIn}
+        isAdmin={isAdmin}
+        userId={viewer?.userId ?? null}
+        notice={listNotice}
+        staff={canModerate(viewer?.role)}
+        onJoin={joinSession}
+        onChange={(next) => setSessions((prev) => prev.map((s) => (s.id === next.id ? next : s)))}
+        onRemove={(id) => setSessions((prev) => prev.filter((s) => s.id !== id))}
+        onCreate={() => setShowCreate(true)}
+        onShare={onComments}
+        login={viewer && !viewer.signedIn && (
+          <LoginCard viewer={viewer} title="Suhbatga qo'shilish uchun kiring" text="Jonli suhbatlarda faqat ro'yxatdan o'tgan kitobxonlar qatnashadi. Google yoki Telegram orqali kiring, yoki boshqa qurilmangizdagi kodni kiriting." />
+        )}
+      />
+
+      {showCreate && isAdmin && (
+        <CreateSessionDialog
+          name={name}
+          onClose={() => setShowCreate(false)}
+          onCreated={(s) => {
+            setShowCreate(false);
+            setSessions((prev) => [s, ...prev]);
+          }}
+        />
+      )}
+      {overlay}
+      {miniBar}
+    </>
+  );
 }
 
-function VideoView({ stream, mirrored }: { stream: MediaStream; mirrored: boolean }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  useEffect(() => { if (ref.current && ref.current.srcObject !== stream) ref.current.srcObject = stream; }, [stream]);
-  return <video ref={ref} autoPlay playsInline muted className={mirrored ? "is-mirrored" : ""} />;
+// ── Yangi suhbat yaratish dialogi (faqat admin) ─────────────────────
+
+function toLocalInput(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** Boshqalarning ovozi (WebRTC ovozi brauzerda media element orqali ijro etilishi kerak). */
-function AudioSink({ stream }: { stream: MediaStream }) {
-  const ref = useRef<HTMLAudioElement>(null);
-  useEffect(() => { if (ref.current && ref.current.srcObject !== stream) ref.current.srcObject = stream; }, [stream]);
-  return <audio ref={ref} autoPlay />;
+function CreateSessionDialog({
+  onClose,
+  onCreated,
+}: {
+  name: string;
+  onClose: () => void;
+  onCreated: (s: LiveSessionType) => void;
+}) {
+  const [bookTitle, setBookTitle] = useState("");
+  const [title, setTitle] = useState("");
+  const [when, setWhen] = useState(() => toLocalInput(new Date()));
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [announce, setAnnounce] = useState(true);
+  const catalog = useCatalog();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!bookTitle.trim() || !title.trim()) return;
+
+    setSubmitting(true);
+    setError("");
+
+    const scheduled = new Date(when);
+    const session = await createLiveSession({
+      bookTitle: bookTitle.trim(),
+      title: title.trim(),
+      scheduledAt: scheduled.toISOString(),
+      announcement: announce ? talkAnnouncement(bookTitle.trim(), title.trim(), scheduled) : undefined,
+    });
+    if (session) notifyTalksChanged();
+
+    setSubmitting(false);
+
+    if (session) {
+      onCreated(session);
+    } else {
+      setError("Suhbat yaratib bo'lmadi. Qayta urinib ko'ring.");
+    }
+  }
+
+  const fieldStyle = { padding: "0.5rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)", fontSize: "0.9rem" };
+  const labelStyle = { display: "flex", flexDirection: "column" as const, gap: "0.25rem" };
+
+  return (
+    <div className="live-overlay" role="dialog" aria-modal="true">
+      <div className="live-window" style={{ maxWidth: 420 }}>
+        <header className="live-topbar">
+          <button className="live-plain-btn" aria-label="Yopish" onClick={onClose}>
+            <ArrowLeft size={22} />
+          </button>
+          <div className="live-room-title">
+            <strong>Yangi suhbat</strong>
+            <span>Faqat admin e'lon qiladi</span>
+          </div>
+        </header>
+        <form
+          onSubmit={handleSubmit}
+          style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}
+        >
+          <label style={labelStyle}>
+            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Kitob nomi</span>
+            <input value={bookTitle} onChange={(e) => setBookTitle(e.target.value)} placeholder="Kutubxonadan tanlang yoki yozing" list="talk-books" maxLength={160} required style={fieldStyle} />
+            <datalist id="talk-books">
+              {catalog.items.map((b) => <option key={b.id} value={b.title} />)}
+            </datalist>
+          </label>
+          <label style={labelStyle}>
+            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Suhbat sarlavhasi</span>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Birga tahlil qilamiz" maxLength={200} required style={fieldStyle} />
+          </label>
+          <label style={labelStyle}>
+            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Qachon</span>
+            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} required style={fieldStyle} />
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem" }}>
+            <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} style={{ width: 18, height: 18 }} />
+            Bosh sahifada e&apos;lon qilish (yangiliklar va qo&apos;ng&apos;iroqcha)
+          </label>
+          {error && <p style={{ color: "#e5484d", fontSize: "0.85rem" }}>{error}</p>}
+          <button className="button" type="submit" disabled={submitting}>
+            {submitting ? "Yaratilmoqda..." : "E'lon qilish"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }

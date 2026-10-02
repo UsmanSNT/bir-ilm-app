@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/fraunces";
-import "@fontsource-variable/manrope";
 import "./globals.css";
+import "./discovery.css";
+import "./mobile-screens.css";
+import "./mobile-library.css";
+import "./profile-screens.css";
+import "./community/community.css";
+import "./talks.css";
 
 export const metadata: Metadata = {
   title: "Bir Ilm — kitobxonlik ilovasi",
@@ -24,7 +28,12 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = { themeColor: "#1E2F6E" };
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f4f7f5",
+};
 
 export default function RootLayout({
   children,

@@ -1,7 +1,42 @@
 import { env } from "cloudflare:workers";
-import { activeBookId, books, seedComments, seedLeaderboard } from "@/app/app-data";
+// Eski (v1 dan oldingi) izohlar va jarayon bitta "haftalik kitob" kaliti ostida saqlanadi.
+const activeBookId = "atomic-habits";
+import { resolveIdentity, sessionCookie, type Identity } from "@/server/auth/identity";
+import { corsHeaders, isAllowedOrigin, parseAllowedOrigins, preflightResponse } from "@/server/http/cors";
 
 export const runtime = "edge";
+
+function corsContext(request: Request) {
+  return {
+    origin: request.headers.get("origin"),
+    selfOrigin: new URL(request.url).origin,
+    allowed: parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
+  };
+}
+
+/**
+ * Javobga CORS sarlavhalarini qo'shadi.
+ *
+ * Native qobiq (`capacitor://localhost`) serverning o'z origini emas,
+ * shuning uchun bu sarlavhalarsiz brauzer qatlami javobni bloklaydi.
+ */
+function withCors(request: Request, response: Response): Response {
+  const headers = new Headers(response.headers);
+  for (const [key, value] of corsHeaders(corsContext(request))) {
+    headers.set(key, value);
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+/** Native ilovalar uchun CORS preflight. */
+export function OPTIONS(request: Request) {
+  return preflightResponse(corsContext(request));
+}
 
 type ActivityPayload = {
   score?: number;
@@ -40,14 +75,8 @@ type LeaderboardRow = {
   score: number;
 };
 
-function seedPayload(mode: "local" | "seed") {
-  return {
-    mode,
-    activeBookId,
-    books,
-    comments: seedComments,
-    leaderboard: seedLeaderboard,
-  };
+function emptyPayload(mode: "local" | "seed") {
+  return { mode, activeBookId, comments: [], leaderboard: [] };
 }
 
 function cleanText(value: unknown, fallback: string, limit: number) {
@@ -64,19 +93,6 @@ function boundedInt(value: unknown, fallback: number, min: number, max: number) 
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
-}
-
-async function upsertUser(db: D1Database, userId: string, name: string) {
-  await db
-    .prepare(
-      `INSERT INTO users (id, name, updated_at)
-       VALUES (?, ?, CURRENT_TIMESTAMP)
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
-         updated_at = CURRENT_TIMESTAMP`,
-    )
-    .bind(userId, name)
-    .run();
 }
 
 async function upsertActivity(
@@ -124,9 +140,9 @@ async function upsertActivity(
     .run();
 }
 
-export async function GET() {
+async function handleGet(): Promise<Response> {
   const db = env.DB;
-  if (!db) return Response.json(seedPayload("local"));
+  if (!db) return Response.json(emptyPayload("local"));
 
   try {
     const commentRows = await db
@@ -185,16 +201,18 @@ export async function GET() {
     return Response.json({
       mode: "server",
       activeBookId,
-      books,
-      comments: comments.length ? comments : seedComments,
-      leaderboard: leaderboard.length ? leaderboard : seedLeaderboard,
+      comments: comments.filter((comment) => !comment.demo),
+      leaderboard,
     });
   } catch {
-    return Response.json(seedPayload("seed"));
+    return Response.json(emptyPayload("seed"));
   }
 }
 
-export async function POST(request: Request) {
+async function handlePost(request: Request, identity: Identity): Promise<Response> {
+  if (!isAllowedOrigin(corsContext(request))) {
+    return Response.json({ error: "So'rov rad etildi." }, { status: 403 });
+  }
   const db = env.DB;
   if (!db) {
     return Response.json(
@@ -211,14 +229,12 @@ export async function POST(request: Request) {
   }
 
   const type = payload.type;
-  const userId = cleanText(payload.userId, "anonymous", 96);
-  if (userId.startsWith("reader_")) {
-    return Response.json({ error: "Bu profil uchun ijtimoiy bo'limdan foydalaning." }, { status: 403 });
-  }
-  const name = cleanText(payload.name, "Kitobxon", 40);
+  // Foydalanuvchi faqat serverda token/cookie'dan aniqlanadi — so'rovdagi userId'ga ishonilmaydi.
+  const userId = identity.userId;
 
   try {
-    await upsertUser(db, userId, name);
+    await db.prepare("INSERT OR IGNORE INTO users (id, name) VALUES (?, 'Kitobxon')").bind(userId).run();
+    const name = (await db.prepare("SELECT name FROM users WHERE id=?").bind(userId).first<{ name: string }>())?.name ?? "Kitobxon";
 
     if (type === "comment") {
       const text = cleanText(payload.text, "", 2000);
@@ -251,7 +267,7 @@ export async function POST(request: Request) {
     }
 
     if (type === "progress") {
-      const total = boundedInt(payload.total, books[0]?.pages ?? 320, 1, 5000);
+      const total = boundedInt(payload.total, 320, 1, 5000);
       const page = boundedInt(payload.page, 0, 0, total);
 
       await db
@@ -282,4 +298,17 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+// Mavjud mantiq o'zgarmadi; eksport qilingan ishlovchilar unga faqat CORS
+// sarlavhalarini qo'shadi, shunda ayni shu API native ilovadan ham chaqiriladi.
+export async function GET(request: Request): Promise<Response> {
+  return withCors(request, await handleGet());
+}
+
+export async function POST(request: Request): Promise<Response> {
+  const identity = await resolveIdentity(request);
+  const response = withCors(request, await handlePost(request, identity));
+  if (identity.isNew && identity.platform === "web") response.headers.append("Set-Cookie", sessionCookie(request, identity.token));
+  return response;
 }

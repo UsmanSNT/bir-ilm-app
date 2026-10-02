@@ -4,18 +4,56 @@ import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, Timer, Check, X, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogPortal, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogPortal, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { finishPhase, type Session, type TimerState } from "./focus-state";
 const KEY = "bir-ilm-focus-v1";
 const blank = (): TimerState => ({ minutes: 25, remaining: 1500, endAt: null, sessionId: "", pending: [] });
+const STATE_EVENT = "bir-focus-state";
+const OPEN_EVENT = "bir-open-pomodoro";
+
+/**
+ * Qo'ng'iroqcha yonidagi ixcham taymer tugmasi. Taymerning o'zi (FocusTimer) sahifada bitta,
+ * bu tugma esa uni ochadi va seans ketayotganda qolgan daqiqani ko'rsatadi.
+ */
+export function PomodoroButton({ className = "" }: { className?: string }) {
+  const [left, setLeft] = useState<number | null>(null);
+  const [onBreak, setOnBreak] = useState(false);
+  useEffect(() => {
+    const read = () => {
+      try {
+        const s = JSON.parse(localStorage.getItem(KEY) || "null") as TimerState | null;
+        const running = s?.endAt ? Math.max(0, Math.ceil((s.endAt - Date.now()) / 60000)) : null;
+        setLeft(running);
+        setOnBreak(s?.phase === "break");
+      } catch {
+        setLeft(null);
+      }
+    };
+    read();
+    const tick = setInterval(read, 5000);
+    window.addEventListener(STATE_EVENT, read);
+    return () => {
+      clearInterval(tick);
+      window.removeEventListener(STATE_EVENT, read);
+    };
+  }, []);
+  const label = left === null ? "Pomodoro taymeri" : `Pomodoro: ${onBreak ? "tanaffus" : "seans"}, ${left} daqiqa qoldi`;
+  return (
+    <button type="button" className={`pomo-btn${left !== null ? " is-running" : ""} ${className}`} aria-label={label} title={label} onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}>
+      <Timer size={21} />
+      {left !== null && <span className="pomo-badge">{left}</span>}
+    </button>
+  );
+}
 
 export default function FocusTimer({ onComplete }: { onComplete: (session: Session) => Promise<void> }) {
   const [state, setState] = useState<TimerState>(blank);
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [open, setOpen] = useState(false);
   const current = useRef(state);
   const callback = useRef(onComplete);
   useEffect(() => { callback.current = onComplete; }, [onComplete]);
@@ -25,6 +63,7 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
     setState(next);
     try { localStorage.setItem(KEY, JSON.stringify(next)); }
     catch { toast.error("Taymer qurilma xotirasiga saqlanmadi."); }
+    window.dispatchEvent(new Event(STATE_EVENT));
   }
 
   useEffect(() => {
@@ -63,6 +102,12 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
     return () => clearInterval(tick);
   }, []);
 
+  useEffect(() => {
+    const openTimer = () => setOpen(true);
+    window.addEventListener(OPEN_EVENT, openTimer);
+    return () => window.removeEventListener(OPEN_EVENT, openTimer);
+  }, []);
+
   function toggle() {
     const s = current.current;
     if (s.endAt) save({ ...s, endAt: null, remaining: Math.max(0, Math.ceil((s.endAt - Date.now()) / 1000)) });
@@ -84,13 +129,8 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
     finally { setSaving(false); }
   }
 
-  return <Dialog>
-    <DialogTrigger asChild>
-      <button className="focus-launcher" disabled={!ready}>
-        <Timer size={20} />
-        <span><strong>Pomodoro</strong><small>{state.phase === "break" ? "5 daqiqa tanaffus" : state.endAt ? "Seans davom etmoqda" : "Diqqat vaqti"}</small></span>
-      </button>
-    </DialogTrigger>
+  // Ochuvchi tugma alohida: PomodoroButton (qo'ng'iroqcha yonida).
+  return <Dialog open={open} onOpenChange={setOpen}>
     <DialogPortal>
     <DialogPrimitive.Overlay className="pomodoro-backdrop" />
     <DialogPrimitive.Content className="pomodoro-fullscreen" aria-describedby={undefined}>

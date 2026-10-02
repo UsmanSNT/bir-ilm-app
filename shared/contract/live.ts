@@ -1,0 +1,144 @@
+/** Jonli suhbat shartnomasi — web, Android va iOS uchun. */
+import { z } from "zod";
+import type { UserRole } from "./roles";
+
+export const LIVE_SESSION_STATUSES = ["planned", "live", "ended"] as const;
+export type LiveSessionStatus = (typeof LIVE_SESSION_STATUSES)[number];
+
+export const LIVE_ROLES = ["listener", "speaker", "moderator"] as const;
+export type LiveRole = (typeof LIVE_ROLES)[number];
+
+export const LIMITS_LIVE = {
+  title: 200,
+  messageBody: 500,
+  /** Yozuvning bitta bo'lagi (brauzer har 10 soniyada yuboradi). */
+  recordingChunkBytes: 8 * 1024 * 1024,
+  /** Bitta xom yozuv: 2 GB. */
+  recordingBytes: 2 * 1024 * 1024 * 1024,
+  /** Ishlov berilgan audio: 1 GB. */
+  archiveBytes: 1024 * 1024 * 1024,
+} as const;
+
+const trimmed = (max: number) => z.string().trim().max(max);
+
+export const createLiveSessionSchema = z.object({
+  bookTitle: trimmed(160).min(1, "Kitob nomini yozing."),
+  title: trimmed(LIMITS_LIVE.title).min(1, "Sarlavhani yozing."),
+  scheduledAt: z.string().datetime({ message: "ISO 8601 format kerak." }),
+  /** Bo'lsa — bosh sahifa yangiliklarida (va qo'ng'iroqchada) e'lon ham joylanadi. */
+  announcement: z
+    .object({ title: trimmed(160).min(1), body: trimmed(2000).min(1) })
+    .optional(),
+});
+
+export const liveMessageSchema = z.object({
+  body: trimmed(LIMITS_LIVE.messageBody).min(1, "Xabarni yozing."),
+});
+
+export type CreateLiveSessionInput = z.infer<typeof createLiveSessionSchema>;
+
+/** Rejalashtirilgan suhbatni o'zgartirish (admin): vaqt, sarlavha, kitob. */
+export const updateLiveSessionSchema = z
+  .object({
+    bookTitle: trimmed(160).min(1, "Kitob nomini yozing.").optional(),
+    title: trimmed(LIMITS_LIVE.title).min(1, "Sarlavhani yozing.").optional(),
+    scheduledAt: z.string().datetime({ message: "ISO 8601 format kerak." }).optional(),
+    /** Bo'lsa — «vaqt o'zgardi» e'loni bosh sahifaga joylanadi. */
+    announcement: z.object({ title: trimmed(160).min(1), body: trimmed(2000).min(1) }).optional(),
+  })
+  .refine((v) => v.bookTitle !== undefined || v.title !== undefined || v.scheduledAt !== undefined, {
+    message: "O'zgartiriladigan maydon yo'q.",
+  });
+export type UpdateLiveSessionInput = z.infer<typeof updateLiveSessionSchema>;
+export type LiveMessageInput = z.infer<typeof liveMessageSchema>;
+
+export type LiveSession = {
+  id: string;
+  bookTitle: string;
+  title: string;
+  status: LiveSessionStatus;
+  scheduledAt: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  moderatorId: string;
+  participantCount: number;
+  /** Hozir yozib olinmoqda (hamma ko'radi — qatnashchilar bilishi kerak). */
+  recording: boolean;
+  /** Ishlov berilgan, hammaga ochiq audio. null — hali joylanmagan (tugagan suhbat faqat adminlarga ko'rinadi). */
+  archive: { url: string; seconds: number; bytes: number } | null;
+  /** Xom yozuvlar — faqat admin/moderatorga; boshqalarga doim bo'sh. */
+  recordings: LiveRecording[];
+};
+
+export type LiveRecording = {
+  id: string;
+  /** Yuklab olish manzili (faqat admin/moderator ochadi). */
+  url: string;
+  mime: string;
+  bytes: number;
+  seconds: number;
+  createdAt: string;
+};
+
+export type LiveParticipant = {
+  userId: string;
+  name: string;
+  role: LiveRole;
+  handRaised: boolean;
+};
+
+export type LiveMessage = {
+  id: number;
+  userId: string;
+  userName: string;
+  body: string;
+  createdAt: string;
+};
+
+export type LiveMedia = {
+  /** LiveKit serveri manzili (ws:// yoki wss://). */
+  url: string;
+  /** Shu xona va shu foydalanuvchi uchun qisqa muddatli ruxsat. */
+  token: string;
+};
+
+// ── WebSocket xabar tiplari ─────────────────────────────────────────
+
+/** Mijozdan serverga. */
+export type WsClientMessage =
+  | { type: "join"; sessionId: string; token: string }
+  | { type: "leave" }
+  | { type: "chat"; body: string }
+  | { type: "hand"; raised: boolean }
+  | { type: "mod:grant_speaker"; targetUserId: string }
+  | { type: "mod:revoke_speaker"; targetUserId: string }
+  | { type: "mod:kick"; targetUserId: string }
+  | { type: "mod:delete_message"; messageId: number }
+  | { type: "mod:start" }
+  | { type: "mod:end" }
+  /** Faqat admin: yozib olishni yoqish/o'chirish. */
+  | { type: "mod:recording"; on: boolean };
+
+/** Serverdan mijozga. */
+export type WsServerMessage =
+  | {
+      type: "joined";
+      session: LiveSession;
+      participants: LiveParticipant[];
+      recentMessages: LiveMessage[];
+      /** Ulangan foydalanuvchining o'zi. */
+      you: { userId: string; role: UserRole };
+      /** Ovoz/video serveriga ulanish. `null` — media server sozlanmagan yoki suhbat tugagan. */
+      media: LiveMedia | null;
+    }
+  | { type: "error"; message: string }
+  | { type: "participant_joined"; participant: LiveParticipant; count: number }
+  | { type: "participant_left"; userId: string; count: number }
+  | { type: "chat"; message: LiveMessage }
+  | { type: "hand_update"; userId: string; raised: boolean }
+  | { type: "role_update"; userId: string; role: LiveRole }
+  | { type: "message_deleted"; messageId: number }
+  | { type: "kicked" }
+  | { type: "session_started"; startedAt: string }
+  | { type: "session_ended"; endedAt: string }
+  | { type: "recording"; active: boolean };
