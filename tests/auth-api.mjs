@@ -45,7 +45,7 @@ try {
   assert.equal(stored.iterations, 100000);
 
   const me = await (await fetch(`${origin}/api/auth`, { headers: { Cookie: session } })).json();
-  assert.deepEqual(me.user, { id: regBody.user.id, login, name: "Aziza", providers: [] });
+  assert.deepEqual(me.user, { id: regBody.user.id, login, name: "Aziza", email: null, providers: [] });
   assert.equal((await post("/api/social", { type: "post", book: "Alkimyogar", body: "Hisob bilan post" }, session)).status, 200);
 
   // Kirish: noto'g'ri parol, to'g'ri parol (yangi qurilma), chiqish.

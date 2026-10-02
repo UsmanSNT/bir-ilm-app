@@ -1,13 +1,14 @@
 "use client";
 
 import { createContext, FormEvent, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, KeyRound, LogIn, MailCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
-export type AuthUser = { id: string; login: string | null; name: string; providers?: string[] };
+export type AuthUser = { id: string; login: string | null; name: string; email?: string | null; providers?: string[] };
 type Providers = { google: boolean; telegram: string | null };
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "forgot" | "reset";
+type FormMode = "login" | "register";
 type AuthApi = {
   user: AuthUser | null;
   ready: boolean;
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<Mode | null>(null);
+  const [resetToken, setResetToken] = useState("");
   const [providers, setProviders] = useState<Providers>({ google: false, telegram: null });
   const pending = useRef<(() => void) | null>(null);
 
@@ -63,6 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const [ok, text] = messages[result] ?? [false, "Kirib bo‘lmadi. Qayta urinib ko‘ring."];
       queueMicrotask(() => (ok ? toast.success(text) : toast.error(text)));
       url.searchParams.delete("auth");
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    }
+    // Parolni tiklash havolasi: /?reset=<token>. Token URL'dan darhol olib tashlanadi.
+    const reset = url.searchParams.get("reset");
+    if (reset && /^[a-f0-9]{64}$/.test(reset)) {
+      queueMicrotask(() => { setResetToken(reset); setMode("reset"); });
+      url.searchParams.delete("reset");
       window.history.replaceState(null, "", url.pathname + url.search + url.hash);
     }
     const onRequired = () => setMode("login");
@@ -101,14 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     {children}
     <Dialog open={mode !== null} onOpenChange={open => { if (!open) { setMode(null); pending.current = null; } }}>
       <DialogContent className="app-dialog auth-dialog">
-        {mode && <AuthForm key={mode} mode={mode} providers={providers} onSwitch={setMode} onDone={signedIn} />}
+        {mode === "forgot" && <ForgotForm onBack={() => setMode("login")} />}
+        {mode === "reset" && <ResetForm token={resetToken} onDone={signedIn} onRestart={() => setMode("forgot")} />}
+        {(mode === "login" || mode === "register") && <AuthForm key={mode} mode={mode} providers={providers} onSwitch={setMode} onDone={signedIn} />}
       </DialogContent>
     </Dialog>
   </AuthContext.Provider>;
 }
 
-function AuthForm({ mode, providers, onSwitch, onDone }: { mode: Mode; providers: Providers; onSwitch: (m: Mode) => void; onDone: (u: AuthUser) => void }) {
+function AuthForm({ mode, providers, onSwitch, onDone }: { mode: FormMode; providers: Providers; onSwitch: (m: Mode) => void; onDone: (u: AuthUser) => void }) {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -123,7 +135,7 @@ function AuthForm({ mode, providers, onSwitch, onDone }: { mode: Mode; providers
     if (register && password !== confirm) return setError("Parollar bir xil emas.");
     setBusy(true); setError("");
     try {
-      const res = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: mode, name, login, password }) });
+      const res = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: mode, name, login, password, email }) });
       const data = (await res.json().catch(() => ({}))) as { user?: AuthUser; error?: string };
       if (!res.ok || !data.user) throw Error(data.error ?? "Xatolik. Qayta urinib ko‘ring.");
       toast.success(register ? `Xush kelibsiz, ${data.user.name}!` : `Assalomu alaykum, ${data.user.name}!`);
@@ -147,12 +159,14 @@ function AuthForm({ mode, providers, onSwitch, onDone }: { mode: Mode; providers
     <form className="auth-form" onSubmit={e => void submit(e)}>
       {register && <label>Ismingiz<input autoComplete="name" required minLength={2} maxLength={40} value={name} onChange={e => setName(e.target.value)} placeholder="Masalan: Aziza" /></label>}
       <label>Login<input autoComplete="username" required autoCapitalize="none" spellCheck={false} pattern="[A-Za-z0-9_.]{3,32}" title="3–32 belgi: lotin harflari, raqam, _ yoki ." maxLength={32} value={login} onChange={e => setLogin(e.target.value)} placeholder="kitobxon_01" /></label>
+      {register && <label>Email <small className="auth-hint">(ixtiyoriy — parolni tiklash uchun)</small><input type="email" autoComplete="email" maxLength={254} value={email} onChange={e => setEmail(e.target.value)} placeholder="siz@misol.uz" /></label>}
       <label>Parol
         <span className="auth-password">
           <input type={show ? "text" : "password"} autoComplete={register ? "new-password" : "current-password"} required minLength={8} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} />
           <button type="button" aria-label={show ? "Parolni yashirish" : "Parolni ko‘rsatish"} onClick={() => setShow(v => !v)}>{show ? <EyeOff size={18} /> : <Eye size={18} />}</button>
         </span>
       </label>
+      {!register && <button type="button" className="text-btn auth-forgot" onClick={() => onSwitch("forgot")}>Parolni unutdingizmi?</button>}
       {register && <label>Parolni takrorlang<input type={show ? "text" : "password"} autoComplete="new-password" required minLength={8} maxLength={128} value={confirm} onChange={e => setConfirm(e.target.value)} /></label>}
       {error && <p className="auth-error" role="alert">{error}</p>}
       <button className="button full" disabled={busy}>{busy ? "Kutilmoqda..." : register ? "Hisob ochish" : "Kirish"}</button>
@@ -192,5 +206,74 @@ function TelegramButton({ bot }: { bot: string }) {
   return <>
     <div className="auth-provider auth-telegram" ref={box} aria-label="Telegram orqali kirish" hidden={failed} />
     {failed && <p className="auth-provider-error">Telegram tugmasi yuklanmadi. Internetni tekshirib, oynani qayta oching.</p>}
+  </>;
+}
+
+function ForgotForm({ onBack }: { onBack: () => void }) {
+  const [identifier, setIdentifier] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState("");
+  const [error, setError] = useState("");
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true); setError("");
+    try {
+      const res = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "forgot", identifier }) });
+      const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+      if (!res.ok) throw Error(data.error ?? "Xatolik. Qayta urinib ko‘ring.");
+      setSent(data.message ?? "Havola yuborildi.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Xatolik"); }
+    finally { setBusy(false); }
+  };
+  return <>
+    <span className="auth-mark" aria-hidden="true"><KeyRound size={26} /></span>
+    <DialogTitle>Parolni tiklash</DialogTitle>
+    <DialogDescription>Login yoki emailingizni kiriting. Tiklash havolasi hisobingizga bog‘langan email yoki Telegram’ga yuboriladi.</DialogDescription>
+    {sent
+      ? <p className="auth-success" role="status"><MailCheck size={18} />{sent}</p>
+      : <form className="auth-form" onSubmit={e => void submit(e)}>
+          <label>Login yoki email<input autoComplete="username" required maxLength={254} autoCapitalize="none" spellCheck={false} value={identifier} onChange={e => setIdentifier(e.target.value)} /></label>
+          {error && <p className="auth-error" role="alert">{error}</p>}
+          <button className="button full" disabled={busy || !identifier.trim()}>{busy ? "Yuborilmoqda..." : "Havola yuborish"}</button>
+        </form>}
+    <p className="auth-hint-box">Email ham, Telegram ham bog‘lanmagan bo‘lsa, parolni tiklab bo‘lmaydi. Hisobga kirgach, Sozlamalarda email qo‘shib qo‘ying.</p>
+    <p className="auth-switch"><button type="button" className="text-btn" onClick={onBack}><ArrowLeft size={16} />Kirishga qaytish</button></p>
+  </>;
+}
+
+function ResetForm({ token, onDone, onRestart }: { token: string; onDone: (u: AuthUser) => void; onRestart: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [expired, setExpired] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    if (password !== confirm) return setError("Parollar bir xil emas.");
+    setBusy(true); setError("");
+    try {
+      const res = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "reset", token, password }) });
+      const data = (await res.json().catch(() => ({}))) as { user?: AuthUser; error?: string };
+      if (res.status === 410) setExpired(true);
+      if (!res.ok || !data.user) throw Error(data.error ?? "Xatolik. Qayta urinib ko‘ring.");
+      toast.success("Parol yangilandi. Boshqa qurilmalardagi sessiyalar yopildi.");
+      onDone(data.user);
+    } catch (err) { setError(err instanceof Error ? err.message : "Xatolik"); }
+    finally { setBusy(false); }
+  };
+  return <>
+    <span className="auth-mark" aria-hidden="true"><KeyRound size={26} /></span>
+    <DialogTitle>Yangi parol</DialogTitle>
+    <DialogDescription>Kamida 8 belgidan iborat yangi parol tanlang.</DialogDescription>
+    <form className="auth-form" onSubmit={e => void submit(e)}>
+      <label>Yangi parol<input type="password" autoComplete="new-password" required minLength={8} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} /></label>
+      <label>Parolni takrorlang<input type="password" autoComplete="new-password" required minLength={8} maxLength={128} value={confirm} onChange={e => setConfirm(e.target.value)} /></label>
+      {error && <p className="auth-error" role="alert">{error}</p>}
+      {expired
+        ? <button type="button" className="button full" onClick={onRestart}>Yangi havola so‘rash</button>
+        : <button className="button full" disabled={busy}>{busy ? "Saqlanmoqda..." : "Parolni saqlash"}</button>}
+    </form>
   </>;
 }

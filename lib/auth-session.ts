@@ -13,9 +13,9 @@ export async function openSession(db: D1Database, request: Request, userId: stri
 /** Joriy foydalanuvchi ma'lumoti (hisobga kirmagan bo'lsa null). */
 export async function currentUser(db: D1Database, identity: Identity) {
   if (!identity.authed) return null;
-  const row = await db.prepare("SELECT u.name, (SELECT group_concat(provider) FROM oauth_identities o WHERE o.user_id=u.id) AS providers FROM users u WHERE u.id=?")
-    .bind(identity.id).first<{ name: string; providers: string | null }>();
-  return { id: identity.id, login: identity.login, name: row?.name ?? "Kitobxon", providers: row?.providers ? row.providers.split(",") : [] };
+  const row = await db.prepare("SELECT u.name, (SELECT group_concat(provider) FROM oauth_identities o WHERE o.user_id=u.id) AS providers, (SELECT email FROM accounts a WHERE a.user_id=u.id) AS email FROM users u WHERE u.id=?")
+    .bind(identity.id).first<{ name: string; providers: string | null; email: string | null }>();
+  return { id: identity.id, login: identity.login, name: row?.name ?? "Kitobxon", email: row?.email ?? null, providers: row?.providers ? row.providers.split(",") : [] };
 }
 
 /** Yangi hisob uchun ID: mehmon hali hech qaysi hisobga bog'lanmagan bo'lsa uning ID'si (savat va h.k. saqlanadi). */

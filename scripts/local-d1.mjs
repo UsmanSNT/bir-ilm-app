@@ -49,7 +49,7 @@ const BUCKET = {
 };
 
 // Preview uchun ixtiyoriy sirlar jarayon muhitidan olinadi (Workers'da ular env bindings orqali keladi).
-const secrets = Object.fromEntries(["GEMINI_API_KEY", "GEMINI_MODEL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TELEGRAM_BOT_TOKEN", "TELEGRAM_BOT_USERNAME"].filter(k => process.env[k]).map(k => [k, process.env[k]]));
+const secrets = Object.fromEntries(["GEMINI_API_KEY", "GEMINI_MODEL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TELEGRAM_BOT_TOKEN", "TELEGRAM_BOT_USERNAME", "RESEND_API_KEY", "MAIL_FROM"].filter(k => process.env[k]).map(k => [k, process.env[k]]));
 export const env = { ...secrets, BUCKET, DB: {
   prepare(sql) { return new Statement(sql); },
   async batch(statements) {

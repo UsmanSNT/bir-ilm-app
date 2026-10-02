@@ -176,8 +176,9 @@ export const accounts = sqliteTable("accounts", {
   passwordHash: text("password_hash").notNull(),
   salt: text("salt").notNull(),
   iterations: integer("iterations").notNull(),
+  email: text("email"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-}, (t) => [uniqueIndex("idx_accounts_login").on(t.login)]);
+}, (t) => [uniqueIndex("idx_accounts_login").on(t.login), uniqueIndex("idx_accounts_email").on(t.email).where(sql`email IS NOT NULL`)]);
 
 export const sessions = sqliteTable("sessions", {
   tokenHash: text("token_hash").primaryKey(),
@@ -199,3 +200,11 @@ export const oauthIdentities = sqliteTable("oauth_identities", {
   email: text("email"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [uniqueIndex("idx_oauth_provider_subject").on(t.provider, t.subject), index("idx_oauth_user").on(t.userId)]);
+
+export const passwordResets = sqliteTable("password_resets", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: text("expires_at").notNull(),
+  usedAt: text("used_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_password_resets_user").on(t.userId)]);

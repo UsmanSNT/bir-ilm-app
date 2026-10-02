@@ -518,6 +518,7 @@ function App() {
   const settingsPanel = (
     <div className="settings-panel">
       <NameSettings key={displayName} name={displayName} onSaved={name => { rename(name); update({ name }); }} />
+      {user?.login && <SecuritySettings email={user.email ?? null} />}
       {([
         ["notifications", "Bildirishnomalar", "O'qish va suhbat eslatmalari", Bell],
         ["progress", "Kitob rejasi", "Sahifa soni va o'qish progressi", BookOpen],
@@ -944,5 +945,56 @@ function NameSettings({ name, onSaved }: { name: string; onSaved: (name: string)
         <button className="button" disabled={busy || clean.length < 2 || clean === name}>{busy ? "..." : "Saqlash"}</button>
       </div>
     </form>
+  );
+}
+
+async function postAuth(payload: Record<string, unknown>) {
+  const res = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  const data = (await res.json().catch(() => ({}))) as { error?: string; email?: string | null };
+  if (!res.ok) throw Error(data.error ?? "Saqlanmadi.");
+  return data;
+}
+
+/** Parol va emailni o'zgartirish (faqat login-parol hisoblari uchun). */
+function SecuritySettings({ email }: { email: string | null }) {
+  const [savedEmail, setSavedEmail] = useState(email);
+  const [nextEmail, setNextEmail] = useState(email ?? "");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const run = async (event: FormEvent, action: () => Promise<void>) => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    try { await action(); } catch (e) { toast.error(e instanceof Error ? e.message : "Saqlanmadi."); } finally { setBusy(false); }
+  };
+  return (
+    <section className="card security-card" aria-label="Xavfsizlik">
+      <h3>Xavfsizlik</h3>
+      <form onSubmit={e => void run(e, async () => {
+        const data = await postAuth({ type: "set_email", email: nextEmail, current: emailPassword });
+        setSavedEmail(data.email ?? null); setEmailPassword("");
+        toast.success(data.email ? "Email saqlandi — parolni shu orqali tiklash mumkin" : "Email olib tashlandi");
+      })}>
+        <label htmlFor="sec-email">Email {savedEmail ? "" : <small className="auth-hint">(parolni tiklash uchun qo‘shing)</small>}</label>
+        <input id="sec-email" type="email" autoComplete="email" maxLength={254} value={nextEmail} onChange={e => setNextEmail(e.target.value)} placeholder="siz@misol.uz" />
+        <input type="password" aria-label="Joriy parol (email uchun)" autoComplete="current-password" placeholder="Joriy parol" value={emailPassword} onChange={e => setEmailPassword(e.target.value)} />
+        <button className="button secondary" disabled={busy || !emailPassword || nextEmail.trim().toLowerCase() === (savedEmail ?? "")}>Emailni saqlash</button>
+      </form>
+      <form onSubmit={e => void run(e, async () => {
+        if (next !== confirm) throw Error("Yangi parollar bir xil emas.");
+        await postAuth({ type: "change_password", current, password: next });
+        setCurrent(""); setNext(""); setConfirm("");
+        toast.success("Parol o‘zgartirildi. Boshqa qurilmalardagi sessiyalar yopildi.");
+      })}>
+        <label htmlFor="sec-current">Parolni o‘zgartirish</label>
+        <input id="sec-current" type="password" autoComplete="current-password" placeholder="Joriy parol" value={current} onChange={e => setCurrent(e.target.value)} />
+        <input type="password" aria-label="Yangi parol" autoComplete="new-password" placeholder="Yangi parol (kamida 8 belgi)" minLength={8} maxLength={128} value={next} onChange={e => setNext(e.target.value)} />
+        <input type="password" aria-label="Yangi parolni takrorlang" autoComplete="new-password" placeholder="Yangi parolni takrorlang" value={confirm} onChange={e => setConfirm(e.target.value)} />
+        <button className="button secondary" disabled={busy || !current || next.length < 8}>Parolni o‘zgartirish</button>
+      </form>
+    </section>
   );
 }

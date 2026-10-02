@@ -570,3 +570,12 @@ audio { width: 100%; }
 .auth-or { display: flex; align-items: center; gap: 12px; color: var(--siyoh-3) !important; font-size: 13px; font-weight: 700; }
 .auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--chiziq); }
 .auth-provider-error { text-align: center; color: var(--siyoh-3) !important; font-size: 13px; }
+.auth-forgot { justify-self: end; margin-top: -6px; font-size: 13.5px; }
+.auth-hint { color: var(--siyoh-3); font-weight: 600; font-size: 12px; }
+.auth-hint-box { padding: 10px 12px; border-radius: var(--r-sm); background: var(--qogoz); color: var(--siyoh-3) !important; font-size: 13px; }
+.auth-success { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r-sm); background: var(--firuza-och); color: var(--firuza) !important; font-weight: 700; font-size: 14px; }
+.auth-success svg { flex: none; margin-top: 2px; }
+.security-card { display: grid; gap: 10px; padding: 16px 18px; }
+.security-card h3 { font-size: 18px; }
+.security-card form { display: grid; gap: 8px; }
+.security-card .button { justify-self: start; }

@@ -8,5 +8,7 @@ declare namespace Cloudflare {
     GOOGLE_CLIENT_SECRET?: string;
     TELEGRAM_BOT_TOKEN?: string;
     TELEGRAM_BOT_USERNAME?: string;
+    RESEND_API_KEY?: string;
+    MAIL_FROM?: string;
   }
 }
