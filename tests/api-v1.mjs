@@ -729,6 +729,7 @@ try {
     const archive = await load("app/api/v1/live/[id]/archive/route.ts");
     const liveItem = await load("app/api/v1/live/[id]/route.ts");
     const liveFile = await load("app/media/live/[id]/[file]/route.ts");
+    const liveStart = await load("app/api/v1/live/[id]/start/route.ts");
 
     const admin = await webClient();
     const reader = await webClient();
@@ -743,7 +744,14 @@ try {
 
     // Suhbat boshlanmagan — yozib bo'lmaydi; oddiy foydalanuvchi umuman yoza olmaydi.
     await admin.call(recordings.POST, `/api/v1/live/${id}/recordings`, { method: "POST", body: { mime: "audio/webm;codecs=opus" }, params, expect: 400 });
-    sqlite.prepare("UPDATE live_sessions SET status = 'live', started_at = ? WHERE id = ?").run(new Date().toISOString(), id);
+    // Boshlash: faqat admin; takror bosish zarar qilmaydi.
+    await reader.call(liveStart.POST, `/api/v1/live/${id}/start`, { method: "POST", params, expect: 403 });
+    assert.equal(made.data.status, "planned");
+    const { payload: started } = await admin.call(liveStart.POST, `/api/v1/live/${id}/start`, { method: "POST", params });
+    assert.equal(started.data.status, "live");
+    assert.ok(started.data.startedAt);
+    const { payload: again } = await admin.call(liveStart.POST, `/api/v1/live/${id}/start`, { method: "POST", params });
+    assert.equal(again.data.startedAt, started.data.startedAt, "Qayta boshlash vaqtni o'zgartirmaydi");
     await reader.call(recordings.POST, `/api/v1/live/${id}/recordings`, { method: "POST", body: { mime: "audio/webm" }, params, expect: 403 });
     const { payload: rec } = await admin.call(recordings.POST, `/api/v1/live/${id}/recordings`, { method: "POST", body: { mime: "audio/webm;codecs=opus" }, params, expect: 201 });
     const rid = rec.data.id;

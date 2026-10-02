@@ -17,11 +17,12 @@ function lateText(ms: number): string {
  * Suhbat hali boshlanmagan: aniq xabar va boshlanishigacha jonli hisoblagich.
  * Alohida komponent — soniyalik yangilanish butun suhbat oynasini qayta chizmasin.
  */
-export default function TalkWaiting({ scheduledAt, bookTitle, title, canStart, onStart }: {
+export default function TalkWaiting({ scheduledAt, bookTitle, title, canStart, busy = false, onStart }: {
   scheduledAt: string;
   bookTitle: string;
   title: string;
   canStart: boolean;
+  busy?: boolean;
   onStart: () => void;
 }) {
   const now = useNow(1000);
@@ -57,12 +58,12 @@ export default function TalkWaiting({ scheduledAt, bookTitle, title, canStart, o
               <span key={label} aria-hidden="true"><b>{two(value)}</b><small>{label}</small></span>
             ))}
           </div>
-          <p className="live-waiting-hint">{canStart ? "Vaqt kelganda «Boshlash» ni bosing." : "Vaqt kelganda admin suhbatni boshlaydi — oynani yopmay kuting."}</p>
+          <p className="live-waiting-hint">{canStart ? "Vaqt kelganda yoki tayyor bo‘lganda suhbatni boshlang." : "Admin boshlagach, shu yerda «Kirish» tugmasi chiqadi."}</p>
         </>
       )}
 
       {canStart && (
-        <button type="button" className="live-waiting-start" onClick={onStart}><Play size={16} aria-hidden="true" />Suhbatni boshlash</button>
+        <button type="button" className="live-waiting-start" onClick={onStart} disabled={busy}><Play size={16} aria-hidden="true" />{busy ? "Boshlanmoqda…" : "Suhbatni boshlash"}</button>
       )}
     </section>
   );

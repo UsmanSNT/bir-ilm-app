@@ -135,6 +135,11 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         send(client.ws, { type: "error", message: "Suhbat topilmadi." });
         return;
       }
+      // Boshlanmagan suhbatga hech kim (admin ham) kirmaydi: admin avval ro'yxatdagi oynadan boshlaydi.
+      if (session.status === "planned") {
+        send(client.ws, { type: "error", message: "Suhbat hali boshlanmadi." });
+        return;
+      }
       if (kickedFrom(msg.sessionId).has(client.userId)) {
         send(client.ws, { type: "kicked" });
         return;

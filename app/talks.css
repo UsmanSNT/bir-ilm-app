@@ -289,7 +289,7 @@
 .tb-kebab:hover { background: #faf5ec; }
 button.tb-wave { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
 button.tb-wave:disabled { cursor: default; }
-.tb-manage { padding: 0 10px; }
+.tb-manage, .tb-icon { padding: 0 10px; }
 
 /* Qayta ishlanmoqda (faqat admin/moderator). */
 .tb-pending-list { display: grid; gap: 10px; }

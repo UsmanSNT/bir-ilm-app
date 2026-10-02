@@ -38,7 +38,6 @@ import { RoomRecorder, recordingSupported, saveRecordingFile } from "@/lib/api/l
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import LoginCard from "./login-card";
 import TalksBoard from "./talks-board";
-import TalkWaiting, { TalkCountdownText } from "./talk-waiting";
 import { TALKS_CHANGED, notifyTalksChanged, talkAnnouncement } from "./talk-format";
 import { useCatalog } from "@/lib/api/books-client";
 import type {
@@ -150,9 +149,8 @@ export default function LiveSession({
   const [devicesOpen, setDevicesOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const rejoinTried = useRef(false);
-  // Yozib olish adminning brauzerida ishlaydi; «Boshlash» bosilganda o'zi yoqiladi.
+  // Yozib olish adminning brauzerida ishlaydi va suhbatdan mustaqil: o'z tugmasi bilan boshlanadi/tugaydi.
   const recorderRef = useRef<RoomRecorder | null>(null);
-  const autoRecord = useRef(false);
   const [recBusy, setRecBusy] = useState(false);
   const [recPaused, setRecPaused] = useState(false);
   /** Yozuv aynan shu brauzerda ketyaptimi (pauza va vaqt faqat yozayotgan adminda). */
@@ -187,7 +185,7 @@ export default function LiveSession({
     rejoinTried.current = true;
     const saved = readActive();
     const session = saved ? sessions.find((s) => s.id === saved) : null;
-    if (session && session.status !== "ended" && viewer.signedIn) joinSession(session.id);
+    if (session && session.status === "live" && viewer.signedIn) joinSession(session.id);
     else if (saved) rememberActive(null);
     // joinSession barqaror emas, lekin bu effekt faqat bir marta ishlaydi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -385,6 +383,13 @@ export default function LiveSession({
     }
   }
 
+  /** Suhbatni tugatish. Yozuv ketayotgan bo'lsa, u ham to'xtashi kerak (xona yopiladi) — avval so'raymiz. */
+  async function endTalk() {
+    if (recorderRef.current && !window.confirm("Yozuv hali ketyapti. Suhbat tugasa, yozuv ham to'xtab saqlanadi. Davom etasizmi?")) return;
+    await finishRecording();
+    clientRef.current?.endSession();
+  }
+
   function leaveSession() {
     if (recorderRef.current) void finishRecording();
     rememberActive(null);
@@ -503,15 +508,6 @@ export default function LiveSession({
     return () => clearInterval(timer);
   }, [recording, ownRecording]);
 
-  // «Boshlash» bosilgan bo'lsa: suhbat jonli bo'lib, ovoz ulangach yozuv o'zi yoqiladi.
-  useEffect(() => {
-    if (!autoRecord.current || !roomAdmin || status !== "live" || av.status !== "connected") return;
-    autoRecord.current = false;
-    queueMicrotask(() => void startRecording());
-    // startRecording har renderda yangi; shart bajarilganda bir marta chaqiriladi.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomAdmin, status, av.status]);
-
   // ── Active session overlay ─────────────────────────────────────────
 
   const roomOpen = Boolean(activeSessionId && connState !== "idle");
@@ -538,9 +534,6 @@ export default function LiveSession({
               {status === "live" && (
                 <span className="live-indicator"><i /> LIVE</span>
               )}
-              {status === "planned" && (
-                <span className="live-planned" title="Suhbat hali boshlanmagan">Boshlanmagan</span>
-              )}
               {status === "ended" && <span className="live-ended-chip">Tugagan</span>}
               {recording && (
                 <span className={`live-rec${recPaused ? " paused" : ""}`} title={recPaused ? "Yozuv pauzada" : "Suhbat yozib olinmoqda"}>
@@ -554,28 +547,14 @@ export default function LiveSession({
                 <i />{!media ? "Faqat izohlar" : av.status === "connected" ? "Ovoz ulangan" : av.status === "error" ? "Ovoz uzildi" : "Ulanmoqda…"}
               </span>
               <span className="live-status-spacer" />
-              {roomAdmin && status === "planned" && (
-                <button className="live-admin-btn start" onClick={() => { autoRecord.current = true; clientRef.current?.startSession(); }}>
-                  <Play size={13} /> Boshlash
-                </button>
-              )}
               {roomAdmin && status === "live" && (
-                <button className="live-admin-btn end" onClick={async () => { await finishRecording(); clientRef.current?.endSession(); }}>
+                <button className="live-admin-btn end" onClick={() => void endTalk()}>
                   <Square size={12} /> Tugatish
                 </button>
               )}
             </div>
           </header>
 
-          {connState === "joined" && status === "planned" && sessionData && (
-            <TalkWaiting
-              scheduledAt={sessionData.scheduledAt}
-              bookTitle={sessionData.bookTitle}
-              title={sessionData.title}
-              canStart={roomAdmin}
-              onStart={() => { autoRecord.current = true; clientRef.current?.startSession(); }}
-            />
-          )}
           {connState === "joined" && status === "ended" && (
             <div className="live-status-banner ended">Suhbat tugadi. Izohlarni o&apos;qishingiz mumkin.</div>
           )}
@@ -861,7 +840,7 @@ export default function LiveSession({
     <div className="live-minibar" role="status">
       <button type="button" className="live-minibar-open" onClick={() => setMinimized(false)}>
         <span className="live-minibar-dot" aria-hidden="true" />
-        <span><strong>{sessionData?.bookTitle ?? "Jonli suhbat"}</strong><small>{sessionData?.status === "planned" ? <>Boshlanmagan · <TalkCountdownText scheduledAt={sessionData.scheduledAt} doneText="vaqti keldi" /> · </> : null}{av.micOn ? "Mikrofon yoqiq · " : ""}Qaytish uchun bosing</small></span>
+        <span><strong>{sessionData?.bookTitle ?? "Jonli suhbat"}</strong><small>{av.micOn ? "Mikrofon yoqiq · " : ""}Qaytish uchun bosing</small></span>
       </button>
       <button type="button" className="live-minibar-mic" aria-label={av.micOn ? "Mikrofonni o'chirish" : "Mikrofonni yoqish"} disabled={!av.canPublish} onClick={av.toggleMic}>{av.micOn ? <Mic size={18} /> : <MicOff size={18} />}</button>
       <button type="button" className="live-minibar-leave" aria-label="Suhbatdan chiqish" onClick={leaveSession}><LogOut size={18} /></button>

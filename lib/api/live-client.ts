@@ -337,6 +337,22 @@ export async function updateLiveSession(
   return withMediaUrls(body.data);
 }
 
+/** Suhbatni boshlash (admin). Xato bo'lsa — xabar matni. */
+export async function startLiveSessionRest(id: string): Promise<LiveSession | string> {
+  const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(id)}/start`, { method: "POST", credentials: "include" });
+  const body = (await res.json().catch(() => ({}))) as { data?: LiveSession; error?: { message?: string } };
+  if (!res.ok || !body.data) return body.error?.message ?? "Suhbatni boshlab bo'lmadi.";
+  return withMediaUrls(body.data);
+}
+
+/** Bitta suhbatning joriy holati (modal kutayotganda yangilab turadi). */
+export async function fetchLiveSessionState(id: string): Promise<LiveSession | null> {
+  const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(id)}`, { credentials: "include" });
+  if (!res.ok) return null;
+  const body: { data?: { session: LiveSession } } = await res.json();
+  return body.data?.session ? withMediaUrls(body.data.session) : null;
+}
+
 /** Suhbatni o'chirish (admin). */
 export async function deleteLiveSession(id: string): Promise<boolean> {
   const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "include" });

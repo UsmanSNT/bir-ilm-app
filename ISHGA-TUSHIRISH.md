@@ -53,6 +53,7 @@ Asl logo va illyustratsiyalar `public/assets/README.md` orqali ulanadi. Kitob mu
 
 ## Efir yozuvi: pauza va faylga saqlash
 
+- **Yozuv suhbatdan mustaqil**: suhbat boshlanganda o‘zi yoqilmaydi, suhbat tugaganda ham o‘zi to‘xtamaydi. Admin xona ochilgach «Yozib olish» ni o‘zi bosadi. Yozuv ketayotganda «Tugatish» bosilsa, avval tasdiq so‘raladi (xona yopilgach yozuv ham to‘xtab saqlanadi).
 - Yozuvni admin boshqaradi: «Yozib olish» → **Pauza** / **Davom ettirish** (to‘xtagan joydan o‘sha faylga qo‘shiladi) → «Yozuvni to‘xtatish».
 - Hammaga «REC» yoki «PAUZA» belgisi ko‘rinadi; adminda pauzalarsiz vaqt hisoblagichi.
 - Yozuv avvalgidek serverga bo‘laklab yuklanadi (Suhbatlar → o‘tganlar → yozuv). To‘xtatilgach admin oynasida **«Yozuvni faylga saqlash»** chiqadi: fayl nomini yozadi, Chrome/Edge’da papkani tizim oynasida tanlaydi, boshqa brauzerlarda shu nom bilan yuklab olinadi. «Keyinroq» — faqat serverdagi nusxa qoladi.
@@ -82,15 +83,15 @@ Qiymatni qo‘shtirnoq ichida yozing (`%`, `&`, `!` belgilari cmd'ni buzmasin). 
 
 **Telegram:** [@BotFather](https://t.me/BotFather) → `/newbot` → token (`TELEGRAM_BOT_TOKEN`) va bot nomi (`TELEGRAM_BOT_USERNAME`, `@` siz). Keyin `/setdomain` → botni tanlang → `birilm.uz`. Telegram tugmasi faqat shu domenda ishlaydi.
 
-## Suhbat boshlanmagan: kutish paneli va hisoblagich
+## Suhbat boshlanmagan: timer oynasi
 
-- Suhbat xonasida u boshlanmaguncha **"Suhbat hali boshlanmagan"** paneli ko‘rinadi: kitob va suhbat nomi, sana va vaqt, boshlanishigacha **jonli hisoblagich** (kun, soat, daqiqa, soniya). Sarlavhada «Boshlanmagan» belgisi turadi.
-- Vaqt kelib, admin hali boshlamagan bo‘lsa: «Boshlanish vaqti keldi» va kechikish (necha daqiqa) ko‘rsatiladi. Admin shu panelning o‘zidan «Suhbatni boshlash» ni bosadi.
-- Admin boshlashi bilan panel o‘zi yo‘qoladi va «LIVE» belgisi chiqadi (sahifani yangilash shart emas).
-- Kichraytirilgan suhbat panelida va Suhbatlar ro‘yxatidagi kartada (24 soatdan kam qolganda) ham jonli hisoblagich bor.
-- Hisoblagich qurilmaning soatiga tayanadi (boshlanish vaqti esa serverdan keladi); qurilma soati noto‘g‘ri bo‘lsa, hisoblagich shuncha farq qiladi.
-- Test: `node tests/talk-countdown.mjs`.
+- Suhbat boshlanmaguncha **xonaga hech kim kira olmaydi** (admin ham). Server ham rad etadi (`Suhbat hali boshlanmadi`); sahifa yangilanganda ham rejadagi suhbatga avtomatik kirilmaydi.
+- Suhbatlar ro‘yxatidagi rejadagi kartada oddiy foydalanuvchiga **«Suhbat hali boshlanmadi»** tugmasi (yoniga eslatma qo‘yish) chiqadi. Bossa **modal oyna** ochiladi: kitob, sana-vaqt, boshlanishigacha jonli timer va **«Orqaga»** tugmasi (Esc yoki fon ham yopadi).
+- Admin kartasida **«Suhbatni boshlash»** tugmasi; u ham shu modalni ochadi va timer ostida «Suhbatni boshlash» tugmasi bor. Bosilganda `POST /api/v1/live/:id/start` (faqat admin, takror bosish zarar qilmaydi), so‘ng admin xonaga kiradi.
+- Foydalanuvchining modali ochiq tursa, har 5 soniyada holatni tekshiradi: suhbat boshlangach modal «Suhbat boshlandi» + **«Kirish»** tugmasiga aylanadi.
+- Hisoblagich qurilmaning soatiga tayanadi (boshlanish vaqti serverdan keladi); qurilma soati noto‘g‘ri bo‘lsa, shuncha farq qiladi.
+- Test: `node tests/talk-countdown.mjs`; start endpointi `tests/api-v1.mjs` da.
 
 ## Suhbat xonasi ko‘rinishi
 
-Jonli suhbat xonasi "Naqsh" tungi uslubida: sarlavhada kitob nomi va qatnashchilar soni, ostida holat chiplari (**LIVE**, **REC** + vaqt, **Boshlanmagan**, ovoz holati: «Ovoz ulangan» / «Faqat izohlar»), admin uchun «Boshlash» / «Tugatish». So‘zlovchilar katta kartalarda (gapirayotganning atrofida yashil halqa), tinglovchilar ixcham ro‘yxatda, qo‘l ko‘targanlar alohida «Navbatda» kartasida. Pastda suzuvchi panel: Mikrofon, Kamera, Ekran ulashish, Izohlar, Chiqish; admin uchun ustida qo‘shimcha amallar (Qurilma, Yozib olish, Pauza). Izohlar va moderator oynalari o‘qish uchun qog‘oz rangida. Uslublar: `app/live-room.css`.
+Jonli suhbat xonasi "Naqsh" tungi uslubida: sarlavhada kitob nomi va qatnashchilar soni, ostida holat chiplari (**LIVE**, **REC** + vaqt, ovoz holati: «Ovoz ulangan» / «Faqat izohlar»), admin uchun «Tugatish». So‘zlovchilar ixcham kartalarda (gapirayotganning atrofida yashil halqa), tinglovchilar ixcham ro‘yxatda, qo‘l ko‘targanlar alohida «Navbatda» kartasida. Pastda suzuvchi panel: Mikrofon, Kamera, Ekran ulashish, Izohlar, Chiqish; admin uchun ustida qo‘shimcha amallar (Qurilma, Yozib olish, Pauza). Izohlar va moderator oynalari o‘qish uchun qog‘oz rangida. Uslublar: `app/live-room.css`.

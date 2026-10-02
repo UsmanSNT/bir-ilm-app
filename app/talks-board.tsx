@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
 import type { LiveSession } from "@/shared/contract/live";
 import TalkManage, { length } from "./talk-manage";
+import TalkGate from "./talk-gate";
 import { WEEKDAYS, clock, dayMonth, toggleTalkReminder, useNow, useTalkReminders } from "./talk-format";
 
 // Suhbatlar bo'limining asosiy oynasi (xonaga kirishdan oldingi holat).
@@ -116,6 +117,8 @@ export default function TalksBoard({
   const reminders = useTalkReminders();
   const catalog = useCatalog();
   const [managing, setManaging] = useState<string | null>(null);
+  const [gateId, setGateId] = useState<string | null>(null);
+  const gateSession = gateId ? sessions.find((s) => s.id === gateId) ?? null : null;
   const [player, setPlayer] = useState<{ id: string; playing: boolean; at: number } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -187,7 +190,9 @@ export default function TalksBoard({
       toast("Suhbatga qo‘shilish uchun avval tizimga kiring");
       return;
     }
-    onJoin(s.id);
+    // Boshlanmagan suhbatga kirib bo'lmaydi: avval timer oynasi ochiladi.
+    if (s.status === "planned") setGateId(s.id);
+    else onJoin(s.id);
   }
 
   const featured = (s: LiveSession) => {
@@ -221,13 +226,22 @@ export default function TalksBoard({
                 <Settings2 size={17} />
               </button>
             )}
-            {live || isAdmin ? (
+            {!live && !isAdmin && (
+              <button type="button" className={`tb-action tb-icon${reminded ? " on" : ""}`} onClick={() => toggleReminder(s)} aria-pressed={reminded} aria-label={reminded ? "Eslatmani olib tashlash" : "Eslatma qo‘yish"}>
+                {reminded ? <BellRing size={17} /> : <Bell size={17} />}
+              </button>
+            )}
+            {live ? (
               <button type="button" className="tb-action primary" onClick={() => open(s)} disabled={!signedIn}>
-                <Mic size={17} /> {live ? "Qo‘shilish" : "Kirish va boshlash"}
+                <Mic size={17} /> Qo‘shilish
+              </button>
+            ) : isAdmin ? (
+              <button type="button" className="tb-action primary" onClick={() => open(s)} disabled={!signedIn}>
+                <Play size={17} /> Suhbatni boshlash
               </button>
             ) : (
-              <button type="button" className={`tb-action${reminded ? " on" : ""}`} onClick={() => toggleReminder(s)} aria-pressed={reminded}>
-                {reminded ? <BellRing size={17} /> : <Bell size={17} />} {reminded ? "Eslatma qo‘yildi" : "Eslatma qo‘yish"}
+              <button type="button" className="tb-action" onClick={() => open(s)} disabled={!signedIn}>
+                <Clock3 size={17} /> Suhbat hali boshlanmadi
               </button>
             )}
           </div>
@@ -375,6 +389,19 @@ export default function TalksBoard({
         <BookOpenText className="tb-share-art" size={58} strokeWidth={1.2} aria-hidden="true" />
         <ChevronRight size={22} aria-hidden="true" />
       </button>
+
+      {gateSession && (
+        <TalkGate
+          session={gateSession}
+          isAdmin={isAdmin}
+          onBack={() => setGateId(null)}
+          onChange={onChange}
+          onEnter={(id) => {
+            setGateId(null);
+            onJoin(id);
+          }}
+        />
+      )}
 
       {managing && sessions.find((s) => s.id === managing) && (
         <TalkManage
