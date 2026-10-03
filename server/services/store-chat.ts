@@ -117,7 +117,7 @@ export function orderMessageStatements(
     `Buyurtma № ${order.id}`,
     items,
     `Jami: ${formatPrice(order.total)}`,
-    `${order.name} · ${order.phone}`,
+    `${order.name} · ${order.phone}${order.telegram ? ` · @${order.telegram}` : ""}`,
     order.address,
     ...(order.note ? [`Izoh: ${order.note}`] : []),
     "To‘lov uchun hisob raqamni admin shu chatda yuboradi.",

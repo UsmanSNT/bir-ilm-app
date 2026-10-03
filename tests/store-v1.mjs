@@ -171,6 +171,23 @@ try {
   assert.deepEqual((await other.call(cart.GET, "/api/v1/store/cart")).data.items, [], "Savat foydalanuvchilar orasida aralashmasin");
   console.log("PASS: Savat serverda; boshqa foydalanuvchidan ajratilgan; validatsiya va CSRF.");
 
+  // --- Telefon: O'zbekiston va Koreya raqamlari; Telegram ixtiyoriy -----------
+  const { placeOrderSchema, normalizePhone } = await load("shared/contract/store.ts");
+  const base = { id: "BI-ABCDEF123456", name: "Xaridor", address: "Seoul, Gangnam-gu 1", payment: "chat" };
+  const parse = (extra) => placeOrderSchema.safeParse({ ...base, ...extra });
+  assert.equal(parse({ phone: "+998 90 123 45 67" }).data.phone, "+998901234567");
+  assert.equal(parse({ phone: "+82 10-1234-5678" }).data.phone, "+821012345678");
+  assert.equal(parse({ phone: "010-1234-5678" }).data.phone, "+821012345678", "Koreya mahalliy raqami xalqaroga o'tadi");
+  assert.equal(parse({ phone: "+82 (0)10 1234 5678" }).data.phone, "+821012345678");
+  assert.equal(normalizePhone("0082 10 1234 5678"), "+821012345678");
+  for (const bad of ["12345", "+", "+998", "abc", "+0123456789", "+82101234567890123"]) assert.equal(parse({ phone: bad }).success, false, bad);
+  assert.equal(parse({ phone: "+821012345678" }).data.telegram, "", "Telegram ixtiyoriy");
+  assert.equal(parse({ phone: "+821012345678", telegram: "@birilm_uz" }).data.telegram, "birilm_uz");
+  assert.equal(parse({ phone: "+821012345678", telegram: "https://t.me/birilm_uz" }).data.telegram, "birilm_uz");
+  assert.equal(parse({ phone: "+821012345678", telegram: "x" }).success, false, "Juda qisqa Telegram nomi");
+  assert.equal(parse({ phone: "+821012345678", telegram: "bad name!" }).success, false);
+  console.log("PASS: Telefon: +998 va Koreya (+82, 010…) qabul qilinadi, noto'g'ri raqam va Telegram rad etiladi.");
+
   // --- Buyurtma: mehmon bera olmaydi; narx serverdan; idempotent ---------
   const order = { id: orderId(), name: "Xaridor", phone: "+998 90 123 45 67", address: "Toshkent, Chilonzor 1-uy", payment: "cash" };
   await guest.call(orders.POST, "/api/v1/store/orders", { method: "POST", body: order, expect: 401 });

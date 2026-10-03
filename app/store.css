@@ -296,3 +296,40 @@
 .zb-admin-add { margin: 0 0 12px; }
 .zb-card { position: relative; }
 .zb-card-edit { position: absolute; z-index: 2; top: 8px; right: 8px; display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: #ffffffee; color: var(--lojuvard); box-shadow: 0 2px 8px #0004; cursor: pointer; }
+
+/* Qidiruv tepada; admin uchun yumaloq «+» tugmasi */
+.zb-searchrow { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; }
+.zb-searchrow .zb-search { flex: 1; min-width: 0; margin: 0; }
+.zb-icon-add { display: grid; place-items: center; flex: none; width: 56px; height: 56px; border: 0; border-radius: 50%; background: var(--lojuvard); color: #fff; box-shadow: 0 10px 20px -10px #000a; cursor: pointer; }
+.zb-head-home { margin-top: 4px; }
+
+/* Suriladigan yordamchi tugmalar (AI va Adminga yozish) */
+.store-fabs { position: fixed; z-index: 60; right: 14px; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 54px); display: flex; gap: 10px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.store-fabs:active { cursor: grabbing; }
+.store-fab { position: relative; display: grid; place-items: center; width: 54px; height: 54px; border: 0; border-radius: 50%; color: #fff; box-shadow: 0 12px 24px -10px #000c, inset 0 0 0 2px #ffffff40; cursor: inherit; }
+.store-fab.is-ai { background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 45%, var(--tilla)); color: var(--lojuvard-3); }
+.store-fab.is-chat { background: var(--lojuvard); }
+.store-fab b { position: absolute; top: -4px; right: -4px; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--anor); color: #fff; font-size: 11px; box-shadow: 0 0 0 2px var(--sahifa); }
+@media (min-width: 981px) { .store-fabs { bottom: 28px; right: 28px; } }
+
+/* Kitob sahifasi: tugmalar sig'adi, muqova kesilmaydi */
+.zb-book-hero { grid-template-columns: auto minmax(0, 1fr); }
+.zb-book-hero > .zb-cover { max-width: 100%; }
+.zb-book-actions { flex-wrap: wrap; align-items: center; }
+.zb-book-actions .zb-btn-primary { flex: 1 1 120px; padding-inline: 14px; }
+.zb-book-actions .zb-btn-icon { flex: none; width: 48px; height: 48px; padding: 0; display: grid; place-items: center; border-radius: 50%; }
+@media (max-width: 700px) {
+  .zb-book-hero { grid-template-columns: minmax(0, 1fr); }
+  .zb-book-hero > .zb-cover { width: min(240px, 62%); }
+  .zb-book-actions { justify-content: center; }
+}
+
+/* Do'kon bosh sahifasi: kitob rasmlari kattaroq va ravshan */
+.zb-rail-item { width: 156px; }
+.zb-cover-md { width: 156px; }
+.zb-cover { box-shadow: 0 14px 24px -14px #000a, 0 0 0 1px #00000014; }
+.zb-cover.has-image img { object-position: center top; }
+.zb-card-cover { padding: 18px 20px 0; }
+@media (max-width: 700px) {
+  .zb-card-cover { margin: 8px 8px 0; padding: 14px 14px 0; }
+}

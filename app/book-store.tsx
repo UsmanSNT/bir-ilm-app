@@ -9,7 +9,10 @@ import { fetchChatUnread, fetchOrders, newOrderId, placeOrder, StoreError, useCa
 import {
   formatPrice,
   ORDER_STATUS_LABELS,
+  normalizePhone,
+  normalizeTelegram,
   PHONE_PATTERN,
+  TELEGRAM_PATTERN,
   STORE_LIMITS,
   type StoreBook,
   type StoreOrder,
@@ -19,6 +22,7 @@ import LoginCard from "./login-card";
 import StoreAi from "./store-ai";
 import StoreBookPage from "./store-book-page";
 import StoreChatThread from "./store-chat";
+import StoreFabs from "./store-fabs";
 import BookEditor from "./book-editor";
 import { notifyCatalogChanged, useStoreCatalog } from "@/lib/api/books-client";
 import { BookCover, RatingLine } from "./store-ui";
@@ -82,6 +86,7 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
         right={right.map(tab)}
         center={{ label: "Bir Ilm", ariaLabel: "Bir Ilm bosh sahifasiga qaytish", icon: BookOpen, onClick: onBack }}
       />
+      <StoreFabs showAi={section !== "ai"} showChat={section !== "chat"} unread={unread} onAi={() => go("ai")} onChat={() => askAdmin(null)} />
       <div className="zb-page">
         {detail ? (
           <StoreBookPage
@@ -99,13 +104,8 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
           />
         ) : (
           <>
-            {section !== "chat" && (
-              <button type="button" className="zb-chat-chip" onClick={() => askAdmin(null)} aria-label={unread ? `Admin bilan chat, ${unread} ta yangi javob` : "Admin bilan chat"}>
-                <MessageCircle size={17} />Admin bilan chat{unread > 0 && <b>{unread}</b>}
-              </button>
-            )}
             {section !== "catalog" && <header className="zb-head"><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles[section]}</h1></header>}
-            {section === "catalog" && <StoreHome books={store.items} loading={store.loading} error={store.error} onRetry={store.reload} onOpen={open} onAdd={addToCart} onAi={() => go("ai")} isAdmin={isAdmin} onCreate={() => setEditing({ id: null })} onEdit={(b) => setEditing({ id: b.id })} />}
+            {section === "catalog" && <StoreHome books={store.items} loading={store.loading} error={store.error} onRetry={store.reload} onOpen={open} onAdd={addToCart} isAdmin={isAdmin} onCreate={() => setEditing({ id: null })} onEdit={(b) => setEditing({ id: b.id })} />}
             {section === "ai" && <StoreAi onNeedLogin={() => setLoginOpen(true)} />}
             {section === "cart" && <CartView cart={cart} onCheckout={() => go("checkout")} onCatalog={() => go("catalog")} onOpen={open} />}
             {section === "chat" && (signedIn
@@ -141,9 +141,9 @@ function StoreBookEditor({ id, onClose }: { id: string | null; onClose: () => vo
   return <BookEditor kind="store" open book={book} onClose={() => { notifyCatalogChanged(); onClose(); }} />;
 }
 
-function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, onAi, isAdmin, onCreate, onEdit }: {
+function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, isAdmin, onCreate, onEdit }: {
   books: StoreBook[]; loading: boolean; error: string; onRetry: () => void;
-  onOpen: (b: StoreBook) => void; onAdd: (b: StoreBook) => void; onAi: () => void;
+  onOpen: (b: StoreBook) => void; onAdd: (b: StoreBook) => void;
   isAdmin: boolean; onCreate: () => void; onEdit: (b: StoreBook) => void;
 }) {
   const [query, setQuery] = useState("");
@@ -159,14 +159,15 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, onAi, isAdmi
 
   return (
     <>
+      <div className="zb-searchrow">
+        <label className="zb-search">
+          <Search size={20} />
+          <input aria-label="Kitob yoki muallifni izlash" placeholder="Kitob yoki muallif..." value={query} onChange={(e) => setQuery(e.target.value)} />
+          {query && <button type="button" aria-label="Tozalash" onClick={() => setQuery("")}><X size={16} /></button>}
+        </label>
+        {isAdmin && <button type="button" className="zb-icon-add" onClick={onCreate} aria-label="Kitob qo‘shish" title="Kitob qo‘shish"><Plus size={24} /></button>}
+      </div>
       <header className="zb-head zb-head-home"><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>Har bir kitob —<br /><em>yangi imkoniyat</em></h1></header>
-      {isAdmin && <button type="button" className="zb-btn zb-btn-primary zb-admin-add" onClick={onCreate}><Plus size={18} />Kitob qo‘shish</button>}
-      <label className="zb-search">
-        <Search size={20} />
-        <input aria-label="Kitob yoki muallifni izlash" placeholder="Kitob yoki muallif..." value={query} onChange={(e) => setQuery(e.target.value)} />
-        {query && <button type="button" aria-label="Tozalash" onClick={() => setQuery("")}><X size={16} /></button>}
-      </label>
-      {!q && <button className="zb-ai-banner" onClick={onAi}><Sparkles size={26} /><span><strong>AI sizga kitob tanlab beradi</strong><small>Qiziqishingizni yozing — do‘kondagi kitoblardan mosini topadi</small></span></button>}
       {categories.length > 1 && <div className="zb-chips" role="group" aria-label="Janrlar">{categories.map((c) => <button key={c} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>)}</div>}
       {!q && category === ALL && trending.length > 0 && (
         <section className="zb-section">
@@ -251,7 +252,7 @@ function Totals({ cart }: { cart: Cart }) {
 function Checkout({ cart, signedIn, defaultName, onLogin, onBack, onPlaced }: {
   cart: Cart; signedIn: boolean; defaultName: string; onLogin: () => void; onBack: () => void; onPlaced: (order: StoreOrder) => void;
 }) {
-  const [form, setForm] = useState({ name: defaultName === "Kitobxon" ? "" : defaultName, phone: "+998", address: "", note: "" });
+  const [form, setForm] = useState({ name: defaultName === "Kitobxon" ? "" : defaultName, phone: "", telegram: "", address: "", note: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   // Qayta urinishda bir xil raqam yuboriladi — buyurtma ikki marta yozilmaydi.
@@ -273,17 +274,19 @@ function Checkout({ cart, signedIn, defaultName, onLogin, onBack, onPlaced }: {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (busy) return;
-    const phone = form.phone.replace(/[\s()-]/g, "");
+    const phone = normalizePhone(form.phone);
+    const telegram = normalizeTelegram(form.telegram);
     const next: Record<string, string> = {};
     if (form.name.trim().length < 2) next.name = "Ismingizni yozing";
-    if (!PHONE_PATTERN.test(phone)) next.phone = "Telefon +998901234567 ko‘rinishida bo‘lsin";
+    if (!PHONE_PATTERN.test(phone)) next.phone = "Telefon +998… yoki +82… (Koreya) ko‘rinishida bo‘lsin";
+    if (telegram && !TELEGRAM_PATTERN.test(telegram)) next.telegram = "Telegram nomi: @nom (5–32 belgi)";
     if (form.address.trim().length < 8) next.address = "Manzilni to‘liqroq yozing";
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);
     try {
       await cart.commit();
-      const order = await placeOrder({ id: orderId, name: form.name.trim(), phone, address: form.address.trim(), note: form.note.trim(), payment: "chat" });
+      const order = await placeOrder({ id: orderId, name: form.name.trim(), phone, telegram, address: form.address.trim(), note: form.note.trim(), payment: "chat" });
       cart.clear();
       onPlaced(order);
     } catch (error) {
@@ -295,20 +298,21 @@ function Checkout({ cart, signedIn, defaultName, onLogin, onBack, onPlaced }: {
   };
 
   const fields = [
-    ["name", "Ism", "name", STORE_LIMITS.name],
-    ["phone", "Telefon", "tel", 20],
-    ["address", "Manzil", "street-address", STORE_LIMITS.address],
-    ["note", "Izoh (ixtiyoriy)", "off", STORE_LIMITS.note],
+    ["name", "Ism", "name", STORE_LIMITS.name, undefined],
+    ["phone", "Telefon", "tel", 24, "+998 90 123 45 67 yoki +82 10 1234 5678"],
+    ["telegram", "Telegram (ixtiyoriy)", "off", 40, "@foydalanuvchi_nomi"],
+    ["address", "Manzil", "street-address", STORE_LIMITS.address, undefined],
+    ["note", "Izoh (ixtiyoriy)", "off", STORE_LIMITS.note, undefined],
   ] as const;
 
   return (
     <form className="zb-checkout" onSubmit={(e) => void submit(e)} noValidate>
       <section className="zb-panel">
         <h3>Yetkazib berish</h3>
-        {fields.map(([key, label, autoComplete, max]) => (
+        {fields.map(([key, label, autoComplete, max, placeholder]) => (
           <div className="zb-field" key={key}>
             <label htmlFor={`co-${key}`}>{label}</label>
-            <input id={`co-${key}`} autoComplete={autoComplete} inputMode={key === "phone" ? "tel" : undefined} value={form[key]} onChange={set(key)} maxLength={max} aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `co-${key}-err` : undefined} />
+            <input id={`co-${key}`} autoComplete={autoComplete} placeholder={placeholder} inputMode={key === "phone" ? "tel" : undefined} value={form[key]} onChange={set(key)} maxLength={max} aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `co-${key}-err` : undefined} />
             {errors[key] && <small id={`co-${key}-err`} role="alert">{errors[key]}</small>}
           </div>
         ))}

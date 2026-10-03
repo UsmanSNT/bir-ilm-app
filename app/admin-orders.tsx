@@ -51,7 +51,7 @@ export default function AdminOrders() {
               {ORDER_STATUSES.map((s) => <option key={s} value={s}>{ORDER_STATUS_LABELS[s]}</option>)}
             </select>
           </div>
-          <span>{o.name} · <a href={`tel:${o.phone}`}><Phone size={13} /> {o.phone}</a></span>
+          <span>{o.name} · <a href={`tel:${o.phone}`}><Phone size={13} /> {o.phone}</a>{o.telegram && <> · <a href={`https://t.me/${o.telegram}`} target="_blank" rel="noopener noreferrer">@{o.telegram}</a></>}</span>
           <span>{o.address}</span>
           {o.note && <span className="admin-empty">Izoh: {o.note}</span>}
           <span>{o.lines.map((l) => `${l.title} ×${l.qty}`).join(", ")}</span>

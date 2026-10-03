@@ -350,6 +350,7 @@ export const storeOrders = sqliteTable("store_orders", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
+  telegram: text("telegram").notNull().default(""),
   address: text("address").notNull(),
   note: text("note").notNull().default(""),
   payment: text("payment", { enum: ["cash", "click", "payme", "uzum", "card", "chat"] }).notNull(),

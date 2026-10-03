@@ -43,7 +43,25 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 };
 
 /** O'zbekiston raqami: +998 va 9 raqam. */
-export const PHONE_PATTERN = /^\+998\d{9}$/;
+/** Xalqaro raqam (E.164): O'zbekiston +998…, Koreya +82… va boshqalar. */
+export const PHONE_PATTERN = /^\+[1-9]\d{7,14}$/;
+
+/**
+ * Raqamni xalqaro ko'rinishga keltiradi: bo'shliq/chiziqlar olib tashlanadi; Koreya mahalliy raqami
+ * (010-1234-5678) +821012345678 ga aylanadi; +82 (0)10… dagi ortiqcha 0 olib tashlanadi.
+ */
+export function normalizePhone(input: string): string {
+  const compact = input.replace(/[\s().-]/g, "");
+  if (/^00[1-9]/.test(compact)) return `+${compact.slice(2)}`;
+  if (/^01\d{8,9}$/.test(compact)) return `+82${compact.slice(1)}`;
+  return compact.replace(/^\+820(?=1)/, "+82");
+}
+
+/** Telegram: `@nom`, `nom` yoki t.me/nom havolasi → `nom` (5–32 belgi). Bo'sh — ko'rsatilmagan. */
+export function normalizeTelegram(input: string): string {
+  return input.trim().replace(/^https?:\/\/(www\.)?(t|telegram)\.me\//i, "").replace(/^@/, "").replace(/[/?#].*$/, "");
+}
+export const TELEGRAM_PATTERN = /^[A-Za-z0-9_]{5,32}$/;
 /** Mijoz yaratadigan buyurtma raqami (idempotentlik kaliti). */
 export const ORDER_ID_PATTERN = /^BI-[A-Z0-9]{6,32}$/;
 
@@ -62,8 +80,14 @@ export const placeOrderSchema = z.object({
   name: z.string().trim().min(2, "Ismingizni yozing.").max(STORE_LIMITS.name),
   phone: z
     .string()
-    .transform((v) => v.replace(/[\s()-]/g, ""))
-    .pipe(z.string().regex(PHONE_PATTERN, "Telefon +998XXXXXXXXX ko‘rinishida bo‘lsin.")),
+    .transform(normalizePhone)
+    .pipe(z.string().regex(PHONE_PATTERN, "Telefon +998… yoki +82… ko‘rinishida bo‘lsin.")),
+  /** Ixtiyoriy: admin chatdan tashqarida ham bog'lana olishi uchun. */
+  telegram: z
+    .string()
+    .transform(normalizeTelegram)
+    .pipe(z.string().refine((v) => v === "" || TELEGRAM_PATTERN.test(v), "Telegram nomi: @nom (5–32 belgi: harf, raqam, _)."))
+    .default(""),
   address: z.string().trim().min(8, "Manzilni to‘liqroq yozing.").max(STORE_LIMITS.address),
   note: z.string().trim().max(STORE_LIMITS.note).default(""),
   // To'lov ilovada emas: hisob raqamni admin chatda yuboradi. Eski mijozlar boshqa qiymat yuborishi mumkin.
@@ -118,6 +142,8 @@ export type StoreOrder = {
   id: string;
   name: string;
   phone: string;
+  /** Telegram nomi (@siz), bo'sh bo'lishi mumkin. */
+  telegram: string;
   address: string;
   note: string;
   payment: PaymentMethod;

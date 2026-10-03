@@ -109,6 +109,7 @@ function toOrders(rows: OrderRow[], items: ItemRow[]): StoreOrder[] {
     id: row.id,
     name: row.name,
     phone: row.phone,
+    telegram: row.telegram,
     address: row.address,
     note: row.note,
     payment: row.payment,

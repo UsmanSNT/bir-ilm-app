@@ -152,3 +152,12 @@ Birinchi buyruq faqat nima yaratilishini ko‘rsatadi. Takror yurgizish xavfsiz 
 ## Do'konga kitob qo'shish (admin)
 
 Do‘konning o‘zida (Book Store) admin uchun **«Kitob qo‘shish»** tugmasi, kartalarda qalam (tahrirlash) va kitob sahifasida «Tahrirlash» bor. Oyna faqat do‘kon maydonlarini ko‘rsatadi: muqova, nom, muallif, tavsif, janr, narx (audio va «Haftaning kitobi» yo‘q). Kutubxona kitobi alohida: Javon → «Kitob qo‘shish». Shu yerning o‘zi Profil → Sozlamalar → Do‘kon kitoblari bilan bir xil ro‘yxatni boshqaradi.
+
+## Do'kon: telefon, Telegram, tugmalar
+
+- **Telefon** endi xalqaro raqamlarni qabul qiladi: `+998 90 123 45 67`, **Koreya `+82 10 1234 5678`** va mahalliy `010-1234-5678` (o‘zi `+821012345678` ga aylanadi). Boshqa davlat raqamlari ham o‘tadi (+ va 8–15 raqam).
+- **Telegram (ixtiyoriy)** maydoni: `@nom` yoki `t.me/nom`; admin buyurtmada va chatdagi buyurtma xabarida ko‘radi (admin ro‘yxatida bosiladigan havola). Migratsiya: `drizzle/0020_order_telegram.sql` (bitta ustun qo‘shadi).
+- **Yordamchi tugmalar:** katta AI banner va «Admin bilan chat» tugmasi o‘rniga ikkita yumaloq tugma — robot (AI yordamchi) va chat belgisi (yangi javob bo‘lsa, soni bilan). Ularni **sudrab** istalgan joyga qo‘yasiz (joy eslab qolinadi), shunda orqasidagi kitobni yopmaydi; bosish esa ochadi.
+- **Qidiruv** tepaga chiqarildi; admin uchun uning yonida yumaloq «+» (kitob qo‘shish).
+- **Kitob sahifasi:** «Savatga qo‘shish» katta tugma, yoniga faqat belgi bilan «Adminga yozish», «Tahrirlash» (admin) va yurak; muqova va tugmalar kartadan chiqib ketmaydi.
+- Katalog va «Ko‘p baholangan» da kitob muqovalari kattaroq.

@@ -55,8 +55,8 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
           <p className="zb-price">{formatPrice(book.price)}</p>
           <div className="zb-book-actions">
             <button className="zb-btn zb-btn-primary" onClick={onAdd}><ShoppingCart size={18} />Savatga qo‘shish</button>
-            <button className="zb-btn zb-btn-ghost" onClick={onAsk}><MessageCircle size={18} />Adminga yozish</button>
-            {onEdit && <button className="zb-btn zb-btn-ghost" onClick={onEdit}><Pencil size={17} />Tahrirlash</button>}
+            <button className="zb-btn zb-btn-icon" onClick={onAsk} aria-label="Adminga yozish" title="Adminga yozish"><MessageCircle size={20} /></button>
+            {onEdit && <button className="zb-btn zb-btn-icon" onClick={onEdit} aria-label="Tahrirlash" title="Tahrirlash"><Pencil size={19} /></button>}
             <button className={`zb-btn zb-btn-icon ${saved ? "is-on" : ""}`} aria-pressed={saved} aria-label={saved ? "Javondan olish" : "Javonga qo‘shish"} onClick={onToggle}>
               <Heart size={20} fill={saved ? "currentColor" : "none"} />
             </button>
