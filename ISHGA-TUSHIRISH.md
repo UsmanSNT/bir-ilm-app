@@ -215,3 +215,8 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - **Shaxsiy ma'lumotlar** sahifasi: profil rasmi, orqa fon rasmi, ism va "o'zim haqimda". Rasmlar telefonda kichraytirilib yuboriladi; serverda `BIR_ILM_MEDIA_DIR\profile\` ga yoziladi. Google/Telegram bilan kirganda ularning rasmi (hali rasm qo'yilmagan bo'lsa) avtomatik avatar bo'ladi.
 - Migratsiya `0021_two_factor_cover` birinchi so'rovda o'zi qo'llanadi.
 - Serverga chiqarish: `cd /d C:\bir-ilm\app`, `git pull`, `scripts\deploy.cmd`.
+
+## Gurung: ixcham sarlavha
+
+- "Qisqa videolar" sarlavhasi, "Havola qo'shish" tugmasi, "Kitobxonlar davrasi" sarlavhasi, yangilash tugmasi va "(siz)" yozuvi olib tashlandi.
+- Qisqa video havolalarini admin endi Sozlamalar → "Sayt havolalari" ichidagi "Qisqa videolar" bo'limidan qo'shadi va o'chiradi.

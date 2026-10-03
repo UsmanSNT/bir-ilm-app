@@ -228,10 +228,10 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
     </div>}
     <div className="social-layout">
       <div className="social-main">
-        <div className="section-row"><h2>{mode === "profile" ? scope === "mine" ? "Mening postlarim" : scope === "following" ? "Obunalarim postlari" : "Barcha postlar" : "Kitobxonlar davrasi"}</h2><div className="section-tools"><FeedFilter value={scope} onChange={v => { setScope(v); setAuthor(""); }} options={feedOptions} /><button className="icon-btn" aria-label="Lentani yangilash" title="Yangilash" disabled={loading || busy} onClick={() => void refresh()}><RefreshCw size={19}/></button></div></div>
+        <div className={`section-row${mode === "feed" ? " feed-head" : ""}`}>{mode === "profile" && <h2>{scope === "mine" ? "Mening postlarim" : scope === "following" ? "Obunalarim postlari" : "Barcha postlar"}</h2>}<div className="section-tools"><FeedFilter value={scope} onChange={v => { setScope(v); setAuthor(""); }} options={feedOptions} />{mode === "profile" && <button className="icon-btn" aria-label="Lentani yangilash" title="Yangilash" disabled={loading || busy} onClick={() => void refresh()}><RefreshCw size={19}/></button>}</div></div>
         <button type="button" className="compose-launch" disabled={!data.userId} onClick={startWriting}>
           <span className="reader-avatar compose-ink" aria-hidden="true"><InkQuill size={24}/></span>
-          <span className="compose-launch-text">{data.signedIn ? "Qalam qo'lingizda: o'qiganingizni yozib qoldiring…" : "Post yozish uchun tizimga kiring"}</span>
+          <span className="compose-launch-text">{data.signedIn ? "O'qiganingizni yozib qoldiring…" : "Post yozish uchun tizimga kiring"}</span>
           <span className="compose-launch-icons" aria-hidden="true"><ImagePlus size={19}/><Newspaper size={19}/><NotebookPen size={19}/></span>
         </button>
         <Composer open={composing} onOpenChange={open => { setComposing(open); if (!open) setEditing(null); }} editing={editing} moderator={moderator} onPublished={(id, edited) => void onPublished(id, edited)} onLoginRequired={() => requireLogin("Davom etish uchun tizimga kiring.")} />

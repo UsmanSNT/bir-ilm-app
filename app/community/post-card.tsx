@@ -203,7 +203,7 @@ function PostHeader({ post, actions }: { post: ReadingPost; actions: PostActions
           {post.avatarUrl ? <img src={absoluteUrl(post.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : post.name.slice(0, 1).toUpperCase()}
         </button>
         <div className="post-author">
-          <button type="button" className="author-link" onClick={() => actions.openAuthor(post.userId)}>{post.name}{mine ? " (siz)" : ""}</button>
+          <button type="button" className="author-link" onClick={() => actions.openAuthor(post.userId)}>{post.name}</button>
           <span className="post-meta">
             <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
           </span>
