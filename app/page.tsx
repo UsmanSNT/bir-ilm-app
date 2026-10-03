@@ -11,7 +11,6 @@ import {
   Flame,
   Headphones,
   Home,
-  Medal,
   Mic,
   MessageSquare,
   MonitorSmartphone,
@@ -32,7 +31,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import { toast, Toaster } from "sonner";
 import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
@@ -238,7 +236,6 @@ export default function App() {
     if (modal === "notifications") markNotificationsSeen();
   }, [modal]);
 
-  const pct = Math.round((data.page / Math.max(1, data.total)) * 100);
   const leaders = useMemo(
     () => mergeLeaders(data, serverLeaders),
     [data, serverLeaders],
@@ -483,7 +480,7 @@ export default function App() {
 
               <TabsContent value="home">
                 <div className="desktop-home">
-                  <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
+                  <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
                   <VideoShelf />
                   <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
                 </div>
@@ -516,7 +513,7 @@ export default function App() {
                 <SocialLinks />
               </TabsContent>
               <TabsContent value="profile">
-                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={data.streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onProgress={() => setModal("progress")} onNotifications={() => setModal("notifications")} />
+                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={data.streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} />
               </TabsContent>
 
               <TabsContent value="community">
@@ -532,7 +529,7 @@ export default function App() {
 
               <TabsContent value="shelf">
                 <div className="desktop-shelf">
-                  <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
+                  <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
                 </div>
                 <MobileLibrary
                   shelf={data.shelf}
@@ -589,10 +586,6 @@ export default function App() {
                         <span>ball</span>
                       </div>
                     </div>
-                    <button className="button" onClick={() => setModal("progress")}>
-                      <Medal size={18} />
-                      Bugungi progress
-                    </button>
                   </aside>
                 </div>
 
@@ -610,7 +603,6 @@ export default function App() {
                 <h3 className="section-title">Sozlamalar</h3>
                 {[
                   ["notifications", "Bildirishnomalar", "O'qish va suhbat eslatmalari", Bell],
-                  ["progress", "Kitob rejasi", "Sahifa soni va o'qish progressi", BookOpen],
                   ["profile", "Profil", "Kitobxon ismini o'zgartirish", Users],
                   ["about", "App holati", "Web, backend va app chiqarish yo'li", Settings],
                 ].map(([id, title, sub, Icon]) => {
@@ -666,7 +658,6 @@ export default function App() {
             {!data.onboarded
               ? "Bir haftada bitta kitob"
               : ({
-                  progress: "O'qish progressi",
                   note: "Muhim fikringiz",
                   book: selected?.title ?? "Kitob",
                   profile: "Profil",
@@ -713,37 +704,6 @@ export default function App() {
             </>
           ) : (
             <>
-              {modal === "progress" && (
-                <>
-                  <label>
-                    Kitobdagi jami sahifa
-                    <input
-                      type="number"
-                      min={1}
-                      max={5000}
-                      value={data.total}
-                      onChange={(event) => {
-                        const total = Math.min(5000, Math.max(1, Number(event.target.value)));
-                        updateProgress(Math.min(data.page, total), total);
-                      }}
-                    />
-                  </label>
-                  <label>
-                    O&apos;qilgan sahifa
-                    <input
-                      type="number"
-                      min={0}
-                      max={data.total}
-                      value={data.page}
-                      onChange={(event) =>
-                        updateProgress(Math.max(0, Math.min(data.total, Number(event.target.value))))
-                      }
-                    />
-                  </label>
-                  <Progress value={pct} />
-                  <p>{pct}% o&apos;qildi. Jami sahifani o&apos;z nashringizga moslang.</p>
-                </>
-              )}
 
               {modal === "note" && (
                 <textarea

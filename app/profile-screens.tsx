@@ -22,7 +22,7 @@ import { nativeAuth } from "@/lib/api/native-auth";
 import ReadingDashboard from "./reading-dashboard";
 import type { SocialData } from "./social-types";
 
-type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onProgress: () => void; onNotifications: () => void };
+type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onNotifications: () => void };
 type ProfileTab = "reading" | "posts" | "activity";
 const PROFILE_TABS: [ProfileTab, string][] = [["reading", "Mutolaa"], ["posts", "Postlar"], ["activity", "Faollik"]];
 type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "site" | "devices" | "password" | "account" | "twofactor";
@@ -67,7 +67,6 @@ export default function ProfileScreens(p: Props) {
     setScreen(next);
     window.scrollTo({ top: 0, behavior: "instant" });
   };
-  const percent = Math.min(100, Math.max(0, Math.round(p.page / Math.max(1, p.total) * 100)));
   const replies = (social?.posts ?? []).flatMap(post => post.replies.filter(reply => reply.name !== p.name).map(reply => ({ ...reply, book: post.book }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", account: "Shaxsiy ma’lumotlar", twofactor: "Ikki bosqichli himoya", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari", storebooks: "Do‘kon kitoblari", storechat: "Do‘kon chati", site: "Ijtimoiy tarmoqlar", devices: "Kamera va mikrofon", password: "Parol" };
   const count = (value: number | undefined) => status === "ready" ? value ?? 0 : "—";
@@ -80,7 +79,7 @@ export default function ProfileScreens(p: Props) {
   const settingsView = <div className="p-settings">
       <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={() => open("account")} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} />{viewer?.signedIn && <Row icon={<Lock />} title="Ikki bosqichli himoya" value={viewer.twoFactor ? "Yoqilgan" : "O‘chiq"} onClick={() => open("twofactor")} />}{viewer?.accounts.map(a => <div key={a.provider} className="p-row p-static"><span className="p-row-icon"><ShieldCheck /></span><span>{a.provider === "google" ? "Google" : a.provider === "telegram" ? "Telegram" : "Email"}</span><small>{a.label}</small></div>)}{viewer?.accounts.some(a => a.provider === "email") && <Row icon={<KeyRound />} title={viewer.hasPassword ? "Parolni o‘zgartirish" : "Parol o‘rnatish"} onClick={() => open("password")} />}{viewer && viewer.accounts.length > 0 && <Row icon={<LogOut />} title="Chiqish" onClick={signOut} />}</div>
       {screen !== "profile" && viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
-      <h2>Ilova</h2><div className="p-menu"><Row icon={<Bell />} title="Bildirishnomalar" onClick={p.onNotifications} /><div className="p-row p-static"><span className="p-row-icon"><Globe /></span><span>Til</span><small>O‘zbekcha</small></div><Row icon={<BookOpen />} title="Mutolaa rejasi" onClick={p.onProgress} /><Row icon={<Camera />} title="Kamera va mikrofon" value="Suhbat uchun" onClick={() => open("devices")} /></div>
+      <h2>Ilova</h2><div className="p-menu"><Row icon={<Bell />} title="Bildirishnomalar" onClick={p.onNotifications} /><div className="p-row p-static"><span className="p-row-icon"><Globe /></span><span>Til</span><small>O‘zbekcha</small></div><Row icon={<Camera />} title="Kamera va mikrofon" value="Suhbat uchun" onClick={() => open("devices")} /></div>
       <SocialLinks />
       <h2>Yordam</h2><div className="p-menu"><Row icon={<CircleHelp />} title="Ko‘p so‘raladigan savollar" onClick={() => open("faq")} /><Row icon={<Info />} title="Loyiha haqida" onClick={() => open("about")} /></div>
       <div className="p-settings-brand"><BookOpen size={23} /><strong>BIR ILM</strong><span>Bir hafta. Bir kitob. Bir qadam oldinga.</span><small>Ilova versiyasi 0.1.0</small></div>
@@ -111,7 +110,6 @@ export default function ProfileScreens(p: Props) {
       </div>
       {tab === "reading" && <div className="p-tab-panel">
         <div className="p-section-title"><h2><BookOpen size={19} />Mutolaa</h2><button className="p-link" onClick={() => p.onNavigate("shelf")}>Javonim <ArrowRight size={15} /></button></div>
-        <button className="p-reading" onClick={p.onProgress}><Cover book={featured} /><span className="p-reading-info"><small>HOZIRGI MUTOLAA</small><strong>{featured?.title ?? "Haftaning kitobi hali yo‘q"}</strong><span>{featured?.author ?? ""}</span><span className="p-progress"><span><i style={{ width: `${percent}%` }} /></span><b>{percent}%</b></span><span className="p-page-count">{p.page} / {p.total} sahifa <ArrowRight size={14} /></span></span></button>
         <div className="p-reading-stats"><span><BookOpen size={17} /><b>{p.shelfCount}</b><small>Kitob</small></span><span><MessageCircle size={17} /><b>{count(social?.sessions)}</b><small>Fokus seansi</small></span><span><ChartNoAxesColumnIncreasing size={17} /><b>{p.streak}</b><small>Kunlik streak</small></span></div>
         <div className="p-section-title"><h2><CalendarDays size={19} />Bo‘lib o‘tadigan suhbat</h2><button className="p-link" onClick={() => p.onNavigate("talks")}>Barchasi <ArrowRight size={15} /></button></div>
         <button className="p-event" onClick={() => p.onNavigate("talks")}><Cover small book={featured} /><span><small><CalendarDays size={13} /> Jonli suhbatlar</small><strong>{featured?.title ?? "Kitob muhokamasi"}</strong><span>Bir kitob, turli qarashlar.</span><b>Suhbatga o‘tish <ArrowRight size={14} /></b></span><ChevronRight size={18} /></button>

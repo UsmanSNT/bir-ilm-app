@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowUpRight, BookOpen, Bookmark, Check, Flame, Headphones, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowUpRight, BookOpen, Bookmark, Check, Headphones, Plus, Search, Sparkles, X } from "lucide-react";
 import { useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { canModerate } from "@/shared/contract/roles";
@@ -14,10 +14,10 @@ function lengthLabel(seconds: number) {
   return hours <= 0 ? `${mins} daqiqa` : `${hours} soat ${mins} daq`;
 }
 
-export default function BookDiscovery({ shelf, onOpen, onToggle, onNavigate, page, total, streak, library = false, onProgress }: {
+export default function BookDiscovery({ shelf, onOpen, onToggle, onNavigate, library = false }: {
   shelf: string[]; onOpen: (book: Book) => void; onToggle: (book: Book) => void;
   onNavigate: (tab: string) => void; page: number; total: number; streak: number;
-  library?: boolean; onProgress: () => void;
+  library?: boolean;
 }) {
   const catalog = useCatalog();
   const viewer = useViewer();
@@ -46,14 +46,6 @@ export default function BookDiscovery({ shelf, onOpen, onToggle, onNavigate, pag
           <p>{editor ? "Kitob qo‘shing va «Haftaning kitobi» belgisini qo‘ying." : "Tez orada shu yerda haftaning kitobi paydo bo‘ladi."}</p>
           {editor && <button onClick={() => setEditing({ book: null })}>Kitob qo‘shish <Plus size={19}/></button>}
         </>}
-      </section>
-      <section className="discovery-progress">
-        <span className="discovery-kicker"><Flame size={17}/> MENING MUTOLAAM</span>
-        <div className="reading-number">{page}<span> / {total} sahifa</span></div>
-        <p>{featured ? `${featured.title} · haftalik mutolaa` : "Haftalik mutolaa"}</p>
-        <progress value={page} max={total} aria-label="Haftalik mutolaa"/>
-        <div className="reading-meta"><span>{Math.round(page / Math.max(1, total) * 100)}% o‘qildi</span><span>{streak} kun ketma-ket</span></div>
-        <button onClick={onProgress}>Natijamni yangilash <ArrowUpRight size={18}/></button>
       </section>
     </div>}
 
