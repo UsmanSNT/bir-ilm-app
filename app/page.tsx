@@ -35,7 +35,6 @@ import { toast, Toaster } from "sonner";
 import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
 import SocialLinks from "./social-links";
-import VideoShelf from "./video-shelf";
 import BookDiscovery from "./book-discovery";
 import FocusTimer, { PomodoroButton } from "./focus-timer";
 import MobileScreens, { markNotificationsSeen, useAnnouncements, useUnreadCount } from "./mobile-screens";
@@ -481,7 +480,6 @@ export default function App() {
               <TabsContent value="home">
                 <div className="desktop-home">
                   <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
-                  <VideoShelf />
                   <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
                 </div>
                 <MobileScreens
@@ -518,7 +516,6 @@ export default function App() {
 
               <TabsContent value="community">
                 <section className="community-screen" aria-label="Gurung">
-                  <VideoShelf />
                   <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
                 </section>
               </TabsContent>

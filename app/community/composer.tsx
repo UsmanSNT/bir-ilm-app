@@ -94,9 +94,9 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
   }, []);
 
   const addFiles = (files: File[]) => {
-    const media = files.filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    const media = files.filter((f) => f.type.startsWith("image/"));
     const room = COMMUNITY_LIMITS.attachments - slots.length;
-    if (media.length > room) toast(`Tepaga ${COMMUNITY_LIMITS.attachments} tagacha rasm/video qo'yiladi.`);
+    if (media.length > room) toast(`Tepaga ${COMMUNITY_LIMITS.attachments} tagacha rasm qo'yiladi.`);
     const added = media.slice(0, Math.max(0, room)).map<Slot>((file) => ({
       key: crypto.randomUUID(),
       kind: file.type.startsWith("video/") ? "video" : "image",

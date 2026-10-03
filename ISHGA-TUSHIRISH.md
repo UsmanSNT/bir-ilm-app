@@ -220,3 +220,8 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 
 - "Qisqa videolar" sarlavhasi, "Havola qo'shish" tugmasi, "Kitobxonlar davrasi" sarlavhasi, yangilash tugmasi va "(siz)" yozuvi olib tashlandi.
 - Qisqa video havolalarini admin endi Sozlamalar → "Sayt havolalari" ichidagi "Qisqa videolar" bo'limidan qo'shadi va o'chiradi.
+
+## Gurung: faqat rasm
+
+- Gurungdagi "Qisqa videolar" qatori olib tashlandi (admin bo'limidagi video havolalari ham).
+- Postlarga video yuklab bo'lmaydi: tanlash oynasi faqat rasm qabul qiladi, server ham videoni rad etadi (415). Avval joylangan video postlar ko'rinishda qoladi.

@@ -375,7 +375,7 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
   }, []);
 
   const addFiles = useCallback(async (files: File[]) => {
-    const list = files.filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    const list = files.filter((f) => f.type.startsWith("image/"));
     if (!list.length) return;
     for (const file of list) {
       const uploadId = crypto.randomUUID();

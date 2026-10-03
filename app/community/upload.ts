@@ -105,7 +105,7 @@ export function isVideo(file: File): boolean {
 }
 
 /** Fayl tanlash oynasidagi `accept`. */
-export const MEDIA_ACCEPT = [...IMAGE_TYPES, "image/heic", "image/heif", ...VIDEO_TYPES].join(",");
+export const MEDIA_ACCEPT = [...IMAGE_TYPES, "image/heic", "image/heif"].join(",");
 
 export async function uploadMedia(file: File, onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<MediaItem> {
   let blob: Blob = file;

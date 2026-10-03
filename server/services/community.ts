@@ -118,11 +118,13 @@ async function removeMediaFiles(rows: { id: string; file: string | null }[]): Pr
 }
 
 export async function createUpload(db: Database, userId: string, input: CreateUploadInput): Promise<UploadTicket> {
-  await requireSignedIn(db, userId, "Rasm yoki video yuklash");
-  const kind = (IMAGE_TYPES as readonly string[]).includes(input.type) ? "image" : "video";
-  const limit = kind === "image" ? COMMUNITY_LIMITS.imageBytes : COMMUNITY_LIMITS.videoBytes;
-  if (input.bytes > limit) {
-    throw new ApiException("bad_request", kind === "image" ? "Rasm 15 MB dan oshmasin." : "Video 300 MB dan oshmasin.", 413);
+  await requireSignedIn(db, userId, "Rasm yuklash");
+  // Gurungga video joylanmaydi: faqat rasm.
+  if (!(IMAGE_TYPES as readonly string[]).includes(input.type)) {
+    throw new ApiException("bad_request", "Faqat rasm yuklash mumkin (JPG, PNG, WEBP, GIF).", 415);
+  }
+  if (input.bytes > COMMUNITY_LIMITS.imageBytes) {
+    throw new ApiException("bad_request", "Rasm 15 MB dan oshmasin.", 413);
   }
 
   const [recent] = await db
@@ -138,7 +140,7 @@ export async function createUpload(db: Database, userId: string, input: CreateUp
   await db.insert(postMedia).values({
     id,
     userId,
-    kind,
+    kind: "image",
     mime: input.type,
     bytes: input.bytes,
     width: input.width,
