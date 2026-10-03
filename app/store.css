@@ -304,13 +304,13 @@
 .zb-head-home { margin-top: 4px; }
 
 /* Suriladigan yordamchi tugmalar (AI va Adminga yozish) */
-.store-fab { position: fixed; z-index: 60; right: 14px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.store-fab { position: fixed; z-index: 45; right: 14px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
 .store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 54px); }
 .store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 54px + 64px); }
 .store-fab:active { cursor: grabbing; }
 .store-fab { display: grid; place-items: center; width: 54px; height: 54px; border: 0; border-radius: 50%; color: #fff; box-shadow: 0 12px 24px -10px #000c, inset 0 0 0 2px #ffffff40; cursor: inherit; }
-.store-fab.is-ai { background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 45%, var(--tilla)); color: var(--lojuvard-3); }
-.store-fab.is-chat { background: var(--lojuvard); }
+.store-fab.is-ai { background: radial-gradient(circle at 30% 25%, #ffffff, #f6ecd6 70%); box-shadow: 0 12px 24px -10px #000c, 0 0 0 3px var(--tilla-2); }
+.store-fab.is-chat { background: linear-gradient(145deg, #1fb5b0, #0f6f7a 60%, #0b4f5c); box-shadow: 0 12px 24px -10px #000c, 0 0 0 3px #ffffffd9; }
 .store-fab b { position: absolute; top: -4px; right: -4px; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--anor); color: #fff; font-size: 11px; box-shadow: 0 0 0 2px var(--sahifa); }
 @media (min-width: 981px) { .store-fab { right: 28px; } .store-fab.is-chat { bottom: 28px; } .store-fab.is-ai { bottom: 92px; } }
 
@@ -386,3 +386,10 @@
 .store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 50px); }
 .store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 50px + 54px); }
 @media (min-width: 981px) { .store-fab.is-chat { bottom: 28px; } .store-fab.is-ai { bottom: 82px; } }
+
+/* Kitob muharriri: sahifalar soni; pastdagi uch tugma bitta qatorda */
+.book-editor-pages { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; font-weight: 700; color: var(--siyoh-2); }
+.book-editor-pages input { width: 110px; min-height: 40px; padding: 0 12px; border: 1.5px solid var(--chiziq); border-radius: 10px; background: #fff; color: var(--siyoh); font: inherit; font-size: 15px; text-align: right; }
+.book-editor-actions { flex-wrap: nowrap !important; gap: 6px !important; }
+.book-editor-actions button { flex: 0 1 auto; padding: 9px 12px !important; font-size: 13.5px; white-space: nowrap; }
+.book-editor-actions .danger { margin-right: auto; }

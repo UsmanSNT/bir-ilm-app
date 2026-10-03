@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import type { Doc, MediaItem } from "@/shared/contract/community";
 import { isSafeHref } from "@/shared/contract/community";
 import { absoluteUrl } from "@/lib/api/config";
+import { looksLikeMarkdown, markdownToHtml } from "@/lib/markdown";
 import { collapseWhitespace, docToHtml, domToDoc, inlineOnlyHtml, mediaFigureHtml } from "./doc-dom";
 import { LoginRequiredError, MEDIA_ACCEPT, uploadMedia } from "./upload";
 
@@ -421,6 +422,17 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
       return;
     }
     const html = e.clipboardData.getData("text/html");
+    // ChatGPT va boshqa joylardan oddiy matn bo'lib kelgan markdown (## sarlavha, **qalin**, - band) formatlanadi.
+    const formatted = /<(strong|b|em|i|h[1-6]|li|blockquote)\b/i.test(html);
+    if (!formatted && looksLikeMarkdown(text)) {
+      const parsed = new DOMParser().parseFromString(markdownToHtml(text), "text/html");
+      const doc = domToDoc(parsed.body).filter((b) => b.type !== "media");
+      if (doc.length) {
+        exec("insertHTML", inlineOnlyHtml(doc) ?? docToHtml(doc));
+        emit();
+        return;
+      }
+    }
     if (html) {
       const parsed = new DOMParser().parseFromString(html, "text/html");
       collapseWhitespace(parsed.body);

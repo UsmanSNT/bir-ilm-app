@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, CalendarClock, Headphones, ImagePlus, Megaphone, Sparkles, Store, Trash2, Upload, X } from "lucide-react";
-import { stripMarkdown } from "./store-ui";
+import { looksLikeMarkdown, stripMarkdown } from "@/lib/markdown";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { createBook, deleteBook, deleteTrack, notifyCatalogChanged, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
@@ -50,6 +50,7 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
   const [summary, setSummary] = useState(book?.summary ?? "");
   const [color, setColor] = useState(book?.color ?? COLORS[0]);
   const [price, setPrice] = useState(book?.price ? String(book.price) : "");
+  const [pages, setPages] = useState(String(book?.pages ?? 320));
   const [category, setCategory] = useState(book?.category ?? "");
   const [active, setActive] = useState(store ? false : book?.active ?? asWeekBook);
   // Hafta kitobi bilan birga suhbat vaqtini belgilash (faqat admin suhbat yarata oladi).
@@ -122,7 +123,9 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
     try {
       const priceValue = price.trim() ? Number(price) : 0;
       if (!Number.isInteger(priceValue) || priceValue < 0 || priceValue > STORE_LIMITS.maxPrice) throw new Error("Narx butun wonda (₩), 0 dan 10 000 000 gacha bo‘lsin.");
-      const base = { title: title.trim(), author: author.trim(), summary: stripMarkdown(summary), color };
+      const pagesValue = Number(pages);
+      if (!Number.isInteger(pagesValue) || pagesValue < 1 || pagesValue > 5000) throw new Error("Sahifalar soni 1 dan 5000 gacha bo‘lsin.");
+      const base = { title: title.trim(), author: author.trim(), summary: stripMarkdown(summary), color, pages: pagesValue };
       // Do'kon mahsuloti: narx va janr bor, audio/hafta kitobi yo'q. Kutubxona kitobida aksincha.
       const fields = store ? { ...base, price: priceValue, category: category.trim() } : base;
       let saved = book ? await updateBook(book.id, store ? fields : { ...fields, active }) : await createBook({ ...fields, kind });
@@ -215,7 +218,7 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
   return (
     <Dialog open onOpenChange={(value) => { if (!value && !busy) onClose(); }}>
       <DialogContent className="book-editor">
-        <DialogTitle>{store ? (book ? "Mahsulotni tahrirlash" : "Do‘konga yangi kitob") : book ? "Kitobni tahrirlash" : asWeekBook ? "Yangi hafta kitobi" : "Yangi kitob"}</DialogTitle>
+        <DialogTitle className={store ? "sr-only" : undefined}>{store ? (book ? "Mahsulotni tahrirlash" : "Do‘konga yangi kitob") : book ? "Kitobni tahrirlash" : asWeekBook ? "Yangi hafta kitobi" : "Yangi kitob"}</DialogTitle>
         <DialogDescription className="sr-only">{store ? "Do‘kon mahsuloti: muqova, tavsif va narx." : "Kitob: muqova, tavsif va audio qismlar."}</DialogDescription>
         <form onSubmit={save}>
           <div className="book-editor-top">
@@ -226,14 +229,34 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
             <div className="book-editor-fields">
               <input aria-label="Kitob nomi" placeholder="Kitob nomi" required maxLength={BOOK_LIMITS.title} value={title} onChange={(e) => setTitle(e.target.value)} />
               <input aria-label="Muallif" placeholder="Muallif" required maxLength={BOOK_LIMITS.author} value={author} onChange={(e) => setAuthor(e.target.value)} />
-              <div className="book-editor-colors" role="radiogroup" aria-label="Muqova rangi">
+              {!store && <div className="book-editor-colors" role="radiogroup" aria-label="Muqova rangi">
                 {COLORS.map((c) => (
                   <button key={c} type="button" role="radio" aria-checked={color === c} style={{ backgroundColor: c }} onClick={() => setColor(c)} aria-label={c} />
                 ))}
-              </div>
+              </div>}
             </div>
           </div>
-          <textarea aria-label="Tavsif" placeholder="Qisqacha tavsif (ixtiyoriy)" rows={3} maxLength={BOOK_LIMITS.summary} value={summary} onChange={(e) => setSummary(e.target.value)} />
+          <textarea
+            aria-label="Tavsif"
+            placeholder="Qisqacha tavsif (ixtiyoriy)"
+            rows={3}
+            maxLength={BOOK_LIMITS.summary}
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            onPaste={(e) => {
+              // ChatGPT va boshqa joydan ko'chirilgan `##`, `**`, `- ` belgilari darrov oddiy matnga aylanadi.
+              const pasted = e.clipboardData.getData("text/plain");
+              if (!looksLikeMarkdown(pasted)) return;
+              e.preventDefault();
+              const el = e.currentTarget;
+              const next = (summary.slice(0, el.selectionStart) + stripMarkdown(pasted) + summary.slice(el.selectionEnd)).slice(0, BOOK_LIMITS.summary);
+              setSummary(next);
+            }}
+          />
+          <label className="book-editor-pages">
+            <span>Sahifalar soni</span>
+            <input inputMode="numeric" pattern="[0-9]*" aria-label="Sahifalar soni" value={pages} disabled={busy} onChange={(e) => setPages(e.target.value.replace(/\D/g, "").slice(0, 4))} />
+          </label>
 
           {store && <fieldset className="book-editor-store">
             <legend><Store size={16} /> Book Store</legend>

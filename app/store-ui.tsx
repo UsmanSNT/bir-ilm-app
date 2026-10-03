@@ -2,6 +2,7 @@
 
 import { Fragment, type ReactNode } from "react";
 import { Star } from "lucide-react";
+import { normalizeBullets, stripMarkdown } from "@/lib/markdown";
 import type { StoreBook } from "@/shared/contract";
 
 type CoverBook = Pick<StoreBook, "title" | "author" | "color" | "coverUrl">;
@@ -49,20 +50,7 @@ export function StarInput({ value, onChange }: { value: number; onChange: (v: nu
 
 // ── Matn: markdown belgilarsiz ko'rsatish ────────────────────────────
 
-/** Boshqa joydan (masalan AI'dan) ko'chirilgan matndagi `##`, `**`, `- ` belgilarini oddiy matnga aylantiradi. */
-export function stripMarkdown(text: string): string {
-  return normalizeBullets(text)
-    .replace(/^\s{0,3}#{1,6}\s*/gm, "")
-    .replace(/(\*\*|__)(.+?)\1/g, "$2")
-    .replace(/^\s*[-*]\s+/gm, "• ")
-    .replace(/`([^`]+)`/g, "$1")
-    .trim();
-}
-
-/** Bir qatorga yopishib qolgan « - **Sarlavha:** …» bandlarini alohida qatorlarga ajratadi. */
-function normalizeBullets(text: string): string {
-  return text.replace(/\r\n?/g, "\n").replace(/[ \t]+(?:[-*•])\s+(?=\*\*)/g, "\n- ").replace(/([^\n])\s*(#{2,6}\s)/g, "$1\n$2");
-}
+export { stripMarkdown };
 
 function inline(text: string, key: string): ReactNode[] {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) => (/^\*\*[^*]+\*\*$/.test(part) ? <strong key={`${key}${i}`}>{part.slice(2, -2)}</strong> : <Fragment key={`${key}${i}`}>{part}</Fragment>));

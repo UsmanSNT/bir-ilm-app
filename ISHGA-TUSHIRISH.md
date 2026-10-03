@@ -187,3 +187,11 @@ scripts\deploy.cmd
 `deploy.cmd` ketma-ket bajaradi: zaxira nusxa → Site va Chat'ni to‘xtatish → `git pull` → `pnpm install` → `pnpm build` → **Site'ni, so‘ng Chat'ni qayta ishga tushirish** → health va port (8787, 8788) tekshiruvi. Xato bo‘lsa to‘xtaydi, sababini yozadi va saytni o‘chiq qoldirmaslik uchun xizmatlarni qayta ishga tushiradi. Fayl o‘zini vaqtinchalik nusxadan yurgizadi, shuning uchun `git pull` uni ish paytida buzmaydi.
 
 Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart.cmd` — to‘xtatadi, Site'ni, keyin Chat'ni ishga tushiradi, portlar va xizmat holatini ko‘rsatadi.
+
+## Matn joylash (ChatGPT), sahifalar soni, muharrir
+
+- **Matn joylashda `##`, `**`, `- ` belgilari endi chiqmaydi.** ChatGPT va boshqa joylardan ko‘chirilgan markdown post/maqola muharririda avtomatik sarlavha (`##` → sarlavha, `###` → kichik sarlavha), qalin (`**x**`), kursiv, ro‘yxat va iqtibosga aylanadi. Kitob tavsifi maydoniga joylanganda belgilar darrov olib tashlanadi (bandlar «• » bo‘lib qoladi), saqlashda ham tozalanadi. Oddiy matn va saytdan nusxalangan formatlangan matn avvalgidek ishlaydi.
+- **Sahifalar soni** kitob muharririda kiritiladi (1–5000, avval hamma kitobda 320 deb qattiq yozilgan edi). O‘qish jarayoni va «N bet» shu sondan hisoblanadi. Eski kitoblarda 320 qoladi — kerak bo‘lsa tahrirlab o‘zgartiring.
+- Do‘kon muharririda sarlavha va muqova rangi tanlovi olib tashlandi (muqova rasmi yuklanadi). Pastdagi «O‘chirish», «Bekor qilish», «Saqlash» bitta qatorda.
+- **Yordamchi tugmalar:** AI — do‘ppi kiygan o‘zbekcha robot (krem doira, tilla hoshiya), chat — firuza gradient. Muharrir oynalari ustida emas, ostida turadi.
+- Test: `node --experimental-strip-types tests/markdown-paste.mjs`.
