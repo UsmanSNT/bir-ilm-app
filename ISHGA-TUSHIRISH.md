@@ -173,3 +173,17 @@ Do‘konning o‘zida (Book Store) admin uchun **«Kitob qo‘shish»** tugmasi,
 ## Do'kon bosh sahifasi: ixcham qidiruv qatori
 
 Katta sarlavha («Har bir kitob — yangi imkoniyat») va janr chiplari qatori olib tashlandi. Tepada bitta qator: **qidiruv**, uning yonida **filtr** tugmasi (janr tanlash oynasi ochiladi; tanlangan janrda tugma rangi o‘zgaradi) va admin uchun kichik «+». Bo‘lim sarlavhalari va yordamchi tugmalar (AI, chat) kichraytirildi.
+
+## Bitta buyruq bilan yangilash va qayta ishga tushirish
+
+Serverda (cmd):
+
+```
+cd /d C:\bir-ilm\app
+git pull
+scripts\deploy.cmd
+```
+
+`deploy.cmd` ketma-ket bajaradi: zaxira nusxa → Site va Chat'ni to‘xtatish → `git pull` → `pnpm install` → `pnpm build` → **Site'ni, so‘ng Chat'ni qayta ishga tushirish** → health va port (8787, 8788) tekshiruvi. Xato bo‘lsa to‘xtaydi, sababini yozadi va saytni o‘chiq qoldirmaslik uchun xizmatlarni qayta ishga tushiradi. Fayl o‘zini vaqtinchalik nusxadan yurgizadi, shuning uchun `git pull` uni ish paytida buzmaydi.
+
+Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart.cmd` — to‘xtatadi, Site'ni, keyin Chat'ni ishga tushiradi, portlar va xizmat holatini ko‘rsatadi.
