@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { MessageCircle } from "lucide-react";
-import UzRobot from "./uz-robot";
 
 const EDGE = 8;
 /** Sudralgan deb hisoblash uchun minimal masofa (px): oddiy bosish sudrash bo'lib ketmasin. */
@@ -103,7 +102,8 @@ export default function StoreFabs({ showAi, showChat, unread, onAi, onChat }: {
 }) {
   return (
     <>
-      {showAi && <Fab id="ai" className="is-ai" label="AI yordamchi" onClick={onAi}><UzRobot size={36} /></Fab>}
+      {showAi && <Fab id="ai" className="is-ai" label="AI yordamchi" onClick={onAi}>{/* eslint-disable-next-line @next/next/no-img-element -- kichik statik rasm */}
+          <img src="/assets/ai-robot.webp" alt="" width={50} height={50} draggable={false} /></Fab>}
       {showChat && (
         <Fab id="chat" className="is-chat" label={unread ? `Adminga yozish, ${unread} ta yangi javob` : "Adminga yozish"} onClick={onChat}>
           <MessageCircle size={23} aria-hidden="true" />

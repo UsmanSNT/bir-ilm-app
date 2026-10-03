@@ -393,3 +393,34 @@
 .book-editor-actions { flex-wrap: nowrap !important; gap: 6px !important; }
 .book-editor-actions button { flex: 0 1 auto; padding: 9px 12px !important; font-size: 13.5px; white-space: nowrap; }
 .book-editor-actions .danger { margin-right: auto; }
+
+/* ───────── Yagona standart: dumaloq tugmalar (orqaga, filtr, +, admin, kitob sahifasi) ─────────
+   Oq fon, yupqa hoshiya, to'q ko'k belgi, 38 px. Rangli faqat asosiy amal (savat, tilla) va AI (robot). */
+:root { --zb-btn: 38px; }
+.zb-back-round, .zb-icon-btn, .zb-icon-add, .zb-book-actions .zb-btn-icon, .store-fab.is-chat {
+  display: grid; place-items: center; width: var(--zb-btn); height: var(--zb-btn); padding: 0; border: 0; border-radius: 50%;
+  background: #fff; color: var(--lojuvard);
+  box-shadow: inset 0 0 0 1px #d9cfb4, 0 2px 6px -2px #1d234c40;
+}
+.zb-back-round:hover, .zb-icon-btn:hover, .zb-icon-add:hover, .zb-book-actions .zb-btn-icon:hover { box-shadow: inset 0 0 0 1.5px var(--tilla), 0 2px 6px -2px #1d234c40; }
+.zb-back-round svg, .zb-icon-btn svg, .zb-icon-add svg, .zb-book-actions .zb-btn-icon svg { width: 19px; height: 19px; }
+.zb-icon-btn.is-on { background: var(--firuza); color: #fff; box-shadow: none; }
+.zb-book-actions .zb-btn-icon.is-on { color: var(--anor) !important; }
+.zb-book-actions .zb-cart-btn { width: 46px; height: 46px; }
+.zb-book-actions { gap: 10px; }
+
+/* Qidiruv qatori: ixcham */
+.zb-searchrow { gap: 8px; margin: 0 0 10px; }
+.zb-searchrow .zb-search { height: 40px; padding: 0 12px; gap: 8px; }
+.zb-searchrow .zb-search svg { width: 18px; height: 18px; }
+.zb-searchrow .zb-search input { font-size: 14px; }
+
+/* Yordamchi tugmalar: chat — oq; AI — robot rasmi */
+.store-fab { width: 44px; height: 44px; }
+.store-fab svg { width: 20px; height: 20px; }
+.store-fab.is-chat { width: 44px; height: 44px; color: #0f6f7a; box-shadow: inset 0 0 0 1.5px #d9cfb4, 0 10px 20px -10px #000b; }
+.store-fab.is-ai { width: 54px; height: 54px; padding: 0; overflow: visible; background: #cfd8f5; box-shadow: 0 10px 20px -10px #000b, 0 0 0 3px #fff; }
+.store-fab.is-ai img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none; }
+.store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 46px); }
+.store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 46px + 58px); }
+@media (min-width: 981px) { .store-fab.is-chat { bottom: 28px; } .store-fab.is-ai { bottom: 82px; } }

@@ -195,3 +195,9 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - Do‘kon muharririda sarlavha va muqova rangi tanlovi olib tashlandi (muqova rasmi yuklanadi). Pastdagi «O‘chirish», «Bekor qilish», «Saqlash» bitta qatorda.
 - **Yordamchi tugmalar:** AI — do‘ppi kiygan o‘zbekcha robot (krem doira, tilla hoshiya), chat — firuza gradient. Muharrir oynalari ustida emas, ostida turadi.
 - Test: `node --experimental-strip-types tests/markdown-paste.mjs`.
+
+## Do'kon: bir xil tugmalar va robot
+
+- **AI tugmasi** — siz bergan robot rasmi (`public/assets/ai-robot.webp`, 7 KB, dumaloq). Rasmni almashtirish uchun shu faylni (192×192, webp) o‘zgartiring. Rasm huquqlari (litsenziya) sizning javobgarligingizda.
+- **Bitta standart:** hamma dumaloq tugma (orqaga, janr filtri, «+», adminga yozish, kitob sahifasidagi chat/tahrirlash/yurak) — oq fon, yupqa hoshiya, to‘q ko‘k belgi, 38 px. Rangli faqat asosiy amal (savat, tilla) va AI (robot). O‘lcham bitta o‘zgaruvchida: `--zb-btn` (`app/store.css`).
+- Qidiruv qatori ixchamlashtirildi (qidiruv 40 px, belgi va yozuvlar kichikroq).
