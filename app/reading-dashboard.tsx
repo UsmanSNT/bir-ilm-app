@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, UserPlus, UserCheck, Flame, Clock, Users, RefreshCw, X, NotebookPen, Pencil, Save, ShieldCheck, Newspaper, ImagePlus } from "lucide-react";
 import { canModerate } from "@/shared/contract/roles";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import FeedFilter, { type FeedOption } from "./feed-filter";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useViewer } from "@/lib/api/roles-client";
@@ -191,6 +191,13 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
     setComposing(true);
   };
 
+  const feedOptions: FeedOption[] = [
+    { value: "all", label: "Barchasi" },
+    { value: "following", label: "Obunalarim", icon: <Users size={16} aria-hidden="true" /> },
+    mode === "profile" ? { value: "mine", label: "Postlarim", icon: <NotebookPen size={16} aria-hidden="true" /> } : { value: "announcements", label: "E'lonlar", icon: <Newspaper size={16} aria-hidden="true" /> },
+    ...(moderator && mode === "feed" ? [{ value: "reported", label: "Shikoyatlar", icon: <ShieldCheck size={16} aria-hidden="true" />, badge: data.reportedPosts }] : []),
+  ];
+
   const onPublished = async (id: string, edited: boolean) => {
     toast.success(edited ? "O'zgarishlar saqlandi." : "Joylandi!");
     if (mode === "feed" || (scope === "mine" && !author)) {
@@ -220,14 +227,14 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
     </div>}
     <div className="social-layout">
       <div className="social-main">
-        <div className="section-row"><h2>{mode === "profile" ? scope === "mine" ? "Mening postlarim" : scope === "following" ? "Obunalarim postlari" : "Barcha postlar" : "Kitobxonlar davrasi"}</h2><button className="icon-btn" aria-label="Lentani yangilash" title="Yangilash" disabled={loading || busy} onClick={() => void refresh()}><RefreshCw size={19}/></button></div>
+        <div className="section-row"><h2>{mode === "profile" ? scope === "mine" ? "Mening postlarim" : scope === "following" ? "Obunalarim postlari" : "Barcha postlar" : "Kitobxonlar davrasi"}</h2><div className="section-tools"><FeedFilter value={scope} onChange={v => { setScope(v); setAuthor(""); }} options={feedOptions} /><button className="icon-btn" aria-label="Lentani yangilash" title="Yangilash" disabled={loading || busy} onClick={() => void refresh()}><RefreshCw size={19}/></button></div></div>
         <button type="button" className="compose-launch" disabled={!data.userId} onClick={startWriting}>
           <span className="reader-avatar" aria-hidden="true">{name.slice(0,1).toUpperCase()}</span>
           <span className="compose-launch-text">{data.signedIn ? "Nima o'qidingiz? Fikr, maqola yoki rasm ulashing…" : "Post yozish uchun tizimga kiring"}</span>
           <span className="compose-launch-icons" aria-hidden="true"><ImagePlus size={19}/><Newspaper size={19}/><NotebookPen size={19}/></span>
         </button>
         <Composer open={composing} onOpenChange={open => { setComposing(open); if (!open) setEditing(null); }} editing={editing} moderator={moderator} onPublished={(id, edited) => void onPublished(id, edited)} onLoginRequired={() => requireLogin("Davom etish uchun tizimga kiring.")} />
-        <Tabs value={scope} onValueChange={v => { setScope(v); setAuthor(""); }}><TabsList className="feed-tabs" aria-label="Lenta filtri"><TabsTrigger value="all">Barchasi</TabsTrigger><TabsTrigger value="following">Obunalarim</TabsTrigger>{mode === "profile" ? <TabsTrigger value="mine">Postlarim</TabsTrigger> : <TabsTrigger value="announcements">E&apos;lonlar</TabsTrigger>}{moderator && mode === "feed" && <TabsTrigger value="reported"><ShieldCheck size={14}/>Shikoyatlar{data.reportedPosts ? ` (${data.reportedPosts})` : ""}</TabsTrigger>}</TabsList></Tabs>
+
         {author && <div className="author-filter"><span>{authorName} postlari</span><button className="icon-btn" title="Filtrni tozalash" aria-label="Filtrni tozalash" onClick={() => setAuthor("")}><X size={17}/></button></div>}
         {author && data.authorProfile && <section className="public-profile"><h3>{data.authorProfile.name}</h3><p>{data.authorProfile.bio || "Hali o'zi haqida ma'lumot kiritmagan."}</p><span>{data.authorProfile.posts} post · {data.authorProfile.followers} kuzatuvchi</span>{author !== data.userId && followButton(author)}</section>}
         {error && <div className="feed-error" role="alert">{error}<button className="text-btn" disabled={loading} onClick={() => void refresh()}>Qayta urinish</button></div>}

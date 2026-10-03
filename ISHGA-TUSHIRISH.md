@@ -201,3 +201,9 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - **AI tugmasi** — siz bergan robot rasmi (`public/assets/ai-robot.webp`, 7 KB, dumaloq). Rasmni almashtirish uchun shu faylni (192×192, webp) o‘zgartiring. Rasm huquqlari (litsenziya) sizning javobgarligingizda.
 - **Bitta standart:** hamma dumaloq tugma (orqaga, janr filtri, «+», adminga yozish, kitob sahifasidagi chat/tahrirlash/yurak) — oq fon, yupqa hoshiya, to‘q ko‘k belgi, 38 px. Rangli faqat asosiy amal (savat, tilla) va AI (robot). O‘lcham bitta o‘zgaruvchida: `--zb-btn` (`app/store.css`).
 - Qidiruv qatori ixchamlashtirildi (qidiruv 40 px, belgi va yozuvlar kichikroq).
+
+## Gurung: lenta filtri
+
+- "Barchasi / Obunalarim / E'lonlar / Shikoyatlar" tablar qatori ochiladigan filtr tugmasiga almashtirildi (`app/feed-filter.tsx`). Moderatorda "Shikoyatlar" va soni ko'rinadi.
+- Postlardagi "tahrirlangan" yozuvi olib tashlandi.
+- Serverga chiqarish: `cd /d C:\bir-ilm\app`, `git pull`, `scripts\deploy.cmd`.

@@ -206,7 +206,6 @@ function PostHeader({ post, actions }: { post: ReadingPost; actions: PostActions
           <button type="button" className="author-link" onClick={() => actions.openAuthor(post.userId)}>{post.name}{mine ? " (siz)" : ""}</button>
           <span className="post-meta">
             <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
-            {post.editedAt && <span> · tahrirlangan</span>}
           </span>
         </div>
         {!mine && actions.viewerId && (
@@ -361,7 +360,7 @@ export function PostReader({ post, loading, actions, onClose }: { post: ReadingP
                 <span className="reader-avatar">{post.avatarUrl ? <img src={absoluteUrl(post.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : post.name.slice(0, 1).toUpperCase()}</span>
                 <span>
                   <button type="button" className="author-link" onClick={() => { onClose(); actions.openAuthor(post.userId); }}>{post.name}</button>
-                  <small>{formatDate(post.createdAt, true)}{post.format === "article" ? ` · ${post.readMinutes} daqiqa o'qish` : ""}{post.editedAt ? " · tahrirlangan" : ""}</small>
+                  <small>{formatDate(post.createdAt, true)}{post.format === "article" ? ` · ${post.readMinutes} daqiqa o'qish` : ""}</small>
                 </span>
               </div>
               {post.format !== "article" && <MediaAlbum items={album} />}

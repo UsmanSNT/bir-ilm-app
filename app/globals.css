@@ -2468,3 +2468,15 @@ input {
 .device-link-error{color:#b3261e}
 .login-telegram-native{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:10px;background:#54a9eb;color:#fff;font-weight:600;padding:10px 16px;cursor:pointer}
 .login-telegram-native:disabled{opacity:.6}
+
+/* Gurung: lenta filtri (tablar o'rniga ochiladigan ro'yxat) */
+.section-tools { display: flex; align-items: center; gap: 8px; }
+.feed-filter { position: relative; }
+.feed-filter-btn { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; border: 1px solid #d9cfb4; border-radius: 999px; background: #fff; color: inherit; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.feed-filter-btn.is-on { border-color: #1f3d36; background: #eef4f1; }
+.feed-filter-chevron { opacity: .6; }
+.feed-filter-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 200px; margin: 0; padding: 6px; list-style: none; background: #fff; border: 1px solid #e4dcc3; border-radius: 16px; box-shadow: 0 12px 32px rgba(40, 30, 10, .18); }
+.feed-filter-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 0 12px; border: 0; border-radius: 12px; background: transparent; color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.feed-filter-menu button:hover, .feed-filter-menu button[aria-pressed="true"] { background: #f4f0e4; }
+.feed-filter-menu button span { flex: 1; }
+.feed-filter-menu b { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #b3402f; color: #fff; font-size: 12px; text-align: center; }
