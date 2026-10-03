@@ -22,6 +22,7 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { InkQuill } from "./brand-icons";
 import { useCatalog } from "@/lib/api/books-client";
 import type { LiveSession } from "@/shared/contract/live";
 import TalkManage, { length } from "./talk-manage";
@@ -381,10 +382,10 @@ export default function TalksBoard({
       {login}
 
       <button type="button" className="tb-share" onClick={onShare}>
-        <span className="tb-share-icon"><Mic size={26} /></span>
+        <span className="tb-share-icon"><InkQuill size={28} /></span>
         <span className="tb-share-copy">
-          <strong>O‘z fikringizni ulashing</strong>
-          <small>Suhbatdan keyin hamjamiyatda yozing: kitob hayotingizda nimani o‘zgartirdi?</small>
+          <strong>Fikr yozish bilan mustahkamlanadi</strong>
+          <small>Suhbatdan keyin siyohdon va qalam sizniki: kitob hayotingizda nimani o‘zgartirdi?</small>
         </span>
         <BookOpenText className="tb-share-art" size={58} strokeWidth={1.2} aria-hidden="true" />
         <ChevronRight size={22} aria-hidden="true" />

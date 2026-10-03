@@ -20,3 +20,16 @@ export function Instagram({ size = 20, ...rest }: IconProps) {
 export function Facebook({ size = 20, ...rest }: IconProps) {
   return <svg {...base(size, rest)} fill="currentColor"><path d="M14 8.5V6.9c0-.8.2-1.3 1.4-1.3H17V2.2C16.7 2.1 15.7 2 14.6 2 12.2 2 10.5 3.5 10.5 6.2v2.3H8v3.6h2.5V22H14v-9.9h2.6l.4-3.6Z" /></svg>;
 }
+
+/** Siyohdon va patli qalam (stroke, currentColor). */
+export function InkQuill({ size = 24, ...rest }: IconProps) {
+  return (
+    <svg {...base(size, rest)} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 21h9a2.5 2.5 0 0 0 2.5-2.5v-3A2.5 2.5 0 0 0 15 13H7.5A2.5 2.5 0 0 0 5 15.5v3A2.5 2.5 0 0 0 6 21Z" />
+      <path d="M8.5 13v-1.2h4V13" />
+      <path d="M11 11.5c.4-3.2 3.2-7 9-8.5-.2 5.4-3 8.4-6.2 9.2" />
+      <path d="M12.6 9.3c1.6-1.8 3.6-3.1 5.6-3.9" />
+      <path d="M8 17h5.5" />
+    </svg>
+  );
+}
