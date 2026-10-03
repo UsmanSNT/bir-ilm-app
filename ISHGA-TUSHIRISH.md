@@ -161,3 +161,11 @@ Do‘konning o‘zida (Book Store) admin uchun **«Kitob qo‘shish»** tugmasi,
 - **Qidiruv** tepaga chiqarildi; admin uchun uning yonida yumaloq «+» (kitob qo‘shish).
 - **Kitob sahifasi:** «Savatga qo‘shish» katta tugma, yoniga faqat belgi bilan «Adminga yozish», «Tahrirlash» (admin) va yurak; muqova va tugmalar kartadan chiqib ketmaydi.
 - Katalog va «Ko‘p baholangan» da kitob muqovalari kattaroq.
+
+## Do'kon: tugmalar va matn (yangilanish)
+
+- **AI (robot) va Adminga yozish** tugmalari endi **ustma-ust** va **har biri alohida** sudrab ko‘chiriladi (joyi alohida eslab qolinadi).
+- **Orqaga** tugmasi hamma joyda bitta dumaloq belgi: kitob sahifasida, shuningdek chat, AI, savat va Kutubxonam bo‘limlarida (avval chatdan qaytib bo‘lmasdi). Buyurtma berish bo‘limidan orqaga — savatga.
+- **Savatga qo‘shish** — faqat savatcha belgisi (yozuvsiz, dumaloq tilla tugma).
+- **Kitob kartasi** ixchamlashtirildi (kichikroq sarlavha, narx va muqova).
+- **Tavsif matni:** boshqa joydan (masalan AI'dan) ko‘chirilgan `##`, `**`, `- ` belgilari sarlavha, qalin matn va ro‘yxat bo‘lib chiroyli ko‘rsatiladi; kitob saqlanganda bu belgilar matndan olib tashlanadi. AI javoblari ham shunday ko‘rsatiladi.

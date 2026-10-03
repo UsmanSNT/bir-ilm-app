@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, CalendarClock, Headphones, ImagePlus, Megaphone, Sparkles, Store, Trash2, Upload, X } from "lucide-react";
+import { stripMarkdown } from "./store-ui";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { createBook, deleteBook, deleteTrack, notifyCatalogChanged, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
@@ -121,7 +122,7 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
     try {
       const priceValue = price.trim() ? Number(price) : 0;
       if (!Number.isInteger(priceValue) || priceValue < 0 || priceValue > STORE_LIMITS.maxPrice) throw new Error("Narx butun wonda (₩), 0 dan 10 000 000 gacha bo‘lsin.");
-      const base = { title: title.trim(), author: author.trim(), summary: summary.trim(), color };
+      const base = { title: title.trim(), author: author.trim(), summary: stripMarkdown(summary), color };
       // Do'kon mahsuloti: narx va janr bor, audio/hafta kitobi yo'q. Kutubxona kitobida aksincha.
       const fields = store ? { ...base, price: priceValue, category: category.trim() } : base;
       let saved = book ? await updateBook(book.id, store ? fields : { ...fields, active }) : await createBook({ ...fields, kind });

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { BookOpen, Check, Heart, Library, MessageCircle, Minus, Pencil, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, Heart, Library, MessageCircle, Minus, Pencil, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useViewer } from "@/lib/api/roles-client";
@@ -104,7 +104,7 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
           />
         ) : (
           <>
-            {section !== "catalog" && <header className="zb-head"><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles[section]}</h1></header>}
+            {section !== "catalog" && <header className="zb-head"><button type="button" className="zb-back zb-back-round" onClick={() => go(section === "checkout" ? "cart" : "catalog")} aria-label="Orqaga" title="Orqaga"><ArrowLeft size={20} /></button><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles[section]}</h1></header>}
             {section === "catalog" && <StoreHome books={store.items} loading={store.loading} error={store.error} onRetry={store.reload} onOpen={open} onAdd={addToCart} isAdmin={isAdmin} onCreate={() => setEditing({ id: null })} onEdit={(b) => setEditing({ id: b.id })} />}
             {section === "ai" && <StoreAi onNeedLogin={() => setLoginOpen(true)} />}
             {section === "cart" && <CartView cart={cart} onCheckout={() => go("checkout")} onCatalog={() => go("catalog")} onOpen={open} />}

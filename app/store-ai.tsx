@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Send, Sparkles } from "lucide-react";
 import { askStoreAi, StoreError } from "@/lib/api/store-client";
 import { STORE_LIMITS } from "@/shared/contract";
+import { FormattedText } from "./store-ui";
 
 type Turn = { role: "user" | "model"; text: string };
 
@@ -59,7 +60,7 @@ export default function StoreAi({ onNeedLogin }: { onNeedLogin: () => void }) {
             <div className="store-ai-prompts">{prompts.map((p) => <button key={p} type="button" onClick={() => void send(p)}>{p}</button>)}</div>
           </div>
         )}
-        {turns.map((t, i) => <div key={i} className={`store-ai-msg ${t.role}`}>{t.text}</div>)}
+        {turns.map((t, i) => <div key={i} className={`store-ai-msg ${t.role}`}>{t.role === "model" ? <FormattedText text={t.text} /> : t.text}</div>)}
         {busy && <div className="store-ai-msg model">Yozmoqda...</div>}
         <div ref={end} />
       </div>

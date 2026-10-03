@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { deleteReview, fetchReviews, notifyStoreChanged, saveReview, StoreError } from "@/lib/api/store-client";
 import { formatPrice, STORE_LIMITS, type ReviewSummary, type StoreBook } from "@/shared/contract";
 import { askAi } from "./store-ai";
-import { BookCover, RatingLine, StarInput, Stars } from "./store-ui";
+import { BookCover, FormattedText, RatingLine, StarInput, Stars } from "./store-ui";
 
 const reviewDate = (value: string) => {
   const d = new Date(value.includes("T") ? value : `${value.replace(" ", "T")}Z`);
@@ -40,7 +40,7 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
 
   return (
     <article className="zb-book">
-      <button className="zb-back" onClick={onBack}><ArrowLeft size={18} />Katalog</button>
+      <button className="zb-back zb-back-round" onClick={onBack} aria-label="Katalogga qaytish" title="Orqaga"><ArrowLeft size={20} /></button>
       <section className="zb-book-hero" style={{ ["--book" as string]: book.color }}>
         <BookCover book={book} size="lg" />
         <div className="zb-book-info">
@@ -54,7 +54,7 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
           </div>
           <p className="zb-price">{formatPrice(book.price)}</p>
           <div className="zb-book-actions">
-            <button className="zb-btn zb-btn-primary" onClick={onAdd}><ShoppingCart size={18} />Savatga qo‘shish</button>
+            <button className="zb-btn zb-btn-primary zb-cart-btn" onClick={onAdd} aria-label="Savatga qo‘shish" title="Savatga qo‘shish"><ShoppingCart size={22} /></button>
             <button className="zb-btn zb-btn-icon" onClick={onAsk} aria-label="Adminga yozish" title="Adminga yozish"><MessageCircle size={20} /></button>
             {onEdit && <button className="zb-btn zb-btn-icon" onClick={onEdit} aria-label="Tahrirlash" title="Tahrirlash"><Pencil size={19} /></button>}
             <button className={`zb-btn zb-btn-icon ${saved ? "is-on" : ""}`} aria-pressed={saved} aria-label={saved ? "Javondan olish" : "Javonga qo‘shish"} onClick={onToggle}>
@@ -67,7 +67,7 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
       {book.summary && (
         <section className="zb-panel">
           <h3>Kitob haqida</h3>
-          <p className="zb-about">{book.summary}</p>
+          <FormattedText className="zb-about" text={book.summary} />
         </section>
       )}
 
@@ -76,7 +76,7 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
           <h3><Sparkles size={18} />AI xulosa</h3>
           {!summaryText && <button className="zb-btn zb-btn-ghost" disabled={aiBusy} onClick={() => void summarize()}>{aiBusy ? "Tayyorlanmoqda..." : "Xulosa olish"}</button>}
         </div>
-        {summaryText ? <p className="zb-ai-text">{summaryText}</p> : <p className="zb-muted">Asosiy g‘oya, muhim xulosalar va kimga foydali ekanini AI qisqacha tushuntiradi.</p>}
+        {summaryText ? <FormattedText className="zb-ai-text" text={summaryText} /> : <p className="zb-muted">Asosiy g‘oya, muhim xulosalar va kimga foydali ekanini AI qisqacha tushuntiradi.</p>}
       </section>
 
       <Reviews bookId={book.id} onNeedLogin={onNeedLogin} />

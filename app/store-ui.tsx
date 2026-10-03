@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment, type ReactNode } from "react";
 import { Star } from "lucide-react";
 import type { StoreBook } from "@/shared/contract";
 
@@ -44,4 +45,51 @@ export function StarInput({ value, onChange }: { value: number; onChange: (v: nu
       ))}
     </div>
   );
+}
+
+// ── Matn: markdown belgilarsiz ko'rsatish ────────────────────────────
+
+/** Boshqa joydan (masalan AI'dan) ko'chirilgan matndagi `##`, `**`, `- ` belgilarini oddiy matnga aylantiradi. */
+export function stripMarkdown(text: string): string {
+  return normalizeBullets(text)
+    .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+    .replace(/(\*\*|__)(.+?)\1/g, "$2")
+    .replace(/^\s*[-*]\s+/gm, "• ")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
+}
+
+/** Bir qatorga yopishib qolgan « - **Sarlavha:** …» bandlarini alohida qatorlarga ajratadi. */
+function normalizeBullets(text: string): string {
+  return text.replace(/\r\n?/g, "\n").replace(/[ \t]+(?:[-*•])\s+(?=\*\*)/g, "\n- ").replace(/([^\n])\s*(#{2,6}\s)/g, "$1\n$2");
+}
+
+function inline(text: string, key: string): ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) => (/^\*\*[^*]+\*\*$/.test(part) ? <strong key={`${key}${i}`}>{part.slice(2, -2)}</strong> : <Fragment key={`${key}${i}`}>{part}</Fragment>));
+}
+
+/**
+ * Tavsif va AI javobini chiroyli ko'rsatadi: `## sarlavha` — sarlavha, `- band` — ro'yxat, `**qalin**` — qalin.
+ * HTML ishlatilmaydi (React elementlari), shuning uchun xavfsiz.
+ */
+export function FormattedText({ text, className = "" }: { text: string; className?: string }) {
+  const lines = normalizeBullets(text).split("\n").map((l) => l.trim()).filter(Boolean);
+  const blocks: ReactNode[] = [];
+  let list: string[] = [];
+  const flush = () => {
+    if (!list.length) return;
+    const items = list;
+    blocks.push(<ul key={`u${blocks.length}`}>{items.map((item, i) => <li key={i}>{inline(item, `l${i}`)}</li>)}</ul>);
+    list = [];
+  };
+  lines.forEach((line) => {
+    const heading = /^#{1,6}\s*(.+)$/.exec(line);
+    const bullet = /^(?:[-*•])\s+(.+)$/.exec(line);
+    if (bullet) { list.push(bullet[1]); return; }
+    flush();
+    if (heading) blocks.push(<h4 key={`h${blocks.length}`}>{inline(heading[1], "h")}</h4>);
+    else blocks.push(<p key={`p${blocks.length}`}>{inline(line, "p")}</p>);
+  });
+  flush();
+  return <div className={`zb-formatted ${className}`}>{blocks}</div>;
 }
