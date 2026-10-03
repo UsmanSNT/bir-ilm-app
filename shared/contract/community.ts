@@ -29,7 +29,7 @@ export const COMMUNITY_LIMITS = {
   blocks: 600,
   listItems: 100,
   /** Post tepasidagi albom (Telegram albomi kabi 10 tagacha). */
-  attachments: 10,
+  attachments: 30,
   /** Matn ichidagi rasm/videolar. */
   inlineMedia: 40,
   caption: 300,

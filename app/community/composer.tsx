@@ -3,7 +3,7 @@
 /**
  * Post yoki maqola yozish (va tahrirlash) oynasi.
  *
- * Tepada — albom (10 tagacha rasm), so'ng maqola sarlavhasi, kitob tegi
+ * Tepada — albom (30 tagacha rasm), so'ng maqola sarlavhasi, kitob tegi
  * va formatlangan matn. Fayllar tanlanishi bilan fonda yuklanadi.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
