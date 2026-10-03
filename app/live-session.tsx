@@ -149,6 +149,8 @@ export default function LiveSession({
   const rejoinTried = useRef(false);
   // Yozib olish adminning brauzerida ishlaydi va suhbatdan mustaqil: o'z tugmasi bilan boshlanadi/tugaydi.
   const recorderRef = useRef<RoomRecorder | null>(null);
+  // Suhbat tugagan, lekin yozuv hali ketyapti: yozuv tugagach ovoz ulanishi yopiladi.
+  const endedRef = useRef(false);
   const [recBusy, setRecBusy] = useState(false);
   const [recPaused, setRecPaused] = useState(false);
   /** Yozuv aynan shu brauzerda ketyaptimi (pauza va vaqt faqat yozayotgan adminda). */
@@ -217,8 +219,8 @@ export default function LiveSession({
     setListNotice("");
     setMessages([]);
     setParticipants([]);
-    // Izohlar xonaning pastida kichik panel bo'lib doim ochiq turadi (Izohlar tugmasi yig'adi).
-    setCommentsOpen(true);
+    setCommentsOpen(false);
+    endedRef.current = false;
     setSelected(null);
     setHandRaised(false);
     setMedia(null);
@@ -301,17 +303,22 @@ export default function LiveSession({
       setSessionData((prev) =>
         prev ? { ...prev, status: "ended", endedAt } : prev,
       );
-      setMedia(null);
-      rememberActive(null);
+      // Yozayotgan adminning ovoz ulanishi yozuv tugaguncha saqlanadi.
+      endedRef.current = true;
+      if (!recorderRef.current) {
+        setMedia(null);
+        rememberActive(null);
+      }
     });
 
-    client.on("kicked", () => {
+    client.on("kicked", (reason) => {
+      if (recorderRef.current) void finishRecording(false);
       rememberActive(null);
       setMinimized(false);
       setActiveSessionId(null);
       setSessionData(null);
       setMedia(null);
-      setListNotice("Moderator sizni suhbatdan chiqardi.");
+      setListNotice(reason === "replaced" ? "Hisobingiz boshqa qurilmadan kirdi — bu qurilmada suhbat yopildi." : "Moderator sizni suhbatdan chiqardi.");
       loadSessions();
     });
 
@@ -373,6 +380,7 @@ export default function LiveSession({
     await recorder.stop();
     setRecBusy(false);
     setRecPaused(false);
+    if (endedRef.current) { setMedia(null); rememberActive(null); }
     setNotice("Yozuv serverda saqlandi. Nusxasini kompyuteringizga ham saqlashingiz mumkin.");
     const file = recorder.file();
     if (file.blob.size) {
@@ -384,8 +392,8 @@ export default function LiveSession({
 
   /** Suhbatni tugatish. Yozuv ketayotgan bo'lsa, u ham to'xtashi kerak (xona yopiladi) — avval so'raymiz. */
   async function endTalk() {
-    if (recorderRef.current && !window.confirm("Yozuv hali ketyapti. Suhbat tugasa, yozuv ham to'xtab saqlanadi. Davom etasizmi?")) return;
-    await finishRecording();
+    // Yozuv suhbatdan mustaqil: suhbat tugaydi, yozuv esa «Yozuvni to'xtatish» bosilguncha davom etadi.
+    if (recorderRef.current && !window.confirm("Suhbat tugaydi, lekin yozuv davom etadi. Yozuvni alohida «Yozuvni to'xtatish» tugmasi bilan to'xtatasiz. Davom etasizmi?")) return;
     clientRef.current?.endSession();
   }
 
@@ -474,10 +482,10 @@ export default function LiveSession({
           label: recording ? "Yozuvni to'xtatish" : "Yozib olish",
           icon: CircleDot,
           active: recording,
-          disabled: status !== "live" || av.status !== "connected",
+          disabled: status === "planned" || av.status !== "connected",
           pending: recBusy,
           action: () => (recording ? finishRecording() : startRecording()),
-          hint: status !== "live" ? "Suhbat boshlangach yozib olinadi" : "Ovoz serveriga ulanilmagan",
+          hint: status === "planned" ? "Suhbat boshlangach yozib olinadi" : "Ovoz serveriga ulanilmagan",
           tool: true,
         }]
       : []),

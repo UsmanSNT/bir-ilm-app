@@ -145,6 +145,16 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         return;
       }
 
+      // Bitta hisob — bitta qurilma: yangi kirgan qoladi, shu hisobning eski ulanishlari chiqariladi.
+      for (const [otherWs, other] of [...clients]) {
+        if (otherWs === client.ws || other.userId !== client.userId || !other.sessionId) continue;
+        const oldSession = other.sessionId;
+        other.sessionId = null;
+        send(otherWs, { type: "kicked", reason: "replaced" });
+        otherWs.close();
+        if (oldSession !== msg.sessionId) await depart(db, oldSession, client.userId);
+      }
+
       // Oldingi sessiyadan chiqish
       const previous = client.sessionId;
       client.sessionId = msg.sessionId;
@@ -276,10 +286,11 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         const startedAt = await live.startLiveSession(db, client.sessionId);
         broadcastToSession(client.sessionId, { type: "session_started", startedAt });
       } else {
+        // Yozuv suhbatdan mustaqil: yozayotgan admin yozuvni o'zi to'xtatguncha xona uning uchun ochiq turadi.
+        const recorder = await recorderOf(db, client.sessionId);
         const endedAt = await live.endLiveSession(db, client.sessionId);
-        broadcastToSession(client.sessionId, { type: "recording", active: false });
         broadcastToSession(client.sessionId, { type: "session_ended", endedAt });
-        await closeMediaRoom(client.sessionId);
+        await closeMediaRoom(client.sessionId, recorder);
       }
       return;
     }
@@ -293,8 +304,8 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         return;
       }
       const session = await live.getLiveSession(db, client.sessionId);
-      if (!session || (msg.on && session.status !== "live")) {
-        send(client.ws, { type: "error", message: "Yozib olish faqat jonli suhbatda ishlaydi." });
+      if (!session || (msg.on && session.status === "planned")) {
+        send(client.ws, { type: "error", message: "Suhbat boshlanmaguncha yozib bo'lmaydi." });
         return;
       }
       const on = msg.on === true;

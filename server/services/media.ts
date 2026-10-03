@@ -79,7 +79,12 @@ export function removeFromMedia(sessionId: string, userId: string) {
   return quietly(() => rooms.removeParticipant(sessionId, userId));
 }
 
-export function closeMediaRoom(sessionId: string) {
+/** Xonani yopadi. `keepUserId` (yozayotgan admin) bo'lsa — faqat boshqalar chiqariladi, xona ochiq qoladi. */
+export function closeMediaRoom(sessionId: string, keepUserId?: string | null) {
   if (!rooms) return Promise.resolve();
-  return quietly(() => rooms.deleteRoom(sessionId));
+  if (!keepUserId) return quietly(() => rooms.deleteRoom(sessionId));
+  return quietly(async () => {
+    const others = (await rooms.listParticipants(sessionId)).filter((p) => p.identity !== keepUserId);
+    await Promise.all(others.map((p) => rooms.removeParticipant(sessionId, p.identity)));
+  });
 }

@@ -225,3 +225,14 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 
 - Gurungdagi "Qisqa videolar" qatori olib tashlandi (admin bo'limidagi video havolalari ham).
 - Postlarga video yuklab bo'lmaydi: tanlash oynasi faqat rasm qabul qiladi, server ham videoni rad etadi (415). Avval joylangan video postlar ko'rinishda qoladi.
+
+## Suhbat: yozuv, bitta qurilma, ekran ulashish, veb-ilova
+
+- **Yozuv suhbatdan mustaqil.** Admin «Yozib olish» ni suhbat boshlangach xohlagan paytda bosadi va «Yozuvni to'xtatish» bilan to'xtatadi. «Tugatish» bosilsa, suhbat tugaydi (qatnashchilar chiqariladi), lekin yozayotgan adminning yozuvi to'xtamaydi — u yozuvni o'zi to'xtatguncha davom etadi.
+- **Yozuv formati MP3** (128 kbit/s, mono). Avvalgi WebM/Opus fayllar ko'p pleyerlarda ochilmasdi va davomiyligi ko'rinmasdi; MP3 hamma qurilmada ochiladi. Eski WebM yozuvlar o'zgarmaydi.
+- **Ovoz sifati:** suhbatdagi mikrofon 64 kbit/s (avval ~24 kbit/s) va bir kanalli, 48 kHz.
+- **Bitta hisob — bitta qurilma:** hisob boshqa qurilmadan (yoki boshqa tabdan) suhbatga kirsa, yangisi qoladi, eskisi «Hisobingiz boshqa qurilmadan kirdi» xabari bilan chiqariladi.
+- **Izohlar paneli** avvalgi joyiga qaytdi: yopiq turadi, «Izohlar» tugmasi bilan ochiladi.
+- **Ekran ulashish (taqdimot):** faqat kompyuterda ishlaydi (telefon brauzerlari qo'llamaydi — endi shu haqda xabar chiqadi). Ovozsiz variantga o'tish va 25 soniyalik kutish qo'shildi. **LiveKit serveri yangi bo'lishi kerak** (sinov 1.9.11 da o'tdi; 1.8.x bilan ulanish tuzilishi buzildi). Versiyani tekshirish: `livekit-server.exe --version`.
+- **Veb-ilova (PWA):** sayt Chrome/Edge'da «O'rnatish», Safari'da «Bosh ekranga qo'shish» orqali ilova kabi o'rnatiladi (belgi PNG, service worker keshlamaydi). Play Market versiyasi chiqquncha shu yo'l.
+- Serverga chiqarish: `cd /d C:\bir-ilm\app`, `git pull`, `scripts\deploy.cmd` (suhbat serveri ham qayta ishga tushishi kerak).

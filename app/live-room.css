@@ -206,6 +206,84 @@
 .live-overlay .live-camera-row { display: flex; gap: 8px; height: 96px; padding: 6px 12px 0; overflow-x: auto; background: none; }
 .live-overlay .live-camera-row .live-video-tile { flex: 0 0 124px; height: 84px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 0 0 1px #ffffff1f; }
 
+.live-overlay .live-comments .muted, .live-overlay .live-comments-closed { color: var(--siyoh-3); }
+.live-overlay .live-sheet-backdrop { background: #070b2299; }
+.live-overlay .live-sheet { padding: 18px 16px 14px; border-radius: 26px 26px 0 0; background: var(--sahifa); color: var(--siyoh); }
+.live-overlay .live-sheet-head { border-bottom-color: var(--chiziq); }
+.live-overlay .live-sheet-head small { color: var(--siyoh-3); }
+.live-overlay .live-sheet button { border-radius: 14px; background: var(--qogoz); color: var(--siyoh); font-weight: 700; }
+.live-overlay .live-sheet button.danger { background: var(--anor-och); color: var(--anor); }
+.live-overlay .live-sheet button.ghost { background: none; color: var(--siyoh-3); }
+.live-overlay .live-devices button.on { background: var(--lojuvard); color: #fff; }
+
+/* ───────── Animatsiya va moslashuv ───────── */
+@keyframes live-speak { 50% { box-shadow: 0 0 0 11px #3ddc9722; } }
+@media (prefers-reduced-motion: reduce) {
+  .live-overlay .live-speakers > div.speaking .live-avatar-circle { animation: none; }
+}
+@media (max-width: 500px) {
+  .live-overlay { padding: 0; }
+  .live-overlay .live-window { width: 100%; border: 0; border-radius: 0; }
+  .live-overlay .live-room-title strong { font-size: 19px; }
+  .live-overlay .live-speakers { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 360px) {
+  .live-overlay .live-control-actions button span { width: 42px; height: 42px; }
+  .live-overlay .live-control-actions button:first-child span { width: 50px; height: 50px; }
+  .live-overlay .live-control-actions small { font-size: 9.5px; max-width: 54px; }
+}
+
+
+/* ───────── Boshlanmagan suhbat: oldingi modal oyna (timer, Orqaga, admin uchun Boshlash) ───────── */
+.talk-gate { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px; background: #070b22b8; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: talk-gate-in .18s ease-out; }
+.talk-gate-card { display: grid; gap: 12px; width: min(100%, 420px); padding: 14px; border-radius: 28px; background: linear-gradient(180deg, #17235c, #0f1842); border: 1px solid #e2b65c3d; box-shadow: 0 30px 80px -24px #000c; }
+.talk-gate-card .live-waiting { margin: 0; }
+.talk-gate-back { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 0; border-radius: 999px; background: #ffffff14; color: #eceaff; font: 700 14px var(--f-ui); box-shadow: inset 0 0 0 1px #ffffff1f; cursor: pointer; }
+.talk-gate-back:hover { background: #ffffff26; }
+.talk-gate-error { margin: 0; padding: 9px 14px; border-radius: 12px; background: #e0303e22; color: #ffc2c8; font-size: 13px; font-weight: 600; }
+.live-waiting-start:disabled { opacity: .6; cursor: progress; }
+@keyframes talk-gate-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .talk-gate { animation: none; } }
+
+/* Kichraytirilgan suhbat paneli telefonda pastki dock'ning (va markaziy yulduzning) ustida turadi */
+@media (max-width: 980px) {
+  .live-minibar { left: 12px; right: 12px; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 46px); max-width: none; justify-content: space-between; }
+  .live-minibar-open { flex: 1; }
+}
+
+/* ───────── Xona maketi: gorizontal qatnashchilar, kichik chat past qismda ───────── */
+.live-overlay .live-main { flex-direction: column; }
+.live-overlay .live-main > .live-room { flex: 1 1 auto; min-height: 0; }
+.live-roster { flex: none; padding: 8px 12px 6px; }
+.live-roster > h3, .live-hands > h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; color: var(--tilla-2); font: 800 10.5px/1 var(--f-ui); letter-spacing: .14em; text-transform: uppercase; }
+.live-strip { display: flex; gap: 10px; padding: 6px 2px 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: #ffffff33 transparent; }
+.live-chip { flex: 0 0 auto; display: grid; justify-items: center; gap: 3px; width: 60px; scroll-snap-align: start; }
+.live-chip.selectable { cursor: pointer; }
+.live-chip-avatar { position: relative; display: block; }
+.live-chip .live-avatar-circle { width: 36px; font-size: 14px; box-shadow: 0 4px 10px -6px #000a; }
+.live-chip strong { max-width: 60px; overflow: hidden; color: #dfe3fa; font-size: 10.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.live-chip small { color: var(--tilla-2); font-size: 9px; font-weight: 800; }
+.live-chip.is-speaker .live-avatar-circle { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
+.live-chip.speaking .live-avatar-circle { outline-color: #3ddc97; box-shadow: 0 0 0 5px #3ddc9733; animation: live-speak 1.4s ease-in-out infinite; }
+.live-chip.has-hand .live-avatar-circle { outline: 2px solid #ffd166; outline-offset: 2px; }
+.live-hand-badge, .live-mic-badge { position: absolute; display: grid; place-items: center; border-radius: 50%; font-style: normal; }
+.live-hand-badge { top: -6px; right: -7px; width: 19px; height: 19px; background: linear-gradient(180deg, #f6dc9a, var(--tilla-2)); color: var(--lojuvard-3); box-shadow: 0 2px 6px #0008; animation: live-hand-wave 1.5s ease-in-out infinite; }
+.live-mic-badge { right: -5px; bottom: -3px; width: 16px; height: 16px; background: #0b1230; color: #aab4e6; box-shadow: 0 0 0 1.5px #ffffff2a; }
+@keyframes live-hand-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
+
+.live-hands { margin: 0 0 6px; padding: 8px 10px 2px; border-radius: 14px; background: #e2b65c24; box-shadow: inset 0 0 0 1px #e2b65c66; }
+.live-chip.is-hand { display: flex; align-items: center; gap: 7px; width: auto; padding: 4px 6px 4px 4px; border-radius: 999px; background: #ffffff14; }
+.live-chip.is-hand .live-avatar-circle { width: 28px; font-size: 12px; }
+.live-chip.is-hand strong { max-width: 90px; font-size: 11.5px; }
+.live-chip.is-hand button { height: 26px; padding: 0 11px; border: 0; border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2)); color: var(--lojuvard-3); font: 800 11px var(--f-ui); cursor: pointer; }
+.live-overlay .live-hand-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; background: #e2b65c33; color: var(--tilla-2); font-size: 11px; font-weight: 800; box-shadow: inset 0 0 0 1px #e2b65c77; }
+.live-overlay .live-queue { margin: 4px 0 0; padding: 6px 12px; font-size: 11.5px; }
+.live-overlay .live-empty { margin: 0 0 6px; padding: 8px; font-size: 12px; }
+
+/* Video yoqqanlar: kichik gorizontal qator (yoqmaganlar yuqoridagi qatnashchilar qatorida) */
+.live-overlay .live-camera-row { display: flex; gap: 8px; height: 96px; padding: 6px 12px 0; overflow-x: auto; background: none; }
+.live-overlay .live-camera-row .live-video-tile { flex: 0 0 124px; height: 84px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 0 0 1px #ffffff1f; }
+
 /* Chat o'z holida, lekin kichik: xonaning pastida, qatnashchilarni yopmaydi */
 .live-overlay .live-comments { position: static; inset: auto; flex: none; width: 100%; height: clamp(150px, 30vh, 240px); border-radius: 18px 18px 0 0; box-shadow: 0 -10px 24px -14px #000a; z-index: 1; }
 .live-overlay .live-comments-head { height: 38px; padding: 0 8px 0 14px; font-size: 14px; }

@@ -12,6 +12,7 @@ import {
   Room,
   RoomEvent,
   Track,
+  ScreenSharePresets,
   VideoPresets,
   type Participant,
   type RemoteTrack,
@@ -94,6 +95,20 @@ function trackOf(p: Participant, source: Track.Source): Track | undefined {
   return found;
 }
 
+class TimeoutError extends Error {
+  constructor() {
+    super("Ekran ulashish ulanmadi: media serveri javob bermadi. Qayta urinib ko'ring (LiveKit serveri yangi versiyada bo'lishi kerak).");
+    this.name = "TimeoutError";
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new TimeoutError()), ms);
+    promise.then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
+  });
+}
+
 function explain(error: unknown): string {
   if (typeof navigator !== "undefined" && !navigator.mediaDevices) {
     return "Kamera, mikrofon va ekran ulashish faqat HTTPS saytda ishlaydi.";
@@ -131,7 +146,9 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
     const room = new Room({
       adaptiveStream: true,
       dynacast: true,
-      audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 48_000 },
+      // Standart nutq sifati (~24 kbit/s) kitob muhokamasi uchun past: ovoz "g'ijirlab" eshitiladi.
+      publishDefaults: { audioPreset: { maxBitrate: 64_000 }, dtx: true, red: true },
       // Mobil internetda 720p yuklash qiyin; suhbat uchun 540p yetarli.
       videoCaptureDefaults: { resolution: VideoPresets.h540.resolution },
     });
@@ -287,7 +304,22 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
         if (better && better !== r.getActiveDevice("videoinput")) await r.switchActiveDevice("videoinput", better);
       }
     }),
-    toggleScreen: () => run("screen", (r) => r.localParticipant.setScreenShareEnabled(!r.localParticipant.isScreenShareEnabled, { audio: true }), true),
+    toggleScreen: () => run("screen", async (r) => {
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getDisplayMedia) {
+        throw new Error("Bu qurilmada ekran ulashish yo'q (telefon brauzerlari qo'llamaydi) — kompyuterdan foydalaning.");
+      }
+      const lp = r.localParticipant;
+      if (lp.isScreenShareEnabled) return lp.setScreenShareEnabled(false);
+      const options = { audio: true, contentHint: "detail" as const, resolution: ScreenSharePresets.h1080fps15.resolution };
+      try {
+        await withTimeout(lp.setScreenShareEnabled(true, options), 25_000);
+      } catch (error) {
+        const name = error instanceof Error ? error.name : "";
+        if (name === "NotAllowedError" || name === "AbortError" || error instanceof TimeoutError) throw error;
+        // Ba'zi brauzerlar ekran bilan birga ovoz so'ralsa rad etadi — faqat tasvir bilan qayta urinamiz.
+        await withTimeout(lp.setScreenShareEnabled(true, { ...options, audio: false }), 25_000);
+      }
+    }, true),
     startAudio: () => run("audio", (r) => r.startAudio()),
     devices,
     activeCameraId: room?.getActiveDevice("videoinput"),

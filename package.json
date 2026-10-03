@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@breezystack/lamejs": "^1.2.7",
     "@capacitor/android": "^8.5.2",
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",

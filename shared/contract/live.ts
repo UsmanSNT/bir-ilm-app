@@ -138,7 +138,8 @@ export type WsServerMessage =
   | { type: "hand_update"; userId: string; raised: boolean }
   | { type: "role_update"; userId: string; role: LiveRole }
   | { type: "message_deleted"; messageId: number }
-  | { type: "kicked" }
+  /** `replaced` — shu hisob boshqa qurilmadan kirdi: yangisi qoladi, eskisi chiqariladi. */
+  | { type: "kicked"; reason?: "replaced" }
   | { type: "session_started"; startedAt: string }
   | { type: "session_ended"; endedAt: string }
   | { type: "recording"; active: boolean; paused?: boolean };

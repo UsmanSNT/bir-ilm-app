@@ -1,3 +1,4 @@
+import PwaRegister from "./pwa-register";
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/fraunces";
 import "@fontsource-variable/manrope";
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: "/assets/bir-ilm-logo.jpg", type: "image/jpeg" }],
     shortcut: "/assets/bir-ilm-logo.jpg",
-    apple: "/assets/bir-ilm-logo.jpg",
+    apple: "/assets/icon-192.png",
   },
 };
 
@@ -47,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="uz">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">{children}<PwaRegister /></body>
     </html>
   );
 }

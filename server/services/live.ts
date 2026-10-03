@@ -248,7 +248,8 @@ export async function endLiveSession(db: Database, id: string): Promise<string> 
   const endedAt = new Date().toISOString();
   await db
     .update(schema.liveSessions)
-    .set({ status: "ended", endedAt, recordingBy: null })
+    // Yozuv suhbatdan mustaqil: tugatish yozayotgan adminning yozuvini to'xtatmaydi.
+    .set({ status: "ended", endedAt })
     .where(eq(schema.liveSessions.id, id));
   return endedAt;
 }

@@ -28,7 +28,7 @@ export type LiveEventMap = {
   };
   chat: LiveMessage;
   message_deleted: { messageId: number };
-  kicked: undefined;
+  kicked: "replaced" | undefined;
   participant_joined: { participant: LiveParticipant; count: number };
   participant_left: { userId: string; count: number };
   hand_update: { userId: string; raised: boolean };
@@ -166,7 +166,7 @@ export class LiveClient {
         this.setState("idle");
         this.ws?.close();
         this.ws = null;
-        this.emit("kicked", undefined);
+        this.emit("kicked", msg.reason);
         break;
       case "error":
         this.emit("error", msg.message);
