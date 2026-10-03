@@ -47,6 +47,9 @@ import { requestAudio } from "./library-store";
 import { type CommunityComment, type LeaderboardMember } from "./app-data";
 import { RESET_TOKEN_PATTERN, type Book } from "@/shared/contract";
 import { ResetPasswordForm } from "./password-auth";
+import { TwoFactorDialog } from "./two-factor";
+import { useViewer } from "@/lib/api/roles-client";
+import { absoluteUrl } from "@/lib/api/config";
 
 type BackendMode = "local" | "server" | "seed";
 
@@ -294,6 +297,8 @@ export default function App() {
 
   // Parolni tiklash havolasi (/?reset=<token>): token manzildan darhol olib tashlanadi.
   const [resetToken, setResetToken] = useState("");
+  const [twoFactorOpen, setTwoFactorOpen] = useState(false);
+  const viewer = useViewer();
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("reset");
     if (!token || !RESET_TOKEN_PATTERN.test(token)) return;
@@ -307,6 +312,7 @@ export default function App() {
     const result = query.get("login");
     if (!result) return;
     if (result === "ok") toast.success("Hisobingizga kirdingiz");
+    else if (result === "2fa") queueMicrotask(() => setTwoFactorOpen(true));
     else toast.error(query.get("message") || "Kirib bo‘lmadi. Qayta urinib ko‘ring.");
     window.history.replaceState(null, "", window.location.pathname);
   }, []);
@@ -454,7 +460,7 @@ export default function App() {
               <span className="topbar-status" title="Ma'lumotlar qayerda saqlanmoqda"><Wifi size={15} />{backendLabel}</span>
               <PomodoroButton className="icon-btn" />
               <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} />{badge}</button>
-              <button className="topbar-avatar" aria-label="Profil" onClick={() => go("profile")}><span>{(data.name || "K").slice(0, 1).toUpperCase()}</span></button>
+              <button className="topbar-avatar" aria-label="Profil" onClick={() => go("profile")}>{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : <span>{(data.name || "K").slice(0, 1).toUpperCase()}</span>}</button>
             </div>
           </header>
 
@@ -510,7 +516,7 @@ export default function App() {
                 <SocialLinks />
               </TabsContent>
               <TabsContent value="profile">
-                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={data.streak} rank={myRank} onNavigate={go} onEdit={() => setModal("profile")} onProgress={() => setModal("progress")} onNotifications={() => setModal("notifications")} />
+                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={data.streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onProgress={() => setModal("progress")} onNotifications={() => setModal("notifications")} />
               </TabsContent>
 
               <TabsContent value="community">
@@ -640,6 +646,7 @@ export default function App() {
         </main>
       </div>
 
+      <TwoFactorDialog open={twoFactorOpen} onClose={() => setTwoFactorOpen(false)} />
       <Dialog open={Boolean(resetToken)} onOpenChange={(open) => { if (!open) setResetToken(""); }}>
         <DialogContent className="app-dialog">
           <DialogTitle>Yangi parol</DialogTitle>

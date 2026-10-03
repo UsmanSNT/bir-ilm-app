@@ -30,7 +30,7 @@ type MessageRow = typeof storeMessages.$inferSelect;
 export const CHAT_USER_PATTERN = /^[A-Za-z0-9_-]{1,96}$/;
 export const CHAT_FILE_PATTERN = /^[a-z0-9]{12,40}\.(jpg|png|webp)$/;
 const MAX_MESSAGES = 300;
-const IMAGE_EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+export const IMAGE_EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
 export function chatDir(userId: string): string {
   if (!CHAT_USER_PATTERN.test(userId)) throw notFound("Topilmadi.");
@@ -187,7 +187,7 @@ async function insertMessage(db: Database, message: NewMessage): Promise<StoreMe
 
 // ── Rasm (to'lov cheki, kitob rasmi) ────────────────────────────────
 
-function hasImageSignature(mime: string, head: Uint8Array): boolean {
+export function hasImageSignature(mime: string, head: Uint8Array): boolean {
   const ascii = (from: number, to: number) => String.fromCharCode(...head.subarray(from, to));
   if (mime === "image/jpeg") return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
   if (mime === "image/png") return head[0] === 0x89 && ascii(1, 4) === "PNG";

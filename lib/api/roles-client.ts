@@ -18,6 +18,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data;
 }
 
+export const VIEWER_CHANGED_EVENT = "bir-viewer-changed";
+export const notifyViewerChanged = () => window.dispatchEvent(new Event(VIEWER_CHANGED_EVENT));
+
 export function fetchViewer(): Promise<Viewer> {
   return call<Viewer>("/auth/session");
 }
@@ -39,9 +42,13 @@ export function useViewer(): Viewer | null {
   const [viewer, setViewer] = useState<Viewer | null>(null);
   useEffect(() => {
     let alive = true;
-    fetchViewer().then((v) => alive && setViewer(v)).catch(() => {});
+    const load = () => fetchViewer().then((v) => alive && setViewer(v)).catch(() => {});
+    void load();
+    // Profil rasmi/ma'lumoti o'zgarganda boshqa ekranlar ham yangilansin.
+    window.addEventListener(VIEWER_CHANGED_EVENT, load);
     return () => {
       alive = false;
+      window.removeEventListener(VIEWER_CHANGED_EVENT, load);
     };
   }, []);
   return viewer;

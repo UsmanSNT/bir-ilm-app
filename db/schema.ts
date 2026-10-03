@@ -105,6 +105,8 @@ export const users = sqliteTable("users", {
   /** user | moderator | admin */
   role: text("role", { enum: ["user", "moderator", "admin"] }).notNull().default("user"),
   avatarUrl: text("avatar_url"),
+  /** Shaxsiy sahifa orqa foni: /media/profile/<fayl>. */
+  coverUrl: text("cover_url"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
@@ -395,6 +397,22 @@ export const userPasswords = sqliteTable("user_passwords", {
   hash: text("hash").notNull(),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+/** Ikki bosqichli himoya: foydalanuvchi o'zi qo'ygan xavfsizlik kodi (faqat xeshi). */
+export const userSecurityCodes = sqliteTable("user_security_codes", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  hash: text("hash").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+/** Birinchi bosqichdan o'tgan, kodi kutilayotgan kirishlar: token xeshi, qisqa muddat, urinishlar cheklangan. */
+export const loginChallenges = sqliteTable("login_challenges", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: text("expires_at").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_login_challenges_user").on(t.userId)]);
 
 /** Parolni tiklash havolalari: faqat token xeshi, bir martalik, qisqa muddatli. */
 export const passwordResets = sqliteTable("password_resets", {

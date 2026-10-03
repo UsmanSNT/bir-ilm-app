@@ -16,6 +16,7 @@ import { getUserRole } from "@/server/services/roles";
 import { isSignedIn, listAccounts } from "@/server/services/accounts";
 import { loginConfig } from "@/server/auth/providers";
 import { hasPassword } from "@/server/auth/passwords";
+import { hasTwoFactor } from "@/server/auth/two-factor";
 import { canSendEmail, canSendTelegram } from "@/server/services/notify";
 import { schema } from "@/server/db/client";
 import { eq } from "drizzle-orm";
@@ -41,13 +42,14 @@ export const POST = defineRoute<CreateSessionInput, Session>({
 
 export const GET = defineRoute<undefined, Viewer>({
   handler: async ({ db, identity, request }) => {
-    const [profile, role, accounts, user, signedIn, passwordSet] = await Promise.all([
+    const [profile, role, accounts, user, signedIn, passwordSet, twoFactor] = await Promise.all([
       getProfile(db, identity.userId),
       getUserRole(db, identity.userId),
       listAccounts(db, identity.userId),
-      db.query.users.findFirst({ where: eq(schema.users.id, identity.userId), columns: { avatarUrl: true } }),
+      db.query.users.findFirst({ where: eq(schema.users.id, identity.userId), columns: { avatarUrl: true, coverUrl: true } }),
       isSignedIn(db, identity.userId),
       hasPassword(db, identity.userId),
+      hasTwoFactor(db, identity.userId),
     ]);
     const config = loginConfig(request);
 
@@ -68,6 +70,8 @@ export const GET = defineRoute<undefined, Viewer>({
         passwordReset: canSendEmail() || canSendTelegram(),
       },
       hasPassword: passwordSet,
+      twoFactor,
+      coverUrl: user?.coverUrl ?? null,
     };
   },
 });

@@ -2,7 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { Eye, EyeOff, Mail } from "lucide-react";
-import { loginWithPassword, registerWithPassword, requestPasswordReset } from "@/lib/api/auth-client";
+import { isTwoFactorPending, loginWithPassword, registerWithPassword, requestPasswordReset } from "@/lib/api/auth-client";
+import { TwoFactorForm } from "./two-factor";
 import { nativeAuth } from "@/lib/api/native-auth";
 import { PASSWORD_LIMITS, type Session } from "@/shared/contract";
 
@@ -39,6 +40,7 @@ export default function PasswordAuth({ canReset }: { canReset: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [challenge, setChallenge] = useState<string | null>(null);
 
   const switchTo = (next: Mode) => { setMode(next); setError(""); setSent(false); };
 
@@ -57,12 +59,15 @@ export default function PasswordAuth({ canReset }: { canReset: boolean }) {
       const session = mode === "login"
         ? await loginWithPassword({ email, password, wantToken })
         : await registerWithPassword({ name, email, password, wantToken });
+      if (isTwoFactorPending(session)) { setChallenge(session.challenge); setBusy(false); return; }
       await finishLogin(session);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Xatolik yuz berdi.");
       setBusy(false);
     }
   }
+
+  if (challenge) return <TwoFactorForm challenge={challenge} onBack={() => { setChallenge(null); setPassword(""); }} />;
 
   return (
     <form className="pw-form" onSubmit={submit} noValidate>
@@ -89,6 +94,7 @@ export default function PasswordAuth({ canReset }: { canReset: boolean }) {
 
 /** Emaildagi havola orqali yangi parol. */
 export function ResetPasswordForm({ token }: { token: string }) {
+  const [challenge, setChallenge] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const [busy, setBusy] = useState(false);
@@ -101,12 +107,16 @@ export function ResetPasswordForm({ token }: { token: string }) {
     setError("");
     try {
       const { resetPassword } = await import("@/lib/api/auth-client");
-      await finishLogin(await resetPassword({ token, password, wantToken: Boolean(nativeAuth()) }));
+      const session = await resetPassword({ token, password, wantToken: Boolean(nativeAuth()) });
+      if (isTwoFactorPending(session)) { setChallenge(session.challenge); setBusy(false); return; }
+      await finishLogin(session);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Parol o‘zgarmadi.");
       setBusy(false);
     }
   }
+
+  if (challenge) return <TwoFactorForm challenge={challenge} />;
 
   return (
     <form className="pw-form" onSubmit={submit} noValidate>

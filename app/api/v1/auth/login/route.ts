@@ -3,11 +3,12 @@ import { defineRoute } from "@/server/http/handler";
 import { clientIp } from "@/server/auth/link-codes";
 import { issueSession } from "@/server/auth/issue-session";
 import { clearAttempts, limitAttempt, loginWithPassword } from "@/server/auth/passwords";
-import { passwordLoginSchema, type PasswordLoginInput, type Session } from "@/shared/contract";
+import { startChallenge } from "@/server/auth/two-factor";
+import { passwordLoginSchema, type PasswordLoginInput, type Session, type TwoFactorPending } from "@/shared/contract";
 
 export const runtime = "edge";
 
-export const POST = defineRoute<PasswordLoginInput, Session>({
+export const POST = defineRoute<PasswordLoginInput, Session | TwoFactorPending>({
   schema: passwordLoginSchema,
   source: "body",
   handler: async (ctx) => {
@@ -15,6 +16,8 @@ export const POST = defineRoute<PasswordLoginInput, Session>({
     limitAttempt("login", [`ip:${clientIp(ctx.request)}`, emailKey]);
     const userId = await loginWithPassword(ctx.db, ctx.input);
     clearAttempts("login", emailKey);
+    const pending = await startChallenge(ctx.db, userId);
+    if (pending) return pending;
     return issueSession(ctx, userId, ctx.input.wantToken);
   },
 });

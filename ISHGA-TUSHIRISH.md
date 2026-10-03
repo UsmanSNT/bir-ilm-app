@@ -207,3 +207,11 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - "Barchasi / Obunalarim / E'lonlar / Shikoyatlar" tablar qatori ochiladigan filtr tugmasiga almashtirildi (`app/feed-filter.tsx`). Moderatorda "Shikoyatlar" va soni ko'rinadi.
 - Postlardagi "tahrirlangan" yozuvi olib tashlandi.
 - Serverga chiqarish: `cd /d C:\bir-ilm\app`, `git pull`, `scripts\deploy.cmd`.
+
+## Ikki bosqichli himoya, shaxsiy ma'lumotlar, profil rasmlari
+
+- Sozlamalardan "Hisob ID" va "Boshqa qurilmani ulash" olib tashlandi; kirish oynasidagi "kod bilan kirish" ham.
+- **Ikki bosqichli himoya** (Sozlamalar → "Ikki bosqichli himoya"): foydalanuvchi 6–32 belgili kod qo'yadi. Email+parol, parolni tiklash, Google va Telegram bilan kirganda parol/akkauntdan keyin shu kod ham so'raladi; to'g'ri kodsiz sessiya ochilmaydi. Kod xesh (PBKDF2) ko'rinishida saqlanadi; 5 ta xato urinishdan keyin kirish urinishi bekor bo'ladi. Kodni almashtirish/o'chirish joriy kodni talab qiladi.
+- **Shaxsiy ma'lumotlar** sahifasi: profil rasmi, orqa fon rasmi, ism va "o'zim haqimda". Rasmlar telefonda kichraytirilib yuboriladi; serverda `BIR_ILM_MEDIA_DIR\profile\` ga yoziladi. Google/Telegram bilan kirganda ularning rasmi (hali rasm qo'yilmagan bo'lsa) avtomatik avatar bo'ladi.
+- Migratsiya `0021_two_factor_cover` birinchi so'rovda o'zi qo'llanadi.
+- Serverga chiqarish: `cd /d C:\bir-ilm\app`, `git pull`, `scripts\deploy.cmd`.

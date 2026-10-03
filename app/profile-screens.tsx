@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Flame, Timer, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camera, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Copy, Crown, Globe, Heart, Info, KeyRound, LogOut, Mail, MessageCircle, Settings, ShieldCheck, ShoppingBag, Smartphone, Trophy, UserRound, Users } from "lucide-react";
+import { Flame, Timer, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camera, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Crown, Globe, Heart, Info, KeyRound, LogOut, Mail, MessageCircle, Settings, ShieldCheck, ShoppingBag, Lock, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
 import { useCatalog } from "@/lib/api/books-client";
 import type { Book } from "@/shared/contract";
@@ -15,15 +15,17 @@ import AdminSite from "./admin-site";
 import SocialLinks from "./social-links";
 import { ChangePasswordForm } from "./password-auth";
 import LoginCard from "./login-card";
-import { LinkDeviceDialog } from "./device-link";
+import AccountEditor from "./account-editor";
+import TwoFactorSettings from "./two-factor-settings";
+import { absoluteUrl } from "@/lib/api/config";
 import { nativeAuth } from "@/lib/api/native-auth";
 import ReadingDashboard from "./reading-dashboard";
 import type { SocialData } from "./social-types";
 
-type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onEdit: () => void; onProgress: () => void; onNotifications: () => void };
+type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onProgress: () => void; onNotifications: () => void };
 type ProfileTab = "reading" | "posts" | "activity";
 const PROFILE_TABS: [ProfileTab, string][] = [["reading", "Mutolaa"], ["posts", "Postlar"], ["activity", "Faollik"]];
-type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "site" | "devices" | "password";
+type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "site" | "devices" | "password" | "account" | "twofactor";
 
 function Cover({ small = false, book }: { small?: boolean; book: Book | null }) {
   if (book?.coverUrl) return <span className={`p-book p-book-image ${small ? "p-book-small" : ""}`} aria-hidden="true"><img src={book.coverUrl} alt="" /></span>;
@@ -41,23 +43,9 @@ export default function ProfileScreens(p: Props) {
   const [social, setSocial] = useState<SocialData | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [retry, setRetry] = useState(0);
-  const [copied, setCopied] = useState(false);
-  const [linkOpen, setLinkOpen] = useState(false);
   const viewer = useViewer();
   const featured = useCatalog().active;
   const role = viewer?.role ?? "user";
-  const copyId = () => {
-    if (!viewer) return;
-    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 2000); };
-    // navigator.clipboard faqat HTTPS'da bor; oddiy HTTP uchun eski usul.
-    if (navigator.clipboard) { navigator.clipboard.writeText(viewer.userId).then(done).catch(() => {}); return; }
-    const area = document.createElement("textarea");
-    area.value = viewer.userId;
-    document.body.appendChild(area);
-    area.select();
-    if (document.execCommand("copy")) done();
-    area.remove();
-  };
   const signOut = async () => {
     if (!window.confirm("Hisobdan chiqasizmi? Qayta kirish uchun Google yoki Telegram kerak bo‘ladi.")) return;
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
@@ -81,7 +69,7 @@ export default function ProfileScreens(p: Props) {
   };
   const percent = Math.min(100, Math.max(0, Math.round(p.page / Math.max(1, p.total) * 100)));
   const replies = (social?.posts ?? []).flatMap(post => post.replies.filter(reply => reply.name !== p.name).map(reply => ({ ...reply, book: post.book }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari", storebooks: "Do‘kon kitoblari", storechat: "Do‘kon chati", site: "Ijtimoiy tarmoqlar", devices: "Kamera va mikrofon", password: "Parol" };
+  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", account: "Shaxsiy ma’lumotlar", twofactor: "Ikki bosqichli himoya", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari", storebooks: "Do‘kon kitoblari", storechat: "Do‘kon chati", site: "Ijtimoiy tarmoqlar", devices: "Kamera va mikrofon", password: "Parol" };
   const count = (value: number | undefined) => status === "ready" ? value ?? 0 : "—";
 
   const activityView = <>
@@ -90,9 +78,8 @@ export default function ProfileScreens(p: Props) {
       <div className="p-section-title"><h2><Mail size={19} />Xabarlar</h2><button className="p-link" onClick={() => open("messages")}>Barchasi <ArrowRight size={15} /></button></div><div className="p-message-note">Kitoblar haqida yangi suhbatlar uchun joy.</div>
   </>;
   const settingsView = <div className="p-settings">
-      <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={p.onEdit} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} /><Row icon={<Copy />} title={copied ? "Nusxa olindi" : "Hisob ID"} value={viewer ? `${viewer.userId.slice(7, 15)}… · ${USER_ROLE_LABELS[role]}` : "—"} onClick={copyId} />{viewer?.signedIn && <Row icon={<Smartphone />} title="Boshqa qurilmani ulash" value="Kod" onClick={() => setLinkOpen(true)} />}{viewer?.accounts.map(a => <div key={a.provider} className="p-row p-static"><span className="p-row-icon"><ShieldCheck /></span><span>{a.provider === "google" ? "Google" : a.provider === "telegram" ? "Telegram" : "Email"}</span><small>{a.label}</small></div>)}{viewer?.accounts.some(a => a.provider === "email") && <Row icon={<KeyRound />} title={viewer.hasPassword ? "Parolni o‘zgartirish" : "Parol o‘rnatish"} onClick={() => open("password")} />}{viewer && viewer.accounts.length > 0 && <Row icon={<LogOut />} title="Chiqish" onClick={signOut} />}</div>
+      <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={() => open("account")} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} />{viewer?.signedIn && <Row icon={<Lock />} title="Ikki bosqichli himoya" value={viewer.twoFactor ? "Yoqilgan" : "O‘chiq"} onClick={() => open("twofactor")} />}{viewer?.accounts.map(a => <div key={a.provider} className="p-row p-static"><span className="p-row-icon"><ShieldCheck /></span><span>{a.provider === "google" ? "Google" : a.provider === "telegram" ? "Telegram" : "Email"}</span><small>{a.label}</small></div>)}{viewer?.accounts.some(a => a.provider === "email") && <Row icon={<KeyRound />} title={viewer.hasPassword ? "Parolni o‘zgartirish" : "Parol o‘rnatish"} onClick={() => open("password")} />}{viewer && viewer.accounts.length > 0 && <Row icon={<LogOut />} title="Chiqish" onClick={signOut} />}</div>
       {screen !== "profile" && viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
-      <LinkDeviceDialog open={linkOpen} onClose={() => setLinkOpen(false)} />
       <h2>Ilova</h2><div className="p-menu"><Row icon={<Bell />} title="Bildirishnomalar" onClick={p.onNotifications} /><div className="p-row p-static"><span className="p-row-icon"><Globe /></span><span>Til</span><small>O‘zbekcha</small></div><Row icon={<BookOpen />} title="Mutolaa rejasi" onClick={p.onProgress} /><Row icon={<Camera />} title="Kamera va mikrofon" value="Suhbat uchun" onClick={() => open("devices")} /></div>
       <SocialLinks />
       <h2>Yordam</h2><div className="p-menu"><Row icon={<CircleHelp />} title="Ko‘p so‘raladigan savollar" onClick={() => open("faq")} /><Row icon={<Info />} title="Loyiha haqida" onClick={() => open("about")} /></div>
@@ -100,14 +87,14 @@ export default function ProfileScreens(p: Props) {
   </div>;
 
   return <section className={`profile-space p-view-${screen}`}>
-    <div className={screen === "profile" ? "p-hero" : "p-top"}>
+    <div className={screen === "profile" ? `p-hero${viewer?.coverUrl ? " has-cover" : ""}` : "p-top"} style={screen === "profile" && viewer?.coverUrl ? { backgroundImage: `url("${absoluteUrl(viewer.coverUrl)}")` } : undefined}>
     <header className="p-header">
-      {screen === "profile" ? <span className="p-brand-mark"><BookOpen size={21} /></span> : <button className="p-icon" aria-label="Orqaga" onClick={() => open(["privacy", "faq", "about", "password", "admin", "orders", "storebooks", "storechat", "site", "devices"].includes(screen) ? "settings" : "profile")}><ChevronLeft size={23} /></button>}
+      {screen === "profile" ? <span className="p-brand-mark"><BookOpen size={21} /></span> : <button className="p-icon" aria-label="Orqaga" onClick={() => open(["privacy", "faq", "about", "password", "account", "twofactor", "admin", "orders", "storebooks", "storechat", "site", "devices"].includes(screen) ? "settings" : "profile")}><ChevronLeft size={23} /></button>}
       <h1>{titles[screen]}</h1>
       {screen === "profile" ? <button className="p-icon" aria-label="Sozlamalar" onClick={() => open("settings")}><Settings size={23} /></button> : screen === "activity" ? <button className="p-icon" aria-label="Xabarlar" onClick={() => open("messages")}><Mail size={22} /></button> : <span />}
     </header>
     {screen === "profile" && <>
-      <div className="p-identity"><div className="p-avatar">{p.name.trim().slice(0, 1).toUpperCase() || "K"}<span><BookOpen size={13} /></span></div><div><span className="p-eyebrow">BIR ILM KITOBXONI{role !== "user" && <span className={`p-role-badge role-${role}`}>{role === "admin" ? <Crown size={11} /> : <ShieldCheck size={11} />}{USER_ROLE_LABELS[role]}</span>}</span><h2>{p.name || "Kitobxon"}</h2><p>{social?.profile?.bio || "Har kuni bir sahifa oldinga."}</p><button className="p-link" onClick={p.onEdit}>Profilni tahrirlash <ArrowRight size={15} /></button></div></div>
+      <div className="p-identity"><div className="p-avatar">{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : p.name.trim().slice(0, 1).toUpperCase() || "K"}<span><BookOpen size={13} /></span></div><div><span className="p-eyebrow">BIR ILM KITOBXONI{role !== "user" && <span className={`p-role-badge role-${role}`}>{role === "admin" ? <Crown size={11} /> : <ShieldCheck size={11} />}{USER_ROLE_LABELS[role]}</span>}</span><h2>{p.name || "Kitobxon"}</h2><p>{social?.profile?.bio || "Har kuni bir sahifa oldinga."}</p><button className="p-link" onClick={() => open("account")}>Profilni tahrirlash <ArrowRight size={15} /></button></div></div>
       {viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
       <div className="p-stats"><button onClick={() => { setActivity("Obunalar"); open("activity"); }}><strong>{count(social?.followers)}</strong><span>Obunachilar</span></button><button onClick={() => { setActivity("Obunalar"); open("activity"); }}><strong>{count(social?.following.length)}</strong><span>Obunalar</span></button><button onClick={() => open("posts")}><strong>{count(social?.profile?.posts)}</strong><span>Postlar</span></button></div>
     </>}
@@ -142,6 +129,8 @@ export default function ProfileScreens(p: Props) {
     </>}
     {screen === "password" && <div className="p-settings"><ChangePasswordForm hasPassword={Boolean(viewer?.hasPassword)} /></div>}
     {screen === "admin" && (role === "admin" && viewer ? <AdminPanel selfId={viewer.userId} /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
+    {screen === "account" && (viewer ? <AccountEditor viewer={viewer} onRename={p.onRename} /> : <div className="p-empty"><UserRound /><h2>Yuklanmoqda…</h2></div>)}
+    {screen === "twofactor" && (viewer?.signedIn ? <div className="p-settings"><TwoFactorSettings viewer={viewer} /></div> : <div className="p-empty"><Lock /><h2>Avval hisobga kiring</h2><p>Xavfsizlik kodi email, Google yoki Telegram bilan kirgan hisob uchun qo‘yiladi.</p></div>)}
     {screen === "devices" && <DeviceSettings />}
     {screen === "site" && (role === "admin" ? <AdminSite /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "storebooks" && (role === "admin" ? <AdminStoreBooks /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}

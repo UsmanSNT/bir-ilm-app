@@ -197,3 +197,27 @@ button.p-row:hover { background: #fcf9f2; }
 .device-field { display: grid; gap: 6px; padding: 14px; border-radius: 16px; background: #fffaf0; box-shadow: inset 0 0 0 1px #e9dcbb; }
 .device-field > span { display: inline-flex; align-items: center; gap: 7px; color: var(--p-ink); font-size: 13px; font-weight: 800; }
 .device-field select { width: 100%; min-height: 44px; padding: 0 12px; border: 1.5px solid #e2d4af; border-radius: 12px; background: #fff; color: var(--p-ink); font: inherit; font-size: 14px; }
+
+/* Avatar rasmi va orqa fon */
+.p-avatar > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.p-hero.has-cover { background-size: cover; background-position: center; }
+.p-hero.has-cover::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(250, 245, 234, .35) 0%, rgba(250, 245, 234, .82) 62%, #f6ecd6 100%); pointer-events: none; }
+.p-hero.has-cover > * { position: relative; }
+
+/* Shaxsiy ma'lumotlar */
+.acc { display: grid; gap: 14px; max-width: 540px; margin: 0 auto; }
+.acc-cover { position: relative; height: 150px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg, #f6ecd6, #e2d4af) center / cover; box-shadow: inset 0 0 0 1px #e9dcbb; }
+.acc-cover-tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; }
+.acc-cover-hint { position: absolute; left: 14px; bottom: 12px; color: #7a6b43; font-size: 13px; font-weight: 700; }
+.acc-round { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid #d9cfb4; border-radius: 50%; background: #fff; color: #172351; cursor: pointer; }
+.acc-round:disabled { opacity: .55; }
+.acc-avatar-row { display: flex; align-items: center; gap: 12px; margin-top: -44px; padding-left: 14px; position: relative; }
+.acc-avatar { position: relative; flex-shrink: 0; display: grid; place-items: center; width: 88px; height: 88px; border: 5px solid #faf5ea; border-radius: 50%; color: #fff; font: 34px var(--f-display); background: radial-gradient(circle at 30% 20%, #27d9d6, #162250 70%); }
+.acc-avatar > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.acc-avatar-cam { position: absolute; right: -6px; bottom: -4px; width: 32px; height: 32px; }
+.acc textarea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--chiziq); border-radius: var(--r-sm); background: var(--sahifa); font: inherit; font-size: 16px; resize: vertical; }
+.acc .button { width: 100%; min-height: 46px; }
+
+/* Ikki bosqichli himoya */
+.tf { margin-top: 0; }
+.tf-off { min-height: 44px; border: 1px solid #e3b4ac; border-radius: 999px; background: #fff; color: #b3402f; font: inherit; font-weight: 700; cursor: pointer; }

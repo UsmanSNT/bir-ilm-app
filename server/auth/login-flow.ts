@@ -5,6 +5,7 @@ import { resolveIdentity, sessionCookie } from "./identity";
 import { createHandoff, peekAppFlow, takeAppFlow } from "./link-codes";
 import { loginConfig, LoginError, type ProviderProfile } from "./providers";
 import { createSession, deleteSession } from "./sessions";
+import { CHALLENGE_COOKIE, CHALLENGE_MINUTES, startChallenge } from "./two-factor";
 
 export const OAUTH_STATE_COOKIE = "bir_oauth_state";
 /** Ilovadan boshlangan kirish: brauzer kirishni tugatgach ilovaga qaytaradi. */
@@ -47,7 +48,7 @@ export async function beginFlow(request: Request, headers: Headers): Promise<str
   return null;
 }
 
-export function backToApp(request: Request, result: "ok" | "error", message?: string, headers = new Headers()): Response {
+export function backToApp(request: Request, result: "ok" | "error" | "2fa", message?: string, headers = new Headers()): Response {
   const url = new URL("/", loginConfig(request).publicUrl);
   url.searchParams.set("login", result);
   if (message) url.searchParams.set("message", message.slice(0, 160));
@@ -95,6 +96,12 @@ export async function finishLogin(request: Request, loadProfile: () => Promise<P
 
     const current = await resolveIdentity(request);
     const userId = await signInWithProvider(db, current.userId, profile);
+    // Xavfsizlik kodi qo'yilgan bo'lsa sessiya hozir ochilmaydi: challenge cookie'da, kod keyingi qadamda so'raladi.
+    const pending = await startChallenge(db, userId);
+    if (pending) {
+      headers.append("Set-Cookie", `${CHALLENGE_COOKIE}=${pending.challenge}; HttpOnly; SameSite=Lax; Path=/api/v1/auth; Max-Age=${CHALLENGE_MINUTES * 60}${new URL(request.url).protocol === "https:" ? "; Secure" : ""}`);
+      return backToApp(request, "2fa", undefined, headers);
+    }
     const token = await createSession(db, userId);
     // Oldingi token login sessiyasi bo'lgan bo'lsa, u endi kerak emas.
     if (!current.isNew) await deleteSession(db, current.token);

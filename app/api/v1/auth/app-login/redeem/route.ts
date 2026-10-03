@@ -7,12 +7,13 @@ import { ApiException, badRequest } from "@/server/http/errors";
 import { TOKEN_MAX_AGE_SECONDS } from "@/server/auth/identity";
 import { clientIp, isLinkRateLimited, recordLinkFailure, redeemHandoff } from "@/server/auth/link-codes";
 import { createSession, deleteSession } from "@/server/auth/sessions";
+import { startChallenge } from "@/server/auth/two-factor";
 import { signInWithProvider } from "@/server/services/accounts";
-import { finishAppLoginSchema, type FinishAppLoginInput, type Session } from "@/shared/contract";
+import { finishAppLoginSchema, type FinishAppLoginInput, type Session, type TwoFactorPending } from "@/shared/contract";
 
 export const runtime = "edge";
 
-export const POST = defineRoute<FinishAppLoginInput, Session>({
+export const POST = defineRoute<FinishAppLoginInput, Session | TwoFactorPending>({
   schema: finishAppLoginSchema,
   source: "body",
   handler: async ({ db, identity, input, request, responseHeaders }) => {
@@ -28,6 +29,8 @@ export const POST = defineRoute<FinishAppLoginInput, Session>({
     }
 
     const userId = await signInWithProvider(db, identity.userId, handoff.profile);
+    const pending = await startChallenge(db, userId);
+    if (pending) return pending;
     const token = await createSession(db, userId);
     if (!identity.isNew) await deleteSession(db, identity.token);
     responseHeaders.delete("Set-Cookie");

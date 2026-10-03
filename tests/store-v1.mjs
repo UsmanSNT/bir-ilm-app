@@ -215,6 +215,8 @@ try {
   await buyer.call(adminOrders.GET, "/api/v1/admin/orders", { expect: 403 });
   await buyer.call(adminOrder.PATCH, `/api/v1/admin/orders/${order.id}`, { method: "PATCH", params: { id: order.id }, body: { status: "delivered" }, expect: 403 });
   const all = (await admin.call(adminOrders.GET, "/api/v1/admin/orders?status=new")).data.items;
+  for (const s of ["cancelled","delivered","shipped"]) assert.ok(Array.isArray((await admin.call(adminOrders.GET, `/api/v1/admin/orders?status=${s}`)).data.items));
+  assert.ok(Array.isArray((await admin.call(adminOrders.GET, "/api/v1/admin/orders")).data.items));
   assert.ok(all.some((o) => o.id === order.id));
   const confirmed = (await admin.call(adminOrder.PATCH, `/api/v1/admin/orders/${order.id}`, { method: "PATCH", params: { id: order.id }, body: { status: "confirmed" } })).data;
   assert.equal(confirmed.status, "confirmed");

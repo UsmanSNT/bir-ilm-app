@@ -473,3 +473,4 @@ body .app-shell[hidden] { display: none; }
 @media (max-width: 650px) {
   .show-profile .profile-space { max-width: none; }
 }
+.topbar-avatar > img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; border: 2px solid var(--sahifa); }

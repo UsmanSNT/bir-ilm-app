@@ -1,5 +1,5 @@
 /** Google / Telegram hisoblarini foydalanuvchiga bog'lash. */
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import type { ProviderProfile } from "@/server/auth/providers";
@@ -34,6 +34,10 @@ export async function signInWithProvider(
       .update(authAccounts)
       .set({ displayName: name, email: profile.email })
       .where(eq(authAccounts.id, existing.id));
+    // Rasm hali qo'yilmagan bo'lsa — Google/Telegram rasmi (o'zi yuklagan rasm o'zgarmaydi).
+    if (profile.avatarUrl) {
+      await db.update(users).set({ avatarUrl: profile.avatarUrl }).where(and(eq(users.id, existing.userId), isNull(users.avatarUrl)));
+    }
     return existing.userId;
   }
 

@@ -58,6 +58,10 @@ export type Viewer = {
   loginProviders: { google: boolean; telegramBot: string | null; password: boolean; passwordReset: boolean };
   /** Email + parol bilan kirish sozlanganmi (parolni o'zgartirish uchun). */
   hasPassword: boolean;
+  /** Ikki bosqichli himoya (xavfsizlik kodi) yoqilganmi. */
+  twoFactor: boolean;
+  /** Shaxsiy sahifa orqa foni (rasm manzili) yoki null. */
+  coverUrl: string | null;
 };
 
 export type LinkedAccount = {
@@ -137,3 +141,34 @@ export const changePasswordSchema = z.object({
   password: passwordField,
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+// ── Ikki bosqichli himoya (xavfsizlik kodi) ─────────────────────────
+
+export const SECURITY_CODE_LIMITS = { min: 6, max: 32 } as const;
+
+const securityCodeField = z
+  .string()
+  .min(SECURITY_CODE_LIMITS.min, `Kod kamida ${SECURITY_CODE_LIMITS.min} belgi bo'lsin.`)
+  .max(SECURITY_CODE_LIMITS.max, `Kod ${SECURITY_CODE_LIMITS.max} belgidan oshmasin.`);
+
+/** Birinchi bosqich (parol / Google / Telegram) tugadi, lekin xavfsizlik kodi kerak. */
+export type TwoFactorPending = { twoFactor: true; challenge: string };
+export const CHALLENGE_PATTERN = /^[a-f0-9]{64}$/;
+
+export const verifyTwoFactorSchema = z.object({
+  code: z.string().min(1, "Kodni yozing.").max(SECURITY_CODE_LIMITS.max),
+  /** Google/Telegram oqimida challenge cookie'da keladi, shuning uchun ixtiyoriy. */
+  challenge: z.string().regex(CHALLENGE_PATTERN).optional(),
+  wantToken: z.boolean().default(false),
+});
+export type VerifyTwoFactorInput = z.infer<typeof verifyTwoFactorSchema>;
+
+export const setTwoFactorSchema = z.object({
+  code: securityCodeField,
+  /** Kod avval o'rnatilgan bo'lsa majburiy. */
+  current: z.string().max(SECURITY_CODE_LIMITS.max).default(""),
+});
+export type SetTwoFactorInput = z.infer<typeof setTwoFactorSchema>;
+
+export const removeTwoFactorSchema = z.object({ current: z.string().min(1, "Joriy kodni yozing.").max(SECURITY_CODE_LIMITS.max) });
+export type RemoveTwoFactorInput = z.infer<typeof removeTwoFactorSchema>;

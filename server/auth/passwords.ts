@@ -58,7 +58,7 @@ const dummy = () => (dummyHash ??= hashPassword(crypto.randomUUID()));
 // ── Urinishlarni cheklash ────────────────────────────────────────────
 
 const WINDOW_MS = 15 * 60 * 1000;
-const LIMITS = { login: 10, forgot: 3, register: 10 } as const;
+const LIMITS = { login: 10, forgot: 3, register: 10, twofactor: 10, security: 5 } as const;
 const attempts = new Map<string, number[]>();
 
 function recent(key: string, now: number): number[] {
