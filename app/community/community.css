@@ -247,3 +247,4 @@
 .composer-slot-move button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: #ffffffee; color: #1d234c; font-size: 22px; font-weight: 800; line-height: 1; box-shadow: 0 2px 8px #0005; cursor: pointer; }
 .composer-slot-move button:disabled { opacity: .3; cursor: default; }
 .composer-slot-move button:only-child { margin-left: auto; }
+.composer-full { margin: 6px 2px 0; color: #8a5a00; font-size: 13px; }

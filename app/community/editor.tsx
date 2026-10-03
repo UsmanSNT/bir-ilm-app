@@ -519,7 +519,7 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
             {article && tool("pre", "Kod bloki", <SquareCode size={18} />, () => block("pre"), active.pre)}
             {article && tool("hr", "Ajratgich chiziq", <Minus size={18} />, () => run(() => exec("insertHorizontalRule")))}
             <span className="rt-sep" aria-hidden="true" />
-            {tool("media", "Matn ichiga rasm yoki video", <ImagePlus size={18} />, () => {
+            {tool("media", "Matn ichiga rasm", <ImagePlus size={18} />, () => {
               const sel = window.getSelection();
               if (sel?.rangeCount && root.current?.contains(sel.anchorNode)) savedRange.current = sel.getRangeAt(0).cloneRange();
               fileInput.current?.click();

@@ -3,7 +3,7 @@
 /**
  * Post yoki maqola yozish (va tahrirlash) oynasi.
  *
- * Tepada — albom (10 tagacha rasm/video), so'ng maqola sarlavhasi, kitob tegi
+ * Tepada — albom (10 tagacha rasm), so'ng maqola sarlavhasi, kitob tegi
  * va formatlangan matn. Fayllar tanlanishi bilan fonda yuklanadi.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -150,7 +150,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
     const attachments = card ? [] : slots.flatMap((slot) => (slot.item ? [slot.item.id] : []));
     const cardDesign = card ? { ...design, text: design.text.trim() } : null;
     if (cardDesign && !cardDesign.text && !cardDesign.stickers.length) { toast.error("Kartaga matn yozing yoki stiker qo'shing."); return; }
-    if (!cardDesign && !content.length && !attachments.length) { toast.error("Matn yozing yoki rasm/video qo'shing."); return; }
+    if (!cardDesign && !content.length && !attachments.length) { toast.error("Matn yozing yoki rasm qo'shing."); return; }
     setBusy(true);
     try {
       const input = { format, kind: announce ? "announcement" : "post", title: needsTitle ? title.trim() : "", book: book.trim(), content, attachments, design: cardDesign };
@@ -185,7 +185,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
           {editing ? "Saqlash" : "Joylash"}
         </button>
       </header>
-      <DialogDescription className="sr-only">Matn, rasm va video bilan post yoki maqola yozing.</DialogDescription>
+      <DialogDescription className="sr-only">Matn va rasm bilan post yoki maqola yozing.</DialogDescription>
 
       <div className="composer-scroll">
         <div className="composer-modes" role="radiogroup" aria-label="Turi">
@@ -202,7 +202,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
         {!card && slots.length > 1 && (
           <p className="composer-order-hint"><GripVertical size={15} aria-hidden="true" /><span>Raqam — ko‘rsatish tartibi (karusel). Sudrang yoki ‹ › bilan suring.</span></p>
         )}
-        {!card && <section className={`composer-album count-${Math.min(slots.length, 10)}`} aria-label="Rasm va videolar">
+        {!card && <section className={`composer-album count-${Math.min(slots.length, 10)}`} aria-label="Rasmlar">
           {slots.map((slot, i) => (
             <div
               className={`composer-slot${slot.error ? " has-error" : ""}${dragKey === slot.key ? " is-dragging" : ""}`}
@@ -234,10 +234,11 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
               )}
             </div>
           ))}
+          {slots.length >= COMMUNITY_LIMITS.attachments && <p className="composer-full" role="status">Albom to‘ldi ({COMMUNITY_LIMITS.attachments}/{COMMUNITY_LIMITS.attachments}). Yangi rasm qo‘shish uchun avval bittasini olib tashlang.</p>}
           {slots.length < COMMUNITY_LIMITS.attachments && (
             <button type="button" className={`composer-add${slots.length ? "" : " is-empty"}`} onClick={() => fileInput.current?.click()}>
               <ImagePlus size={slots.length ? 22 : 28} />
-              {!slots.length && <span><strong>Rasm yoki video qo&apos;shing</strong><small>Tepada chiqadi · {COMMUNITY_LIMITS.attachments} tagacha · video 300 MB gacha</small></span>}
+              {!slots.length && <span><strong>Rasm qo&apos;shing</strong><small>Tepada chiqadi · {COMMUNITY_LIMITS.attachments} tagacha</small></span>}
             </button>
           )}
           <input ref={fileInput} type="file" accept={MEDIA_ACCEPT} multiple hidden onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
@@ -267,7 +268,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
           initial={editing?.content ?? null}
           media={editing?.media}
           article={format === "article"}
-          placeholder={format === "article" ? "Maqolangizni yozing… Matnni belgilab formatlang, rasm/videoni matn orasiga qo'ying." : "Fikringiz, taassurot yoki iqtibos…"}
+          placeholder={format === "article" ? "Maqolangizni yozing… Matnni belgilab formatlang, rasmni matn orasiga qo'ying." : "Fikringiz, taassurot yoki iqtibos…"}
           onChange={setLength}
           onPendingChange={setInlinePending}
           onLoginRequired={onLoginRequired}
