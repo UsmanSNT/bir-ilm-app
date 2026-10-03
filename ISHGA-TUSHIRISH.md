@@ -169,3 +169,7 @@ Do‘konning o‘zida (Book Store) admin uchun **«Kitob qo‘shish»** tugmasi,
 - **Savatga qo‘shish** — faqat savatcha belgisi (yozuvsiz, dumaloq tilla tugma).
 - **Kitob kartasi** ixchamlashtirildi (kichikroq sarlavha, narx va muqova).
 - **Tavsif matni:** boshqa joydan (masalan AI'dan) ko‘chirilgan `##`, `**`, `- ` belgilari sarlavha, qalin matn va ro‘yxat bo‘lib chiroyli ko‘rsatiladi; kitob saqlanganda bu belgilar matndan olib tashlanadi. AI javoblari ham shunday ko‘rsatiladi.
+
+## Do'kon bosh sahifasi: ixcham qidiruv qatori
+
+Katta sarlavha («Har bir kitob — yangi imkoniyat») va janr chiplari qatori olib tashlandi. Tepada bitta qator: **qidiruv**, uning yonida **filtr** tugmasi (janr tanlash oynasi ochiladi; tanlangan janrda tugma rangi o‘zgaradi) va admin uchun kichik «+». Bo‘lim sarlavhalari va yordamchi tugmalar (AI, chat) kichraytirildi.

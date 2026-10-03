@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BookOpen, Check, Heart, Library, MessageCircle, Minus, Pencil, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, Heart, SlidersHorizontal, Library, MessageCircle, Minus, Pencil, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useViewer } from "@/lib/api/roles-client";
@@ -148,6 +148,16 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, isAdmin, onC
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(ALL);
+  const [filterOpen, setFilterOpen] = useState(false);
+  // Filtr oynasi Esc yoki tashqariga bosilganda yopiladi.
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFilterOpen(false); };
+    const onDown = (e: PointerEvent) => { if (!(e.target as Element).closest("#zb-filter, .zb-icon-btn")) setFilterOpen(false); };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onDown);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("pointerdown", onDown); };
+  }, [filterOpen]);
   const q = query.trim().toLocaleLowerCase();
   const categories = useMemo(() => [ALL, ...new Set(books.map((b) => b.category).filter(Boolean))], [books]);
   const list = useMemo(
@@ -165,10 +175,18 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, isAdmin, onC
           <input aria-label="Kitob yoki muallifni izlash" placeholder="Kitob yoki muallif..." value={query} onChange={(e) => setQuery(e.target.value)} />
           {query && <button type="button" aria-label="Tozalash" onClick={() => setQuery("")}><X size={16} /></button>}
         </label>
-        {isAdmin && <button type="button" className="zb-icon-add" onClick={onCreate} aria-label="Kitob qo‘shish" title="Kitob qo‘shish"><Plus size={24} /></button>}
+        {categories.length > 1 && (
+          <button type="button" className={`zb-icon-btn${category !== ALL ? " is-on" : ""}`} onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen} aria-controls="zb-filter" aria-label={category === ALL ? "Janr bo‘yicha saralash" : `Janr: ${category}`} title="Janr bo‘yicha saralash">
+            <SlidersHorizontal size={20} />
+          </button>
+        )}
+        {isAdmin && <button type="button" className="zb-icon-btn zb-icon-add" onClick={onCreate} aria-label="Kitob qo‘shish" title="Kitob qo‘shish"><Plus size={22} /></button>}
+        {filterOpen && categories.length > 1 && (
+          <div id="zb-filter" className="zb-filter-pop" role="group" aria-label="Janrlar">
+            {categories.map((c) => <button key={c} type="button" aria-pressed={category === c} onClick={() => { setCategory(c); setFilterOpen(false); }}>{c}</button>)}
+          </div>
+        )}
       </div>
-      <header className="zb-head zb-head-home"><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>Har bir kitob —<br /><em>yangi imkoniyat</em></h1></header>
-      {categories.length > 1 && <div className="zb-chips" role="group" aria-label="Janrlar">{categories.map((c) => <button key={c} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>)}</div>}
       {!q && category === ALL && trending.length > 0 && (
         <section className="zb-section">
           <h2>Ko‘p baholangan</h2>

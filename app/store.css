@@ -365,3 +365,24 @@
 .zb-formatted ul { display: grid; gap: 8px; padding-left: 20px; }
 .zb-formatted strong { color: var(--siyoh); font-weight: 750; }
 .store-ai-msg .zb-formatted { gap: 6px; }
+
+/* Qidiruv qatori: qidiruv + filtr + (admin) qo'shish; hammasi ixcham */
+.zb-searchrow { position: relative; gap: 8px; margin: 0 0 12px; }
+.zb-searchrow .zb-search { height: 48px; padding: 0 14px; }
+.zb-searchrow .zb-search input { font-size: 15px; }
+.zb-icon-btn { display: grid; place-items: center; flex: none; width: 46px; height: 46px; padding: 0; border: 0; border-radius: 50%; background: var(--sahifa); color: var(--lojuvard); box-shadow: inset 0 0 0 1.5px var(--chiziq); cursor: pointer; }
+.zb-icon-btn.is-on { background: var(--firuza); color: #fff; box-shadow: none; }
+.zb-icon-add { width: 40px; height: 40px; background: var(--lojuvard); color: #fff; box-shadow: 0 6px 14px -8px #000a; }
+.zb-filter-pop { position: absolute; z-index: 20; top: calc(100% + 8px); left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border-radius: 18px; background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq), 0 18px 34px -16px rgba(22, 34, 80, .5); }
+.zb-filter-pop button { height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--qogoz-2); color: var(--siyoh-2); font-size: 13.5px; font-weight: 750; cursor: pointer; }
+.zb-filter-pop button[aria-pressed="true"] { background: var(--firuza); color: #fff; }
+.zb-section { margin-top: 22px; }
+.zb-section h2 { margin-bottom: 12px; font-size: clamp(20px, 5.4vw, 26px); }
+.zb-section h2::before { width: 9px; height: 9px; }
+
+/* Yordamchi tugmalar kichikroq */
+.store-fab { width: 46px; height: 46px; }
+.store-fab svg { width: 21px; height: 21px; }
+.store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 50px); }
+.store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 50px + 54px); }
+@media (min-width: 981px) { .store-fab.is-chat { bottom: 28px; } .store-fab.is-ai { bottom: 82px; } }
