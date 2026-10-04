@@ -1,5 +1,6 @@
 "use client";
 
+import DateTimeField from "./datetime-field";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -37,7 +38,7 @@ import { RoomRecorder, recordingSupported, saveRecordingFile } from "@/lib/api/l
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import LoginCard from "./login-card";
 import TalksBoard from "./talks-board";
-import { TALKS_CHANGED, notifyTalksChanged, talkAnnouncement } from "./talk-format";
+import { TALKS_CHANGED, localInput, notifyTalksChanged, talkAnnouncement } from "./talk-format";
 import { useCatalog } from "@/lib/api/books-client";
 import type {
   LiveSession as LiveSessionType,
@@ -923,7 +924,7 @@ function CreateSessionDialog({
           </label>
           <label style={labelStyle}>
             <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Qachon</span>
-            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} required style={fieldStyle} />
+            <DateTimeField label="Suhbat sanasi va vaqti" value={when} onChange={setWhen} min={localInput(new Date())} />
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem" }}>
             <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} style={{ width: 18, height: 18 }} />

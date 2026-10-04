@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, CalendarClock, Headphones, ImagePlus, Megaphone, Sparkles, Store, Trash2, Upload, X } from "lucide-react";
 import { looksLikeMarkdown, stripMarkdown } from "@/lib/markdown";
 import { toast } from "sonner";
+import DateTimeField from "./datetime-field";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { createBook, deleteBook, deleteTrack, notifyCatalogChanged, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
 import { createLiveSession, fetchLiveSessions, updateLiveSession } from "@/lib/api/live-client";
@@ -218,7 +219,7 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
   return (
     <Dialog open onOpenChange={(value) => { if (!value && !busy) onClose(); }}>
       <DialogContent className="book-editor">
-        <DialogTitle className={store ? "sr-only" : undefined}>{store ? (book ? "Mahsulotni tahrirlash" : "Do‘konga yangi kitob") : book ? "Kitobni tahrirlash" : asWeekBook ? "Yangi hafta kitobi" : "Yangi kitob"}</DialogTitle>
+        <DialogTitle className="sr-only">{store ? (book ? "Mahsulotni tahrirlash" : "Do‘konga yangi kitob") : book ? "Kitobni tahrirlash" : asWeekBook ? "Yangi hafta kitobi" : "Yangi kitob"}</DialogTitle>
         <DialogDescription className="sr-only">{store ? "Do‘kon mahsuloti: muqova, tavsif va narx." : "Kitob: muqova, tavsif va audio qismlar."}</DialogDescription>
         <form onSubmit={save}>
           <div className="book-editor-top">
@@ -229,11 +230,6 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
             <div className="book-editor-fields">
               <input aria-label="Kitob nomi" placeholder="Kitob nomi" required maxLength={BOOK_LIMITS.title} value={title} onChange={(e) => setTitle(e.target.value)} />
               <input aria-label="Muallif" placeholder="Muallif" required maxLength={BOOK_LIMITS.author} value={author} onChange={(e) => setAuthor(e.target.value)} />
-              {!store && <div className="book-editor-colors" role="radiogroup" aria-label="Muqova rangi">
-                {COLORS.map((c) => (
-                  <button key={c} type="button" role="radio" aria-checked={color === c} style={{ backgroundColor: c }} onClick={() => setColor(c)} aria-label={c} />
-                ))}
-              </div>}
             </div>
           </div>
           <textarea
@@ -253,10 +249,6 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
               setSummary(next);
             }}
           />
-          <label className="book-editor-pages">
-            <span>Sahifalar soni</span>
-            <input inputMode="numeric" pattern="[0-9]*" aria-label="Sahifalar soni" value={pages} disabled={busy} onChange={(e) => setPages(e.target.value.replace(/\D/g, "").slice(0, 4))} />
-          </label>
 
           {store && <fieldset className="book-editor-store">
             <legend><Store size={16} /> Book Store</legend>
@@ -273,15 +265,21 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
             </datalist>
           </fieldset>}
 
-          {!store && <label className="book-editor-audio">
-            <Headphones size={18} />
-            <span>
-              <strong>{parts.length ? "Yana qism qo‘shish" : "Audiokitob fayllarini tanlang"}</strong>
-              <small>{BOOK_LIMITS.maxTracks} tagacha · jami 1 GB{totalBytes ? ` · hozir ${mb(totalBytes)}` : ""}</small>
-            </span>
-            <Upload size={16} />
-            <input type="file" accept="audio/*" multiple disabled={busy} onChange={(e) => { pickAudio(e.target.files); e.target.value = ""; }} />
-          </label>}
+          <div className="book-editor-row">
+            {!store && <label className="book-editor-audio">
+              <Headphones size={18} />
+              <span>
+                <strong>{parts.length ? "Yana audio" : "Audio qo‘shish"}</strong>
+                <small>{BOOK_LIMITS.maxTracks} tagacha · jami 1 GB{totalBytes ? ` · hozir ${mb(totalBytes)}` : ""}</small>
+              </span>
+              <Upload size={16} />
+              <input type="file" accept="audio/*" multiple disabled={busy} onChange={(e) => { pickAudio(e.target.files); e.target.value = ""; }} />
+            </label>}
+              <label className="book-editor-pages">
+            <span>Sahifalar soni</span>
+            <input inputMode="numeric" pattern="[0-9]*" aria-label="Sahifalar soni" value={pages} disabled={busy} onChange={(e) => setPages(e.target.value.replace(/\D/g, "").slice(0, 4))} />
+          </label>
+          </div>
 
           {!store && parts.length > 0 && (
             <ol className="book-editor-parts" aria-label="Audiokitob qismlari (ijro tartibi)">
@@ -313,23 +311,16 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
           {!store && isAdmin && active && (
             <fieldset className="book-editor-talk" disabled={busy}>
               <legend><CalendarClock size={16} /> Suhbat vaqti</legend>
-              {existingTalk && (
-                <p className="book-editor-talk-note">
-                  {existingPlanned ? "Belgilangan" : "Hozir jonli"}: {dayMonth(new Date(existingTalk.scheduledAt))}, {WEEKDAYS[new Date(existingTalk.scheduledAt).getDay()]}, {clock(new Date(existingTalk.scheduledAt))} — «{existingTalk.title}».
-                  {existingPlanned ? " Sana yoki vaqtni o‘zgartirsangiz, suhbat yangilanadi." : " Boshlangan suhbatning vaqti o‘zgarmaydi."}
-                </p>
-              )}
-              <input
-                type="datetime-local"
-                aria-label="Suhbat sanasi va vaqti"
+              {existingTalk && !existingPlanned && <p className="book-editor-talk-note">Suhbat boshlangan — vaqti o‘zgarmaydi.</p>}
+              <DateTimeField
+                label="Suhbat sanasi va vaqti"
                 min={localInput(new Date())}
                 disabled={Boolean(existingTalk && !existingPlanned)}
                 value={talkWhen}
-                onChange={(e) => setTalkWhen(e.target.value)}
+                onChange={setTalkWhen}
               />
               {talkWhen && (
                 <>
-                  <input aria-label="Suhbat sarlavhasi" placeholder="Suhbat sarlavhasi" maxLength={200} value={talkTitle} onChange={(e) => setTalkTitle(e.target.value)} />
                   <label className="book-editor-announce">
                     <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />
                     <Megaphone size={15} /> {existingTalk ? "Vaqt o‘zgarganini e’lon qilish" : "Bosh sahifada e’lon qilish"}

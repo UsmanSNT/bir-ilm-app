@@ -2469,21 +2469,49 @@ input {
 .login-telegram-native{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:10px;background:#54a9eb;color:#fff;font-weight:600;padding:10px 16px;cursor:pointer}
 .login-telegram-native:disabled{opacity:.6}
 
-/* Gurung: lenta filtri (tablar o'rniga ochiladigan ro'yxat) */
-.section-tools { display: flex; align-items: center; gap: 8px; }
-.feed-filter { position: relative; }
-.feed-filter-btn { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; border: 1px solid #d9cfb4; border-radius: 999px; background: #fff; color: inherit; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
-.feed-filter-btn.is-on { border-color: #1f3d36; background: #eef4f1; }
-.feed-filter-chevron { opacity: .6; }
-.feed-filter-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 200px; margin: 0; padding: 6px; list-style: none; background: #fff; border: 1px solid #e4dcc3; border-radius: 16px; box-shadow: 0 12px 32px rgba(40, 30, 10, .18); }
-.feed-filter-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 0 12px; border: 0; border-radius: 12px; background: transparent; color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
-.feed-filter-menu button:hover, .feed-filter-menu button[aria-pressed="true"] { background: #f4f0e4; }
-.feed-filter-menu button span { flex: 1; }
-.feed-filter-menu b { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #b3402f; color: #fff; font-size: 12px; text-align: center; }
+/* Gurung: lenta filtri — kichik tugmalar bitta qatorda */
+.section-tools { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.feed-chips { display: flex; gap: 6px; max-width: 100%; overflow-x: auto; padding: 2px 1px; scrollbar-width: none; }
+.feed-chips::-webkit-scrollbar { display: none; }
+.feed-chip { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; border: 1px solid #d9cfb4; border-radius: 999px; background: #fff; color: #4a4f6a; font: inherit; font-size: 12.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.feed-chip svg { width: 14px; height: 14px; }
+.feed-chip:hover { border-color: #172351; }
+.feed-chip[aria-pressed="true"] { border-color: #172351; background: #172351; color: #fff; }
+.feed-chip b { min-width: 17px; padding: 0 5px; border-radius: 999px; background: #b3402f; color: #fff; font-size: 11px; line-height: 17px; text-align: center; }
 
 /* Gurung: ixcham sarlavha qatori, yozish paneli va post amallari tugmasi */
 .section-row.feed-head { justify-content: flex-start; margin: 4px 0 12px; }
+.social-main .compose-launch { margin-bottom: 16px; }
 .compose-launch { min-height: 52px; border-radius: 999px; padding: 6px 16px 6px 8px; }
 .compose-launch-text { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .post-header .icon-btn { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid #d9cfb4; border-radius: 50%; background: #fff; }
 .video-remove-inline { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #e3b4ac; border-radius: 50%; background: #fff; color: #b3402f; cursor: pointer; }
+
+/* Sana va vaqt tanlagich */
+.dtf { display: grid; gap: 8px; min-width: 0; }
+.dtf-field { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid #c8e7e5; border-radius: 12px; background: #fff; color: #172351; font: inherit; font-size: 15px; font-weight: 600; text-align: left; cursor: pointer; }
+.dtf-field:disabled { opacity: .55; cursor: default; }
+.dtf-field .is-empty { color: #8a8799; font-weight: 500; }
+.dtf-panel { padding: 12px; border: 1px solid #e0d6bd; border-radius: 16px; background: #fffdf7; box-shadow: 0 10px 28px -16px rgba(23, 35, 81, .35); }
+.dtf-month { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.dtf-month strong { font-size: 15px; }
+.dtf-month button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #d9cfb4; border-radius: 50%; background: #fff; color: #172351; cursor: pointer; }
+.dtf-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.dtf-weekdays span { padding: 4px 0; color: #8a7a4d; font-size: 11px; font-weight: 800; text-align: center; }
+.dtf-day, .dtf-time { height: 38px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #172351; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.dtf-day:hover:not(:disabled), .dtf-time:hover:not(:disabled) { background: #f1e9d2; }
+.dtf-day:disabled, .dtf-time:disabled { color: #bdb8c8; cursor: default; }
+.dtf-day.is-today { border-color: #d9cfb4; }
+.dtf-day.is-on, .dtf-time.is-on { background: #172351; color: #fff; }
+.dtf-label { display: block; margin: 8px 2px 4px; color: #6b6577; font-size: 12px; font-weight: 800; }
+.dtf-times { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.dtf-time { border-color: #ece3cc; background: #fff; }
+.dtf-picked { margin: 0 0 4px; font-size: 14px; color: #4a4f6a; }
+.dtf-picked b { font-size: 20px; color: #172351; }
+.dtf-actions { display: flex; gap: 8px; margin-top: 12px; }
+.dtf-btn { flex: 1; height: 42px; border: 1.5px solid #d9cfb4; border-radius: 12px; background: #fff; color: #172351; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.dtf-btn:hover:not(:disabled) { border-color: #172351; }
+.dtf-btn.is-primary { border-color: #172351; background: #172351; color: #fff; }
+.dtf-btn.is-primary:hover:not(:disabled) { background: #22307a; }
+.dtf-btn:disabled { opacity: .45; cursor: default; }
+@media (max-width: 480px) { .feed-chip svg { display: none; } .feed-chip { padding: 0 11px; } .feed-chips { gap: 5px; } }

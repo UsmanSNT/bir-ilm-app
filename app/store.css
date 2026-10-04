@@ -424,3 +424,19 @@
 .store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 46px); }
 .store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 46px + 58px); }
 @media (min-width: 981px) { .store-fab.is-chat { bottom: 28px; } .store-fab.is-ai { bottom: 82px; } }
+
+/* Kitob muharriri: audio va sahifalar bir qatorda; pastdagi uchta tugma bir xil o'lchamda */
+.book-editor-row { display: flex; align-items: stretch; gap: 10px; }
+.book-editor-row .book-editor-audio { flex: 1 1 0; min-width: 0; padding: 10px; }
+.book-editor-row .book-editor-audio small { display: none; }
+.book-editor-row .book-editor-pages { flex: 0 0 auto; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; }
+.book-editor-row .book-editor-pages input { width: 92px; }
+.book-editor-actions { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 8px !important; }
+.book-editor-actions:has(> :nth-child(2):last-child) { grid-template-columns: repeat(2, 1fr); }
+.book-editor-actions button { flex: none !important; justify-content: center; height: 44px; padding: 0 10px !important; border: 1.5px solid #d9cfb4 !important; border-radius: 12px !important; background: #fff !important; color: #172351 !important; box-shadow: none !important; transform: none !important; filter: none !important; font-size: 14px !important; font-weight: 700 !important; }
+.book-editor-actions button:hover:not(:disabled) { border-color: #172351 !important; background: #f4f0e4 !important; }
+.book-editor-actions .danger { margin-right: 0 !important; border-color: #e3b4ac !important; color: #b4232f !important; }
+.book-editor-actions .danger:hover:not(:disabled) { background: #fdeeee !important; border-color: #b4232f !important; }
+.book-editor-actions button[type="submit"] { background: #172351 !important; border-color: #172351 !important; color: #fff !important; }
+.book-editor-actions button[type="submit"]:hover:not(:disabled) { background: #22307a !important; }
+.book-editor-actions button:disabled { opacity: .5; }

@@ -1,5 +1,6 @@
 "use client";
 
+import DateTimeField from "./datetime-field";
 import { useRef, useState } from "react";
 import { CalendarClock, Download, FileAudio, Megaphone, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
@@ -141,13 +142,12 @@ export default function TalkManage({
         {isAdmin && session.status !== "ended" && (
           <section className="tb-resched" aria-label="Suhbat vaqti">
             <h4><span className="tb-resched-title"><CalendarClock size={16} /> Suhbat vaqti</span></h4>
-            <input
-              type="datetime-local"
-              aria-label="Suhbat sanasi va vaqti"
+            <DateTimeField
+              label="Suhbat sanasi va vaqti"
               min={localInput(new Date())}
               value={when}
               disabled={busy || session.status !== "planned"}
-              onChange={(e) => setWhen(e.target.value)}
+              onChange={setWhen}
             />
             <input aria-label="Suhbat sarlavhasi" value={talkTitle} maxLength={200} disabled={busy} onChange={(e) => setTalkTitle(e.target.value)} />
             {session.status === "planned" && whenChanged && (

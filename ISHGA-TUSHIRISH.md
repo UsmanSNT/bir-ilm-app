@@ -236,3 +236,9 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - **Ekran ulashish (taqdimot):** faqat kompyuterda ishlaydi (telefon brauzerlari qo'llamaydi — endi shu haqda xabar chiqadi). Ovozsiz variantga o'tish va 25 soniyalik kutish qo'shildi. **LiveKit serveri yangi bo'lishi kerak** (sinov 1.9.11 da o'tdi; 1.8.x bilan ulanish tuzilishi buzildi). Versiyani tekshirish: `livekit-server.exe --version`.
 - **Veb-ilova (PWA):** sayt Chrome/Edge'da «O'rnatish», Safari'da «Bosh ekranga qo'shish» orqali ilova kabi o'rnatiladi (belgi PNG, service worker keshlamaydi). Play Market versiyasi chiqquncha shu yo'l.
 - Serverga chiqarish: `cd /d C:\bir-ilm\app`, `git pull`, `scripts\deploy.cmd` (suhbat serveri ham qayta ishga tushishi kerak).
+
+## Filtr tugmalari, sana-vaqt tanlagich, kitob muharriri
+
+- Gurung filtri ochiladigan ro'yxat o'rniga bitta qatordagi kichik tugmalar; yozish paneli va birinchi post orasiga bo'shliq qo'shildi.
+- Sana va vaqt endi maxsus tanlagich: avval kalendar (sana) → «Keyingi» → soat va daqiqa (24 soatlik) → «Saqlash». Kitob muharriri, suhbatni boshqarish va yangi suhbat e'lon qilish oynalarida.
+- Kitob muharriri: rang tanlash, ikkinchi sarlavha maydoni va «Kitobni tahrirlash» yozuvi olib tashlandi; audio va sahifalar soni bir qatorda; pastdagi uch tugma bir xil o'lchamda, hover faqat sichqoncha ustida.
