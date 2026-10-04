@@ -242,3 +242,8 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - Gurung filtri ochiladigan ro'yxat o'rniga bitta qatordagi kichik tugmalar; yozish paneli va birinchi post orasiga bo'shliq qo'shildi.
 - Sana va vaqt endi maxsus tanlagich: avval kalendar (sana) → «Keyingi» → soat va daqiqa (24 soatlik) → «Saqlash». Kitob muharriri, suhbatni boshqarish va yangi suhbat e'lon qilish oynalarida.
 - Kitob muharriri: rang tanlash, ikkinchi sarlavha maydoni va «Kitobni tahrirlash» yozuvi olib tashlandi; audio va sahifalar soni bir qatorda; pastdagi uch tugma bir xil o'lchamda, hover faqat sichqoncha ustida.
+
+## Ro'yxatdan o'tmaganlar
+
+- Shaxsiy sahifada ro'yxatdan o'tmagan foydalanuvchiga faqat kirish/ro'yxatdan o'tish oynasi ko'rinadi (statistika, tablar, sozlamalar yo'q).
+- Eski mehmon akkauntlarini o'chirish: `scripts\prune-unregistered.mjs`. Email, Google yoki Telegram bog'lanmagan va admin/moderator bo'lmagan akkauntlarni (ularning postlari bilan) o'chiradi. Avval sanaydi: `node scripts\prune-unregistered.mjs`, so'ng `--apply`. Zaxira: `scripts\backup-db.mjs`.

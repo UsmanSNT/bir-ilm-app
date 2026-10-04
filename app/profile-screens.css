@@ -221,3 +221,4 @@ button.p-row:hover { background: #fcf9f2; }
 /* Ikki bosqichli himoya */
 .tf { margin-top: 0; }
 .tf-off { min-height: 44px; border: 1px solid #e3b4ac; border-radius: 999px; background: #fff; color: #b3402f; font: inherit; font-weight: 700; cursor: pointer; }
+.p-guest { max-width: 540px; margin: 0 auto; padding: 24px 16px; }

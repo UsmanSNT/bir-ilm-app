@@ -85,6 +85,14 @@ export default function ProfileScreens(p: Props) {
       <div className="p-settings-brand"><BookOpen size={23} /><strong>BIR ILM</strong><span>Bir hafta. Bir kitob. Bir qadam oldinga.</span><small>Ilova versiyasi 0.1.0</small></div>
   </div>;
 
+  // Ro'yxatdan o'tmaganlarga shaxsiy sahifada hech narsa ko'rsatilmaydi: faqat kirish va ro'yxatdan o'tish.
+  if (!viewer) return <section className="profile-space p-guest" aria-busy="true" />;
+  if (!viewer.signedIn) {
+    return <section className="profile-space p-guest">
+      <LoginCard viewer={viewer} title="Kirish yoki ro‘yxatdan o‘tish" text="Shaxsiy sahifa, postlar va suhbatlar uchun email, Google yoki Telegram bilan kiring." />
+    </section>;
+  }
+
   return <section className={`profile-space p-view-${screen}`}>
     <div className={screen === "profile" ? `p-hero${viewer?.coverUrl ? " has-cover" : ""}` : "p-top"} style={screen === "profile" && viewer?.coverUrl ? { backgroundImage: `url("${absoluteUrl(viewer.coverUrl)}")` } : undefined}>
     <header className="p-header">
