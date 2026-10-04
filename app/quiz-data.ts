@@ -15,6 +15,9 @@ export type Quiz = {
   author: string;
   minutes: number;
   tone: "cream" | "rose" | "ink";
+  /** Bog'langan kitobning muqovasi yoki rangi (bo'lsa). */
+  image?: string | null;
+  color?: string;
   questions: QuizQuestion[];
 };
 

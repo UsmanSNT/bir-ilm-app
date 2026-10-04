@@ -20,7 +20,10 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { LIVE_ROOM, quizzes, wisdom, type Quiz } from "./quiz-data";
+import { LIVE_ROOM, wisdom, type Quiz } from "./quiz-data";
+import { useQuizzes } from "@/lib/api/quiz-client";
+import type { Quiz as ServerQuiz } from "@/shared/contract";
+import QuizEditor from "./quiz-editor";
 import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { canModerate } from "@/shared/contract/roles";
@@ -191,6 +194,8 @@ export default function MobileScreens({
   const featured = catalog.active;
   const editor = canModerate(useViewer()?.role);
   const [editing, setEditing] = useState<{ book: Book | null } | null>(null);
+  const [quizEditing, setQuizEditing] = useState<{ quiz: ServerQuiz | null } | null>(null);
+  const serverQuizzes = useQuizzes();
 
   async function chooseWeekBook(id: string) {
     if (!id) return;
@@ -238,6 +243,20 @@ export default function MobileScreens({
     : 0;
   // Har kuni boshqa hikmat.
   const quote = wisdom[Math.floor(now / 86_400_000) % wisdom.length] ?? wisdom[0];
+  // Viktorinalar serverdan: admin/moderator qo'shadi va tahrirlaydi, har biri kitobga bog'lanishi mumkin.
+  const quizzes = useMemo<Quiz[]>(() => serverQuizzes.items.map((q) => {
+    const linked = q.bookId ? catalog.items.find((b) => b.id === q.bookId) : null;
+    return {
+      id: q.id,
+      title: q.title,
+      author: linked?.author ?? "",
+      minutes: q.minutes,
+      tone: "cream",
+      image: linked?.coverUrl ?? null,
+      color: linked?.color,
+      questions: q.questions.map((qq) => ({ prompt: qq.prompt, choices: qq.choices.map((text, i) => ({ id: String(i), text })), answer: String(qq.answer) })),
+    };
+  }), [serverQuizzes.items, catalog.items]);
   const visibleQuizzes = showQuizzes ? quizzes : quizzes.slice(0, 2);
 
   const leaders = useMemo(() => {
@@ -535,14 +554,19 @@ export default function MobileScreens({
 
           <div className="m-section-head">
             <h2>O‘zingizni sinang</h2>
-            <button type="button" onClick={() => setShowQuizzes((value) => !value)}>
-              {showQuizzes ? "Yig‘ish" : "Barchasini ko‘rish"} <ChevronRight size={16} />
-            </button>
+            {quizzes.length > 2 && (
+              <button type="button" onClick={() => setShowQuizzes((value) => !value)}>
+                {showQuizzes ? "Yig‘ish" : "Barchasini ko‘rish"} <ChevronRight size={16} />
+              </button>
+            )}
           </div>
+          {editor && <button className="m-quiz-add" type="button" onClick={() => setQuizEditing({ quiz: null })}><Plus size={16} /> Viktorina qo‘shish</button>}
+          {!serverQuizzes.loading && quizzes.length === 0 && <p className="m-note">Hozircha viktorina yo‘q.{editor ? " «Viktorina qo‘shish» tugmasi bilan kitob bo‘yicha savollar qo‘shing." : ""}</p>}
           <div className="m-stack">
             {visibleQuizzes.map((quiz) => (
-              <button className="m-card m-quiz-row" type="button" key={quiz.id} onClick={() => startQuiz(quiz)}>
-                <BookCover title={quiz.title} author={quiz.author} tone={quiz.tone} size="sm" />
+              <div className="m-quiz-wrap" key={quiz.id}>
+              <button className="m-card m-quiz-row" type="button" onClick={() => startQuiz(quiz)}>
+                <BookCover title={quiz.title} author={quiz.author} tone={quiz.tone} size="sm" image={quiz.image} color={quiz.color} />
                 <span>
                   <strong>{quiz.title}</strong>
                   <small>
@@ -553,6 +577,8 @@ export default function MobileScreens({
                 </span>
                 <ChevronRight size={18} />
               </button>
+              {editor && <button className="m-quiz-edit" type="button" aria-label={`${quiz.title} viktorinasini tahrirlash`} onClick={() => setQuizEditing({ quiz: serverQuizzes.items.find((x) => x.id === quiz.id) ?? null })}><Pencil size={15} /></button>}
+              </div>
             ))}
           </div>
 
@@ -612,6 +638,7 @@ export default function MobileScreens({
         </div>
       )}
 
+      {quizEditing && <QuizEditor key={quizEditing.quiz?.id ?? "new"} quiz={quizEditing.quiz} onClose={() => setQuizEditing(null)} />}
       <BookEditor open={Boolean(editing)} book={editing?.book ?? null} asWeekBook={!editing?.book} onClose={() => setEditing(null)} />
 
       {reminder && screen === "home" && (

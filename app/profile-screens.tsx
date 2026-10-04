@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Flame, Timer, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camera, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Crown, Globe, Heart, Info, KeyRound, LogOut, Mail, MessageCircle, Settings, ShieldCheck, ShoppingBag, Lock, Trophy, UserRound, Users } from "lucide-react";
+import { Flame, Timer, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camera, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Crown, ListChecks, Globe, Heart, Info, KeyRound, LogOut, Mail, MessageCircle, Settings, ShieldCheck, ShoppingBag, Lock, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
 import { useCatalog } from "@/lib/api/books-client";
 import type { Book } from "@/shared/contract";
-import { USER_ROLE_LABELS } from "@/shared/contract/roles";
+import { USER_ROLE_LABELS, canModerate } from "@/shared/contract/roles";
 import AdminPanel from "./admin-panel";
 import AdminOrders from "./admin-orders";
 import AdminStoreBooks from "./admin-store-books";
 import AdminStoreChat from "./admin-store-chat";
 import DeviceSettings from "./device-settings";
 import AdminSite from "./admin-site";
+import AdminQuizzes from "./admin-quizzes";
 import SocialLinks from "./social-links";
 import { ChangePasswordForm } from "./password-auth";
 import LoginCard from "./login-card";
@@ -25,7 +26,7 @@ import type { SocialData } from "./social-types";
 type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onNotifications: () => void };
 type ProfileTab = "reading" | "posts" | "activity";
 const PROFILE_TABS: [ProfileTab, string][] = [["reading", "Mutolaa"], ["posts", "Postlar"], ["activity", "Faollik"]];
-type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "site" | "devices" | "password" | "account" | "twofactor";
+type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "site" | "quizzes" | "devices" | "password" | "account" | "twofactor";
 
 function Cover({ small = false, book }: { small?: boolean; book: Book | null }) {
   if (book?.coverUrl) return <span className={`p-book p-book-image ${small ? "p-book-small" : ""}`} aria-hidden="true"><img src={book.coverUrl} alt="" /></span>;
@@ -68,7 +69,7 @@ export default function ProfileScreens(p: Props) {
     window.scrollTo({ top: 0, behavior: "instant" });
   };
   const replies = (social?.posts ?? []).flatMap(post => post.replies.filter(reply => reply.name !== p.name).map(reply => ({ ...reply, book: post.book }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", account: "Shaxsiy ma’lumotlar", twofactor: "Ikki bosqichli himoya", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari", storebooks: "Do‘kon kitoblari", storechat: "Do‘kon chati", site: "Ijtimoiy tarmoqlar", devices: "Kamera va mikrofon", password: "Parol" };
+  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", messages: "Xabarlar", privacy: "Maxfiylik va xavfsizlik", account: "Shaxsiy ma’lumotlar", twofactor: "Ikki bosqichli himoya", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", orders: "Do‘kon buyurtmalari", storebooks: "Do‘kon kitoblari", storechat: "Do‘kon chati", quizzes: "Viktorinalar", site: "Ijtimoiy tarmoqlar", devices: "Kamera va mikrofon", password: "Parol" };
   const count = (value: number | undefined) => status === "ready" ? value ?? 0 : "—";
 
   const activityView = <>
@@ -96,7 +97,7 @@ export default function ProfileScreens(p: Props) {
   return <section className={`profile-space p-view-${screen}`}>
     <div className={screen === "profile" ? `p-hero${viewer?.coverUrl ? " has-cover" : ""}` : "p-top"} style={screen === "profile" && viewer?.coverUrl ? { backgroundImage: `url("${absoluteUrl(viewer.coverUrl)}")` } : undefined}>
     <header className="p-header">
-      {screen === "profile" ? <span className="p-brand-mark"><BookOpen size={21} /></span> : <button className="p-icon" aria-label="Orqaga" onClick={() => open(["privacy", "faq", "about", "password", "account", "twofactor", "admin", "orders", "storebooks", "storechat", "site", "devices"].includes(screen) ? "settings" : "profile")}><ChevronLeft size={23} /></button>}
+      {screen === "profile" ? <span className="p-brand-mark"><BookOpen size={21} /></span> : <button className="p-icon" aria-label="Orqaga" onClick={() => open(["privacy", "faq", "about", "password", "account", "twofactor", "admin", "orders", "storebooks", "storechat", "site", "quizzes", "devices"].includes(screen) ? "settings" : "profile")}><ChevronLeft size={23} /></button>}
       <h1>{titles[screen]}</h1>
       {screen === "profile" ? <button className="p-icon" aria-label="Sozlamalar" onClick={() => open("settings")}><Settings size={23} /></button> : screen === "activity" ? <button className="p-icon" aria-label="Xabarlar" onClick={() => open("messages")}><Mail size={22} /></button> : <span />}
     </header>
@@ -130,13 +131,14 @@ export default function ProfileScreens(p: Props) {
     {screen === "activity" && <>{activityView}</>}
 
     {screen === "settings" && <>
-      {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value="Book Store" onClick={() => open("orders")} /><Row icon={<BookOpen />} title="Do‘kon kitoblari" value="Rasm, narx" onClick={() => open("storebooks")} /><Row icon={<Mail />} title="Do‘kon chati" value="Savol va buyurtmalar" onClick={() => open("storechat")} /><Row icon={<Globe />} title="Ijtimoiy tarmoqlar" value="Havolalar" onClick={() => open("site")} /></div>}
+      {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value="Book Store" onClick={() => open("orders")} /><Row icon={<BookOpen />} title="Do‘kon kitoblari" value="Rasm, narx" onClick={() => open("storebooks")} /><Row icon={<Mail />} title="Do‘kon chati" value="Savol va buyurtmalar" onClick={() => open("storechat")} /><Row icon={<Globe />} title="Ijtimoiy tarmoqlar" value="Havolalar" onClick={() => open("site")} /><Row icon={<ListChecks />} title="Viktorinalar" value="Savollar" onClick={() => open("quizzes")} /></div>}
       {settingsView}
     </>}
     {screen === "password" && <div className="p-settings"><ChangePasswordForm hasPassword={Boolean(viewer?.hasPassword)} /></div>}
     {screen === "admin" && (role === "admin" && viewer ? <AdminPanel selfId={viewer.userId} /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "account" && (viewer ? <AccountEditor viewer={viewer} onRename={p.onRename} /> : <div className="p-empty"><UserRound /><h2>Yuklanmoqda…</h2></div>)}
     {screen === "twofactor" && (viewer?.signedIn ? <div className="p-settings"><TwoFactorSettings viewer={viewer} /></div> : <div className="p-empty"><Lock /><h2>Avval hisobga kiring</h2><p>Xavfsizlik kodi email, Google yoki Telegram bilan kirgan hisob uchun qo‘yiladi.</p></div>)}
+    {screen === "quizzes" && (canModerate(role) ? <AdminQuizzes /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "devices" && <DeviceSettings />}
     {screen === "site" && (role === "admin" ? <AdminSite /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "storebooks" && (role === "admin" ? <AdminStoreBooks /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}

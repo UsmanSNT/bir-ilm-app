@@ -1207,3 +1207,9 @@ body:has(.show-mobile-home) { background: #fbf7f0; }
     font-size: 26px !important;
   }
 }
+
+/* Viktorina: qo'shish va tahrirlash tugmalari */
+.m-quiz-wrap { position: relative; }
+.m-quiz-edit { position: absolute; top: 8px; right: 38px; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid #d9cfb4; border-radius: 50%; background: #fff; color: #172351; cursor: pointer; }
+.m-quiz-add { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 44px; margin-bottom: 10px; border: 1.5px dashed #c9bd9b; border-radius: 14px; background: transparent; color: #172351; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.m-quiz-row { grid-template-columns: auto minmax(0, 1fr) auto; padding-right: 44px; }

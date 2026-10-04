@@ -475,3 +475,27 @@ export const videoLinks = sqliteTable("video_links", {
   createdBy: text("created_by"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_video_links_created").on(t.createdAt)]);
+
+/**
+ * Viktorinalar: admin/moderator yaratadi, har biri bitta kitobga bog'lanishi mumkin.
+ * Kitob o'chirilsa viktorina o'chmaydi, faqat kitobga bog'lanishi uzilib qoladi.
+ */
+export const quizzes = sqliteTable("quizzes", {
+  id: text("id").primaryKey(),
+  bookId: text("book_id").references(() => books.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_quizzes_book").on(t.bookId)]);
+
+export const quizQuestions = sqliteTable("quiz_questions", {
+  id: text("id").primaryKey(),
+  quizId: text("quiz_id").notNull().references(() => quizzes.id, { onDelete: "cascade" }),
+  position: integer("position").notNull(),
+  prompt: text("prompt").notNull(),
+  /** Variantlar: JSON massiv (matnlar). */
+  choices: text("choices").notNull(),
+  /** To'g'ri variantning tartib raqami (0 dan). */
+  answer: integer("answer").notNull(),
+}, (t) => [index("idx_quiz_questions_quiz").on(t.quizId, t.position)]);

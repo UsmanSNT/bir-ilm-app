@@ -155,6 +155,13 @@
       "when": 1791019501006,
       "tag": "0021_two_factor_cover",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1791088157761,
+      "tag": "0022_quizzes",
+      "breakpoints": true
     }
   ]
 }

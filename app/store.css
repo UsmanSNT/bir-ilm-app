@@ -440,3 +440,21 @@
 .book-editor-actions button[type="submit"] { background: #172351 !important; border-color: #172351 !important; color: #fff !important; }
 .book-editor-actions button[type="submit"]:hover:not(:disabled) { background: #22307a !important; }
 .book-editor-actions button:disabled { opacity: .5; }
+
+/* Viktorina muharriri va admin ro'yxati */
+.qe-field { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--siyoh-2); }
+.qe-field select, .quiz-editor select { width: 100%; min-height: 42px; padding: 0 10px; border: 1px solid #e9e0d2; border-radius: 9px; background: #fff; font: inherit; font-size: 14px; }
+.qe-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.qe-q { display: grid; gap: 8px; padding: 12px; border: 1px solid #e3d9c2; border-radius: 14px; background: #fffdf7; }
+.qe-q-head { display: flex; align-items: center; justify-content: space-between; color: #172351; font-size: 13px; }
+.qe-q-head span, .qe-choice { display: flex; align-items: center; gap: 6px; }
+.qe-q-head button, .qe-choice > button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid #e3d9c2; border-radius: 50%; background: #fff; color: #172351; cursor: pointer; }
+.qe-q-head button:disabled, .qe-choice > button:disabled { opacity: .35; cursor: default; }
+.qe-choices { display: grid; gap: 6px; }
+.qe-choice input[type="radio"] { flex: none; width: 20px !important; height: 20px; margin: 0; padding: 0; accent-color: #1f7a52; }
+.qe-choice.is-correct input:not([type="radio"]) { border-color: #1f7a52 !important; background: #f1faf4; }
+.qe-add-choice, .qe-add { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border: 1.5px dashed #c9bd9b; border-radius: 12px; background: transparent; color: #172351; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.qe-add { min-height: 44px; }
+.aq-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 12px 14px; border: 1px solid #e3d9c2; border-radius: 14px; background: #fff; color: #172351; text-align: left; cursor: pointer; }
+.aq-row span { display: grid; gap: 2px; min-width: 0; }
+.aq-row small { color: #6b6577; font-size: 12px; }

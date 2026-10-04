@@ -247,3 +247,10 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 
 - Shaxsiy sahifada ro'yxatdan o'tmagan foydalanuvchiga faqat kirish/ro'yxatdan o'tish oynasi ko'rinadi (statistika, tablar, sozlamalar yo'q).
 - Eski mehmon akkauntlarini o'chirish: `scripts\prune-unregistered.mjs`. Email, Google yoki Telegram bog'lanmagan va admin/moderator bo'lmagan akkauntlarni (ularning postlari bilan) o'chiradi. Avval sanaydi: `node scripts\prune-unregistered.mjs`, so'ng `--apply`. Zaxira: `scripts\backup-db.mjs`.
+
+## Viktorinalar (admin boshqaradi)
+
+- Viktorinalar endi bazada va admin/moderator tomonidan boshqariladi: kitobga bog'lanadi (muqova viktorinada ko'rinadi) yoki "Kitobsiz".
+- **Qo'shish va tahrirlash:** Bosh sahifa → Viktorinalar → «Viktorina qo'shish» (har qatorda qalam belgisi bilan tahrirlash). Admin uchun yana: Profil → Sozlamalar → «Viktorinalar». Muharrirda kitob, nom, savollar, 2–6 variant va to'g'ri javobni (yashil doira) belgilash, savollar tartibi, o'chirish bor.
+- **Eski 3 ta ichki viktorina** («Atom odatlar», «O'tkan kunlar», «Alkimyogar») bazaga o'tkazilmagan. Kerak bo'lsa (deploydan keyin, saytni bir marta ochgach): `set BIR_ILM_DB_PATH=C:\bir-ilm\data\bir-ilm.sqlite`, `node --experimental-strip-types scripts\import-demo-quizzes.mjs --apply`. Keyin ularni kitobga bog'lab tahrirlash mumkin.
+- Migratsiya `0022_quizzes` birinchi so'rovda o'zi qo'llanadi.
