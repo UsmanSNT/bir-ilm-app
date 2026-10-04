@@ -458,3 +458,10 @@
 .aq-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 12px 14px; border: 1px solid #e3d9c2; border-radius: 14px; background: #fff; color: #172351; text-align: left; cursor: pointer; }
 .aq-row span { display: grid; gap: 2px; min-width: 0; }
 .aq-row small { color: #6b6577; font-size: 12px; }
+.qe-session { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #e3d9c2; border-radius: 12px; background: #fff; }
+.qe-session span { display: grid; min-width: 0; }
+.qe-session small { color: #6b6577; font-size: 12px; }
+.qe-session > button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid #e3d9c2; border-radius: 50%; background: #fff; color: #b4232f; cursor: pointer; }
+.qe-session > button.qe-code { width: auto; padding: 0 10px; gap: 6px; display: inline-flex; border-radius: 999px; color: #172351; }
+.qe-code code { font: 700 14px ui-monospace, monospace; letter-spacing: .08em; }
+.qe-session b { font-size: 13px; line-height: 1.3; }

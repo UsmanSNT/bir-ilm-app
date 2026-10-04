@@ -499,3 +499,28 @@ export const quizQuestions = sqliteTable("quiz_questions", {
   /** To'g'ri variantning tartib raqami (0 dan). */
   answer: integer("answer").notNull(),
 }, (t) => [index("idx_quiz_questions_quiz").on(t.quizId, t.position)]);
+
+/**
+ * Viktorina vaqtlari: bir viktorina turli vaqtlarda o'tkazilishi mumkin, har bir vaqtning o'z kirish kodi bor.
+ * Kod 6 xonali, noyob; admin/moderatorga ko'rinadi.
+ */
+export const quizSessions = sqliteTable("quiz_sessions", {
+  id: text("id").primaryKey(),
+  quizId: text("quiz_id").notNull().references(() => quizzes.id, { onDelete: "cascade" }),
+  startsAt: text("starts_at").notNull(),
+  code: text("code").notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [uniqueIndex("uniq_quiz_sessions_code").on(t.code), index("idx_quiz_sessions_quiz").on(t.quizId, t.startsAt)]);
+
+/** Yechilgan viktorinalar natijasi (kirgan foydalanuvchilar uchun). */
+export const quizResults = sqliteTable("quiz_results", {
+  id: text("id").primaryKey(),
+  quizId: text("quiz_id").notNull().references(() => quizzes.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").references(() => quizSessions.id, { onDelete: "set null" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  correct: integer("correct").notNull(),
+  total: integer("total").notNull(),
+  score: integer("score").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_quiz_results_session").on(t.sessionId), index("idx_quiz_results_user").on(t.userId)]);

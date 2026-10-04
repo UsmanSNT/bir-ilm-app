@@ -57,6 +57,10 @@ const register = await load("app/api/v1/auth/register/route.ts");
 const login = await load("app/api/v1/auth/login/route.ts");
 const quizzes = await load("app/api/v1/quizzes/route.ts");
 const quiz = await load("app/api/v1/quizzes/[id]/route.ts");
+const sessionsRoute = await load("app/api/v1/quizzes/[id]/sessions/route.ts");
+const sessionRoute = await load("app/api/v1/quizzes/[id]/sessions/[sid]/route.ts");
+const joinRoute = await load("app/api/v1/quizzes/join/route.ts");
+const resultsRoute = await load("app/api/v1/quizzes/results/route.ts");
 
 const ORIGIN = "http://127.0.0.1:8787";
 const created = new Set();
@@ -142,6 +146,45 @@ try {
   sqlite.prepare("DELETE FROM books WHERE id=?").run(bookId);
   const afterBook = (await call(quizzes.GET, "/api/v1/quizzes")).payload.data.items.find((x) => x.id === made.id);
   assert.ok(afterBook && afterBook.bookId === null, "Kitob o'chirilsa, viktorina qoladi (kitobsiz)");
+
+  // --- Jonli vaqtlar va kirish kodlari ------------------------------------
+  const soon = new Date(Date.now() + 5 * 60_000).toISOString();      // kirish ochiq (10 daqiqa oldin)
+  const later = new Date(Date.now() + 3 * 3600_000).toISOString();   // hali ochilmagan
+  await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: user.cookie, params: { id: made.id }, body: { startsAt: soon }, expect: 403 });
+  await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: "ertaga" }, expect: 422 });
+  await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: new Date(Date.now() - 3600_000).toISOString() }, expect: 400 });
+  const withOne = (await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: soon }, expect: 201 })).payload.data;
+  const withTwo = (await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: later }, expect: 201 })).payload.data;
+  assert.equal(withTwo.sessions.length, 2);
+  const [s1, s2] = withTwo.sessions;
+  assert.match(s1.code, /^\d{6}$/);
+  assert.notEqual(s1.code, s2.code, "Har bir vaqtning o'z kodi bor");
+  // Kod faqat admin/moderatorga ko'rinadi
+  const pub = (await call(quizzes.GET, "/api/v1/quizzes", { cookie: user.cookie })).payload.data.items.find((x) => x.id === made.id);
+  assert.equal(pub.sessions.length, 2);
+  assert.ok(pub.sessions.every((x) => x.code === null), "Oddiy foydalanuvchiga kod ko'rinmaydi");
+  const staffView = (await call(quizzes.GET, "/api/v1/quizzes", { cookie: admin.cookie })).payload.data.items.find((x) => x.id === made.id);
+  assert.equal(staffView.sessions[0].code, s1.code);
+  // Kod bo'yicha kirish: holatlar
+  const j1 = (await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", cookie: user.cookie, body: { code: s1.code } })).payload.data;
+  assert.deepEqual([j1.quizId, j1.sessionId, j1.status], [made.id, s1.id, "open"]);
+  assert.equal((await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", body: { code: s2.code } })).payload.data.status, "upcoming");
+  await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", body: { code: "000000" }, expect: 404 });
+  await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", body: { code: "12ab" }, expect: 422 });
+  // Natija: faqat kirganlar; ishtirokchilar soni
+  await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: g0.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 2, total: 3 }, expect: 401 });
+  await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: user.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 4, total: 3 }, expect: 422 });
+  const saved = (await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: user.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 2, total: 3 }, expect: 201 })).payload.data;
+  assert.equal(saved.score, 67 * 3 + 8);
+  await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: user.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 3, total: 3 }, expect: 201 }); // qayta o'ynadi
+  const counted = (await call(quizzes.GET, "/api/v1/quizzes", { cookie: admin.cookie })).payload.data.items.find((x) => x.id === made.id);
+  assert.equal(counted.sessions[0].participants, 1, "Bir foydalanuvchi ikki marta o'ynasa ham bitta ishtirokchi");
+  // O'chirish
+  await call(sessionRoute.DELETE, `/api/v1/quizzes/${made.id}/sessions/${s2.id}`, { method: "DELETE", cookie: user.cookie, params: { id: made.id, sid: s2.id }, expect: 403 });
+  const afterDrop = (await call(sessionRoute.DELETE, `/api/v1/quizzes/${made.id}/sessions/${s2.id}`, { method: "DELETE", cookie: admin.cookie, params: { id: made.id, sid: s2.id } })).payload.data;
+  assert.equal(afterDrop.sessions.length, 1);
+  await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", body: { code: s2.code }, expect: 404 });
+  console.log("PASS: Jonli vaqtlar: har birining o'z kodi, kod faqat adminga ko'rinadi, kod bo'yicha kirish holatlari, natija va ishtirokchilar soni, o'chirish.");
 
   // O'chirish
   await call(quiz.DELETE, `/api/v1/quizzes/${made.id}`, { method: "DELETE", cookie: user.cookie, params: { id: made.id }, expect: 403 });

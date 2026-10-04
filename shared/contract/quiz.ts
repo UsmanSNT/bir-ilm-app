@@ -31,6 +31,43 @@ export const quizInputSchema = z.object({
 export type QuizInput = z.infer<typeof quizInputSchema>;
 export type QuizQuestionInput = z.infer<typeof quizQuestionSchema>;
 
+/** Jonli viktorina: kirish boshlanishidan necha daqiqa oldin ochiladi va qancha vaqt ochiq qoladi. */
+export const QUIZ_SESSION_OPENS_BEFORE_MIN = 10;
+export const QUIZ_SESSION_OPEN_FOR_MIN = 180;
+
+export const quizSessionInputSchema = z.object({ startsAt: z.string().datetime({ message: "Sana va vaqtni tanlang." }) });
+export type QuizSessionInput = z.infer<typeof quizSessionInputSchema>;
+
+export const joinQuizSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Xona kodi 6 ta raqamdan iborat.") });
+export type JoinQuizInput = z.infer<typeof joinQuizSchema>;
+
+export const quizResultSchema = z.object({
+  quizId: z.string().min(1).max(40),
+  sessionId: z.string().min(1).max(40).nullable().default(null),
+  correct: z.number().int().min(0).max(QUIZ_LIMITS.maxQuestions),
+  total: z.number().int().min(1).max(QUIZ_LIMITS.maxQuestions),
+}).refine((r) => r.correct <= r.total, { message: "Natija noto'g'ri.", path: ["correct"] });
+export type QuizResultInput = z.infer<typeof quizResultSchema>;
+
+/** Jonli viktorinaning bitta vaqti. `code` faqat admin/moderatorga beriladi. */
+export type QuizSession = {
+  id: string;
+  quizId: string;
+  startsAt: string;
+  code: string | null;
+  participants: number;
+};
+
+export type QuizJoin = { quizId: string; sessionId: string; startsAt: string; status: "upcoming" | "open" | "closed" };
+
+/** Vaqt holati: kirish ochilishidan oldin / ochiq / tugagan. */
+export function quizSessionStatus(startsAt: string, now = Date.now()): QuizJoin["status"] {
+  const start = Date.parse(startsAt);
+  if (now < start - QUIZ_SESSION_OPENS_BEFORE_MIN * 60_000) return "upcoming";
+  if (now > start + QUIZ_SESSION_OPEN_FOR_MIN * 60_000) return "closed";
+  return "open";
+}
+
 export type Quiz = {
   id: string;
   title: string;
@@ -38,6 +75,8 @@ export type Quiz = {
   /** Taxminiy vaqt (daqiqa): savol soniga qarab. */
   minutes: number;
   questions: QuizQuestionInput[];
+  /** Jonli o'tkazish vaqtlari (boshlanish bo'yicha tartiblangan). */
+  sessions: QuizSession[];
   updatedAt: string;
 };
 

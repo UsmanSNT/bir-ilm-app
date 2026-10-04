@@ -844,3 +844,7 @@
     padding: 0 0 calc(84px + env(safe-area-inset-bottom));
   }
 }
+
+/* Kutubxona: orqaga (dumaloq oq tugma) */
+.lib-title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lib-head .lib-back { display: grid; place-items: center; flex: none; width: 38px; height: 38px; padding: 0; border: 1px solid #d9cfb4; border-radius: 50%; background: #fff; color: #172351; cursor: pointer; }

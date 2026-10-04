@@ -66,7 +66,7 @@ function loadPart(el: HTMLAudioElement, book: Book, index: number, offset: numbe
   el.currentTime = offset;
 }
 
-export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]; onToggleSave: (id: string) => void }) {
+export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: string[]; onToggleSave: (id: string) => void; onBack?: () => void }) {
   const catalog = useCatalog();
   const viewer = useViewer();
   const editor = canModerate(viewer?.role);
@@ -317,7 +317,10 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
       {screen === "catalog" && (
         <div className="lib-screen">
           <header className="lib-head lib-head-catalog">
-            <h1>Kutubxona</h1>
+            <div className="lib-title-row">
+              {onBack && <button type="button" className="lib-back" aria-label="Orqaga" onClick={onBack}><ChevronLeft size={22} /></button>}
+              <h1>Kutubxona</h1>
+            </div>
             <div className="lib-head-actions">
               <button type="button" className="lib-mine" onClick={() => setScreen("mine")}><Library size={17} /> Kitoblarim</button>
               {editor && (

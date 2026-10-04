@@ -20,9 +20,9 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { LIVE_ROOM, wisdom, type Quiz } from "./quiz-data";
-import { useQuizzes } from "@/lib/api/quiz-client";
-import type { Quiz as ServerQuiz } from "@/shared/contract";
+import { wisdom, type Quiz } from "./quiz-data";
+import { joinQuizByCode, saveQuizResult, useQuizzes } from "@/lib/api/quiz-client";
+import { quizSessionStatus, type Quiz as ServerQuiz, type QuizSession } from "@/shared/contract";
 import QuizEditor from "./quiz-editor";
 import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
@@ -42,6 +42,15 @@ type Save = {
 };
 
 type Screen = "home" | "news" | "quizzes" | "play";
+
+/** "Bugun, 20:00" / "Ertaga, 20:00" / "12-okt, 20:00" (24 soatlik). */
+function whenText(iso: string): string {
+  const d = new Date(iso);
+  const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const day = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()) / 86_400_000);
+  const MONTHS = ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"];
+  return `${day === 0 ? "Bugun" : day === 1 ? "Ertaga" : `${d.getDate()}-${MONTHS[d.getMonth()]}`}, ${hm}`;
+}
 
 const SAVE_KEY = "bir-ilm-quiz-v1";
 const emptySave: Save = { joined: false, scores: {} };
@@ -192,7 +201,9 @@ export default function MobileScreens({
   const unread = useUnreadCount(announcements);
   const catalog = useCatalog();
   const featured = catalog.active;
-  const editor = canModerate(useViewer()?.role);
+  const viewer = useViewer();
+  const editor = canModerate(viewer?.role);
+  const [activeSession, setActiveSession] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ book: Book | null } | null>(null);
   const [quizEditing, setQuizEditing] = useState<{ quiz: ServerQuiz | null } | null>(null);
   const serverQuizzes = useQuizzes();
@@ -258,6 +269,15 @@ export default function MobileScreens({
     };
   }), [serverQuizzes.items, catalog.items]);
   const visibleQuizzes = showQuizzes ? quizzes : quizzes.slice(0, 2);
+  // Eng yaqin (yoki hozir ochiq) jonli viktorina vaqti.
+  const nextLive = useMemo(() => {
+    const rows = serverQuizzes.items.flatMap((q) => q.sessions.map((session) => ({ q, session, status: quizSessionStatus(session.startsAt, now) })))
+      .filter((r) => r.status !== "closed")
+      .sort((a, b) => a.session.startsAt.localeCompare(b.session.startsAt));
+    const row = rows[0];
+    const quiz = row ? quizzes.find((x) => x.id === row.q.id) : null;
+    return row && quiz ? { quiz, session: row.session as QuizSession, status: row.status } : null;
+  }, [serverQuizzes.items, quizzes, now]);
 
   const leaders = useMemo(() => {
     const mine = Object.values(save.scores);
@@ -289,8 +309,15 @@ export default function MobileScreens({
     window.scrollTo({ top: 0 });
   }
 
-  function startQuiz(quiz: Quiz) {
-    setActive(quiz);
+  function startQuiz(quiz: Quiz, sessionId: string | null = null) {
+    // Har safar savollar tartibi aralashtiriladi (Fisher–Yates).
+    const questions = [...quiz.questions];
+    for (let i = questions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [questions[i], questions[j]] = [questions[j], questions[i]];
+    }
+    setActive({ ...quiz, questions });
+    setActiveSession(sessionId);
     setStep(0);
     setPicked("");
     setCorrect(0);
@@ -307,6 +334,8 @@ export default function MobileScreens({
       setCorrect(nextCorrect);
       setFinished(true);
       const score = Math.round((nextCorrect / active.questions.length) * 100) * 3 + nextCorrect * 4;
+      // Kirgan foydalanuvchining natijasi serverga ham yoziladi (jonli viktorinada ishtirokchilar soni shundan).
+      if (viewer?.signedIn) void saveQuizResult({ quizId: active.id, sessionId: activeSession, correct: nextCorrect, total: active.questions.length }).catch(() => {});
       writeSave({
         ...save,
         scores: {
@@ -321,25 +350,24 @@ export default function MobileScreens({
     setPicked("");
   }
 
-  function joinRoom(event: FormEvent) {
+  async function joinRoom(event: FormEvent) {
     event.preventDefault();
     const value = code.trim();
     if (!/^\d{6}$/.test(value)) {
       toast.error("Xona kodi 6 ta raqamdan iborat bo‘lsin");
       return;
     }
-    if (value !== LIVE_ROOM) {
-      toast.error("Bunday xona topilmadi");
-      return;
+    try {
+      const joined = await joinQuizByCode(value);
+      const found = quizzes.find((q) => q.id === joined.quizId);
+      if (!found) return void toast.error("Viktorina topilmadi");
+      if (joined.status === "upcoming") return void toast.error(`Hali boshlanmadi: ${whenText(joined.startsAt)}. Kirish 10 daqiqa oldin ochiladi.`);
+      if (joined.status === "closed") return void toast.error("Bu viktorinaning vaqti o‘tib ketgan");
+      setCode("");
+      startQuiz(found, joined.sessionId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bunday xona topilmadi");
     }
-    writeSave({ ...save, joined: true });
-    setCode("");
-    toast.success("Kitob bilimdoni xonasiga qo‘shildingiz");
-  }
-
-  function joinLive() {
-    writeSave({ ...save, joined: true });
-    toast.success("Jonli viktorinaga qo‘shildingiz. Soat 20:00 da boshlanadi.");
   }
 
   const news = announcements.map((item) => ({ ...item, open: () => { setScreen("news"); window.scrollTo({ top: 0 }); } }));
@@ -514,21 +542,27 @@ export default function MobileScreens({
 
           {mode === "live" ? (
             <>
-              <article className="m-card m-live-card">
-                <BookCover title={featured?.title ?? "Bir Ilm"} author={featured?.author ?? ""} tone="cream" image={featured?.coverUrl} color={featured?.color} live />
-                <div>
-                  <h2>Kitob bilimdoni</h2>
-                  <p className="m-author">{featured?.title ?? "Kitob bilimdoni"}</p>
-                  <p className="m-quiet">{featured?.author ?? ""}</p>
-                  <p className="m-meta">
-                    <span><Clock size={14} /> Bugun, 20:00</span>
-                    <span><Users size={14} /> {save.joined ? 25 : 24} ishtirokchi</span>
-                  </p>
-                  <button className="m-join" type="button" onClick={joinLive} disabled={save.joined}>
-                    {save.joined ? "Qo‘shildingiz" : "Qo‘shilish"}
-                  </button>
-                </div>
-              </article>
+              {nextLive ? (
+                <article className="m-card m-live-card">
+                  <BookCover title={nextLive.quiz.title} author={nextLive.quiz.author} tone="cream" image={nextLive.quiz.image} color={nextLive.quiz.color} live={nextLive.status === "open"} />
+                  <div>
+                    <h2>{nextLive.quiz.title}</h2>
+                    <p className="m-author">{nextLive.quiz.author || "Viktorina"}</p>
+                    <p className="m-meta">
+                      <span><Clock size={14} /> {whenText(nextLive.session.startsAt)}</span>
+                      <span><Users size={14} /> {nextLive.session.participants} ishtirokchi</span>
+                    </p>
+                    {editor && nextLive.session.code && <p className="m-room-code">Xona kodi: <b>{nextLive.session.code}</b></p>}
+                    {nextLive.status === "open" ? (
+                      <button className="m-join" type="button" onClick={() => startQuiz(nextLive.quiz, nextLive.session.id)}>Qo‘shilish</button>
+                    ) : (
+                      <button className="m-join" type="button" disabled>Kirish 10 daqiqa oldin ochiladi</button>
+                    )}
+                  </div>
+                </article>
+              ) : (
+                <p className="m-note">Hozircha jonli viktorina belgilanmagan.{editor ? " Viktorinani tahrirlab, unga vaqt va kirish kodini qo‘shing." : ""}</p>
+              )}
 
               <form className="m-code-block" onSubmit={joinRoom}>
                 <label htmlFor="room-code">Xona kodi bilan qo‘shilish</label>

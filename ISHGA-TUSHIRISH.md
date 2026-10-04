@@ -254,3 +254,12 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - **Qo'shish va tahrirlash:** Bosh sahifa → Viktorinalar → «Viktorina qo'shish» (har qatorda qalam belgisi bilan tahrirlash). Admin uchun yana: Profil → Sozlamalar → «Viktorinalar». Muharrirda kitob, nom, savollar, 2–6 variant va to'g'ri javobni (yashil doira) belgilash, savollar tartibi, o'chirish bor.
 - **Eski 3 ta ichki viktorina** («Atom odatlar», «O'tkan kunlar», «Alkimyogar») bazaga o'tkazilmagan. Kerak bo'lsa (deploydan keyin, saytni bir marta ochgach): `set BIR_ILM_DB_PATH=C:\bir-ilm\data\bir-ilm.sqlite`, `node --experimental-strip-types scripts\import-demo-quizzes.mjs --apply`. Keyin ularni kitobga bog'lab tahrirlash mumkin.
 - Migratsiya `0022_quizzes` birinchi so'rovda o'zi qo'llanadi.
+
+## Jonli viktorina: vaqtlar, kirish kodlari
+
+- Har bir viktorinaga bir necha **jonli vaqt** qo'shish mumkin; **har bir vaqtning o'z 6 xonali kirish kodi** bor. Qo'shish: Viktorinani tahrirlash (qalam) → pastda «Jonli o'tkazish vaqtlari» → vaqt tanlang → «Vaqt va kod qo'shish». Kod shu yerda va jonli viktorina kartasida (faqat admin/moderatorga) ko'rinadi; ustiga bosilsa nusxalanadi.
+- Oddiy foydalanuvchi: Viktorinalar → «Jonli» kartasida eng yaqin vaqt; boshlanishidan 10 daqiqa oldin «Qo'shilish» tugmasi ochiladi (3 soat ochiq turadi) va u viktorinaga olib boradi. Kod bilan ham kirish mumkin: kod hali ochilmagan yoki o'tib ketgan bo'lsa, aniq xabar chiqadi.
+- «Ishtirokchilar» — shu vaqt uchun natija topshirgan kirgan foydalanuvchilar soni (bir kishi ikki marta o'ynasa ham bitta).
+- Viktorina har o'ynalganda **savollar tartibi aralashadi**.
+- Kutubxona (Javon) ekraniga orqaga qaytish tugmasi qo'shildi.
+- Migratsiya `0023_quiz_sessions` birinchi so'rovda o'zi qo'llanadi.

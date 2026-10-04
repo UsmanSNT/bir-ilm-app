@@ -529,6 +529,7 @@ export default function App() {
                   <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
                 </div>
                 <MobileLibrary
+                  onBack={() => go("home")}
                   shelf={data.shelf}
                   onToggleSave={(id) => {
                     const saved = data.shelf.includes(id);

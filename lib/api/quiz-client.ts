@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Quiz, QuizInput } from "@/shared/contract";
+import type { Quiz, QuizInput, QuizJoin } from "@/shared/contract";
 import { API_PREFIX } from "./config";
 
 type Envelope<T> = { data?: T; error?: { message?: string; fields?: Record<string, string[]> } };
@@ -43,3 +43,12 @@ export function useQuizzes(): { items: Quiz[]; loading: boolean } {
 export const createQuiz = (input: QuizInput) => call<Quiz>("/quizzes", { method: "POST", body: JSON.stringify(input) });
 export const updateQuiz = (id: string, input: QuizInput) => call<Quiz>(`/quizzes/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(input) });
 export const deleteQuiz = (id: string) => call<unknown>(`/quizzes/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const addQuizSession = (quizId: string, startsAt: string) =>
+  call<Quiz>(`/quizzes/${encodeURIComponent(quizId)}/sessions`, { method: "POST", body: JSON.stringify({ startsAt }) });
+export const removeQuizSession = (quizId: string, sessionId: string) =>
+  call<Quiz>(`/quizzes/${encodeURIComponent(quizId)}/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+export const joinQuizByCode = (code: string) =>
+  call<QuizJoin>("/quizzes/join", { method: "POST", body: JSON.stringify({ code }) });
+export const saveQuizResult = (input: { quizId: string; sessionId: string | null; correct: number; total: number }) =>
+  call<{ score: number }>("/quizzes/results", { method: "POST", body: JSON.stringify(input) });

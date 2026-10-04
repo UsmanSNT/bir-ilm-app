@@ -1,12 +1,14 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, Copy, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useCatalog } from "@/lib/api/books-client";
-import { createQuiz, deleteQuiz, notifyQuizzesChanged, updateQuiz } from "@/lib/api/quiz-client";
+import { addQuizSession, createQuiz, deleteQuiz, notifyQuizzesChanged, removeQuizSession, updateQuiz } from "@/lib/api/quiz-client";
 import { QUIZ_LIMITS, type Quiz } from "@/shared/contract";
+import DateTimeField, { formatWhen } from "./datetime-field";
+import { localInput } from "./talk-format";
 
 type Draft = { key: string; prompt: string; choices: string[]; answer: number };
 
@@ -22,6 +24,42 @@ export default function QuizEditor({ quiz, bookId, onClose }: { quiz: Quiz | nul
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Jonli vaqtlar: har birining o'z kirish kodi bor. Ro'yxat serverdan kelgan javob bilan yangilanadi.
+  const [sessions, setSessions] = useState(quiz?.sessions ?? []);
+  const [newWhen, setNewWhen] = useState("");
+
+  async function addSession() {
+    if (!quiz || !newWhen) return;
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await addQuizSession(quiz.id, new Date(newWhen).toISOString());
+      setSessions(updated.sessions);
+      setNewWhen("");
+      notifyQuizzesChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Vaqt qo‘shilmadi.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function dropSession(id: string) {
+    if (!quiz || !window.confirm("Bu vaqt va uning kodi o‘chirilsinmi?")) return;
+    setBusy(true);
+    try {
+      setSessions((await removeQuizSession(quiz.id, id)).sessions);
+      notifyQuizzesChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "O‘chirilmadi.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const copyCode = (code: string) => {
+    void navigator.clipboard?.writeText(code).then(() => toast.success("Kod nusxalandi."), () => {});
+  };
 
   const patch = (key: string, change: (q: Draft) => Draft) => setQuestions((prev) => prev.map((q) => (q.key === key ? change(q) : q)));
   const move = (index: number, dir: -1 | 1) =>
@@ -120,6 +158,25 @@ export default function QuizEditor({ quiz, bookId, onClose }: { quiz: Quiz | nul
           {questions.length < QUIZ_LIMITS.maxQuestions && (
             <button type="button" className="qe-add" disabled={busy} onClick={() => setQuestions((prev) => [...prev, blank()])}><Plus size={16} /> Savol qo‘shish</button>
           )}
+
+          <fieldset className="book-editor-talk qe-sessions" disabled={busy}>
+            <legend><CalendarClock size={16} /> Jonli o‘tkazish vaqtlari</legend>
+            {!quiz && <p className="book-editor-talk-note">Avval viktorinani saqlang, keyin uni tahrirlab, vaqt va kirish kodi qo‘shasiz.</p>}
+            {quiz && sessions.length === 0 && <p className="book-editor-talk-note">Vaqt qo‘shilmagan: viktorina faqat mustaqil rejimda yechiladi.</p>}
+            {sessions.map((s) => (
+              <div key={s.id} className="qe-session">
+                <span><b>{formatWhen(localInput(new Date(s.startsAt)))}</b><small>{s.participants} ishtirokchi</small></span>
+                <button type="button" className="qe-code" onClick={() => s.code && copyCode(s.code)} aria-label="Kodni nusxalash"><code>{s.code}</code><Copy size={14} /></button>
+                <button type="button" aria-label="Vaqtni o‘chirish" onClick={() => void dropSession(s.id)}><Trash2 size={15} /></button>
+              </div>
+            ))}
+            {quiz && (
+              <>
+                <DateTimeField label="Yangi vaqt" value={newWhen} onChange={setNewWhen} min={localInput(new Date())} placeholder="Yangi vaqt qo‘shish" />
+                {newWhen && <button type="button" className="qe-add" onClick={() => void addSession()}><Plus size={16} /> Vaqt va kod qo‘shish</button>}
+              </>
+            )}
+          </fieldset>
 
           {error && <p className="admin-error" role="alert">{error}</p>}
           <div className="book-editor-actions">
