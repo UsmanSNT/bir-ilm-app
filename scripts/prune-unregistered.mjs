@@ -5,6 +5,9 @@
 //
 //   node scripts/prune-unregistered.mjs           — faqat sanaydi (hech narsa o'chirmaydi)
 //   node scripts/prune-unregistered.mjs --apply   — o'chiradi
+//   ... --with-roles                              — kirish usuli yo'q admin/moderator akkauntlarni ham kiritadi
+//                                                    (eski brauzer tokeniga berilgan rollar). Kamida bitta admin
+//                                                    kirish usuli bilan qolmasa, bajarilmaydi.
 //
 // Serverda: set BIR_ILM_DB_PATH=C:\bir-ilm\data\bir-ilm.sqlite. O'chirishdan oldin zaxira oling
 // (scripts\backup-db.mjs). Saytni to'xtatib turib ishga tushirish xavfsizroq.
@@ -14,6 +17,7 @@ import { fileURLToPath } from "node:url";
 const dbPath = process.env.BIR_ILM_DB_PATH?.trim()
   || fileURLToPath(new URL("../.sites-runtime/node-preview.sqlite", import.meta.url));
 const apply = process.argv.includes("--apply");
+const withRoles = process.argv.includes("--with-roles");
 const db = new DatabaseSync(dbPath);
 db.exec("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;");
 
@@ -21,7 +25,7 @@ const has = (table) => db.prepare("SELECT 1 FROM sqlite_master WHERE type='table
 const count = (sql) => Number(db.prepare(sql).get().n);
 
 const where = [
-  "users.role = 'user'",
+  ...(withRoles ? [] : ["users.role = 'user'"]),
   "NOT EXISTS (SELECT 1 FROM auth_accounts a WHERE a.user_id = users.id)",
   // Suhbat boshqaruvchisi bo'lgan yoki kitob yaratgan akkaunt hech qachon o'chirilmaydi.
   ...(has("live_sessions") ? ["NOT EXISTS (SELECT 1 FROM live_sessions s WHERE s.moderator_id = users.id)"] : []),
@@ -36,6 +40,17 @@ const registered = count("SELECT count(DISTINCT user_id) AS n FROM auth_accounts
 console.log(`Baza: ${dbPath}`);
 console.log(`Jami akkaunt: ${total}. Ro'yxatdan o'tgan (email/Google/Telegram): ${registered}. Admin/moderator: ${count("SELECT count(*) AS n FROM users WHERE role <> 'user'")}.`);
 console.log(`O'chiriladigan ro'yxatdan o'tmagan akkaunt: ${doomed} (shulardan postli: ${withPosts}).`);
+
+if (withRoles) {
+  const safeAdmins = count("SELECT count(*) AS n FROM users WHERE role = 'admin' AND EXISTS (SELECT 1 FROM auth_accounts a WHERE a.user_id = users.id)");
+  console.log(`Kirish usuli bor adminlar (qoladi): ${safeAdmins}.`);
+  if (safeAdmins < 1) {
+    console.error("To'xtadi: kirish usuli bor birorta admin yo'q — o'chirishdan keyin hech kim sayt boshqaruvini ocholmay qolardi.");
+    process.exit(1);
+  }
+  const names = db.prepare(`SELECT name, role FROM users WHERE ${where} AND role <> 'user'`).all();
+  for (const row of names) console.log(`  roli bilan o'chiriladi: ${row.name} (${row.role})`);
+}
 
 if (!apply) {
   console.log("Hech narsa o'chirilmadi. O'chirish uchun: --apply");
