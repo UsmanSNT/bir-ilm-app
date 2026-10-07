@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Phone } from "lucide-react";
 import { fetchAdminOrders, setAdminOrderStatus } from "@/lib/api/store-client";
+import { refreshAdminAttention } from "@/lib/api/admin-attention";
 import { formatPrice, ORDER_STATUSES, ORDER_STATUS_LABELS, PAYMENT_LABELS, type OrderStatus, type StoreOrder } from "@/shared/contract";
 
 /** Admin: do'kon buyurtmalari — holat bo'yicha filtr, holatni o'zgartirish, mijozga qo'ng'iroq. */
@@ -25,6 +26,7 @@ export default function AdminOrders() {
     setError("");
     try {
       const updated = await setAdminOrderStatus(order.id, status);
+      refreshAdminAttention();
       setOrders((prev) => (prev ?? []).map((o) => (o.id === updated.id ? updated : o)).filter((o) => filter === "all" || o.status === filter));
     } catch (e) {
       setError((e as Error).message);

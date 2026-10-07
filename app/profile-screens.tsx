@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Flame, Timer, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camera, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Crown, ListChecks, Globe, Heart, Info, KeyRound, LogOut, Mail, MessageCircle, Settings, ShieldCheck, ShoppingBag, Lock, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
+import { refreshAdminAttention, useAdminAttention } from "@/lib/api/admin-attention";
 import { useCatalog } from "@/lib/api/books-client";
 import type { Book } from "@/shared/contract";
 import { USER_ROLE_LABELS, canModerate } from "@/shared/contract/roles";
@@ -47,6 +48,7 @@ export default function ProfileScreens(p: Props) {
   const viewer = useViewer();
   const featured = useCatalog().active;
   const role = viewer?.role ?? "user";
+  const attention = useAdminAttention(role === "admin");
   const signOut = async () => {
     if (!window.confirm("Hisobdan chiqasizmi? Qayta kirish uchun Google yoki Telegram kerak bo‘ladi.")) return;
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
@@ -63,6 +65,7 @@ export default function ProfileScreens(p: Props) {
     return () => controller.abort();
   }, [retry, screen]);
   const open = (next: Screen) => {
+    if (role === "admin") refreshAdminAttention();
     // Faollik, postlar va sozlamalar — profil ichidagi tablar.
     if (next === "activity" || next === "posts") { setTab(next); next = "profile"; }
     setScreen(next);
@@ -131,7 +134,7 @@ export default function ProfileScreens(p: Props) {
     {screen === "activity" && <>{activityView}</>}
 
     {screen === "settings" && <>
-      {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value="Book Store" onClick={() => open("orders")} /><Row icon={<BookOpen />} title="Do‘kon kitoblari" value="Rasm, narx" onClick={() => open("storebooks")} /><Row icon={<Mail />} title="Do‘kon chati" value="Savol va buyurtmalar" onClick={() => open("storechat")} /><Row icon={<Globe />} title="Ijtimoiy tarmoqlar" value="Havolalar" onClick={() => open("site")} /><Row icon={<ListChecks />} title="Viktorinalar" value="Savollar" onClick={() => open("quizzes")} /></div>}
+      {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value={attention.orders ? `${attention.orders} ta yangi` : "Book Store"} onClick={() => open("orders")} /><Row icon={<BookOpen />} title="Do‘kon kitoblari" value="Rasm, narx" onClick={() => open("storebooks")} /><Row icon={<Mail />} title="Do‘kon chati" value={attention.chats ? `${attention.chats} ta yangi` : "Xaridorlar"} onClick={() => open("storechat")} /><Row icon={<Globe />} title="Ijtimoiy tarmoqlar" value="Havolalar" onClick={() => open("site")} /><Row icon={<ListChecks />} title="Viktorinalar" value="Savollar" onClick={() => open("quizzes")} /></div>}
       {settingsView}
     </>}
     {screen === "password" && <div className="p-settings"><ChangePasswordForm hasPassword={Boolean(viewer?.hasPassword)} /></div>}

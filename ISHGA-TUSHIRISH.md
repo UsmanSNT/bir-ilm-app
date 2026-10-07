@@ -263,3 +263,8 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - Viktorina har o'ynalganda **savollar tartibi aralashadi**.
 - Kutubxona (Javon) ekraniga orqaga qaytish tugmasi qo'shildi.
 - Migratsiya `0023_quiz_sessions` birinchi so'rovda o'zi qo'llanadi.
+
+## Adminga buyurtma xabari; hafta kitobi kartasi
+
+- **Yangi buyurtma kelganda adminga xabar:** (1) ilovada: yuqoridagi profil rasmida qizil nishon (yangi buyurtmalar + o'qilmagan do'kon chatlari), kelganda xabar ("Yangi buyurtma keldi!"), Sozlamalardagi "Do'kon buyurtmalari" va "Do'kon chati" qatorlarida "N ta yangi"; (2) tashqarida: admin Telegram bilan kirgan bo'lsa — bot orqali Telegram xabari, emaili bo'lsa — email (`TELEGRAM_BOT_TOKEN` va `RESEND_API_KEY` + `MAIL_FROM` sozlangan bo'lsa; sozlanmagan kanal jim o'tkazib yuboriladi). Xabarda raqam, ism, telefon, Telegram, manzil, kitoblar va jami summa bor.
+- Hafta kitobi tanlanmaganda admin ko'radigan kartada uzun kitob nomi kartani o'ngga cho'zib yubormaydi.

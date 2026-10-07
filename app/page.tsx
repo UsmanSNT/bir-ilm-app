@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   Bell,
@@ -46,6 +46,7 @@ import { RESET_TOKEN_PATTERN, type Book } from "@/shared/contract";
 import { ResetPasswordForm } from "./password-auth";
 import { TwoFactorDialog } from "./two-factor";
 import { useViewer } from "@/lib/api/roles-client";
+import { useAdminAttention } from "@/lib/api/admin-attention";
 import { absoluteUrl } from "@/lib/api/config";
 
 type BackendMode = "local" | "server" | "seed";
@@ -295,6 +296,11 @@ export default function App() {
   const [resetToken, setResetToken] = useState("");
   const [twoFactorOpen, setTwoFactorOpen] = useState(false);
   const viewer = useViewer();
+  const onAdminNew = useCallback((change: { orders: number; chats: number }) => {
+    if (change.orders) toast.success(change.orders === 1 ? "Yangi buyurtma keldi!" : `${change.orders} ta yangi buyurtma keldi!`);
+    else if (change.chats) toast("Do‘kon chatida yangi xabar bor");
+  }, []);
+  const attention = useAdminAttention(viewer?.role === "admin", onAdminNew);
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("reset");
     if (!token || !RESET_TOKEN_PATTERN.test(token)) return;
@@ -456,7 +462,7 @@ export default function App() {
               <span className="topbar-status" title="Ma'lumotlar qayerda saqlanmoqda"><Wifi size={15} />{backendLabel}</span>
               <PomodoroButton className="icon-btn" />
               <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} />{badge}</button>
-              <button className="topbar-avatar" aria-label="Profil" onClick={() => go("profile")}>{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : <span>{(data.name || "K").slice(0, 1).toUpperCase()}</span>}</button>
+              <button className="topbar-avatar" aria-label={attention.total ? `Profil, ${attention.total} ta yangi` : "Profil"} onClick={() => go("profile")}>{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : <span>{(data.name || "K").slice(0, 1).toUpperCase()}</span>}{attention.total > 0 && <b className="avatar-badge">{attention.total > 9 ? "9+" : attention.total}</b>}</button>
             </div>
           </header>
 

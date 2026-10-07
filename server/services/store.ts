@@ -12,6 +12,7 @@ import { ApiException, badRequest, notFound, validationFailed } from "@/server/h
 import { requireSignedIn } from "./community";
 import { orderMessageStatements } from "./store-chat";
 import { ensureUser } from "./social";
+import { alertAdminsOfOrder } from "./admin-alerts";
 import type {
   BookReview,
   CartInput,
@@ -179,6 +180,8 @@ export async function placeOrder(db: Database, userId: string, input: PlaceOrder
 
   const created = await findOwnOrder(db, userId, input.id);
   if (!created) throw notFound("Buyurtma topilmadi.");
+  // Adminga xabar (Telegram/email): buyurtmani sekinlashtirmaydi va xatosi uni buzmaydi.
+  void alertAdminsOfOrder(db, created).catch((error) => console.error("[store] admin xabari ketmadi:", error));
   return created;
 }
 

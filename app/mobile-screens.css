@@ -1213,3 +1213,10 @@ body:has(.show-mobile-home) { background: #fbf7f0; }
 .m-quiz-edit { position: absolute; top: 8px; right: 38px; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid #d9cfb4; border-radius: 50%; background: #fff; color: #172351; cursor: pointer; }
 .m-quiz-add { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 44px; margin-bottom: 10px; border: 1.5px dashed #c9bd9b; border-radius: 14px; background: transparent; color: #172351; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
 .m-quiz-row { grid-template-columns: auto minmax(0, 1fr) auto; padding-right: 44px; }
+
+/* Hafta kitobi kartasi: uzun kitob nomi (tanlash ro'yxati) kartani kengaytirib yubormasin */
+.m-week { grid-template-columns: minmax(0, 1fr); }
+.m-week-admin { min-width: 0; box-sizing: border-box; }
+.m-week-admin select { width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+.m-week-add { white-space: normal; text-align: center; }
+.m-week h2, .m-week .m-author, .m-week .m-blurb { overflow-wrap: anywhere; }
