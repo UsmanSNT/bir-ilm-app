@@ -304,3 +304,11 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - Avatar belgisi ham shu do'kon xabarlari sonini ko'rsatadi.
 - Admin ham xarid qilsa, uning ikkala hisobi (xaridor va admin) belgisi qo'shiladi. Admin uchun ro'yxatda «Yangi buyurtmalar» va «Do‘kon chati» havolalari chiqadi.
 - API: `GET /api/v1/store/inbox` (xaridorning barcha yozishmalari va o'qilmaganlar soni). Test: `node tests/store-v1.mjs`.
+
+## Do'kon: Hisobim (yagona shaxsiy bo'lim)
+
+- Do'kon pastki dock'ida faqat «Do‘kon» va «Hisobim» qoldi. «AI» (dock va suzuvchi robot tugmasi) hozircha olib tashlangan; AI ekrani kodda saqlangan (`app/store-ai.tsx`), qayta yoqish uchun dock va StoreFabs'ga qo'shiladi.
+- «Hisobim» ichida: Savat, Kutubxona (javon va buyurtmalar), Xabarlar (barcha yozishmalar), Sozlamalar.
+- Sozlamalarda: hisob ma'lumotlari, bog'langan akkauntlar, shaxsiy ma'lumotlar, maxfiylik, ikki bosqichli himoya, parol va chiqish. Har bir punkt Bir Ilm profilidagi tegishli sahifani ochadi.
+- Admin uchun qo'shimcha «Boshqaruv» bo'limi: Buyurtmalar, Do‘kon chati, Kitoblar, Viktorinalar, Sayt, Rollar — oddiy foydalanuvchida ko'rinmaydi.
+- Bildirishnoma (qo'ng'iroqcha) bandlari Hisobim'dagi Xabarlar yoki Boshqaruv bo'limini ochadi.

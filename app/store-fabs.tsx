@@ -90,20 +90,16 @@ function Fab({ id, className, label, onClick, children }: { id: string; classNam
 }
 
 /**
- * Do'kondagi ikkita yordamchi tugma: AI yordamchi (robot) va Adminga yozish. Ustma-ust turadi,
- * har biri alohida sudrab ko'chiriladi — orqasidagi kitob yoki matnni yopib qo'ymaydi.
+ * Do'konning yordamchi tugmasi: Adminga yozish (xabarlar belgisi bilan). Sudrab ko'chiriladi — orqasidagi matnni yopmaydi.
+ * AI yordamchi hozircha faol emas: tugma olib tashlangan (StoreAi ekrani kodda qoldirilgan).
  */
-export default function StoreFabs({ showAi, showChat, unread, onAi, onChat }: {
-  showAi: boolean;
+export default function StoreFabs({ showChat, unread, onChat }: {
   showChat: boolean;
   unread: number;
-  onAi: () => void;
   onChat: () => void;
 }) {
   return (
     <>
-      {showAi && <Fab id="ai" className="is-ai" label="AI yordamchi" onClick={onAi}>{/* eslint-disable-next-line @next/next/no-img-element -- kichik statik rasm */}
-          <img src="/assets/ai-robot.webp" alt="" width={50} height={50} draggable={false} /></Fab>}
       {showChat && (
         <Fab id="chat" className="is-chat" label={unread ? `Adminga yozish, ${unread} ta yangi javob` : "Adminga yozish"} onClick={onChat}>
           <MessageCircle size={23} aria-hidden="true" />

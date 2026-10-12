@@ -525,3 +525,29 @@
 .sm-meta b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #c0392b; color: #fff; font-size: 11px; }
 .p-messages { display: grid; gap: 10px; }
 .notification-group { margin: 12px 0 4px; color: #7d7564; font-size: 12px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+
+/* Hisobim: do'kon ichidagi shaxsiy bo'lim (savat, kutubxona, xabarlar, sozlamalar, boshqaruv) */
+.sa { display: grid; gap: 14px; }
+.sa-card { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #e3d9c2; border-radius: 16px; background: #fffdf7; }
+.sa-card strong { display: block; color: #172351; font-size: 16px; }
+.sa-card small { color: #7d7564; font-size: 12px; }
+.sa-avatar { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 50%; background: #172351; color: #fff; font-family: var(--f-display, inherit); font-size: 20px; font-weight: 600; }
+.sa-tabs button b { margin-left: 6px; display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #c0392b; color: #fff; font-size: 11px; }
+.sa-settings { display: grid; gap: 12px; }
+.sa-settings h3, .sa-admin h3 { margin: 4px 0 0; color: #172351; font-size: 15px; }
+.sa-accounts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.sa-accounts li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid #e3d9c2; border-radius: 12px; background: #fff; font-size: 13px; color: #172351; }
+.sa-accounts small { color: #7d7564; }
+.sa-menu { display: grid; border: 1px solid #e3d9c2; border-radius: 16px; overflow: hidden; background: #fffdf7; }
+.sa-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 0 14px; border: 0; border-bottom: 1px solid #efe7d6; background: none; color: #172351; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.sa-row:last-child { border-bottom: 0; }
+.sa-row small { color: #7d7564; font-size: 12px; }
+.sa-logout { justify-self: start; }
+.sa-admin { display: grid; gap: 12px; }
+.sa-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.sa-chips button { min-height: 34px; padding: 0 12px; border: 1px solid #d6cbb3; border-radius: 999px; background: #fff; color: #172351; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.sa-chips button[aria-selected="true"] { border-color: #172351; background: #172351; color: #fff; }
+.sa-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.sa-tabs button { min-width: 0; padding: 0 4px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.sa-admin .admin-orders-filter { display: flex; flex-wrap: wrap; gap: 6px; }
+.sa-admin .admin-orders-filter button { white-space: nowrap; }

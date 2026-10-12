@@ -18,20 +18,21 @@ import SocialLinks from "./social-links";
 import { ChangePasswordForm } from "./password-auth";
 import { LoginDialog } from "./login-dialog";
 import StoreMessages from "./store-messages";
+import { signOutViewer } from "@/lib/api/session";
 import AccountEditor from "./account-editor";
 import TwoFactorSettings from "./two-factor-settings";
 import { absoluteUrl } from "@/lib/api/config";
-import { nativeAuth } from "@/lib/api/native-auth";
 import ReadingDashboard from "./reading-dashboard";
 import type { SocialData } from "./social-types";
 
-/** Profil ichidagi ekranni to'g'ridan-to'g'ri ochish (bildirishnomadan). `nonce` har safar yangi bo'lishi shart. */
-export type ProfileRoute = { screen: "messages" | "orders" | "storechat"; nonce: number };
+/** Profil ichidagi ekranni to'g'ridan-to'g'ri ochish (bildirishnomadan, Hisobimdan). `nonce` har safar yangi bo'lishi shart. */
+export type ProfileRoute = { screen: ProfileScreenId; nonce: number };
 
 type Props = { route?: ProfileRoute; name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onNotifications: () => void };
 type ProfileTab = "reading" | "posts" | "activity";
 const PROFILE_TABS: [ProfileTab, string][] = [["reading", "Mutolaa"], ["posts", "Postlar"], ["activity", "Faollik"]];
 type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "site" | "quizzes" | "devices" | "password" | "account" | "twofactor";
+export type ProfileScreenId = Screen;
 
 function Cover({ small = false, book }: { small?: boolean; book: Book | null }) {
   if (book?.coverUrl) return <span className={`p-book p-book-image ${small ? "p-book-small" : ""}`} aria-hidden="true"><img src={book.coverUrl} alt="" /></span>;
@@ -55,12 +56,7 @@ export default function ProfileScreens(p: Props) {
   const featured = useCatalog().active;
   const role = viewer?.role ?? "user";
   const attention = useAdminAttention(role === "admin");
-  const signOut = async () => {
-    if (!window.confirm("Hisobdan chiqasizmi? Qayta kirish uchun Google yoki Telegram kerak bo‘ladi.")) return;
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
-    await nativeAuth()?.logout();
-    window.location.assign("/");
-  };
+  const signOut = () => void signOutViewer();
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/social?scope=mine", { signal: controller.signal }).then(async response => {

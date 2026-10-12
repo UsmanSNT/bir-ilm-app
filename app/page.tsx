@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import Dock from "./dock";
-import BookStore from "./book-store";
+import BookStore, { type StoreRoute } from "./book-store";
+import type { AccountTab, AdminArea } from "./store-account";
 import {
   Dialog,
   DialogClose,
@@ -225,6 +226,14 @@ export default function App() {
   const [modal, setModal] = useState("");
   // Bildirishnomadan profil ekranini ochish (nonce — har safar qayta ochish uchun).
   const [profileRoute, setProfileRoute] = useState<ProfileRoute | undefined>(undefined);
+  // Do'kon Hisobim bo'limini bildirishnomadan ochish (xabarlar, boshqaruv).
+  const [storeRoute, setStoreRoute] = useState<StoreRoute | undefined>(undefined);
+  const openStoreAccount = (tab: AccountTab, area?: AdminArea) => {
+    setModal("");
+    setStoreRoute({ tab, area, nonce: (storeRoute?.nonce ?? 0) + 1 });
+    setStore(true);
+    window.scrollTo({ top: 0 });
+  };
   const openProfileScreen = (screen: ProfileRoute["screen"]) => {
     setModal("");
     setTab("profile");
@@ -453,7 +462,10 @@ export default function App() {
       <Toaster richColors position="top-center" />
       {store && (
         <BookStore
+          key={storeRoute?.nonce ?? 0}
+          route={storeRoute}
           shelf={data.shelf}
+          onProfile={(screen) => { setStore(false); openProfileScreen(screen); }}
           onBack={() => { setStore(false); window.scrollTo({ top: 0 }); }}
           onToggle={(id) => {
             const saved = data.shelf.includes(id);
@@ -791,7 +803,7 @@ export default function App() {
                       <>
                         <p className="notification-group">Do‘kon xabarlari</p>
                         {unreadThreads.map((item) => (
-                          <button type="button" className="notification-item" key={item.key} onClick={() => openProfileScreen("messages")}>
+                          <button type="button" className="notification-item" key={item.key} onClick={() => openStoreAccount("messages")}>
                             <span className="notification-icon"><MessageSquare size={19} /></span>
                             <span className="notification-copy">
                               <strong>{item.kind === "general" ? "Umumiy savollar" : `Buyurtma № ${item.order?.id}`}</strong>
@@ -804,14 +816,14 @@ export default function App() {
                       </>
                     )}
                     {isAdmin && attention.orders > 0 && (
-                      <button type="button" className="notification-item" onClick={() => openProfileScreen("orders")}>
+                      <button type="button" className="notification-item" onClick={() => openStoreAccount("admin", "orders")}>
                         <span className="notification-icon"><MessageSquare size={19} /></span>
                         <span className="notification-copy"><strong>Yangi buyurtmalar</strong><time>{attention.orders} ta</time></span>
                         <ChevronRight size={18} />
                       </button>
                     )}
                     {isAdmin && attention.chats > 0 && (
-                      <button type="button" className="notification-item" onClick={() => openProfileScreen("storechat")}>
+                      <button type="button" className="notification-item" onClick={() => openStoreAccount("admin", "chat")}>
                         <span className="notification-icon"><MessageSquare size={19} /></span>
                         <span className="notification-copy"><strong>Do‘kon chati</strong><time>{attention.chats} ta o‘qilmagan</time></span>
                         <ChevronRight size={18} />

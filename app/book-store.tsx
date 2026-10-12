@@ -1,13 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BookOpen, Check, Heart, SlidersHorizontal, Library, MessageCircle, Minus, Pencil, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, MessageCircle, Pencil, Plus, Search, ShoppingCart, SlidersHorizontal, Store, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { useViewer } from "@/lib/api/roles-client";
-import { fetchOrders, newOrderId, placeOrder, StoreError, useCart, useStoreBooks, useStoreInbox } from "@/lib/api/store-client";
+import { newOrderId, placeOrder, StoreError, useCart, useStoreBooks, useStoreInbox } from "@/lib/api/store-client";
 import {
   formatPrice,
-  ORDER_STATUS_LABELS,
   normalizePhone,
   normalizeTelegram,
   PHONE_PATTERN,
@@ -18,34 +17,34 @@ import {
 } from "@/shared/contract";
 import Dock, { type DockItem } from "./dock";
 import { LoginDialog } from "./login-dialog";
-import StoreAi from "./store-ai";
 import StoreBookPage from "./store-book-page";
-import StoreMessages, { type Conversation } from "./store-messages";
-import { OrderProgress } from "./order-status";
+import type { Conversation } from "./store-messages";
+import StoreAccount, { type AccountTab, type AdminArea, type Cart, Totals } from "./store-account";
+import type { ProfileScreenId } from "./profile-screens";
 import StoreFabs from "./store-fabs";
 import BookEditor from "./book-editor";
 import { notifyCatalogChanged, useStoreCatalog } from "@/lib/api/books-client";
 import { BookCover, RatingLine } from "./store-ui";
 
-type Section = "catalog" | "ai" | "cart" | "checkout" | "library" | "chat";
-type Icon = typeof Store;
-type Cart = ReturnType<typeof useCart>;
+type Section = "catalog" | "account" | "checkout";
 
-const left: [Section, string, Icon][] = [["catalog", "Do‘kon", Store], ["ai", "AI", Sparkles]];
-const right: [Section, string, Icon][] = [["cart", "Savat", ShoppingCart], ["library", "Kutubxonam", Library]];
-const titles: Record<Section, string> = { catalog: "Kitob do‘koni", ai: "AI yordamchi", cart: "Savat", checkout: "Buyurtma berish", library: "Kutubxonam", chat: "Admin bilan chat" };
+const titles: Record<Section, string> = { catalog: "Kitob do‘koni", account: "Hisobim", checkout: "Buyurtma berish" };
 const ALL = "Barchasi";
 
-/** Book Store: Bir Ilm ichidagi alohida rejim — o'z dock'i va pastki qismi bilan; markazdagi yulduz Bir Ilm'ga qaytaradi. */
-export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]; onBack: () => void; onToggle: (bookId: string) => void }) {
-  const [section, setSection] = useState<Section>("catalog");
+/** Book Store: Bir Ilm ichidagi alohida rejim — pastki dock'da Do‘kon va Hisobim; markazdagi yulduz Bir Ilm'ga qaytaradi. */
+/** Bildirishnomadan Hisobim bo'limini ochish (nonce — har safar qayta ochish uchun). */
+export type StoreRoute = { tab: AccountTab; area?: AdminArea; nonce: number };
+
+export default function BookStore({ shelf, route, onBack, onToggle, onProfile }: { shelf: string[]; route?: StoreRoute; onBack: () => void; onToggle: (bookId: string) => void; onProfile: (screen: ProfileScreenId) => void }) {
+  const [section, setSection] = useState<Section>(route ? "account" : "catalog");
+  const [accountTab, setAccountTab] = useState<AccountTab>(route?.tab ?? "cart");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [placed, setPlaced] = useState<StoreOrder | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
-  /** Chat kitob sahifasidan ochilsa — birinchi xabar shu kitob haqida bo'ladi. */
+  /** Xabarlarda ochiladigan yozishma: buyurtma yoki umumiy; bo'sh bo'lsa — yozishmalar ro'yxati. */
+  const [messagesStart, setMessagesStart] = useState<Conversation | null>(null);
+  /** Kitob sahifasidan savol bo'lsa — birinchi xabar shu kitob haqida. */
   const [chatBook, setChatBook] = useState<StoreBook | null>(null);
-  /** Chat ochilganda birinchi ko'rinadigan yozishma (buyurtma yoki umumiy). Bo'sh bo'lsa — yozishmalar ro'yxati. */
-  const [chatStart, setChatStart] = useState<Conversation | null>(null);
   /** Admin: do'kon mahsulotini qo'shish/tahrirlash (id yo'q — yangi). */
   const [editing, setEditing] = useState<{ id: string | null } | null>(null);
   const viewer = useViewer();
@@ -54,35 +53,37 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
   const cart = useCart(store.items);
   const detail = detailId ? store.items.find((b) => b.id === detailId) ?? null : null;
 
-  // Yozishmalarning o'qilmagani — qo'ng'iroqcha va chat belgisi uchun (umumiy savollar + barcha buyurtmalar).
+  // Yozishmalarning o'qilmagani — Hisobim belgisi va Adminga yozish tugmasi uchun.
   const signedIn = Boolean(viewer?.signedIn);
   const unread = useStoreInbox(signedIn).inbox?.unread ?? 0;
 
-  const go = (next: Section, book: StoreBook | null = null) => {
-    setSection(next); setDetailId(null); setPlaced(null); setChatBook(next === "chat" ? book : null); setChatStart(null);
-    window.scrollTo({ top: 0 });
+  const resetView = () => { setDetailId(null); setPlaced(null); window.scrollTo({ top: 0 }); };
+  const go = (next: "catalog" | "checkout") => { setSection(next); resetView(); };
+  const openAccount = (tab: AccountTab, conversation: Conversation | null = null, book: StoreBook | null = null) => {
+    setSection("account"); setAccountTab(tab); setMessagesStart(conversation); setChatBook(book); resetView();
   };
-  const askAdmin = (book: StoreBook | null) => (signedIn ? go("chat", book) : setLoginOpen(true));
-  const openOrderChat = (order: StoreOrder) => { if (signedIn) { go("chat"); setChatStart({ kind: "order", order }); } };
-  // Kitob haqida savol — shu kitob bilan umumiy yozishma ochiladi; FAB'dan — yozishmalar ro'yxati.
-  const chatInitial: Conversation | null = chatStart ?? (chatBook ? { kind: "general" } : null);
+  // Kitob haqida savol — shu kitob bilan umumiy yozishma ochiladi; tugmadan — yozishmalar ro'yxati.
+  const askAdmin = (book: StoreBook | null) => (signedIn ? openAccount("messages", book ? { kind: "general" } : null, book) : setLoginOpen(true));
+  const openOrderChat = (order: StoreOrder) => { if (signedIn) openAccount("messages", { kind: "order", order }); };
   const open = (book: StoreBook) => { setDetailId(book.id); window.scrollTo({ top: 0 }); };
   const addToCart = (book: StoreBook) => { cart.add(book.id); toast.success(`«${book.title}» savatga qo‘shildi`); };
-  const active = section === "checkout" ? "cart" : section;
-  const tab = ([id, label, icon]: [Section, string, Icon]): DockItem => ({
-    id, label, icon, active: active === id && !detail, badge: id === "cart" ? cart.count : undefined, onClick: () => go(id),
-  });
+  const active = section === "checkout" ? "account" : section;
+  const catalogItem: DockItem = { id: "catalog", label: "Do‘kon", icon: Store, active: active === "catalog" && !detail, onClick: () => go("catalog") };
+  const accountItem: DockItem = {
+    id: "account", label: "Hisobim", icon: UserRound, active: active === "account" && !detail, badge: cart.count || undefined,
+    onClick: () => openAccount(section === "account" ? accountTab : "cart"),
+  };
 
   return (
     <div className="zb">
       <Dock
         mode="store"
         label="Book Store bo'limlari"
-        left={left.map(tab)}
-        right={right.map(tab)}
+        left={[catalogItem]}
+        right={[accountItem]}
         center={{ label: "Bir Ilm", ariaLabel: "Bir Ilm bosh sahifasiga qaytish", icon: BookOpen, onClick: onBack }}
       />
-      <StoreFabs showAi={section !== "ai"} showChat={section !== "chat"} unread={unread} onAi={() => go("ai")} onChat={() => askAdmin(null)} />
+      <StoreFabs showChat={!(section === "account" && accountTab === "messages")} unread={unread} onChat={() => askAdmin(null)} />
       <div className="zb-page">
         {detail ? (
           <StoreBookPage
@@ -100,17 +101,29 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
           />
         ) : (
           <>
-            {section !== "catalog" && <header className="zb-head"><button type="button" className="zb-back zb-back-round" onClick={() => go(section === "checkout" ? "cart" : "catalog")} aria-label="Orqaga" title="Orqaga"><ArrowLeft size={20} /></button><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles[section]}</h1></header>}
+            {section !== "catalog" && <header className="zb-head"><button type="button" className="zb-back zb-back-round" onClick={() => (section === "checkout" ? openAccount("cart") : go("catalog"))} aria-label="Orqaga" title="Orqaga"><ArrowLeft size={20} /></button><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles[section]}</h1></header>}
             {section === "catalog" && <StoreHome books={store.items} loading={store.loading} error={store.error} onRetry={store.reload} onOpen={open} onAdd={addToCart} isAdmin={isAdmin} onCreate={() => setEditing({ id: null })} onEdit={(b) => setEditing({ id: b.id })} />}
-            {section === "ai" && <StoreAi onNeedLogin={() => setLoginOpen(true)} />}
-            {section === "cart" && <CartView cart={cart} onCheckout={() => go("checkout")} onCatalog={() => go("catalog")} onOpen={open} />}
-            {section === "chat" && (signedIn
-              ? <StoreMessages key={`${chatInitial?.kind === "order" ? chatInitial.order.id : "list"}-${chatBook?.id ?? ""}`} initial={chatInitial} bookId={chatBook?.id} bookTitle={chatBook?.title} onNeedLogin={() => setLoginOpen(true)} />
-              : <div className="zb-empty"><MessageCircle size={30} /><h3>Yozish uchun kiring</h3><p className="zb-muted">Admin bilan yozishish faqat ro‘yxatdan o‘tgan kitobxonlar uchun.</p><button className="zb-btn zb-btn-primary" onClick={() => setLoginOpen(true)}>Kirish</button></div>)}
+            {section === "account" && (
+              <StoreAccount
+                tab={accountTab}
+                adminArea={route?.area}
+                onTab={setAccountTab}
+                cart={cart}
+                books={store.items}
+                shelf={shelf}
+                messagesStart={messagesStart}
+                chatBook={chatBook}
+                onOpen={open}
+                onCheckout={() => go("checkout")}
+                onCatalog={() => go("catalog")}
+                onOrderChat={openOrderChat}
+                onNeedLogin={() => setLoginOpen(true)}
+                onProfile={onProfile}
+              />
+            )}
             {section === "checkout" && (placed
-              ? <Confirmation order={placed} onChat={() => openOrderChat(placed)} onLibrary={() => go("library")} />
-              : <Checkout cart={cart} signedIn={Boolean(viewer?.signedIn)} defaultName={viewer?.name ?? ""} onLogin={() => setLoginOpen(true)} onBack={() => go("cart")} onPlaced={setPlaced} />)}
-            {section === "library" && <LibraryView books={store.items} shelf={shelf} signedIn={Boolean(viewer?.signedIn)} onOpen={open} onOrderChat={openOrderChat} />}
+              ? <Confirmation order={placed} onChat={() => openOrderChat(placed)} onLibrary={() => openAccount("library")} />
+              : <Checkout cart={cart} signedIn={Boolean(viewer?.signedIn)} defaultName={viewer?.name ?? ""} onLogin={() => setLoginOpen(true)} onBack={() => openAccount("cart")} onPlaced={setPlaced} />)}
           </>
         )}
         <footer className="zb-foot"><span><b>Bir Ilm</b> · Book Store</span><span>Har bir kitob — yangi imkoniyat</span></footer>
@@ -225,38 +238,6 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, isAdmin, onC
   );
 }
 
-function CartView({ cart, onCheckout, onCatalog, onOpen }: { cart: Cart; onCheckout: () => void; onCatalog: () => void; onOpen: (b: StoreBook) => void }) {
-  if (!cart.ready) return <p className="zb-muted" role="status">Yuklanmoqda...</p>;
-  if (!cart.items.length) return <div className="zb-empty"><ShoppingCart size={30} /><h3>Savat bo‘sh</h3><button className="zb-btn zb-btn-primary" onClick={onCatalog}>Do‘konga o‘tish</button></div>;
-  return (
-    <div className="zb-cart">
-      {cart.items.map(({ book, qty }) => (
-        <article className="zb-line" key={book.id}>
-          <button className="zb-line-cover" onClick={() => onOpen(book)} aria-label={`${book.title} haqida`}><BookCover book={book} size="sm" /></button>
-          <div className="zb-line-info"><strong>{book.title}</strong><span className="zb-muted">{book.author}</span><span className="zb-line-price">{formatPrice(book.price * qty)}</span></div>
-          <div className="zb-qty">
-            <button aria-label="Kamaytirish" onClick={() => cart.setQty(book.id, qty - 1)}>{qty === 1 ? <Trash2 size={15} /> : <Minus size={15} />}</button>
-            <span aria-live="polite">{qty}</span>
-            <button aria-label="Ko‘paytirish" disabled={qty >= STORE_LIMITS.maxQty} onClick={() => cart.setQty(book.id, qty + 1)}><Plus size={15} /></button>
-          </div>
-        </article>
-      ))}
-      <Totals cart={cart} />
-      <button className="zb-btn zb-btn-primary zb-btn-block" onClick={onCheckout}>Rasmiylashtirish · {formatPrice(cart.total)}</button>
-    </div>
-  );
-}
-
-function Totals({ cart }: { cart: Cart }) {
-  return (
-    <dl className="zb-totals">
-      <div><dt>Kitoblar ({cart.count})</dt><dd>{formatPrice(cart.total)}</dd></div>
-      <div><dt>Yetkazib berish</dt><dd>Operator aytadi</dd></div>
-      <div className="zb-totals-sum"><dt>Jami</dt><dd>{formatPrice(cart.total)}</dd></div>
-    </dl>
-  );
-}
-
 function Checkout({ cart, signedIn, defaultName, onLogin, onBack, onPlaced }: {
   cart: Cart; signedIn: boolean; defaultName: string; onLogin: () => void; onBack: () => void; onPlaced: (order: StoreOrder) => void;
 }) {
@@ -347,49 +328,3 @@ function Confirmation({ order, onChat, onLibrary }: { order: StoreOrder; onChat:
   );
 }
 
-function LibraryView({ books, shelf, signedIn, onOpen, onOrderChat }: { books: StoreBook[]; shelf: string[]; signedIn: boolean; onOpen: (book: StoreBook) => void; onOrderChat: (order: StoreOrder) => void }) {
-  const [view, setView] = useState<"saved" | "orders">("saved");
-  const [orders, setOrders] = useState<StoreOrder[] | null>(null);
-  useEffect(() => {
-    if (!signedIn) return;
-    let alive = true;
-    fetchOrders().then((items) => { if (alive) setOrders(items); }).catch(() => { if (alive) setOrders([]); });
-    return () => { alive = false; };
-  }, [signedIn]);
-  const saved = books.filter((b) => shelf.includes(b.id));
-  const list = signedIn ? orders : [];
-
-  return (
-    <>
-      <div className="zb-segment" role="tablist">
-        <button role="tab" aria-selected={view === "saved"} onClick={() => setView("saved")}><Heart size={16} />Javonda · {saved.length}</button>
-        <button role="tab" aria-selected={view === "orders"} onClick={() => setView("orders")}><Library size={16} />Buyurtmalar · {list?.length ?? "…"}</button>
-      </div>
-      {view === "saved" && (saved.length ? (
-        <div className="zb-grid">{saved.map((b) => <button key={b.id} className="zb-shelf-item" onClick={() => onOpen(b)}><BookCover book={b} /><strong>{b.title}</strong><span className="zb-muted">{b.author}</span></button>)}</div>
-      ) : (
-        <div className="zb-empty"><Heart size={30} /><h3>Javon bo‘sh</h3><p className="zb-muted">Kitob sahifasidagi ♡ tugmasi bilan qo‘shing.</p></div>
-      ))}
-      {view === "orders" && (list === null ? (
-        <p className="zb-muted" role="status">Yuklanmoqda...</p>
-      ) : list.length ? (
-        <div className="zb-cart">
-          {list.map((o) => (
-            <article className="zb-order" key={o.id}>
-              <div className="zb-order-head"><strong>№ {o.id}</strong><span className="zb-status" data-status={o.status}>{ORDER_STATUS_LABELS[o.status]}</span></div>
-              <p className="zb-muted">{new Date(o.createdAt).toLocaleDateString("ru-RU")} · {o.lines.map((l) => `${l.title} ×${l.qty}`).join(", ")}</p>
-              <strong>{formatPrice(o.total)}</strong>
-              <OrderProgress status={o.status} />
-              <button type="button" className="zb-btn zb-btn-ghost zb-order-chat" onClick={() => onOrderChat(o)}>
-                <MessageCircle size={16} />Buyurtma yozishmasi
-                {o.userUnread > 0 && <b aria-label={`${o.userUnread} ta yangi xabar`}>{o.userUnread}</b>}
-              </button>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="zb-empty"><Library size={30} /><h3>Buyurtmalar yo‘q</h3>{!signedIn && <p className="zb-muted">Buyurtmalar kirgan hisobingizda saqlanadi.</p>}</div>
-      ))}
-    </>
-  );
-}
