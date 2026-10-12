@@ -6,10 +6,10 @@ import { canModerate } from "@/shared/contract/roles";
 import { InkQuill } from "./brand-icons";
 import FeedFilter, { type FeedOption } from "./feed-filter";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useViewer } from "@/lib/api/roles-client";
 import type { SocialData, ReadingPost } from "./social-types";
-import LoginCard from "./login-card";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { LoginDialog } from "./login-dialog";
 import { Composer } from "./community/composer";
 import { PostCard, PostReader, type PostActions } from "./community/post-card";
 import { LoginRequiredError, apiCall } from "./community/upload";
@@ -29,7 +29,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<ReadingPost | null>(null);
   const [bio, setBio] = useState("");
-  const [loginReason, setLoginReason] = useState("");
+  const [loginOpen, setLoginOpen] = useState(false);
   const [reader, setReader] = useState<ReadingPost | null>(null);
   const [readerLoading, setReaderLoading] = useState(false);
   const moderator = canModerate(data.role);
@@ -67,7 +67,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
     void fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "profile", name }) }).catch(() => {});
   }, [data.userId, name]);
 
-  const requireLogin = useCallback((reason: string) => setLoginReason(reason), []);
+  const requireLogin = useCallback(() => setLoginOpen(true), []);
 
   async function write(payload: Record<string, unknown>) {
     const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, name }) });
@@ -119,7 +119,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
       try { await reload(); } catch { setError("Saqlandi, lekin lenta yangilanmadi. Yangilash tugmasini bosing."); }
       return true;
     } catch (e) {
-      if (e instanceof LoginRequiredError) requireLogin(e.message);
+      if (e instanceof LoginRequiredError) requireLogin();
       else toast.error(e instanceof Error ? e.message : "Saqlanmadi.");
       return false;
     }
@@ -162,7 +162,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
         .then(result => patchPost(post.id, p => ({ ...p, reactions: result.reactions, myReaction: result.mine })))
         .catch((e: unknown) => {
           patchPost(post.id, p => ({ ...p, ...previous }));
-          if (e instanceof LoginRequiredError) requireLogin(e.message);
+          if (e instanceof LoginRequiredError) requireLogin();
           else toast.error(e instanceof Error ? e.message : "Reaksiya saqlanmadi.");
         });
     },
@@ -187,7 +187,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
   };
 
   const startWriting = () => {
-    if (!data.signedIn) { requireLogin("Post yozish uchun hisobingizga kiring."); return; }
+    if (!data.signedIn) { requireLogin(); return; }
     setEditing(null);
     setComposing(true);
   };
@@ -234,7 +234,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
           <span className="compose-launch-text">{data.signedIn ? "O'qiganingizni yozib qoldiring…" : "Post yozish uchun tizimga kiring"}</span>
           <span className="compose-launch-icons" aria-hidden="true"><ImagePlus size={19}/><Newspaper size={19}/><NotebookPen size={19}/></span>
         </button>
-        <Composer open={composing} onOpenChange={open => { setComposing(open); if (!open) setEditing(null); }} editing={editing} moderator={moderator} onPublished={(id, edited) => void onPublished(id, edited)} onLoginRequired={() => requireLogin("Davom etish uchun tizimga kiring.")} />
+        <Composer open={composing} onOpenChange={open => { setComposing(open); if (!open) setEditing(null); }} editing={editing} moderator={moderator} onPublished={(id, edited) => void onPublished(id, edited)} onLoginRequired={() => requireLogin()} />
 
         {author && <div className="author-filter"><span>{authorName} postlari</span><button className="icon-btn" title="Filtrni tozalash" aria-label="Filtrni tozalash" onClick={() => setAuthor("")}><X size={17}/></button></div>}
         {author && data.authorProfile && <section className="public-profile"><h3>{data.authorProfile.name}</h3><p>{data.authorProfile.bio || "Hali o'zi haqida ma'lumot kiritmagan."}</p><span>{data.authorProfile.posts} post · {data.authorProfile.followers} kuzatuvchi</span>{author !== data.userId && followButton(author)}</section>}
@@ -250,12 +250,6 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
       </aside>}
     </div>
     <PostReader post={reader} loading={readerLoading} actions={actions} onClose={() => { setReader(null); setReaderLoading(false); }} />
-    <Dialog open={Boolean(loginReason)} onOpenChange={open => { if (!open) setLoginReason(""); }}>
-      <DialogContent className="login-dialog">
-        <DialogTitle className="sr-only">Tizimga kirish</DialogTitle>
-        <DialogDescription className="sr-only">{loginReason}</DialogDescription>
-        {viewer ? <LoginCard viewer={viewer} title="Hamjamiyatga qo'shiling" text={`${loginReason} Community'da faqat ro'yxatdan o'tgan kitobxonlar yozadi — o'qish hammaga ochiq.`} /> : <p role="status">Yuklanmoqda…</p>}
-      </DialogContent>
-    </Dialog>
+    {viewer && <LoginDialog viewer={viewer} open={loginOpen} onOpenChange={setLoginOpen} />}
   </div>;
 }

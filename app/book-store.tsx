@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BookOpen, Check, Heart, SlidersHorizontal, Library, MessageCircle, Minus, Pencil, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useViewer } from "@/lib/api/roles-client";
 import { fetchChatUnread, fetchOrders, newOrderId, placeOrder, StoreError, useCart, useStoreBooks } from "@/lib/api/store-client";
 import {
@@ -18,7 +17,7 @@ import {
   type StoreOrder,
 } from "@/shared/contract";
 import Dock, { type DockItem } from "./dock";
-import LoginCard from "./login-card";
+import { LoginDialog } from "./login-dialog";
 import StoreAi from "./store-ai";
 import StoreBookPage from "./store-book-page";
 import StoreChatThread from "./store-chat";
@@ -122,13 +121,7 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
 
       {isAdmin && editing && <StoreBookEditor id={editing.id} onClose={() => { setEditing(null); store.reload(); }} />}
 
-      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-        <DialogContent className="app-dialog">
-          <DialogTitle>Hisobingizga kiring</DialogTitle>
-          <DialogDescription>Buyurtma, sharh va AI yordamchi faqat ro‘yxatdan o‘tgan kitobxonlar uchun.</DialogDescription>
-          {viewer ? <LoginCard viewer={viewer} title="Kirish" text="Google yoki Telegram orqali bir bosishda kiring." /> : <p className="zb-muted">Yuklanmoqda...</p>}
-        </DialogContent>
-      </Dialog>
+      {viewer && <LoginDialog viewer={viewer} open={loginOpen} onOpenChange={setLoginOpen} />}
     </div>
   );
 }

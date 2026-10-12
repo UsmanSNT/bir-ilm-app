@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Bell,
   BellRing,
-  BookOpenText,
   CalendarDays,
   ChevronRight,
   CirclePlay,
@@ -22,7 +21,6 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { InkQuill } from "./brand-icons";
 import { useCatalog } from "@/lib/api/books-client";
 import type { LiveSession } from "@/shared/contract/live";
 import TalkManage, { length } from "./talk-manage";
@@ -91,13 +89,12 @@ export default function TalksBoard({
   isAdmin,
   userId,
   notice,
-  login,
+  onLogin,
   staff,
   onJoin,
   onChange,
   onRemove,
   onCreate,
-  onShare,
 }: {
   sessions: LiveSession[];
   loading: boolean;
@@ -105,14 +102,14 @@ export default function TalksBoard({
   isAdmin: boolean;
   userId: string | null;
   notice: string;
-  login: ReactNode;
   /** Admin yoki moderator: audiosi joylanmagan suhbatlar va yozuvlarni boshqaradi. */
   staff: boolean;
   onJoin: (id: string) => void;
   onChange: (session: LiveSession) => void;
   onRemove: (id: string) => void;
   onCreate: () => void;
-  onShare: () => void;
+  /** Suhbatga qo‘shilish uchun kirish oynasini ochadi. */
+  onLogin: () => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const reminders = useTalkReminders();
@@ -188,7 +185,7 @@ export default function TalksBoard({
 
   function open(s: LiveSession) {
     if (!signedIn) {
-      toast("Suhbatga qo‘shilish uchun avval tizimga kiring");
+      onLogin();
       return;
     }
     // Boshlanmagan suhbatga kirib bo'lmaydi: avval timer oynasi ochiladi.
@@ -233,15 +230,15 @@ export default function TalksBoard({
               </button>
             )}
             {live ? (
-              <button type="button" className="tb-action primary" onClick={() => open(s)} disabled={!signedIn}>
+              <button type="button" className="tb-action primary" onClick={() => open(s)} >
                 <Mic size={17} /> Qo‘shilish
               </button>
             ) : isAdmin ? (
-              <button type="button" className="tb-action primary" onClick={() => open(s)} disabled={!signedIn}>
+              <button type="button" className="tb-action primary" onClick={() => open(s)} >
                 <Play size={17} /> Suhbatni boshlash
               </button>
             ) : (
-              <button type="button" className="tb-action" onClick={() => open(s)} disabled={!signedIn}>
+              <button type="button" className="tb-action" onClick={() => open(s)} >
                 <Clock3 size={17} /> Suhbat hali boshlanmadi
               </button>
             )}
@@ -379,17 +376,6 @@ export default function TalksBoard({
         </section>
       )}
 
-      {login}
-
-      <button type="button" className="tb-share" onClick={onShare}>
-        <span className="tb-share-icon"><InkQuill size={28} /></span>
-        <span className="tb-share-copy">
-          <strong>Fikr yozish bilan mustahkamlanadi</strong>
-          <small>Suhbatdan keyin siyohdon va qalam sizniki: kitob hayotingizda nimani o‘zgartirdi?</small>
-        </span>
-        <BookOpenText className="tb-share-art" size={58} strokeWidth={1.2} aria-hidden="true" />
-        <ChevronRight size={22} aria-hidden="true" />
-      </button>
 
       {gateSession && (
         <TalkGate

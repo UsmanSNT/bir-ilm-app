@@ -36,7 +36,7 @@ import {
 import { useViewer } from "@/lib/api/roles-client";
 import { RoomRecorder, recordingSupported, saveRecordingFile } from "@/lib/api/live-recorder";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import LoginCard from "./login-card";
+import { LoginDialog } from "./login-dialog";
 import TalksBoard from "./talks-board";
 import { TALKS_CHANGED, localInput, notifyTalksChanged, talkAnnouncement } from "./talk-format";
 import { useCatalog } from "@/lib/api/books-client";
@@ -117,16 +117,15 @@ function readActive(): string | null {
 
 export default function LiveSession({
   name,
-  onComments,
 }: {
   name: string;
   date: number;
-  onComments: () => void;
 }) {
   const viewer = useViewer();
   const isAdmin = viewer?.role === "admin";
   // Viewer yuklanguncha tugmani bloklamaymiz; server baribir tekshiradi.
   const signedIn = viewer?.signedIn ?? true;
+  const [loginOpen, setLoginOpen] = useState(false);
 
   const [sessions, setSessions] = useState<LiveSessionType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -821,11 +820,9 @@ export default function LiveSession({
         onChange={(next) => setSessions((prev) => prev.map((s) => (s.id === next.id ? next : s)))}
         onRemove={(id) => setSessions((prev) => prev.filter((s) => s.id !== id))}
         onCreate={() => setShowCreate(true)}
-        onShare={onComments}
-        login={viewer && !viewer.signedIn && (
-          <LoginCard viewer={viewer} title="Suhbatga qo'shilish uchun kiring" text="Jonli suhbatlarda faqat ro'yxatdan o'tgan kitobxonlar qatnashadi. Email, Google yoki Telegram orqali kiring, yoki boshqa qurilmangizdagi kodni kiriting." />
-        )}
+        onLogin={() => setLoginOpen(true)}
       />
+      {viewer && <LoginDialog viewer={viewer} open={loginOpen} onOpenChange={setLoginOpen} />}
 
       {showCreate && isAdmin && (
         <CreateSessionDialog

@@ -23,7 +23,7 @@ export type PostActions = {
   moderator: boolean;
   following: string[];
   busy: boolean;
-  requireLogin: (reason: string) => void;
+  requireLogin: () => void;
   openPost: (post: ReadingPost) => void;
   openAuthor: (userId: string) => void;
   follow: (userId: string, follow: boolean) => void;
@@ -118,7 +118,7 @@ export function ReactionBar({ post, actions }: { post: ReadingPost; actions: Pos
   const [open, setOpen] = useState(false);
   const pick = (emoji: string) => {
     setOpen(false);
-    if (!actions.signedIn) return actions.requireLogin("Reaksiya bildirish uchun kiring.");
+    if (!actions.signedIn) return actions.requireLogin();
     actions.react(post, post.myReaction === emoji ? null : emoji);
   };
   return (
@@ -136,7 +136,7 @@ export function ReactionBar({ post, actions }: { post: ReadingPost; actions: Pos
         </button>
       ))}
       <Popover open={open} onOpenChange={(next) => {
-        if (next && !actions.signedIn) return actions.requireLogin("Reaksiya bildirish uchun kiring.");
+        if (next && !actions.signedIn) return actions.requireLogin();
         setOpen(next);
       }}>
         <PopoverTrigger asChild>
@@ -182,7 +182,7 @@ function Replies({ post, actions }: { post: ReadingPost; actions: PostActions })
           <button className="icon-btn" title="Yuborish" aria-label="Izoh yuborish" disabled={actions.busy || !draft.trim()}><Send size={19} /></button>
         </form>
       ) : (
-        <button type="button" className="text-btn reply-login" onClick={() => actions.requireLogin("Izoh yozish uchun kiring.")}>Izoh yozish uchun kiring</button>
+        <button type="button" className="text-btn reply-login" onClick={() => actions.requireLogin()}>Izoh yozish uchun kiring</button>
       )}
     </div>
   );

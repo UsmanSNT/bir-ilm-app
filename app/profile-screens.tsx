@@ -3,7 +3,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Flame, Timer, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camera, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Crown, ListChecks, Globe, Heart, Info, KeyRound, LogOut, Mail, MessageCircle, Settings, ShieldCheck, ShoppingBag, Lock, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { refreshAdminAttention, useAdminAttention } from "@/lib/api/admin-attention";
 import { useCatalog } from "@/lib/api/books-client";
 import type { Book } from "@/shared/contract";
@@ -17,7 +16,7 @@ import AdminSite from "./admin-site";
 import AdminQuizzes from "./admin-quizzes";
 import SocialLinks from "./social-links";
 import { ChangePasswordForm } from "./password-auth";
-import LoginCard from "./login-card";
+import { LoginDialog } from "./login-dialog";
 import AccountEditor from "./account-editor";
 import TwoFactorSettings from "./two-factor-settings";
 import { absoluteUrl } from "@/lib/api/config";
@@ -85,7 +84,6 @@ export default function ProfileScreens(p: Props) {
   </>;
   const settingsView = <div className="p-settings">
       <h2>Hisob</h2><div className="p-menu"><Row icon={<UserRound />} title="Shaxsiy ma’lumotlar" onClick={() => open("account")} /><Row icon={<ShieldCheck />} title="Maxfiylik va xavfsizlik" onClick={() => open("privacy")} />{viewer?.signedIn && <Row icon={<Lock />} title="Ikki bosqichli himoya" value={viewer.twoFactor ? "Yoqilgan" : "O‘chiq"} onClick={() => open("twofactor")} />}{viewer?.accounts.map(a => <div key={a.provider} className="p-row p-static"><span className="p-row-icon"><ShieldCheck /></span><span>{a.provider === "google" ? "Google" : a.provider === "telegram" ? "Telegram" : "Email"}</span><small>{a.label}</small></div>)}{viewer?.accounts.some(a => a.provider === "email") && <Row icon={<KeyRound />} title={viewer.hasPassword ? "Parolni o‘zgartirish" : "Parol o‘rnatish"} onClick={() => open("password")} />}{viewer && viewer.accounts.length > 0 && <Row icon={<LogOut />} title="Chiqish" onClick={signOut} />}</div>
-      {screen !== "profile" && viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
       <h2>Ilova</h2><div className="p-menu"><Row icon={<Bell />} title="Bildirishnomalar" onClick={p.onNotifications} /><div className="p-row p-static"><span className="p-row-icon"><Globe /></span><span>Til</span><small>O‘zbekcha</small></div><Row icon={<Camera />} title="Kamera va mikrofon" value="Suhbat uchun" onClick={() => open("devices")} /></div>
       <SocialLinks />
       <h2>Yordam</h2><div className="p-menu"><Row icon={<CircleHelp />} title="Ko‘p so‘raladigan savollar" onClick={() => open("faq")} /><Row icon={<Info />} title="Loyiha haqida" onClick={() => open("about")} /></div>
@@ -98,16 +96,9 @@ export default function ProfileScreens(p: Props) {
     return <section className="profile-space p-guest">
       <div className="p-guest-gate">
         <h1>Shaxsiy sahifa</h1>
-        <p>Postlar, obunalar va suhbatlar uchun hisobingizga kiring yoki yangi hisob oching.</p>
         <button type="button" className="p-primary" onClick={() => setAuthOpen(true)}>Kirish yoki ro‘yxatdan o‘tish</button>
       </div>
-      <Dialog open={authOpen} onOpenChange={setAuthOpen}>
-        <DialogContent className="auth-dialog">
-          <DialogTitle className="sr-only">Kirish</DialogTitle>
-          <DialogDescription className="sr-only">Email, Google yoki Telegram bilan kiring yoki yangi hisob oching.</DialogDescription>
-          <LoginCard viewer={viewer} page title="Kirish" text="Hisobingizga kiring yoki yangi hisob oching." />
-        </DialogContent>
-      </Dialog>
+      <LoginDialog viewer={viewer} open={authOpen} onOpenChange={setAuthOpen} />
     </section>;
   }
 
@@ -120,7 +111,6 @@ export default function ProfileScreens(p: Props) {
     </header>
     {screen === "profile" && <>
       <div className="p-identity"><div className="p-avatar">{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : p.name.trim().slice(0, 1).toUpperCase() || "K"}<span><BookOpen size={13} /></span></div><div><span className="p-eyebrow">BIR ILM KITOBXONI{role !== "user" && <span className={`p-role-badge role-${role}`}>{role === "admin" ? <Crown size={11} /> : <ShieldCheck size={11} />}{USER_ROLE_LABELS[role]}</span>}</span><h2>{p.name || "Kitobxon"}</h2><p>{social?.profile?.bio || "Har kuni bir sahifa oldinga."}</p><button className="p-link" onClick={() => open("account")}>Profilni tahrirlash <ArrowRight size={15} /></button></div></div>
-      {viewer && viewer.accounts.length === 0 && <LoginCard viewer={viewer} />}
       <div className="p-stats"><button onClick={() => { setActivity("Obunalar"); open("activity"); }}><strong>{count(social?.followers)}</strong><span>Obunachilar</span></button><button onClick={() => { setActivity("Obunalar"); open("activity"); }}><strong>{count(social?.following.length)}</strong><span>Obunalar</span></button><button onClick={() => open("posts")}><strong>{count(social?.profile?.posts)}</strong><span>Postlar</span></button></div>
     </>}
     </div>
