@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Flame, Timer, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camera, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Crown, ListChecks, Globe, Heart, Info, KeyRound, LogOut, Mail, MessageCircle, Settings, ShieldCheck, ShoppingBag, Lock, Trophy, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { refreshAdminAttention, useAdminAttention } from "@/lib/api/admin-attention";
 import { useCatalog } from "@/lib/api/books-client";
 import type { Book } from "@/shared/contract";
@@ -40,6 +41,8 @@ function Row({ icon, title, value, onClick }: { icon: ReactNode; title: string; 
 
 export default function ProfileScreens(p: Props) {
   const [screen, setScreen] = useState<Screen>("profile");
+  // Mehmon uchun kirish oynasi (modal): asosiy sahifaga aralashmaydi.
+  const [authOpen, setAuthOpen] = useState(false);
   const [tab, setTab] = useState<ProfileTab>("reading");
   const [activity, setActivity] = useState("Javoblar");
   const [social, setSocial] = useState<SocialData | null>(null);
@@ -93,7 +96,18 @@ export default function ProfileScreens(p: Props) {
   if (!viewer) return <section className="profile-space p-guest" aria-busy="true" />;
   if (!viewer.signedIn) {
     return <section className="profile-space p-guest">
-      <LoginCard viewer={viewer} page title="Kirish" text="Shaxsiy sahifa, postlar va suhbatlar uchun hisobingizga kiring yoki yangi hisob oching." />
+      <div className="p-guest-gate">
+        <h1>Shaxsiy sahifa</h1>
+        <p>Postlar, obunalar va suhbatlar uchun hisobingizga kiring yoki yangi hisob oching.</p>
+        <button type="button" className="p-primary" onClick={() => setAuthOpen(true)}>Kirish yoki ro‘yxatdan o‘tish</button>
+      </div>
+      <Dialog open={authOpen} onOpenChange={setAuthOpen}>
+        <DialogContent className="auth-dialog">
+          <DialogTitle className="sr-only">Kirish</DialogTitle>
+          <DialogDescription className="sr-only">Email, Google yoki Telegram bilan kiring yoki yangi hisob oching.</DialogDescription>
+          <LoginCard viewer={viewer} page title="Kirish" text="Hisobingizga kiring yoki yangi hisob oching." />
+        </DialogContent>
+      </Dialog>
     </section>;
   }
 

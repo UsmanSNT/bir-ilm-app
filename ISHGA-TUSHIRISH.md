@@ -271,5 +271,5 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 
 ## Mehmon kirish sahifasi; Telegram tekshiruvi
 
-- Ro'yxatdan o'tmagan foydalanuvchi shaxsiy sahifada faqat mustaqil «Kirish» ekranini ko'radi (kartasiz): Google, Telegram (sozlangan bo'lsa) va email bilan kirish yoki hisob ochish.
+- Ro'yxatdan o'tmagan foydalanuvchi shaxsiy sahifada faqat sarlavha, qisqa matn va «Kirish yoki ro‘yxatdan o‘tish» tugmasini ko'radi. Tugma alohida modal oynani ochadi: Google, Telegram (sozlangan bo'lsa) va email bilan kirish yoki hisob ochish. Asosiy sahifa formasiz qoladi.
 - Telegram tugmasi faqat serverda `TELEGRAM_BOT_TOKEN` VA `TELEGRAM_BOT_USERNAME` ikkalasi ham bo'lsa chiqadi. Tekshirish: brauzerda `https://birilm.uz/api/v1/auth/session` oching, `"telegramBot"` qiymati `"bir_ilm_uz_bot"` bo'lishi kerak. `null` bo'lsa, token `secrets.cmd` da yo'q yoki sayt uni ko'rmayapti.
