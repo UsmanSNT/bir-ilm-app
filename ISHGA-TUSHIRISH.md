@@ -312,3 +312,10 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - Sozlamalarda: hisob ma'lumotlari, bog'langan akkauntlar, shaxsiy ma'lumotlar, maxfiylik, ikki bosqichli himoya, parol va chiqish. Har bir punkt Bir Ilm profilidagi tegishli sahifani ochadi.
 - Admin uchun qo'shimcha «Boshqaruv» bo'limi: Buyurtmalar, Do‘kon chati, Kitoblar, Viktorinalar, Sayt, Rollar — oddiy foydalanuvchida ko'rinmaydi.
 - Bildirishnoma (qo'ng'iroqcha) bandlari Hisobim'dagi Xabarlar yoki Boshqaruv bo'limini ochadi.
+
+## Shaxsiy sahifa Hisobim ichida
+
+- Profil (avatar, Profil tugmasi, «Profilga qaytish») endi do'kon ichidagi Hisobim → Profil bo'limida ochiladi. Asosiy sahifadagi alohida profil yorlig'i olib tashlandi.
+- Hisobim tablari: Profil, Savat, Kutubxona, Xabarlar (admin uchun — Boshqaruv).
+- Sozlamalar yagona: profil sahifasidagi tishli belgi (shaxsiy ma'lumot, maxfiylik, ikki bosqichli himoya, parol, chiqish). Alohida «Sozlamalar» tabi olib tashlandi.
+- Admin: profil sozlamalaridagi admin bandlari olib tashlandi; boshqaruv faqat Hisobim → Boshqaruv orqali.

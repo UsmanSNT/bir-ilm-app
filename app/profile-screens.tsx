@@ -28,7 +28,8 @@ import type { SocialData } from "./social-types";
 /** Profil ichidagi ekranni to'g'ridan-to'g'ri ochish (bildirishnomadan, Hisobimdan). `nonce` har safar yangi bo'lishi shart. */
 export type ProfileRoute = { screen: ProfileScreenId; nonce: number };
 
-type Props = { route?: ProfileRoute; name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onNotifications: () => void };
+/** Shaxsiy sahifa. `embedded` — Hisobim ichida: admin bo'limi u yerdagi «Boshqaruv» orqali ochiladi. */
+export type ProfileScreensProps = { embedded?: boolean; route?: ProfileRoute; name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onNotifications: () => void };
 type ProfileTab = "reading" | "posts" | "activity";
 const PROFILE_TABS: [ProfileTab, string][] = [["reading", "Mutolaa"], ["posts", "Postlar"], ["activity", "Faollik"]];
 type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "site" | "quizzes" | "devices" | "password" | "account" | "twofactor";
@@ -43,7 +44,7 @@ function Row({ icon, title, value, onClick }: { icon: ReactNode; title: string; 
   return <button type="button" className="p-row" onClick={onClick}><span className="p-row-icon">{icon}</span><span>{title}</span>{value != null && <small>{value}</small>}<ChevronRight size={17} /></button>;
 }
 
-export default function ProfileScreens(p: Props) {
+export default function ProfileScreens(p: ProfileScreensProps) {
   const [screen, setScreen] = useState<Screen>(p.route?.screen ?? "profile");
   // Mehmon uchun kirish oynasi (modal): asosiy sahifaga aralashmaydi.
   const [authOpen, setAuthOpen] = useState(false);
@@ -138,7 +139,7 @@ export default function ProfileScreens(p: Props) {
     {screen === "activity" && <>{activityView}</>}
 
     {screen === "settings" && <>
-      {role === "admin" && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value={attention.orders ? `${attention.orders} ta yangi` : "Book Store"} onClick={() => open("orders")} /><Row icon={<BookOpen />} title="Do‘kon kitoblari" value="Rasm, narx" onClick={() => open("storebooks")} /><Row icon={<Mail />} title="Do‘kon chati" value={attention.chats ? `${attention.chats} ta yangi` : "Xaridorlar"} onClick={() => open("storechat")} /><Row icon={<Globe />} title="Ijtimoiy tarmoqlar" value="Havolalar" onClick={() => open("site")} /><Row icon={<ListChecks />} title="Viktorinalar" value="Savollar" onClick={() => open("quizzes")} /></div>}
+      {role === "admin" && !p.embedded && <div className="p-menu p-admin-entry"><Row icon={<Crown />} title="Boshqaruv paneli" value="Rollar" onClick={() => open("admin")} /><Row icon={<ShoppingBag />} title="Do‘kon buyurtmalari" value={attention.orders ? `${attention.orders} ta yangi` : "Book Store"} onClick={() => open("orders")} /><Row icon={<BookOpen />} title="Do‘kon kitoblari" value="Rasm, narx" onClick={() => open("storebooks")} /><Row icon={<Mail />} title="Do‘kon chati" value={attention.chats ? `${attention.chats} ta yangi` : "Xaridorlar"} onClick={() => open("storechat")} /><Row icon={<Globe />} title="Ijtimoiy tarmoqlar" value="Havolalar" onClick={() => open("site")} /><Row icon={<ListChecks />} title="Viktorinalar" value="Savollar" onClick={() => open("quizzes")} /></div>}
       {settingsView}
     </>}
     {screen === "password" && <div className="p-settings"><ChangePasswordForm hasPassword={Boolean(viewer?.hasPassword)} /></div>}

@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { Heart, Library, MessageCircle, Minus, Plus, ShoppingCart, Trash2, UserRound } from "lucide-react";
 import { fetchOrders, useCart } from "@/lib/api/store-client";
 import { useViewer } from "@/lib/api/roles-client";
-import { signOutViewer } from "@/lib/api/session";
-import { formatPrice, ORDER_STATUS_LABELS, STORE_LIMITS, type StoreBook, type StoreOrder, type Viewer } from "@/shared/contract";
+import { formatPrice, ORDER_STATUS_LABELS, STORE_LIMITS, type StoreBook, type StoreOrder } from "@/shared/contract";
 import { USER_ROLE_LABELS } from "@/shared/contract/roles";
 import AdminOrders from "./admin-orders";
 import AdminPanel from "./admin-panel";
@@ -13,16 +12,16 @@ import AdminQuizzes from "./admin-quizzes";
 import AdminSite from "./admin-site";
 import AdminStoreBooks from "./admin-store-books";
 import AdminStoreChat from "./admin-store-chat";
-import type { ProfileScreenId } from "./profile-screens";
+import ProfileScreens, { type ProfileRoute, type ProfileScreensProps } from "./profile-screens";
 import { OrderProgress } from "./order-status";
 import StoreMessages, { type Conversation } from "./store-messages";
 import { BookCover } from "./store-ui";
 
 export type Cart = ReturnType<typeof useCart>;
-export type AccountTab = "cart" | "library" | "messages" | "admin" | "settings";
+export type AccountTab = "profile" | "cart" | "library" | "messages" | "admin";
 export type AdminArea = "orders" | "chat" | "books" | "quizzes" | "site" | "roles";
 
-const ACCOUNT_TABS: Record<AccountTab, string> = { cart: "Savat", library: "Kutubxona", messages: "Xabarlar", admin: "Boshqaruv", settings: "Sozlamalar" };
+const ACCOUNT_TABS: Record<AccountTab, string> = { profile: "Profil", cart: "Savat", library: "Kutubxona", messages: "Xabarlar", admin: "Boshqaruv" };
 const ADMIN_AREAS: [AdminArea, string][] = [
   ["orders", "Buyurtmalar"],
   ["chat", "Do‘kon chati"],
@@ -36,6 +35,10 @@ export type StoreAccountProps = {
   tab: AccountTab;
   /** Admin «Boshqaruv» ichida ochiladigan bo'lim (bildirishnomadan). */
   adminArea?: AdminArea;
+  /** Profil ichida ochiladigan ekran (bildirishnomadan yoki tashqaridan). */
+  profileRoute?: ProfileRoute;
+  /** Shaxsiy sahifa ma'lumotlari (asosiy sahifadan). */
+  profile: ProfileScreensProps;
   onTab: (tab: AccountTab) => void;
   cart: Cart;
   books: StoreBook[];
@@ -47,29 +50,30 @@ export type StoreAccountProps = {
   onCatalog: () => void;
   onOrderChat: (order: StoreOrder) => void;
   onNeedLogin: () => void;
-  onProfile: (screen: ProfileScreenId) => void;
 };
 
 /**
- * Hisobim — do'kon ichidagi yagona shaxsiy bo'lim: savat, kutubxona, xabarlar va sozlamalar.
- * Admin uchun qo'shimcha «Boshqaruv» bo'limi (buyurtmalar, chat, kitoblar, viktorinalar, sayt, rollar).
+ * Hisobim — do'kon ichidagi yagona shaxsiy bo'lim: Profil (shaxsiy sahifa va sozlamalar), Savat, Kutubxona,
+ * Xabarlar. Admin uchun qo'shimcha «Boshqaruv» bo'limi.
  */
-export default function StoreAccount({ tab, adminArea, onTab, cart, books, shelf, messagesStart, chatBook, onOpen, onCheckout, onCatalog, onOrderChat, onNeedLogin, onProfile }: StoreAccountProps) {
+export default function StoreAccount({ tab, adminArea, profileRoute, profile, onTab, cart, books, shelf, messagesStart, chatBook, onOpen, onCheckout, onCatalog, onOrderChat, onNeedLogin }: StoreAccountProps) {
   const viewer = useViewer();
   const signedIn = Boolean(viewer?.signedIn);
   const isAdmin = viewer?.role === "admin";
-  const tabs: AccountTab[] = isAdmin ? ["cart", "library", "messages", "admin", "settings"] : ["cart", "library", "messages", "settings"];
+  const tabs: AccountTab[] = isAdmin ? ["profile", "cart", "library", "messages", "admin"] : ["profile", "cart", "library", "messages"];
   const initial = (viewer?.name || "K").slice(0, 1).toUpperCase();
 
   return (
     <section className="sa" aria-label="Hisobim">
-      <div className="sa-card">
-        <span className="sa-avatar" aria-hidden="true">{initial}</span>
-        <div>
-          <strong>{viewer?.name || "Kitobxon"}</strong>
-          <small>{USER_ROLE_LABELS[viewer?.role ?? "user"]}{signedIn ? "" : " · mehmon"}</small>
+      {tab !== "profile" && (
+        <div className="sa-card">
+          <span className="sa-avatar" aria-hidden="true">{initial}</span>
+          <div>
+            <strong>{viewer?.name || "Kitobxon"}</strong>
+            <small>{USER_ROLE_LABELS[viewer?.role ?? "user"]}{signedIn ? "" : " · mehmon"}</small>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="zb-segment sa-tabs" role="tablist" aria-label="Hisobim bo‘limlari">
         {tabs.map((id) => (
@@ -80,13 +84,13 @@ export default function StoreAccount({ tab, adminArea, onTab, cart, books, shelf
         ))}
       </div>
 
+      {tab === "profile" && <ProfileScreens key={profileRoute?.nonce ?? 0} {...profile} route={profileRoute} embedded />}
       {tab === "cart" && <CartView cart={cart} onCheckout={onCheckout} onCatalog={onCatalog} onOpen={onOpen} />}
       {tab === "library" && <LibraryView books={books} shelf={shelf} signedIn={signedIn} onOpen={onOpen} onOrderChat={onOrderChat} />}
       {tab === "messages" && (signedIn
         ? <StoreMessages key={`${messagesStart?.kind === "order" ? messagesStart.order.id : "list"}-${chatBook?.id ?? ""}`} initial={messagesStart} bookId={chatBook?.id} bookTitle={chatBook?.title} onNeedLogin={onNeedLogin} />
         : <SignInPrompt text="Admin bilan yozishish faqat ro‘yxatdan o‘tgan kitobxonlar uchun." onNeedLogin={onNeedLogin} />)}
       {tab === "admin" && isAdmin && viewer && <AdminArea selfId={viewer.userId} initial={adminArea ?? "orders"} />}
-      {tab === "settings" && <SettingsPanel viewer={viewer} onNeedLogin={onNeedLogin} onProfile={onProfile} />}
     </section>
   );
 }
@@ -99,36 +103,6 @@ function SignInPrompt({ text, onNeedLogin }: { text: string; onNeedLogin: () => 
       <p className="zb-muted">{text}</p>
       <button className="zb-btn zb-btn-primary" onClick={onNeedLogin}>Kirish</button>
     </div>
-  );
-}
-
-/** Sozlamalar: hisob ma'lumotlari va bog'langan akkauntlar. Tahrirlash profil sozlamalarida (asosiy sahifa) bajariladi. */
-function SettingsPanel({ viewer, onNeedLogin, onProfile }: { viewer: Viewer | null; onNeedLogin: () => void; onProfile: (screen: ProfileScreenId) => void }) {
-  if (!viewer?.signedIn) return <SignInPrompt text="Profil, xavfsizlik va hisob sozlamalari kirgan kitobxonlar uchun." onNeedLogin={onNeedLogin} />;
-  const rows: { id: ProfileScreenId; label: string; value?: string }[] = [
-    { id: "account", label: "Shaxsiy ma‘lumotlar" },
-    { id: "privacy", label: "Maxfiylik va xavfsizlik" },
-    { id: "twofactor", label: "Ikki bosqichli himoya", value: viewer.twoFactor ? "Yoqilgan" : "O‘chiq" },
-    ...(viewer.accounts.some((a) => a.provider === "email") ? [{ id: "password" as const, label: viewer.hasPassword ? "Parolni o‘zgartirish" : "Parol o‘rnatish" }] : []),
-    { id: "profile", label: "Bir Ilm profili" },
-  ];
-  const providerName = (provider: string) => (provider === "google" ? "Google" : provider === "telegram" ? "Telegram" : "Email");
-  return (
-    <section className="sa-settings" aria-label="Sozlamalar">
-      <h3>Hisob</h3>
-      <ul className="sa-accounts">
-        {viewer.accounts.map((a) => <li key={a.provider}><span>{providerName(a.provider)}</span><small>{a.label}</small></li>)}
-      </ul>
-      <div className="sa-menu">
-        {rows.map((row) => (
-          <button key={row.id} type="button" className="sa-row" onClick={() => onProfile(row.id)}>
-            <span>{row.label}</span>
-            {row.value && <small>{row.value}</small>}
-          </button>
-        ))}
-      </div>
-      <button type="button" className="zb-btn zb-btn-ghost sa-logout" onClick={() => void signOutViewer()}>Hisobdan chiqish</button>
-    </section>
   );
 }
 

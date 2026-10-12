@@ -40,7 +40,7 @@ import BookDiscovery from "./book-discovery";
 import FocusTimer, { PomodoroButton } from "./focus-timer";
 import MobileScreens, { markNotificationsSeen, useAnnouncements, useUnreadCount } from "./mobile-screens";
 import MobileLibrary from "./mobile-library";
-import ProfileScreens, { type ProfileRoute } from "./profile-screens";
+import type { ProfileScreenId } from "./profile-screens";
 import { requestAudio } from "./library-store";
 import { type CommunityComment, type LeaderboardMember } from "./app-data";
 import { RESET_TOKEN_PATTERN, type Book } from "@/shared/contract";
@@ -224,20 +224,13 @@ export default function App() {
   const [now, setNow] = useState(0);
   const [session, setSession] = useState(0);
   const [modal, setModal] = useState("");
-  // Bildirishnomadan profil ekranini ochish (nonce — har safar qayta ochish uchun).
-  const [profileRoute, setProfileRoute] = useState<ProfileRoute | undefined>(undefined);
-  // Do'kon Hisobim bo'limini bildirishnomadan ochish (xabarlar, boshqaruv).
+  // Shaxsiy sahifa va do'kon Hisobim bitta joyda: Hisobim ochiladi (bildirishnoma, profil, avatar).
   const [storeRoute, setStoreRoute] = useState<StoreRoute | undefined>(undefined);
-  const openStoreAccount = (tab: AccountTab, area?: AdminArea) => {
+  const openStoreAccount = (tab: AccountTab, area?: AdminArea, screen?: ProfileScreenId) => {
     setModal("");
-    setStoreRoute({ tab, area, nonce: (storeRoute?.nonce ?? 0) + 1 });
+    setStoreRoute({ tab, area, screen, nonce: (storeRoute?.nonce ?? 0) + 1 });
     setStore(true);
     window.scrollTo({ top: 0 });
-  };
-  const openProfileScreen = (screen: ProfileRoute["screen"]) => {
-    setModal("");
-    setTab("profile");
-    setProfileRoute({ screen, nonce: (profileRoute?.nonce ?? 0) + 1 });
   };
   // Book Store — alohida rejim; Bir Ilm qobig'i yashiriladi, lekin o'chirilmaydi (jonli suhbat uzilmasin).
   const [store, setStore] = useState(false);
@@ -304,6 +297,11 @@ export default function App() {
   };
 
   const go = (value: string) => {
+    // Profil endi Hisobim ichida (do'kon).
+    if (value === "profile") {
+      openStoreAccount("profile");
+      return;
+    }
     setTab(value);
     window.scrollTo({ top: 0 });
   };
@@ -465,7 +463,17 @@ export default function App() {
           key={storeRoute?.nonce ?? 0}
           route={storeRoute}
           shelf={data.shelf}
-          onProfile={(screen) => { setStore(false); openProfileScreen(screen); }}
+          profile={{
+            name: data.name,
+            page: data.page,
+            total: data.total,
+            shelfCount: data.shelf.length,
+            streak: data.streak,
+            rank: myRank,
+            onNavigate: (value: string) => { setStore(false); go(value); },
+            onRename: (name: string) => setData((value) => ({ ...value, name })),
+            onNotifications: () => setModal("notifications"),
+          }}
           onBack={() => { setStore(false); window.scrollTo({ top: 0 }); }}
           onToggle={(id) => {
             const saved = data.shelf.includes(id);
@@ -543,9 +551,6 @@ export default function App() {
                   }}
                 />
                 <SocialLinks />
-              </TabsContent>
-              <TabsContent value="profile">
-                <ProfileScreens key={profileRoute?.nonce ?? 0} route={profileRoute} name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={data.streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} />
               </TabsContent>
 
               <TabsContent value="community">

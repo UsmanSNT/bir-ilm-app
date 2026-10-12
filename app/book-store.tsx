@@ -20,7 +20,7 @@ import { LoginDialog } from "./login-dialog";
 import StoreBookPage from "./store-book-page";
 import type { Conversation } from "./store-messages";
 import StoreAccount, { type AccountTab, type AdminArea, type Cart, Totals } from "./store-account";
-import type { ProfileScreenId } from "./profile-screens";
+import type { ProfileScreenId, ProfileScreensProps } from "./profile-screens";
 import StoreFabs from "./store-fabs";
 import BookEditor from "./book-editor";
 import { notifyCatalogChanged, useStoreCatalog } from "@/lib/api/books-client";
@@ -33,11 +33,11 @@ const ALL = "Barchasi";
 
 /** Book Store: Bir Ilm ichidagi alohida rejim — pastki dock'da Do‘kon va Hisobim; markazdagi yulduz Bir Ilm'ga qaytaradi. */
 /** Bildirishnomadan Hisobim bo'limini ochish (nonce — har safar qayta ochish uchun). */
-export type StoreRoute = { tab: AccountTab; area?: AdminArea; nonce: number };
+export type StoreRoute = { tab: AccountTab; area?: AdminArea; screen?: ProfileScreenId; nonce: number };
 
-export default function BookStore({ shelf, route, onBack, onToggle, onProfile }: { shelf: string[]; route?: StoreRoute; onBack: () => void; onToggle: (bookId: string) => void; onProfile: (screen: ProfileScreenId) => void }) {
+export default function BookStore({ shelf, route, profile, onBack, onToggle }: { shelf: string[]; route?: StoreRoute; profile: ProfileScreensProps; onBack: () => void; onToggle: (bookId: string) => void }) {
   const [section, setSection] = useState<Section>(route ? "account" : "catalog");
-  const [accountTab, setAccountTab] = useState<AccountTab>(route?.tab ?? "cart");
+  const [accountTab, setAccountTab] = useState<AccountTab>(route?.tab ?? "profile");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [placed, setPlaced] = useState<StoreOrder | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -71,7 +71,7 @@ export default function BookStore({ shelf, route, onBack, onToggle, onProfile }:
   const catalogItem: DockItem = { id: "catalog", label: "Do‘kon", icon: Store, active: active === "catalog" && !detail, onClick: () => go("catalog") };
   const accountItem: DockItem = {
     id: "account", label: "Hisobim", icon: UserRound, active: active === "account" && !detail, badge: cart.count || undefined,
-    onClick: () => openAccount(section === "account" ? accountTab : "cart"),
+    onClick: () => openAccount(section === "account" ? accountTab : "profile"),
   };
 
   return (
@@ -101,12 +101,14 @@ export default function BookStore({ shelf, route, onBack, onToggle, onProfile }:
           />
         ) : (
           <>
-            {section !== "catalog" && <header className="zb-head"><button type="button" className="zb-back zb-back-round" onClick={() => (section === "checkout" ? openAccount("cart") : go("catalog"))} aria-label="Orqaga" title="Orqaga"><ArrowLeft size={20} /></button><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles[section]}</h1></header>}
+            {section !== "catalog" && !(section === "account" && accountTab === "profile") && <header className="zb-head"><button type="button" className="zb-back zb-back-round" onClick={() => (section === "checkout" ? openAccount("cart") : go("catalog"))} aria-label="Orqaga" title="Orqaga"><ArrowLeft size={20} /></button><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles[section]}</h1></header>}
             {section === "catalog" && <StoreHome books={store.items} loading={store.loading} error={store.error} onRetry={store.reload} onOpen={open} onAdd={addToCart} isAdmin={isAdmin} onCreate={() => setEditing({ id: null })} onEdit={(b) => setEditing({ id: b.id })} />}
             {section === "account" && (
               <StoreAccount
                 tab={accountTab}
                 adminArea={route?.area}
+                profile={profile}
+                profileRoute={route?.screen ? { screen: route.screen, nonce: route.nonce } : undefined}
                 onTab={setAccountTab}
                 cart={cart}
                 books={store.items}
@@ -118,7 +120,6 @@ export default function BookStore({ shelf, route, onBack, onToggle, onProfile }:
                 onCatalog={() => go("catalog")}
                 onOrderChat={openOrderChat}
                 onNeedLogin={() => setLoginOpen(true)}
-                onProfile={onProfile}
               />
             )}
             {section === "checkout" && (placed
