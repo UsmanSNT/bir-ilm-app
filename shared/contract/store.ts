@@ -32,15 +32,18 @@ export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   card: "Karta (yetkazishda)",
 };
 
-export const ORDER_STATUSES = ["new", "confirmed", "shipped", "delivered", "cancelled"] as const;
+export const ORDER_STATUSES = ["new", "confirmed", "preparing", "shipped", "delivered", "cancelled"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   new: "Yangi",
-  confirmed: "Tasdiqlandi",
-  shipped: "Yo‘lda",
+  confirmed: "Qabul qilindi",
+  preparing: "Tayyorlanmoqda",
+  shipped: "Yuborildi",
   delivered: "Yetkazildi",
   cancelled: "Bekor qilindi",
 };
+/** Xaridor ko'radigan jarayon bosqichlari (ketma-ket). */
+export const ORDER_PROGRESS = ["confirmed", "preparing", "shipped", "delivered"] as const;
 
 /** O'zbekiston raqami: +998 va 9 raqam. */
 /** Xalqaro raqam (E.164): O'zbekiston +998…, Koreya +82… va boshqalar. */
@@ -140,6 +143,8 @@ export type OrderLine = { bookId: string; title: string; qty: number; price: num
 
 export type StoreOrder = {
   id: string;
+  /** Buyurtma egasi (xaridor). */
+  userId: string;
   name: string;
   phone: string;
   /** Telegram nomi (@siz), bo'sh bo'lishi mumkin. */
@@ -151,6 +156,10 @@ export type StoreOrder = {
   total: number;
   createdAt: string;
   lines: OrderLine[];
+  /** Admin: o'qilmagan xaridor xabarlari (buyurtma yozishmasi). */
+  adminUnread: number;
+  /** Xaridor: o'qilmagan admin xabarlari va holat o'zgarishlari (buyurtma yozishmasi). */
+  userUnread: number;
 };
 
 export type BookReview = {
@@ -172,8 +181,10 @@ export const formatPrice = (value: number) => `₩${Math.round(value).toLocaleSt
 
 export const storeMessageSchema = z.object({
   body: z.string().trim().min(1, "Xabar bo‘sh bo‘lmasin.").max(STORE_LIMITS.chatBody, "Xabar 1000 belgidan oshmasin."),
-  /** Savol qaysi kitob haqida (ixtiyoriy). */
+  /** Savol qaysi kitob haqida (ixtiyoriy). Buyurtma yozishmasida bo'sh. */
   bookId: bookId.optional(),
+  /** Buyurtma yozishmasi (ixtiyoriy): bo'lsa, xabar shu buyurtmaning o'z chatiga tushadi. */
+  orderId: z.string().trim().min(1).max(64).optional(),
 });
 export type StoreMessageInput = z.infer<typeof storeMessageSchema>;
 
@@ -182,7 +193,8 @@ export const STORE_CHAT_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] 
 export type StoreMessage = {
   id: number;
   sender: "user" | "admin";
-  kind: "text" | "order" | "image";
+  /** `status` — buyurtma holati o'zgarganda tizim xabari. */
+  kind: "text" | "order" | "image" | "status";
   body: string;
   orderId: string | null;
   bookId: string | null;
@@ -192,7 +204,7 @@ export type StoreMessage = {
 };
 
 /** Xaridorning yozishmasi. `unread` — o'qilmagan admin javoblari (ochilganda nolga tushadi). */
-export type StoreChat = { messages: StoreMessage[]; unread: number };
+export type StoreChat = { messages: StoreMessage[]; unread: number; /** Buyurtma yozishmasi bo'lsa — buyurtmaning joriy holati. */ order: StoreOrder | null };
 
 /** Admin ro'yxati: har xaridorga bitta qator. */
 export type StoreThread = {
@@ -203,4 +215,4 @@ export type StoreThread = {
   unread: number;
 };
 
-export type AdminStoreChat = { thread: StoreThread; messages: StoreMessage[] };
+export type AdminStoreChat = { thread: StoreThread; messages: StoreMessage[]; order: StoreOrder | null };

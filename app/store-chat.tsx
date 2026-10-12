@@ -4,7 +4,8 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { BookOpen, ImagePlus, Send, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { fetchAdminThread, fetchChat, sendAdminImage, sendAdminReply, sendChatImage, sendChatMessage, StoreError } from "@/lib/api/store-client";
-import { STORE_CHAT_IMAGE_TYPES, STORE_LIMITS, type StoreMessage } from "@/shared/contract";
+import { STORE_CHAT_IMAGE_TYPES, STORE_LIMITS, type StoreMessage, type StoreOrder } from "@/shared/contract";
+import { OrderStatusActions, OrderSummary } from "./order-status";
 
 const POLL_MS = 4000;
 
@@ -15,13 +16,16 @@ const timeOf = (iso: string) => {
   return sameDay ? hm : `${d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" })} ${hm}`;
 };
 
-/** Yozishmani yuklaydi va har bir necha soniyada yangilarini so'raydi (faqat ko'rinib turganda). */
-function useThread(load: (after: number) => Promise<StoreMessage[]>, key: string) {
+type Loaded = { messages: StoreMessage[]; order?: StoreOrder | null };
+
+/** Yozishmani yuklaydi va har bir necha soniyada yangilarini so'raydi (faqat ko'rinib turganda). Buyurtma holati ham shu bilan yangilanadi. */
+function useThread(load: (after: number) => Promise<Loaded>, key: string, onOrder: (order: StoreOrder) => void) {
   const [messages, setMessages] = useState<StoreMessage[] | null>(null);
   const [error, setError] = useState("");
   const lastId = useRef(0);
   const loadRef = useRef(load);
-  useEffect(() => { loadRef.current = load; });
+  const orderRef = useRef(onOrder);
+  useEffect(() => { loadRef.current = load; orderRef.current = onOrder; });
 
   const append = useCallback((incoming: StoreMessage[]) => {
     if (!incoming.length) return;
@@ -41,7 +45,8 @@ function useThread(load: (after: number) => Promise<StoreMessage[]>, key: string
         const next = await loadRef.current(lastId.current);
         if (!alive) return;
         if (first) setMessages([]);
-        append(next);
+        if (next.order) orderRef.current(next.order);
+        append(next.messages);
         setError("");
       } catch (e) {
         if (alive && first) { setMessages([]); setError(e instanceof Error ? e.message : "Yuklanmadi."); }
@@ -56,6 +61,9 @@ function useThread(load: (after: number) => Promise<StoreMessage[]>, key: string
 }
 
 function Bubble({ m, mine, onZoom }: { m: StoreMessage; mine: boolean; onZoom: (url: string) => void }) {
+  if (m.kind === "status") {
+    return <li className="zc-status"><span>{m.body} · {timeOf(m.createdAt)}</span></li>;
+  }
   return (
     <li className={`zc-msg ${mine ? "is-mine" : "is-theirs"}${m.kind === "order" ? " is-order" : ""}`}>
       {m.kind === "order" && <span className="zc-tag"><ShoppingBag size={13} />Buyurtma</span>}
@@ -76,6 +84,8 @@ type Props = {
   me: "user" | "admin";
   /** Admin oynasida — qaysi xaridor bilan. */
   customerId?: string;
+  /** Buyurtma yozishmasi bo'lsa — shu buyurtmaning xabarlari; tepada buyurtma holati ko'rinadi. */
+  order?: StoreOrder | null;
   /** Kitob sahifasidan ochilsa — birinchi xabar shu kitob haqida. */
   bookId?: string;
   bookTitle?: string;
@@ -84,10 +94,20 @@ type Props = {
 };
 
 /** Xaridor ↔ admin yozishmasi (ikkala tomon uchun bitta komponent). */
-export default function StoreChatThread({ me, customerId, bookId, bookTitle, onNeedLogin, empty }: Props) {
+export default function StoreChatThread({ me, customerId, order: initialOrder, bookId, bookTitle, onNeedLogin, empty }: Props) {
+  const orderId = initialOrder?.id;
+  const [order, setOrder] = useState<StoreOrder | null>(initialOrder ?? null);
   const { messages, error, append } = useThread(
-    async (after) => (me === "admin" ? (await fetchAdminThread(customerId!, after)).messages : (await fetchChat(after)).messages),
-    `${me}:${customerId ?? ""}`,
+    async (after) => {
+      if (me === "admin") {
+        const res = await fetchAdminThread(customerId!, after, orderId);
+        return { messages: res.messages, order: res.order };
+      }
+      const res = await fetchChat(after, orderId);
+      return { messages: res.messages, order: res.order };
+    },
+    `${me}:${customerId ?? ""}:${orderId ?? "general"}`,
+    setOrder,
   );
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -122,7 +142,7 @@ export default function StoreChatThread({ me, customerId, bookId, bookTitle, onN
     e.preventDefault();
     const body = draft.trim();
     if (!body || busy) return;
-    const ok = await run(() => (me === "admin" ? sendAdminReply(customerId!, body) : sendChatMessage(body, aboutBook)));
+    const ok = await run(() => (me === "admin" ? sendAdminReply(customerId!, body, orderId) : sendChatMessage(body, aboutBook, orderId)));
     if (ok) { setDraft(""); setAboutBook(undefined); }
   }
 
@@ -131,11 +151,17 @@ export default function StoreChatThread({ me, customerId, bookId, bookTitle, onN
     if (!file || busy) return;
     if (!(STORE_CHAT_IMAGE_TYPES as readonly string[]).includes(file.type)) return void toast.error("Faqat JPG, PNG yoki WebP rasm yuboring.");
     if (file.size > STORE_LIMITS.chatImageBytes) return void toast.error("Rasm 5 MB dan oshmasin.");
-    await run(() => (me === "admin" ? sendAdminImage(customerId!, file) : sendChatImage(file)));
+    await run(() => (me === "admin" ? sendAdminImage(customerId!, file, orderId) : sendChatImage(file, orderId)));
   }
 
   return (
     <div className="zc">
+      {order && (
+        <div className="zc-order">
+          <OrderSummary order={order} />
+          {me === "admin" && <OrderStatusActions order={order} onChange={setOrder} />}
+        </div>
+      )}
       <ul className="zc-list" aria-live="polite" aria-label="Yozishma">
         {messages === null && <li className="zc-note" role="status">Yuklanmoqda…</li>}
         {error && <li className="zc-note" role="alert">{error}</li>}

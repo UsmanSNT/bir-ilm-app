@@ -10,7 +10,8 @@ import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ApiException, badRequest, notFound, validationFailed } from "@/server/http/errors";
 import { requireSignedIn } from "./community";
-import { orderMessageStatements } from "./store-chat";
+import { orderMessageStatements, orderStatusStatements } from "./store-chat";
+import { withItems, type OrderRow } from "./store-order-view";
 import { ensureUser } from "./social";
 import { alertAdminsOfOrder } from "./admin-alerts";
 import type {
@@ -26,8 +27,6 @@ import type {
 } from "@/shared/contract";
 
 const { books, bookReviews, storeCartItems, storeOrders, storeOrderItems, users } = schema;
-type OrderRow = typeof storeOrders.$inferSelect;
-type ItemRow = typeof storeOrderItems.$inferSelect;
 
 // Jadval nomlari to'g'ridan-to'g'ri: drizzle korrelyatsion subquery'da ustunni jadvalsiz yozadi.
 const ratingSql = sql<number>`coalesce((select avg(rating) from book_reviews where book_reviews.book_id = books.id), 0)`;
@@ -105,33 +104,6 @@ export async function replaceCart(db: Database, userId: string, input: CartInput
 
 // ── Buyurtmalar ─────────────────────────────────────────────────────
 
-function toOrders(rows: OrderRow[], items: ItemRow[]): StoreOrder[] {
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    phone: row.phone,
-    telegram: row.telegram,
-    address: row.address,
-    note: row.note,
-    payment: row.payment,
-    status: row.status,
-    total: row.total,
-    createdAt: row.createdAt,
-    lines: items
-      .filter((item) => item.orderId === row.id)
-      .map(({ bookId, title, qty, price }) => ({ bookId, title, qty, price })),
-  }));
-}
-
-async function withItems(db: Database, rows: OrderRow[]): Promise<StoreOrder[]> {
-  if (!rows.length) return [];
-  const items = await db
-    .select()
-    .from(storeOrderItems)
-    .where(inArray(storeOrderItems.orderId, rows.map((row) => row.id)))
-    .orderBy(storeOrderItems.id);
-  return toOrders(rows, items);
-}
 
 export async function listOrders(db: Database, userId: string): Promise<StoreOrder[]> {
   const rows = await db
@@ -204,11 +176,19 @@ export async function listAllOrders(db: Database, status?: OrderStatus): Promise
   return withItems(db, rows);
 }
 
-export async function setOrderStatus(db: Database, id: string, status: OrderStatus): Promise<StoreOrder> {
+/** Admin: holatni o'zgartiradi. Xaridorning shu buyurtma yozishmasiga holat xabari tushadi (belgi bilan). */
+export async function setOrderStatus(db: Database, id: string, status: OrderStatus, adminId: string): Promise<StoreOrder> {
   const row = await db.query.storeOrders.findFirst({ where: eq(storeOrders.id, id) });
   if (!row) throw notFound("Buyurtma topilmadi.");
-  await db.update(storeOrders).set({ status, updatedAt: new Date().toISOString() }).where(eq(storeOrders.id, id));
-  const [order] = await withItems(db, [{ ...row, status }]);
+  if (row.status !== status) {
+    await db.batch([
+      db.update(storeOrders).set({ status, updatedAt: new Date().toISOString() }).where(eq(storeOrders.id, id)),
+      ...orderStatusStatements(db, adminId, row, status),
+    ]);
+  }
+  const fresh = await db.query.storeOrders.findFirst({ where: eq(storeOrders.id, id) });
+  if (!fresh) throw notFound("Buyurtma topilmadi.");
+  const [order] = await withItems(db, [fresh]);
   return order;
 }
 

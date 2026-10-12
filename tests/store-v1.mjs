@@ -68,6 +68,7 @@ const chatImage = await load("app/api/v1/store/chat/image/route.ts");
 const adminChats = await load("app/api/v1/admin/store-chat/route.ts");
 const adminChat = await load("app/api/v1/admin/store-chat/[userId]/route.ts");
 const adminChatImage = await load("app/api/v1/admin/store-chat/[userId]/image/route.ts");
+const chatUnread = await load("app/api/v1/store/chat/unread/route.ts");
 const chatFile = await load("app/media/store-chat/[uid]/[file]/route.ts");
 
 const ORIGIN = "http://127.0.0.1:8787";
@@ -246,13 +247,18 @@ try {
   console.log("PASS: Sharhlar: kirganlar yozadi, bittadan, o'rtacha baho, faqat o'zini o'chiradi.");
 
   // --- Do'kon chati: xaridor ↔ admin, buyurtma chatga tushadi --------------
-  // Buyurtma xaridorning chatida «order» xabari sifatida turadi, admin ro'yxatida o'qilmagan bo'ladi.
-  const bchat = (await buyer.call(chat.GET, "/api/v1/store/chat")).data;
-  assert.equal(bchat.messages.length, 1);
-  assert.equal(bchat.messages[0].kind, "order");
-  assert.equal(bchat.messages[0].orderId, order.id);
-  assert.match(bchat.messages[0].body, /Jami: ₩177,000/);
-  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM store_messages WHERE user_id = ?").get(buyer.userId).n, 1, "Takroriy buyurtma xabarni ko'paytirmaydi");
+  // Har buyurtma o'z yozishmasida: «order» xabari va holat xabari; umumiy savollarga aralashmaydi.
+  assert.equal((await buyer.call(chat.GET, "/api/v1/store/chat")).data.messages.length, 0, "Buyurtma umumiy savollarga aralashmaydi");
+  const ochat = (await buyer.call(chat.GET, `/api/v1/store/chat?order=${order.id}`)).data;
+  assert.deepEqual(ochat.messages.map((m) => m.kind), ["order", "status"], "Buyurtma + holat (qabul qilindi)");
+  assert.equal(ochat.messages[0].orderId, order.id);
+  assert.match(ochat.messages[0].body, /Jami: ₩177,000/);
+  assert.equal(ochat.messages[1].body, "Holat: Qabul qilindi");
+  assert.equal(ochat.unread, 1, "Holat o'zgarishi xaridorga belgi beradi");
+  assert.equal(ochat.order.id, order.id);
+  assert.equal((await buyer.call(chat.GET, `/api/v1/store/chat?order=${order.id}`)).data.unread, 0, "Ochilgach nolga tushadi");
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM store_messages WHERE user_id = ? AND order_id = ? AND kind = 'order'").get(buyer.userId, order.id).n, 1, "Takroriy buyurtma xabarni ko'paytirmaydi");
+  await other.call(chat.GET, `/api/v1/store/chat?order=${order.id}`, { expect: 404 });
   await guest.call(chat.POST, "/api/v1/store/chat", { method: "POST", body: { body: "Salom" }, expect: 401 });
   await buyer.call(chat.POST, "/api/v1/store/chat", { method: "POST", body: { body: "   " }, expect: 422 });
   await buyer.call(chat.POST, "/api/v1/store/chat", { method: "POST", body: { body: "x".repeat(1001) }, expect: 422 });
@@ -266,12 +272,16 @@ try {
   await buyer.call(adminChat.POST, `/api/v1/admin/store-chat/${buyer.userId}`, { method: "POST", params: { userId: buyer.userId }, body: { body: "o'zimga" }, expect: 403 });
   const inbox = (await admin.call(adminChats.GET, "/api/v1/admin/store-chat")).data;
   const row = inbox.items.find((t) => t.userId === buyer.userId);
-  assert.equal(row.unread, 2, "Buyurtma + savol = 2 ta o'qilmagan");
+  assert.equal(row.unread, 1, "Umumiy savol: 1 ta o'qilmagan");
   assert.equal(row.name, "Xaridor");
-  assert.ok(inbox.unread >= 2);
+  assert.equal(inbox.unread, 2, "Savol 1 + buyurtma 1 = 2 ta o'qilmagan");
   const opened = (await admin.call(adminChat.GET, `/api/v1/admin/store-chat/${buyer.userId}`, { params: { userId: buyer.userId } })).data;
-  assert.equal(opened.messages.length, 2);
+  assert.equal(opened.messages.length, 1, "Umumiy yozishmada faqat savol");
   assert.equal((await admin.call(adminChats.GET, "/api/v1/admin/store-chat")).data.items.find((t) => t.userId === buyer.userId).unread, 0, "Ochilgach o'qilgan");
+  const openedOrder = (await admin.call(adminChat.GET, `/api/v1/admin/store-chat/${buyer.userId}?order=${order.id}`, { params: { userId: buyer.userId } })).data;
+  assert.deepEqual(openedOrder.messages.map((m) => m.kind), ["order", "status"]);
+  assert.equal(openedOrder.order.status, "confirmed");
+  assert.equal((await admin.call(adminChats.GET, "/api/v1/admin/store-chat")).data.unread, 0, "Buyurtma ham o'qilgach nol");
   await admin.call(adminChat.GET, "/api/v1/admin/store-chat/reader_yoq", { params: { userId: "reader_yoq" }, expect: 404 });
 
   const reply = (await admin.call(adminChat.POST, `/api/v1/admin/store-chat/${buyer.userId}`, { method: "POST", params: { userId: buyer.userId }, body: { body: "Hisob raqam: 8600 **** **** 1234" }, expect: 201 })).data;
@@ -281,6 +291,21 @@ try {
   assert.equal(fresh.unread, 1);
   assert.equal((await buyer.call(chat.GET, "/api/v1/store/chat")).data.unread, 0, "Admin javobi o'qilgach nol");
   assert.equal((await other.call(chat.GET, "/api/v1/store/chat")).data.messages.length, 0, "Yozishmalar aralashmaydi");
+
+  // Buyurtma yozishmasi: admin javobi va holat o'zgarishi xaridorga belgi beradi, umumiy yozishmaga tushmaydi.
+  const orderReply = (await admin.call(adminChat.POST, `/api/v1/admin/store-chat/${buyer.userId}`, { method: "POST", params: { userId: buyer.userId }, body: { body: "Hisob raqam: 8600 **** 1234", orderId: order.id }, expect: 201 })).data;
+  assert.equal(orderReply.orderId, order.id);
+  const preparing = (await admin.call(adminOrder.PATCH, `/api/v1/admin/orders/${order.id}`, { method: "PATCH", params: { id: order.id }, body: { status: "preparing" } })).data;
+  assert.equal(preparing.status, "preparing");
+  assert.equal(preparing.userUnread, 2, "Javob + holat: xaridor belgisi 2");
+  assert.equal((await buyer.call(chatUnread.GET, "/api/v1/store/chat/unread")).data.unread, 2, "Qo'ng'iroqcha belgisi buyurtma xabarlarini ham sanaydi");
+  const orderFresh = (await buyer.call(chat.GET, `/api/v1/store/chat?order=${order.id}&after=${ochat.messages[1].id}`)).data;
+  assert.deepEqual(orderFresh.messages.map((m) => [m.kind, m.body]), [["text", "Hisob raqam: 8600 **** 1234"], ["status", "Holat: Tayyorlanmoqda"]]);
+  assert.equal(orderFresh.unread, 2);
+  assert.equal((await buyer.call(chatUnread.GET, "/api/v1/store/chat/unread")).data.unread, 0, "Ochilgach nolga tushadi");
+  const general = (await buyer.call(chat.GET, "/api/v1/store/chat")).data.messages;
+  assert.equal(general.length, 2, "Umumiy yozishmada faqat savol va javob");
+  assert.ok(general.every((m) => m.orderId === null), "Buyurtma xabarlari umumiy yozishmaga tushmaydi");
 
   // Chek rasmi: faqat haqiqiy rasm, hajm chegarasi; egasi va admin ko'radi, boshqasi — yo'q.
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8]);

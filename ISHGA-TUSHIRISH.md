@@ -286,3 +286,13 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - Muqova mobil viktorinalar ro‘yxatida kitob muqovasi o‘rnida ko‘rinadi (kitob bog‘langan bo‘lsa, viktorina muqovasi ustun turadi).
 - Migratsiya: `drizzle/0024_quiz_image.sql` (`quizzes.image` ustuni, faqat qo‘shadi). Test: `node tests/quiz-v1.mjs`.
 - Hozircha rasm faqat viktorina muqovasi uchun. Har bir savolga alohida rasm kerak bo‘lsa, alohida qo‘shiladi.
+
+## Do'kon: buyurtma yozishmasi, holat va qo'ng'iroqcha belgisi
+
+- Har buyurtma alohida yozishma. Buyurtma xabarlari umumiy savollar chatiga tushmaydi.
+- Holat bosqichlari: Qabul qilindi → Tayyorlanmoqda → Yuborildi → Yetkazildi (yoki Bekor qilindi). Xaridor buyurtma kartasida jarayonni ko'radi.
+- Admin «Buyurtmalar» ekranida har buyurtmada holatni keyingi bosqichga o'tkazadi yoki bekor qiladi, hamda «Buyurtma yozishmasi» bilan shu buyurtma chatini ochadi (hisob raqamni shu yerda yuboradi).
+- Admin holatni o'zgartirganda xaridorning shu buyurtma chatiga «Holat: …» xabari tushadi va xaridorga belgi qo‘yiladi.
+- Qo'ng'iroqcha (bell) belgisi: xaridor uchun o'qilmagan do'kon javoblari, admin uchun yangi buyurtma va o'qilmagan chatlar soni qo'shiladi.
+- Migratsiya: `drizzle/0025_order_threads.sql` (`store_orders.admin_unread`, `user_unread`). Eski buyurtma xabarlari o'z buyurtma chatida ko'rinadi. Test: `node tests/store-v1.mjs`.
+- Holat qiymatlari endi: new, confirmed, preparing, shipped, delivered, cancelled. Eski `shipped` «Yuborildi» deb ko'rinadi.

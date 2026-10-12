@@ -1,30 +1,36 @@
 /**
- * Do'kon chati: xaridor ↔ admin yozishmasi (savollar, buyurtmalar, to'lov cheki rasmi).
+ * Do'kon chati: xaridor ↔ admin yozishmasi.
  *
- * - Har xaridorga bitta yozishma (`store_threads`), xabarlar `store_messages` da.
- * - To'lov ilovada emas: admin hisob raqamni shu yerda yuboradi, xaridor chek rasmini tashlaydi.
+ * - Umumiy savollar: har xaridorga bitta yozishma (`store_threads`, xabarlar `store_messages` da, `order_id` NULL).
+ * - Har bir buyurtma alohida yozishma: xabarlar `order_id` bilan bog'lanadi, o'qilmaganlar `store_orders`da.
+ *   Buyurtma xabarlari umumiy yozishmaga aralashmaydi.
+ * - Holat o'zgarishi buyurtma yozishmasiga `status` xabari sifatida tushadi va xaridorga belgi beradi.
+ * - To'lov ilovada emas: admin hisob raqamni buyurtma chatida yuboradi, xaridor chek rasmini shu yerga tashlaydi.
  * - Rasmlar diskda: BIR_ILM_MEDIA_DIR/store-chat/<xaridor-id>/<fayl>; faqat egasi va admin ko'radi.
  * - O'qilmaganlar soni har ikki tomon uchun alohida hisoblanadi.
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { and, asc, desc, eq, gt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ApiException, badRequest, notFound } from "@/server/http/errors";
 import { mediaRoot } from "./books";
 import { requireSignedIn } from "./community";
+import { withItems, type OrderRow } from "./store-order-view";
 import type {
   AdminStoreChat,
+  OrderStatus,
   PlaceOrderInput,
   StoreChat,
   StoreMessage,
   StoreMessageInput,
+  StoreOrder,
   StoreThread,
 } from "@/shared/contract";
-import { formatPrice, STORE_CHAT_IMAGE_TYPES, STORE_LIMITS } from "@/shared/contract";
+import { formatPrice, ORDER_STATUS_LABELS, STORE_CHAT_IMAGE_TYPES, STORE_LIMITS } from "@/shared/contract";
 
-const { books, storeMessages, storeThreads, users } = schema;
+const { books, storeMessages, storeOrders, storeThreads, users } = schema;
 type MessageRow = typeof storeMessages.$inferSelect;
 
 export const CHAT_USER_PATTERN = /^[A-Za-z0-9_-]{1,96}$/;
@@ -69,24 +75,36 @@ type NewMessage = {
   imageFile?: string | null;
 };
 
-/** Xabar + yozishma yangilanishi (o'qilmaganlar soni) — bitta batch uchun. */
+/**
+ * Xabar + o'qilmaganlar soni — bitta batch uchun (ikkita statement).
+ * Buyurtma xabari: buyurtma qatorining hisoblagichi yangilanadi, umumiy yozishma tegilmaydi.
+ */
 function messageStatements(db: Database, message: NewMessage) {
   const stamp = new Date().toISOString();
   const fromUser = message.sender === "user";
+  const insert = db.insert(storeMessages).values({
+    userId: message.userId,
+    sender: message.sender,
+    senderId: message.senderId,
+    kind: message.kind,
+    body: message.body,
+    orderId: message.orderId ?? null,
+    bookId: message.bookId ?? null,
+    bookTitle: message.bookTitle ?? null,
+    imageFile: message.imageFile ?? null,
+    createdAt: stamp,
+  });
+
+  if (message.orderId) {
+    const counter = fromUser
+      ? { adminUnread: sql`${storeOrders.adminUnread} + 1` }
+      : { userUnread: sql`${storeOrders.userUnread} + 1` };
+    return [insert, db.update(storeOrders).set(counter).where(eq(storeOrders.id, message.orderId))] as const;
+  }
+
   const lastPreview = preview(message.kind, message.body);
   return [
-    db.insert(storeMessages).values({
-      userId: message.userId,
-      sender: message.sender,
-      senderId: message.senderId,
-      kind: message.kind,
-      body: message.body,
-      orderId: message.orderId ?? null,
-      bookId: message.bookId ?? null,
-      bookTitle: message.bookTitle ?? null,
-      imageFile: message.imageFile ?? null,
-      createdAt: stamp,
-    }),
+    insert,
     db
       .insert(storeThreads)
       .values({
@@ -106,7 +124,7 @@ function messageStatements(db: Database, message: NewMessage) {
   ] as const;
 }
 
-/** Buyurtma xaridorning yozishmasiga tushadi (placeOrder batch'iga qo'shiladi). */
+/** Buyurtma yaratilganda uning yozishmasiga birinchi xabar (placeOrder batch'iga qo'shiladi). */
 export function orderMessageStatements(
   db: Database,
   userId: string,
@@ -125,6 +143,18 @@ export function orderMessageStatements(
   return messageStatements(db, { userId, sender: "user", senderId: userId, kind: "order", body, orderId: order.id });
 }
 
+/** Buyurtma holati o'zgarganda xaridorning shu buyurtma yozishmasiga tizim xabari (batch'ga qo'shiladi). */
+export function orderStatusStatements(db: Database, adminId: string, order: { id: string; userId: string }, status: OrderStatus) {
+  return messageStatements(db, {
+    userId: order.userId,
+    sender: "admin",
+    senderId: adminId,
+    kind: "status",
+    body: `Holat: ${ORDER_STATUS_LABELS[status]}`,
+    orderId: order.id,
+  });
+}
+
 // ── Cheklov: spam va tez-tez yuborishdan ────────────────────────────
 
 const sent = new Map<string, number[]>();
@@ -138,37 +168,76 @@ function limitSend(userId: string, now = Date.now()): void {
   if (sent.size > 5_000) for (const [key, times] of sent) if (!times.some((t) => now - t < 60_000)) sent.delete(key);
 }
 
-// ── Xaridor ─────────────────────────────────────────────────────────
+// ── Buyurtma yozishmasi ─────────────────────────────────────────────
 
-async function readMessages(db: Database, userId: string, after: number): Promise<StoreMessage[]> {
+/** Buyurtma shu xaridorniki bo'lsa qaytaradi; boshqasining buyurtmasi "topilmadi" deb ko'rinadi. */
+async function ownOrderRow(db: Database, userId: string, orderId: string): Promise<OrderRow> {
+  const row = await db.query.storeOrders.findFirst({ where: and(eq(storeOrders.id, orderId), eq(storeOrders.userId, userId)) });
+  if (!row) throw notFound("Buyurtma topilmadi.");
+  return row;
+}
+
+async function orderSnapshot(db: Database, orderId: string): Promise<StoreOrder | null> {
+  const row = await db.query.storeOrders.findFirst({ where: eq(storeOrders.id, orderId) });
+  if (!row) return null;
+  const [order] = await withItems(db, [row]);
+  return order;
+}
+
+async function readMessages(db: Database, userId: string, after: number, orderId: string | null): Promise<StoreMessage[]> {
   const rows = await db
     .select()
     .from(storeMessages)
-    .where(and(eq(storeMessages.userId, userId), gt(storeMessages.id, after)))
+    .where(and(
+      eq(storeMessages.userId, userId),
+      gt(storeMessages.id, after),
+      orderId ? eq(storeMessages.orderId, orderId) : isNull(storeMessages.orderId),
+    ))
     .orderBy(after > 0 ? asc(storeMessages.id) : desc(storeMessages.id))
     .limit(MAX_MESSAGES);
   // Birinchi yuklashda oxirgi MAX_MESSAGES ta, vaqt bo'yicha o'sish tartibida.
   return (after > 0 ? rows : rows.reverse()).map(toMessage);
 }
 
-/** Xaridorning yozishmasi. Ochilganda admin javoblari o'qilgan bo'ladi. */
-export async function getUserChat(db: Database, userId: string, after = 0): Promise<StoreChat> {
-  const messages = await readMessages(db, userId, after);
+// ── Xaridor ─────────────────────────────────────────────────────────
+
+/**
+ * Xaridorning yozishmasi: umumiy (`orderId` yo'q) yoki bitta buyurtmaniki.
+ * Ochilganda admin javoblari o'qilgan bo'ladi.
+ */
+export async function getUserChat(db: Database, userId: string, after = 0, orderId: string | null = null): Promise<StoreChat> {
+  if (orderId) {
+    await ownOrderRow(db, userId, orderId);
+    const messages = await readMessages(db, userId, after, orderId);
+    const order = await orderSnapshot(db, orderId);
+    const unread = order?.userUnread ?? 0;
+    if (unread > 0) await db.update(storeOrders).set({ userUnread: 0 }).where(eq(storeOrders.id, orderId));
+    return { messages, unread, order: order && { ...order, userUnread: 0 } };
+  }
+  const messages = await readMessages(db, userId, after, null);
   const thread = await db.query.storeThreads.findFirst({ where: eq(storeThreads.userId, userId), columns: { userUnread: true } });
   const unread = thread?.userUnread ?? 0;
   if (unread > 0) await db.update(storeThreads).set({ userUnread: 0 }).where(eq(storeThreads.userId, userId));
-  return { messages, unread };
+  return { messages, unread, order: null };
 }
 
-/** Faqat o'qilmaganlar soni (belgi uchun; xabarlarni o'qilgan qilmaydi). */
+/** Xaridorga belgi uchun: umumiy yozishma va barcha buyurtmalardagi o'qilmaganlar (xabarlarni o'qilgan qilmaydi). */
 export async function userUnreadCount(db: Database, userId: string): Promise<number> {
   const thread = await db.query.storeThreads.findFirst({ where: eq(storeThreads.userId, userId), columns: { userUnread: true } });
-  return thread?.userUnread ?? 0;
+  const [orders] = await db
+    .select({ total: sql<number>`coalesce(sum(${storeOrders.userUnread}), 0)` })
+    .from(storeOrders)
+    .where(eq(storeOrders.userId, userId));
+  return (thread?.userUnread ?? 0) + Number(orders?.total ?? 0);
 }
 
 export async function sendUserMessage(db: Database, userId: string, input: StoreMessageInput): Promise<StoreMessage> {
   await requireSignedIn(db, userId, "Admin bilan yozishish");
   limitSend(userId);
+  if (input.orderId) {
+    await ownOrderRow(db, userId, input.orderId);
+    return insertMessage(db, { userId, sender: "user", senderId: userId, kind: "text", body: input.body, orderId: input.orderId });
+  }
   let bookTitle: string | null = null;
   if (input.bookId) {
     const book = await db.query.books.findFirst({ where: eq(books.id, input.bookId), columns: { title: true } });
@@ -179,9 +248,9 @@ export async function sendUserMessage(db: Database, userId: string, input: Store
 }
 
 async function insertMessage(db: Database, message: NewMessage): Promise<StoreMessage> {
-  const [insert, upsert] = messageStatements(db, message);
+  const [insert, update] = messageStatements(db, message);
   const [row] = await insert.returning();
-  await upsert;
+  await update;
   return toMessage(row);
 }
 
@@ -195,7 +264,7 @@ export function hasImageSignature(mime: string, head: Uint8Array): boolean {
   return false;
 }
 
-/** Rasmni diskka yozadi va xabar yaratadi. `sender` admin bo'lsa, `userId` — xaridor. */
+/** Rasmni diskka yozadi va xabar yaratadi. `sender` admin bo'lsa, `userId` — xaridor. `orderId` — buyurtma yozishmasi. */
 export async function sendImage(
   db: Database,
   actorId: string,
@@ -204,6 +273,7 @@ export async function sendImage(
   mime: string,
   bytes: Uint8Array,
   caption = "",
+  orderId: string | null = null,
 ): Promise<StoreMessage> {
   if (sender === "user") await requireSignedIn(db, actorId, "Rasm yuborish");
   if (!(STORE_CHAT_IMAGE_TYPES as readonly string[]).includes(mime)) throw badRequest("Faqat JPG, PNG yoki WebP rasm yuboring.");
@@ -211,17 +281,19 @@ export async function sendImage(
   if (bytes.length > STORE_LIMITS.chatImageBytes) throw new ApiException("bad_request", "Rasm 5 MB dan oshmasin.", 413);
   if (!hasImageSignature(mime, bytes.subarray(0, 16))) throw badRequest("Fayl rasm emas.");
   if (!(await db.query.users.findFirst({ where: eq(users.id, userId), columns: { id: true } }))) throw notFound("Xaridor topilmadi.");
+  if (orderId) await ownOrderRow(db, userId, orderId);
   limitSend(actorId);
 
   const file = `${Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(36).padStart(2, "0")).join("").slice(0, 20)}.${IMAGE_EXT[mime]}`;
   const dir = chatDir(userId);
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, file), bytes);
-  return insertMessage(db, { userId, sender, senderId: actorId, kind: "image", body: caption.trim().slice(0, STORE_LIMITS.chatBody), imageFile: file });
+  return insertMessage(db, { userId, sender, senderId: actorId, kind: "image", body: caption.trim().slice(0, STORE_LIMITS.chatBody), imageFile: file, orderId });
 }
 
 // ── Admin ───────────────────────────────────────────────────────────
 
+/** Umumiy savollar ro'yxati (buyurtmalar bu yerda emas — ular «Buyurtmalar» bo'limida). */
 export async function listThreads(db: Database): Promise<StoreThread[]> {
   const rows = await db
     .select({
@@ -238,33 +310,51 @@ export async function listThreads(db: Database): Promise<StoreThread[]> {
   return rows;
 }
 
-/** Admin yozishmani ochadi: xaridor xabarlari o'qilgan bo'ladi. */
-export async function getThreadForAdmin(db: Database, userId: string, after = 0): Promise<AdminStoreChat> {
-  const [thread] = await db
-    .select({
-      userId: storeThreads.userId,
-      name: users.name,
-      lastMessageAt: storeThreads.lastMessageAt,
-      lastPreview: storeThreads.lastPreview,
-      unread: storeThreads.adminUnread,
-    })
-    .from(storeThreads)
-    .innerJoin(users, eq(users.id, storeThreads.userId))
-    .where(eq(storeThreads.userId, userId));
-  if (!thread) throw notFound("Yozishma topilmadi.");
-  const messages = await readMessages(db, userId, after);
-  if (thread.unread > 0) await db.update(storeThreads).set({ adminUnread: 0 }).where(eq(storeThreads.userId, userId));
-  return { thread: { ...thread, unread: 0 }, messages };
+/** Admin yozishmani ochadi (umumiy yoki buyurtma): xaridor xabarlari o'qilgan bo'ladi. */
+export async function getThreadForAdmin(db: Database, userId: string, after = 0, orderId: string | null = null): Promise<AdminStoreChat> {
+  const customer = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { name: true } });
+  if (!customer) throw notFound("Yozishma topilmadi.");
+
+  if (orderId) {
+    const order = await orderSnapshot(db, orderId);
+    if (!order || order.userId !== userId) throw notFound("Buyurtma topilmadi.");
+    const messages = await readMessages(db, userId, after, orderId);
+    if (order.adminUnread > 0) await db.update(storeOrders).set({ adminUnread: 0 }).where(eq(storeOrders.id, orderId));
+    const thread = { userId, name: customer.name, lastMessageAt: order.createdAt, lastPreview: "", unread: order.adminUnread };
+    return { thread, messages, order: { ...order, adminUnread: 0 } };
+  }
+
+  const thread = await db.query.storeThreads.findFirst({ where: eq(storeThreads.userId, userId) });
+  const messages = await readMessages(db, userId, after, null);
+  if (thread && thread.adminUnread > 0) await db.update(storeThreads).set({ adminUnread: 0 }).where(eq(storeThreads.userId, userId));
+  return {
+    thread: {
+      userId,
+      name: customer.name,
+      lastMessageAt: thread?.lastMessageAt ?? new Date(0).toISOString(),
+      lastPreview: thread?.lastPreview ?? "",
+      unread: 0,
+    },
+    messages,
+    order: null,
+  };
 }
 
+/** Admin uchun umumiy o'qilmaganlar: savollar va barcha buyurtma yozishmalari. */
 export async function adminUnreadTotal(db: Database): Promise<number> {
-  const [row] = await db.select({ total: sql<number>`coalesce(sum(${storeThreads.adminUnread}), 0)` }).from(storeThreads);
-  return Number(row?.total ?? 0);
+  const [thread] = await db.select({ total: sql<number>`coalesce(sum(${storeThreads.adminUnread}), 0)` }).from(storeThreads);
+  const [orders] = await db.select({ total: sql<number>`coalesce(sum(${storeOrders.adminUnread}), 0)` }).from(storeOrders);
+  return Number(thread?.total ?? 0) + Number(orders?.total ?? 0);
 }
 
-export async function sendAdminMessage(db: Database, adminId: string, userId: string, body: string): Promise<StoreMessage> {
-  const thread = await db.query.storeThreads.findFirst({ where: eq(storeThreads.userId, userId), columns: { userId: true } });
-  if (!thread) throw notFound("Yozishma topilmadi.");
+export async function sendAdminMessage(db: Database, adminId: string, userId: string, body: string, orderId: string | null = null): Promise<StoreMessage> {
+  if (orderId) {
+    const order = await orderSnapshot(db, orderId);
+    if (!order || order.userId !== userId) throw notFound("Buyurtma topilmadi.");
+  } else {
+    const thread = await db.query.storeThreads.findFirst({ where: eq(storeThreads.userId, userId), columns: { userId: true } });
+    if (!thread) throw notFound("Yozishma topilmadi.");
+  }
   limitSend(adminId);
-  return insertMessage(db, { userId, sender: "admin", senderId: adminId, kind: "text", body });
+  return insertMessage(db, { userId, sender: "admin", senderId: adminId, kind: "text", body, orderId });
 }

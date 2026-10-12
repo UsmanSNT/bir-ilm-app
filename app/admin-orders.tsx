@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Phone } from "lucide-react";
+import { ArrowLeft, MessageCircle, Phone } from "lucide-react";
 import { fetchAdminOrders, setAdminOrderStatus } from "@/lib/api/store-client";
 import { refreshAdminAttention } from "@/lib/api/admin-attention";
 import { formatPrice, ORDER_STATUSES, ORDER_STATUS_LABELS, PAYMENT_LABELS, type OrderStatus, type StoreOrder } from "@/shared/contract";
+import { OrderProgress } from "./order-status";
+import StoreChatThread from "./store-chat";
 
-/** Admin: do'kon buyurtmalari — holat bo'yicha filtr, holatni o'zgartirish, mijozga qo'ng'iroq. */
+/** Admin: do'kon buyurtmalari — holat bo'yicha filtr, holatni o'zgartirish, har bir buyurtmaning alohida yozishmasi, mijozga qo'ng'iroq. */
 export default function AdminOrders() {
   const [filter, setFilter] = useState<OrderStatus | "all">("new");
   const [orders, setOrders] = useState<StoreOrder[] | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
+  const [openOrder, setOpenOrder] = useState<StoreOrder | null>(null);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -19,7 +23,7 @@ export default function AdminOrders() {
       .then((items) => { if (alive) { setOrders(items); setError(""); } })
       .catch((e: Error) => { if (alive) { setOrders([]); setError(e.message); } });
     return () => { alive = false; };
-  }, [filter]);
+  }, [filter, reload]);
 
   async function change(order: StoreOrder, status: OrderStatus) {
     setSaving(order.id);
@@ -33,6 +37,17 @@ export default function AdminOrders() {
     } finally {
       setSaving(null);
     }
+  }
+
+  if (openOrder) {
+    return (
+      <div className="admin-panel admin-order-chat">
+        <button type="button" className="admin-chat-back" onClick={() => { setOpenOrder(null); setReload((n) => n + 1); }}>
+          <ArrowLeft size={17} />Buyurtmalar
+        </button>
+        <StoreChatThread key={openOrder.id} me="admin" customerId={openOrder.userId} order={openOrder} empty="Bu buyurtma bo‘yicha xabar yo‘q. Hisob raqamni shu yerda yuboring." />
+      </div>
+    );
   }
 
   return (
@@ -53,11 +68,16 @@ export default function AdminOrders() {
               {ORDER_STATUSES.map((s) => <option key={s} value={s}>{ORDER_STATUS_LABELS[s]}</option>)}
             </select>
           </div>
+          <OrderProgress status={o.status} />
           <span>{o.name} · <a href={`tel:${o.phone}`}><Phone size={13} /> {o.phone}</a>{o.telegram && <> · <a href={`https://t.me/${o.telegram}`} target="_blank" rel="noopener noreferrer">@{o.telegram}</a></>}</span>
           <span>{o.address}</span>
           {o.note && <span className="admin-empty">Izoh: {o.note}</span>}
           <span>{o.lines.map((l) => `${l.title} ×${l.qty}`).join(", ")}</span>
           <strong>{formatPrice(o.total)} · {PAYMENT_LABELS[o.payment]} · {new Date(o.createdAt).toLocaleString("ru-RU")}</strong>
+          <button type="button" className="ao-chat" onClick={() => setOpenOrder(o)}>
+            <MessageCircle size={16} /> Buyurtma yozishmasi
+            {o.adminUnread > 0 && <b aria-label={`${o.adminUnread} ta o‘qilmagan`}>{o.adminUnread}</b>}
+          </button>
         </article>
       ))}
     </div>

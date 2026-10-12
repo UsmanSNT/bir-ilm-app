@@ -47,6 +47,7 @@ import { ResetPasswordForm } from "./password-auth";
 import { TwoFactorDialog } from "./two-factor";
 import { useViewer } from "@/lib/api/roles-client";
 import { useAdminAttention } from "@/lib/api/admin-attention";
+import { useChatUnread } from "@/lib/api/store-client";
 import { absoluteUrl } from "@/lib/api/config";
 
 type BackendMode = "local" | "server" | "seed";
@@ -229,7 +230,6 @@ export default function App() {
   const [serverLeaders, setServerLeaders] = useState<LeaderboardMember[]>([]);
   const announcements = useAnnouncements();
   const unread = useUnreadCount(announcements);
-  const badge = unread > 0 ? <span className="bell-badge">{unread > 9 ? "9+" : unread}</span> : null;
 
   // Bildirishnomalar oynasi ochilishi — hammasi o'qildi.
   useEffect(() => {
@@ -301,6 +301,11 @@ export default function App() {
     else if (change.chats) toast("Do‘kon chatida yangi xabar bor");
   }, []);
   const attention = useAdminAttention(viewer?.role === "admin", onAdminNew);
+  // Qo'ng'iroqcha: yangi bildirishnoma + do'kon chati (xaridor: o'qilmagan javoblar; admin: yangi buyurtma va chatlar).
+  const isAdmin = viewer?.role === "admin";
+  const chatUnread = useChatUnread(Boolean(viewer?.signedIn) && !isAdmin);
+  const bell = unread + (isAdmin ? attention.total : chatUnread);
+  const badge = bell > 0 ? <span className="bell-badge">{bell > 9 ? "9+" : bell}</span> : null;
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("reset");
     if (!token || !RESET_TOKEN_PATTERN.test(token)) return;

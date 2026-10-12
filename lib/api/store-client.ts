@@ -166,18 +166,42 @@ export const newOrderId = () => `BI-${crypto.randomUUID().replace(/-/g, "").slic
 
 const withChatUrl = (m: StoreMessage): StoreMessage => ({ ...m, imageUrl: absoluteUrl(m.imageUrl) });
 
-export const fetchChat = (after = 0) =>
-  call<StoreChat>(`/store/chat?after=${after}`).then((c) => ({ ...c, messages: c.messages.map(withChatUrl) }));
+/** `orderId` berilsa — shu buyurtmaning yozishmasi, aks holda umumiy savollar. */
+const orderQuery = (orderId?: string) => (orderId ? `&order=${encodeURIComponent(orderId)}` : "");
+
+export const fetchChat = (after = 0, orderId?: string) =>
+  call<StoreChat>(`/store/chat?after=${after}${orderQuery(orderId)}`).then((c) => ({ ...c, messages: c.messages.map(withChatUrl) }));
 export const fetchChatUnread = () => call<{ unread: number }>("/store/chat/unread").then((d) => d.unread);
-export const sendChatMessage = (body: string, bookId?: string) =>
-  call<StoreMessage>("/store/chat", { method: "POST", body: JSON.stringify({ body, ...(bookId ? { bookId } : {}) }) }).then(withChatUrl);
-export const sendChatImage = (file: Blob) =>
-  call<StoreMessage>("/store/chat/image", { method: "POST", body: file, headers: { "Content-Type": file.type } }).then(withChatUrl);
+
+/** Xaridorning do'kon chatidagi o'qilmagan javoblari (qo'ng'iroqcha belgisi uchun). Ko'rinmasa so'rov yuborilmaydi. */
+export function useChatUnread(enabled: boolean): number {
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    const load = () => {
+      if (document.visibilityState === "visible") fetchChatUnread().then((n) => alive && setUnread(n)).catch(() => undefined);
+    };
+    load();
+    const timer = setInterval(load, 20_000);
+    document.addEventListener("visibilitychange", load);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", load);
+    };
+  }, [enabled]);
+  return enabled ? unread : 0;
+}
+export const sendChatMessage = (body: string, bookId?: string, orderId?: string) =>
+  call<StoreMessage>("/store/chat", { method: "POST", body: JSON.stringify({ body, ...(bookId ? { bookId } : {}), ...(orderId ? { orderId } : {}) }) }).then(withChatUrl);
+export const sendChatImage = (file: Blob, orderId?: string) =>
+  call<StoreMessage>(`/store/chat/image?${orderQuery(orderId).slice(1)}`, { method: "POST", body: file, headers: { "Content-Type": file.type } }).then(withChatUrl);
 
 export const fetchAdminThreads = () => call<{ items: StoreThread[]; unread: number }>("/admin/store-chat");
-export const fetchAdminThread = (userId: string, after = 0) =>
-  call<AdminStoreChat>(`/admin/store-chat/${encodeURIComponent(userId)}?after=${after}`).then((c) => ({ ...c, messages: c.messages.map(withChatUrl) }));
-export const sendAdminReply = (userId: string, body: string) =>
-  call<StoreMessage>(`/admin/store-chat/${encodeURIComponent(userId)}`, { method: "POST", body: JSON.stringify({ body }) }).then(withChatUrl);
-export const sendAdminImage = (userId: string, file: Blob) =>
-  call<StoreMessage>(`/admin/store-chat/${encodeURIComponent(userId)}/image`, { method: "POST", body: file, headers: { "Content-Type": file.type } }).then(withChatUrl);
+export const fetchAdminThread = (userId: string, after = 0, orderId?: string) =>
+  call<AdminStoreChat>(`/admin/store-chat/${encodeURIComponent(userId)}?after=${after}${orderQuery(orderId)}`).then((c) => ({ ...c, messages: c.messages.map(withChatUrl) }));
+export const sendAdminReply = (userId: string, body: string, orderId?: string) =>
+  call<StoreMessage>(`/admin/store-chat/${encodeURIComponent(userId)}`, { method: "POST", body: JSON.stringify({ body, ...(orderId ? { orderId } : {}) }) }).then(withChatUrl);
+export const sendAdminImage = (userId: string, file: Blob, orderId?: string) =>
+  call<StoreMessage>(`/admin/store-chat/${encodeURIComponent(userId)}/image?${orderQuery(orderId).slice(1)}`, { method: "POST", body: file, headers: { "Content-Type": file.type } }).then(withChatUrl);

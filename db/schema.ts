@@ -356,8 +356,12 @@ export const storeOrders = sqliteTable("store_orders", {
   address: text("address").notNull(),
   note: text("note").notNull().default(""),
   payment: text("payment", { enum: ["cash", "click", "payme", "uzum", "card", "chat"] }).notNull(),
-  status: text("status", { enum: ["new", "confirmed", "shipped", "delivered", "cancelled"] }).notNull().default("new"),
+  status: text("status", { enum: ["new", "confirmed", "preparing", "shipped", "delivered", "cancelled"] }).notNull().default("new"),
   total: integer("total").notNull(),
+  /** Buyurtma yozishmasi: admin hali o'qimagan xaridor xabarlari. */
+  adminUnread: integer("admin_unread").notNull().default(0),
+  /** Buyurtma yozishmasi: xaridor hali o'qimagan admin xabarlari va holat o'zgarishlari. */
+  userUnread: integer("user_unread").notNull().default(0),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [
@@ -445,7 +449,7 @@ export const storeMessages = sqliteTable("store_messages", {
   sender: text("sender", { enum: ["user", "admin"] }).notNull(),
   /** Xabarni yozgan hisob (admin javobida — qaysi admin). */
   senderId: text("sender_id").notNull(),
-  kind: text("kind", { enum: ["text", "order", "image"] }).notNull().default("text"),
+  kind: text("kind", { enum: ["text", "order", "image", "status"] }).notNull().default("text"),
   body: text("body").notNull().default(""),
   orderId: text("order_id"),
   /** Savol qaysi kitob haqida (ixtiyoriy). */

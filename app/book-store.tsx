@@ -21,6 +21,7 @@ import { LoginDialog } from "./login-dialog";
 import StoreAi from "./store-ai";
 import StoreBookPage from "./store-book-page";
 import StoreChatThread from "./store-chat";
+import { OrderProgress } from "./order-status";
 import StoreFabs from "./store-fabs";
 import BookEditor from "./book-editor";
 import { notifyCatalogChanged, useStoreCatalog } from "@/lib/api/books-client";
@@ -43,6 +44,8 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
   const [loginOpen, setLoginOpen] = useState(false);
   /** Chat kitob sahifasidan ochilsa — birinchi xabar shu kitob haqida bo'ladi. */
   const [chatBook, setChatBook] = useState<StoreBook | null>(null);
+  /** Buyurtma yozishmasi ochiq bo'lsa — shu buyurtma; bo'lmasa umumiy savollar. */
+  const [chatOrder, setChatOrder] = useState<StoreOrder | null>(null);
   const [unread, setUnread] = useState(0);
   /** Admin: do'kon mahsulotini qo'shish/tahrirlash (id yo'q — yangi). */
   const [editing, setEditing] = useState<{ id: string | null } | null>(null);
@@ -64,11 +67,12 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
   }, [signedIn, section]);
 
   const go = (next: Section, book: StoreBook | null = null) => {
-    setSection(next); setDetailId(null); setPlaced(null); setChatBook(next === "chat" ? book : null);
+    setSection(next); setDetailId(null); setPlaced(null); setChatBook(next === "chat" ? book : null); setChatOrder(null);
     if (next === "chat") setUnread(0);
     window.scrollTo({ top: 0 });
   };
   const askAdmin = (book: StoreBook | null) => (signedIn ? go("chat", book) : setLoginOpen(true));
+  const openOrderChat = (order: StoreOrder) => { if (signedIn) { go("chat"); setChatOrder(order); } };
   const open = (book: StoreBook) => { setDetailId(book.id); window.scrollTo({ top: 0 }); };
   const addToCart = (book: StoreBook) => { cart.add(book.id); toast.success(`«${book.title}» savatga qo‘shildi`); };
   const active = section === "checkout" ? "cart" : section;
@@ -108,12 +112,12 @@ export default function BookStore({ shelf, onBack, onToggle }: { shelf: string[]
             {section === "ai" && <StoreAi onNeedLogin={() => setLoginOpen(true)} />}
             {section === "cart" && <CartView cart={cart} onCheckout={() => go("checkout")} onCatalog={() => go("catalog")} onOpen={open} />}
             {section === "chat" && (signedIn
-              ? <StoreChatThread key={chatBook?.id ?? "general"} me="user" bookId={chatBook?.id} bookTitle={chatBook?.title} onNeedLogin={() => setLoginOpen(true)} empty="Savolingizni yozing." />
+              ? <StoreChatThread key={chatOrder ? `order-${chatOrder.id}` : `general-${chatBook?.id ?? ""}`} me="user" order={chatOrder} bookId={chatOrder ? undefined : chatBook?.id} bookTitle={chatOrder ? undefined : chatBook?.title} onNeedLogin={() => setLoginOpen(true)} empty={chatOrder ? "Buyurtma bo‘yicha savolingizni yozing." : "Savolingizni yozing."} />
               : <div className="zb-empty"><MessageCircle size={30} /><h3>Yozish uchun kiring</h3><p className="zb-muted">Admin bilan yozishish faqat ro‘yxatdan o‘tgan kitobxonlar uchun.</p><button className="zb-btn zb-btn-primary" onClick={() => setLoginOpen(true)}>Kirish</button></div>)}
             {section === "checkout" && (placed
-              ? <Confirmation order={placed} onChat={() => go("chat")} onLibrary={() => go("library")} />
+              ? <Confirmation order={placed} onChat={() => openOrderChat(placed)} onLibrary={() => go("library")} />
               : <Checkout cart={cart} signedIn={Boolean(viewer?.signedIn)} defaultName={viewer?.name ?? ""} onLogin={() => setLoginOpen(true)} onBack={() => go("cart")} onPlaced={setPlaced} />)}
-            {section === "library" && <LibraryView books={store.items} shelf={shelf} signedIn={Boolean(viewer?.signedIn)} onOpen={open} />}
+            {section === "library" && <LibraryView books={store.items} shelf={shelf} signedIn={Boolean(viewer?.signedIn)} onOpen={open} onOrderChat={openOrderChat} />}
           </>
         )}
         <footer className="zb-foot"><span><b>Bir Ilm</b> · Book Store</span><span>Har bir kitob — yangi imkoniyat</span></footer>
@@ -350,7 +354,7 @@ function Confirmation({ order, onChat, onLibrary }: { order: StoreOrder; onChat:
   );
 }
 
-function LibraryView({ books, shelf, signedIn, onOpen }: { books: StoreBook[]; shelf: string[]; signedIn: boolean; onOpen: (book: StoreBook) => void }) {
+function LibraryView({ books, shelf, signedIn, onOpen, onOrderChat }: { books: StoreBook[]; shelf: string[]; signedIn: boolean; onOpen: (book: StoreBook) => void; onOrderChat: (order: StoreOrder) => void }) {
   const [view, setView] = useState<"saved" | "orders">("saved");
   const [orders, setOrders] = useState<StoreOrder[] | null>(null);
   useEffect(() => {
@@ -382,6 +386,11 @@ function LibraryView({ books, shelf, signedIn, onOpen }: { books: StoreBook[]; s
               <div className="zb-order-head"><strong>№ {o.id}</strong><span className="zb-status" data-status={o.status}>{ORDER_STATUS_LABELS[o.status]}</span></div>
               <p className="zb-muted">{new Date(o.createdAt).toLocaleDateString("ru-RU")} · {o.lines.map((l) => `${l.title} ×${l.qty}`).join(", ")}</p>
               <strong>{formatPrice(o.total)}</strong>
+              <OrderProgress status={o.status} />
+              <button type="button" className="zb-btn zb-btn-ghost zb-order-chat" onClick={() => onOrderChat(o)}>
+                <MessageCircle size={16} />Buyurtma yozishmasi
+                {o.userUnread > 0 && <b aria-label={`${o.userUnread} ta yangi xabar`}>{o.userUnread}</b>}
+              </button>
             </article>
           ))}
         </div>

@@ -1,4 +1,4 @@
-/** Xaridorning admin bilan yozishmasi: o'qish (GET ?after=<id>) va xabar yuborish (POST). */
+/** Xaridorning yozishmasi: umumiy (`order` yo'q) yoki bitta buyurtmaniki. O'qish (GET ?after=&order=) va yuborish (POST). */
 import { z } from "zod";
 import { defineRoute } from "@/server/http/handler";
 import { getUserChat, sendUserMessage } from "@/server/services/store-chat";
@@ -6,13 +6,16 @@ import { storeMessageSchema, type StoreChat, type StoreMessage, type StoreMessag
 
 export const runtime = "edge";
 
-const querySchema = z.object({ after: z.coerce.number().int().min(0).default(0) });
+const querySchema = z.object({
+  after: z.coerce.number().int().min(0).default(0),
+  order: z.string().trim().min(1).max(64).optional(),
+});
 type Query = z.infer<typeof querySchema>;
 
 export const GET = defineRoute<Query, StoreChat>({
   schema: querySchema,
   source: "query",
-  handler: async ({ db, identity, input }) => getUserChat(db, identity.userId, input.after),
+  handler: async ({ db, identity, input }) => getUserChat(db, identity.userId, input.after, input.order ?? null),
 });
 
 export const POST = defineRoute<StoreMessageInput, StoreMessage>({

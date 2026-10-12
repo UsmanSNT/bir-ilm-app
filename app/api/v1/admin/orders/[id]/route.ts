@@ -13,7 +13,7 @@ export const PATCH = defineRoute<OrderStatusInput, StoreOrder>({
   handler: async ({ db, identity, input, params }) => {
     await requireRole(db, identity.userId, ["admin"], "Buyurtmani faqat admin o'zgartiradi.");
     if (!params.id) throw badRequest("Buyurtma ko'rsatilmagan.");
-    return setOrderStatus(db, params.id, input.status);
+    return setOrderStatus(db, params.id, input.status, identity.userId);
   },
 });
 
