@@ -206,6 +206,20 @@ export type StoreMessage = {
 /** Xaridorning yozishmasi. `unread` — o'qilmagan admin javoblari (ochilganda nolga tushadi). */
 export type StoreChat = { messages: StoreMessage[]; unread: number; /** Buyurtma yozishmasi bo'lsa — buyurtmaning joriy holati. */ order: StoreOrder | null };
 
+/**
+ * Xaridorning barcha yozishmalari: «Umumiy savollar» (`kind: "general"`) va har bir buyurtma alohida (`kind: "order"`).
+ * `unread` — shu yozishmadagi o'qilmagan admin javoblari va holat xabarlari.
+ */
+export type StoreInboxItem = {
+  key: string;
+  kind: "general" | "order";
+  order: StoreOrder | null;
+  preview: string;
+  lastAt: string | null;
+  unread: number;
+};
+export type StoreInbox = { items: StoreInboxItem[]; unread: number };
+
 /** Admin ro'yxati: har xaridorga bitta qator. */
 export type StoreThread = {
   userId: string;

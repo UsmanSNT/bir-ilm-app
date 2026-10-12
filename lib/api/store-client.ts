@@ -13,6 +13,7 @@ import {
   type StoreAiInput,
   type StoreBook,
   type StoreChat,
+  type StoreInbox,
   type StoreMessage,
   type StoreThread,
   type StoreOrder,
@@ -172,26 +173,25 @@ const orderQuery = (orderId?: string) => (orderId ? `&order=${encodeURIComponent
 export const fetchChat = (after = 0, orderId?: string) =>
   call<StoreChat>(`/store/chat?after=${after}${orderQuery(orderId)}`).then((c) => ({ ...c, messages: c.messages.map(withChatUrl) }));
 export const fetchChatUnread = () => call<{ unread: number }>("/store/chat/unread").then((d) => d.unread);
+export const fetchInbox = () => call<StoreInbox>("/store/inbox");
 
-/** Xaridorning do'kon chatidagi o'qilmagan javoblari (qo'ng'iroqcha belgisi uchun). Ko'rinmasa so'rov yuborilmaydi. */
-export function useChatUnread(enabled: boolean): number {
-  const [unread, setUnread] = useState(0);
+/** Xaridorning barcha yozishmalari: «Umumiy savollar» va har buyurtma alohida. Ko'rinib turganda 15 soniyada yangilanadi. */
+export function useStoreInbox(enabled: boolean): { inbox: StoreInbox | null; reload: () => void } {
+  const [inbox, setInbox] = useState<StoreInbox | null>(null);
+  const load = useCallback(() => {
+    if (document.visibilityState === "visible") fetchInbox().then(setInbox).catch(() => undefined);
+  }, []);
   useEffect(() => {
     if (!enabled) return;
-    let alive = true;
-    const load = () => {
-      if (document.visibilityState === "visible") fetchChatUnread().then((n) => alive && setUnread(n)).catch(() => undefined);
-    };
     load();
-    const timer = setInterval(load, 20_000);
+    const timer = setInterval(load, 15_000);
     document.addEventListener("visibilitychange", load);
     return () => {
-      alive = false;
       clearInterval(timer);
       document.removeEventListener("visibilitychange", load);
     };
-  }, [enabled]);
-  return enabled ? unread : 0;
+  }, [enabled, load]);
+  return { inbox: enabled ? inbox : null, reload: load };
 }
 export const sendChatMessage = (body: string, bookId?: string, orderId?: string) =>
   call<StoreMessage>("/store/chat", { method: "POST", body: JSON.stringify({ body, ...(bookId ? { bookId } : {}), ...(orderId ? { orderId } : {}) }) }).then(withChatUrl);

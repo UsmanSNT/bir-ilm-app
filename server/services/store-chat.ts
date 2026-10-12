@@ -11,7 +11,7 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ApiException, badRequest, notFound } from "@/server/http/errors";
@@ -23,6 +23,8 @@ import type {
   OrderStatus,
   PlaceOrderInput,
   StoreChat,
+  StoreInbox,
+  StoreInboxItem,
   StoreMessage,
   StoreMessageInput,
   StoreOrder,
@@ -57,7 +59,7 @@ function toMessage(row: MessageRow): StoreMessage {
   };
 }
 
-function preview(kind: MessageRow["kind"], body: string): string {
+export function preview(kind: MessageRow["kind"], body: string): string {
   if (kind === "image") return body ? `📷 ${body}`.slice(0, 120) : "📷 Rasm";
   if (kind === "order") return `🛒 ${body.split("\n")[0]}`.slice(0, 120);
   return body.replace(/\s+/g, " ").slice(0, 120);
@@ -219,6 +221,59 @@ export async function getUserChat(db: Database, userId: string, after = 0, order
   const unread = thread?.userUnread ?? 0;
   if (unread > 0) await db.update(storeThreads).set({ userUnread: 0 }).where(eq(storeThreads.userId, userId));
   return { messages, unread, order: null };
+}
+
+/**
+ * Xaridorning barcha yozishmalari: «Umumiy savollar» va har buyurtma alohida.
+ * O'qilmaganlar (yuqorida) va so'nggi xabar bo'yicha tartiblanadi. Xabarlarni o'qilgan qilmaydi.
+ */
+export async function getUserInbox(db: Database, userId: string): Promise<StoreInbox> {
+  const thread = await db.query.storeThreads.findFirst({ where: eq(storeThreads.userId, userId) });
+  const orderRows = await db
+    .select()
+    .from(storeOrders)
+    .where(eq(storeOrders.userId, userId))
+    .orderBy(desc(storeOrders.createdAt))
+    .limit(200);
+  const orders = await withItems(db, orderRows);
+
+  // Har buyurtmaning so'nggi xabari: id bo'yicha eng katta qator.
+  const lastIds = orders.length
+    ? await db
+        .select({ id: sql<number>`max(${storeMessages.id})` })
+        .from(storeMessages)
+        .where(and(eq(storeMessages.userId, userId), isNotNull(storeMessages.orderId)))
+        .groupBy(storeMessages.orderId)
+    : [];
+  const lastRows = lastIds.length
+    ? await db.select().from(storeMessages).where(inArray(storeMessages.id, lastIds.map((r) => Number(r.id))))
+    : [];
+  const lastByOrder = new Map(lastRows.map((row) => [row.orderId!, row]));
+
+  const items: StoreInboxItem[] = [
+    {
+      key: "general",
+      kind: "general",
+      order: null,
+      preview: thread?.lastPreview ?? "",
+      lastAt: thread?.lastMessageAt ?? null,
+      unread: thread?.userUnread ?? 0,
+    },
+    ...orders.map((order) => {
+      const last = lastByOrder.get(order.id);
+      return {
+        key: order.id,
+        kind: "order" as const,
+        order,
+        preview: last ? preview(last.kind, last.body) : "",
+        lastAt: last?.createdAt ?? order.createdAt,
+        unread: order.userUnread,
+      };
+    }),
+  ];
+  items.sort((a, b) => Number(b.unread > 0) - Number(a.unread > 0) || (b.lastAt ?? "").localeCompare(a.lastAt ?? ""));
+  const unread = items.reduce((sum, item) => sum + item.unread, 0);
+  return { items, unread };
 }
 
 /** Xaridorga belgi uchun: umumiy yozishma va barcha buyurtmalardagi o'qilmaganlar (xabarlarni o'qilgan qilmaydi). */

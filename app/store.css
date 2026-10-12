@@ -508,3 +508,20 @@
 .ao-chat, .zb-order-chat { position: relative; display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; }
 .ao-chat { min-height: 38px; padding: 0 14px; border: 1px solid #c9bd9b; border-radius: 12px; background: #fff; color: #172351; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .ao-chat b, .zb-order-chat b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #c0392b; color: #fff; font-size: 11px; }
+
+/* Xabarlar: yozishmalar ro'yxati (umumiy + buyurtmalar) va ochiq yozishma */
+.sm { display: grid; gap: 10px; }
+.sm-back { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px 0 8px; border: 1px solid #e3d9c2; border-radius: 999px; background: #fff; color: #172351; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.sm-note { margin: 0; color: #7d7564; font-size: 13px; }
+.sm-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.sm-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 1px solid #e3d9c2; border-radius: 14px; background: #fffdf7; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.sm-row.has-unread { border-color: #1f7a52; background: #f1faf4; }
+.sm-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: #efe7d6; color: #172351; }
+.sm-body { display: grid; gap: 2px; min-width: 0; }
+.sm-body strong { color: #172351; font-size: 14px; }
+.sm-body small { color: #6f6858; font-size: 12px; }
+.sm-body em { overflow: hidden; color: #4d4a3f; font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.sm-meta { display: grid; justify-items: end; gap: 4px; color: #8a8170; font-size: 11px; }
+.sm-meta b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #c0392b; color: #fff; font-size: 11px; }
+.p-messages { display: grid; gap: 10px; }
+.notification-group { margin: 12px 0 4px; color: #7d7564; font-size: 12px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }

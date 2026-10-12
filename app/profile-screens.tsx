@@ -17,6 +17,7 @@ import AdminQuizzes from "./admin-quizzes";
 import SocialLinks from "./social-links";
 import { ChangePasswordForm } from "./password-auth";
 import { LoginDialog } from "./login-dialog";
+import StoreMessages from "./store-messages";
 import AccountEditor from "./account-editor";
 import TwoFactorSettings from "./two-factor-settings";
 import { absoluteUrl } from "@/lib/api/config";
@@ -24,7 +25,10 @@ import { nativeAuth } from "@/lib/api/native-auth";
 import ReadingDashboard from "./reading-dashboard";
 import type { SocialData } from "./social-types";
 
-type Props = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onNotifications: () => void };
+/** Profil ichidagi ekranni to'g'ridan-to'g'ri ochish (bildirishnomadan). `nonce` har safar yangi bo'lishi shart. */
+export type ProfileRoute = { screen: "messages" | "orders" | "storechat"; nonce: number };
+
+type Props = { route?: ProfileRoute; name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onNotifications: () => void };
 type ProfileTab = "reading" | "posts" | "activity";
 const PROFILE_TABS: [ProfileTab, string][] = [["reading", "Mutolaa"], ["posts", "Postlar"], ["activity", "Faollik"]];
 type Screen = "profile" | "activity" | "settings" | "posts" | "messages" | "privacy" | "faq" | "about" | "admin" | "orders" | "storebooks" | "storechat" | "site" | "quizzes" | "devices" | "password" | "account" | "twofactor";
@@ -39,7 +43,7 @@ function Row({ icon, title, value, onClick }: { icon: ReactNode; title: string; 
 }
 
 export default function ProfileScreens(p: Props) {
-  const [screen, setScreen] = useState<Screen>("profile");
+  const [screen, setScreen] = useState<Screen>(p.route?.screen ?? "profile");
   // Mehmon uchun kirish oynasi (modal): asosiy sahifaga aralashmaydi.
   const [authOpen, setAuthOpen] = useState(false);
   const [tab, setTab] = useState<ProfileTab>("reading");
@@ -152,7 +156,7 @@ export default function ProfileScreens(p: Props) {
     {screen === "storechat" && (role === "admin" ? <AdminStoreChat /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "orders" && (role === "admin" ? <AdminOrders /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "posts" && <ReadingDashboard mode="profile" name={p.name} pages={p.page} shelfCount={p.shelfCount} streak={p.streak} />}
-    {screen === "messages" && <div className="p-empty"><Mail /><h2>Yaxshi suhbat — bir xabardan</h2><p>Shaxsiy yozishmalar hali ishga tushirilmagan. Hozir kitobxonlar bilan hamjamiyatda fikr almashishingiz mumkin.</p><button className="p-primary" onClick={() => p.onNavigate("community")}>Hamjamiyatga o‘tish <ArrowRight size={16} /></button></div>}
+    {screen === "messages" && <section className="p-messages" aria-label="Xabarlar"><StoreMessages /></section>}
     {screen === "privacy" && <div className="p-info"><ShieldCheck /><h2>Ma’lumotlaringiz haqida</h2><p>Mutolaa jarayoni va ilova sozlamalari ushbu brauzerda saqlanadi. Postlar, javoblar va obunalar xizmat bazasida saqlanadi.</p><p>Postlaringizni “Mening postlarim” bo‘limida boshqarishingiz mumkin. Brauzer ma’lumotlarini o‘chirish qurilmada saqlangan jarayonga kirishni yo‘qotishi mumkin.</p></div>}
     {screen === "faq" && <div className="p-faq">{[["Mutolaa jarayonini qanday yangilayman?", "Shaxsiy sahifadagi «Hozirgi mutolaa» kartasini bosing va o‘qilgan sahifa sonini kiriting."], ["Kitobni qanday saqlayman?", "Javonim bo‘limida kitobni tanlab, javonga qo‘shish tugmasini bosing."], ["Suhbatga qanday qo‘shilaman?", "Suhbatlar bo‘limini oching. U yerda jonli suhbat va muhokamalarni topasiz."]].map(([question, answer]) => <details key={question}><summary>{question}</summary><p>{answer}</p></details>)}</div>}
     {screen === "about" && <div className="p-info"><BookOpen /><h2>Bir kitob atrofida birlashamiz.</h2><p>Bir Ilm — mutolaani kundalik odatga aylantirish, fikr almashish va birga o‘sish uchun kitobxonlar hamjamiyati.</p><p>Har hafta bitta kitob. Har kuni yangi fikr.</p></div>}

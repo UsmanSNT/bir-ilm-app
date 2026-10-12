@@ -39,7 +39,7 @@ import BookDiscovery from "./book-discovery";
 import FocusTimer, { PomodoroButton } from "./focus-timer";
 import MobileScreens, { markNotificationsSeen, useAnnouncements, useUnreadCount } from "./mobile-screens";
 import MobileLibrary from "./mobile-library";
-import ProfileScreens from "./profile-screens";
+import ProfileScreens, { type ProfileRoute } from "./profile-screens";
 import { requestAudio } from "./library-store";
 import { type CommunityComment, type LeaderboardMember } from "./app-data";
 import { RESET_TOKEN_PATTERN, type Book } from "@/shared/contract";
@@ -47,7 +47,7 @@ import { ResetPasswordForm } from "./password-auth";
 import { TwoFactorDialog } from "./two-factor";
 import { useViewer } from "@/lib/api/roles-client";
 import { useAdminAttention } from "@/lib/api/admin-attention";
-import { useChatUnread } from "@/lib/api/store-client";
+import { useStoreInbox } from "@/lib/api/store-client";
 import { absoluteUrl } from "@/lib/api/config";
 
 type BackendMode = "local" | "server" | "seed";
@@ -223,6 +223,13 @@ export default function App() {
   const [now, setNow] = useState(0);
   const [session, setSession] = useState(0);
   const [modal, setModal] = useState("");
+  // Bildirishnomadan profil ekranini ochish (nonce — har safar qayta ochish uchun).
+  const [profileRoute, setProfileRoute] = useState<ProfileRoute | undefined>(undefined);
+  const openProfileScreen = (screen: ProfileRoute["screen"]) => {
+    setModal("");
+    setTab("profile");
+    setProfileRoute({ screen, nonce: (profileRoute?.nonce ?? 0) + 1 });
+  };
   // Book Store — alohida rejim; Bir Ilm qobig'i yashiriladi, lekin o'chirilmaydi (jonli suhbat uzilmasin).
   const [store, setStore] = useState(false);
   const [selected, setSelected] = useState<Book | null>(null);
@@ -301,11 +308,15 @@ export default function App() {
     else if (change.chats) toast("Do‘kon chatida yangi xabar bor");
   }, []);
   const attention = useAdminAttention(viewer?.role === "admin", onAdminNew);
-  // Qo'ng'iroqcha: yangi bildirishnoma + do'kon chati (xaridor: o'qilmagan javoblar; admin: yangi buyurtma va chatlar).
+  // Qo'ng'iroqcha = yangi e'lonlar + do'kon yozishmalari (xaridor: o'qilmagan xabarlar; admin: yangi buyurtma va chatlar).
+  // Admin ham xarid qilishi mumkin — ikkala hisob birga qo'shiladi.
   const isAdmin = viewer?.role === "admin";
-  const chatUnread = useChatUnread(Boolean(viewer?.signedIn) && !isAdmin);
-  const bell = unread + (isAdmin ? attention.total : chatUnread);
+  const storeInbox = useStoreInbox(Boolean(viewer?.signedIn)).inbox;
+  const customerUnread = storeInbox?.unread ?? 0;
+  const storeCount = customerUnread + (isAdmin ? attention.total : 0);
+  const bell = unread + storeCount;
   const badge = bell > 0 ? <span className="bell-badge">{bell > 9 ? "9+" : bell}</span> : null;
+  const unreadThreads = storeInbox?.items.filter((item) => item.unread > 0) ?? [];
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("reset");
     if (!token || !RESET_TOKEN_PATTERN.test(token)) return;
@@ -467,7 +478,7 @@ export default function App() {
               <span className="topbar-status" title="Ma'lumotlar qayerda saqlanmoqda"><Wifi size={15} />{backendLabel}</span>
               <PomodoroButton className="icon-btn" />
               <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} />{badge}</button>
-              <button className="topbar-avatar" aria-label={attention.total ? `Profil, ${attention.total} ta yangi` : "Profil"} onClick={() => go("profile")}>{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : <span>{(data.name || "K").slice(0, 1).toUpperCase()}</span>}{attention.total > 0 && <b className="avatar-badge">{attention.total > 9 ? "9+" : attention.total}</b>}</button>
+              <button className="topbar-avatar" aria-label={attention.total ? `Profil, ${attention.total} ta yangi` : "Profil"} onClick={() => go("profile")}>{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : <span>{(data.name || "K").slice(0, 1).toUpperCase()}</span>}{storeCount > 0 && <b className="avatar-badge">{storeCount > 9 ? "9+" : storeCount}</b>}</button>
             </div>
           </header>
 
@@ -522,7 +533,7 @@ export default function App() {
                 <SocialLinks />
               </TabsContent>
               <TabsContent value="profile">
-                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={data.streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} />
+                <ProfileScreens key={profileRoute?.nonce ?? 0} route={profileRoute} name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={data.streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} />
               </TabsContent>
 
               <TabsContent value="community">
@@ -775,7 +786,37 @@ export default function App() {
               {modal === "notifications" && (
                 <>
                   <div className="notification-center">
-                    {!announcements.length && <p className="muted">Yangi bildirishnoma yo‘q. Admin e‘lon joylaganda shu yerda ko‘rinadi.</p>}
+                    {!announcements.length && !unreadThreads.length && !(isAdmin && attention.total > 0) && <p className="muted">Yangi bildirishnoma yo‘q. Admin e‘lon joylaganda shu yerda ko‘rinadi.</p>}
+                    {unreadThreads.length > 0 && (
+                      <>
+                        <p className="notification-group">Do‘kon xabarlari</p>
+                        {unreadThreads.map((item) => (
+                          <button type="button" className="notification-item" key={item.key} onClick={() => openProfileScreen("messages")}>
+                            <span className="notification-icon"><MessageSquare size={19} /></span>
+                            <span className="notification-copy">
+                              <strong>{item.kind === "general" ? "Umumiy savollar" : `Buyurtma № ${item.order?.id}`}</strong>
+                              <small>{item.preview || "Yangi xabar"}</small>
+                              <time>{item.unread} ta yangi</time>
+                            </span>
+                            <ChevronRight size={18} />
+                          </button>
+                        ))}
+                      </>
+                    )}
+                    {isAdmin && attention.orders > 0 && (
+                      <button type="button" className="notification-item" onClick={() => openProfileScreen("orders")}>
+                        <span className="notification-icon"><MessageSquare size={19} /></span>
+                        <span className="notification-copy"><strong>Yangi buyurtmalar</strong><time>{attention.orders} ta</time></span>
+                        <ChevronRight size={18} />
+                      </button>
+                    )}
+                    {isAdmin && attention.chats > 0 && (
+                      <button type="button" className="notification-item" onClick={() => openProfileScreen("storechat")}>
+                        <span className="notification-icon"><MessageSquare size={19} /></span>
+                        <span className="notification-copy"><strong>Do‘kon chati</strong><time>{attention.chats} ta o‘qilmagan</time></span>
+                        <ChevronRight size={18} />
+                      </button>
+                    )}
                     {announcements.slice(0, 5).map((item) => (
                       <button type="button" className="notification-item" key={item.id} onClick={() => { setModal(""); go("community"); }}>
                         <span className="notification-icon"><MessageSquare size={19} /></span>

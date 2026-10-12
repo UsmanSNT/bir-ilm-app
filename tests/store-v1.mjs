@@ -307,6 +307,21 @@ try {
   assert.equal(general.length, 2, "Umumiy yozishmada faqat savol va javob");
   assert.ok(general.every((m) => m.orderId === null), "Buyurtma xabarlari umumiy yozishmaga tushmaydi");
 
+  // Xabarlar: xaridorning barcha yozishmalari — umumiy savollar va har buyurtma alohida, o'qilmaganlar bilan.
+  const inboxRoute = await load("app/api/v1/store/inbox/route.ts");
+  const inbox0 = (await buyer.call(inboxRoute.GET, "/api/v1/store/inbox")).data;
+  assert.deepEqual(inbox0.items.map((i) => i.key).sort(), ["general", order.id].sort(), "Umumiy va har buyurtma alohida qator");
+  assert.equal(inbox0.items.find((i) => i.key === order.id).preview, "Holat: Tayyorlanmoqda");
+  assert.equal(inbox0.items.find((i) => i.key === order.id).order.id, order.id);
+  assert.equal(inbox0.unread, 0);
+  await admin.call(adminChat.POST, `/api/v1/admin/store-chat/${buyer.userId}`, { method: "POST", params: { userId: buyer.userId }, body: { body: "Yetkazib beramiz", orderId: order.id }, expect: 201 });
+  const inbox1 = (await buyer.call(inboxRoute.GET, "/api/v1/store/inbox")).data;
+  assert.equal(inbox1.items.find((i) => i.key === order.id).unread, 1, "Buyurtma bo'yicha yangi javob shu qatorda");
+  assert.equal(inbox1.items.find((i) => i.key === "general").unread, 0, "Umumiy yozishma o'qilmagan emas");
+  assert.equal(inbox1.unread, 1);
+  await buyer.call(chat.GET, `/api/v1/store/chat?order=${order.id}`);
+  assert.equal((await buyer.call(inboxRoute.GET, "/api/v1/store/inbox")).data.unread, 0, "Ochilgach qator va jami nolga tushadi");
+
   // Chek rasmi: faqat haqiqiy rasm, hajm chegarasi; egasi va admin ko'radi, boshqasi — yo'q.
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8]);
   const upload = async (client, route, path, mime, bytes, params) => {

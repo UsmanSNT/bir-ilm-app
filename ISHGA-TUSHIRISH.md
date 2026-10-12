@@ -296,3 +296,11 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - Qo'ng'iroqcha (bell) belgisi: xaridor uchun o'qilmagan do'kon javoblari, admin uchun yangi buyurtma va o'qilmagan chatlar soni qo'shiladi.
 - Migratsiya: `drizzle/0025_order_threads.sql` (`store_orders.admin_unread`, `user_unread`). Eski buyurtma xabarlari o'z buyurtma chatida ko'rinadi. Test: `node tests/store-v1.mjs`.
 - Holat qiymatlari endi: new, confirmed, preparing, shipped, delivered, cancelled. Eski `shipped` «Yuborildi» deb ko'rinadi.
+
+## Xabarlar: yagona oqim (xaridor)
+
+- Xabarlar bitta joyda: «Xabarlar» ekrani (profil) va do'kon chati (Adminga yozish) bir xil ro'yxatni ko'rsatadi. Ro'yxatda «Umumiy savollar» va har bir buyurtma alohida qator (holati, oxirgi xabar, o'qilmaganlar soni).
+- Qo'ng'iroqcha: o'qilmagan xabarlar soni bilan belgilanadi. Bosilganda «Do‘kon xabarlari» ro'yxati chiqadi va Xabarlar ochiladi. Belgi soni va ro'yxat har doim bir xil.
+- Avatar belgisi ham shu do'kon xabarlari sonini ko'rsatadi.
+- Admin ham xarid qilsa, uning ikkala hisobi (xaridor va admin) belgisi qo'shiladi. Admin uchun ro'yxatda «Yangi buyurtmalar» va «Do‘kon chati» havolalari chiqadi.
+- API: `GET /api/v1/store/inbox` (xaridorning barcha yozishmalari va o'qilmaganlar soni). Test: `node tests/store-v1.mjs`.
