@@ -222,3 +222,9 @@ button.p-row:hover { background: #fcf9f2; }
 .tf { margin-top: 0; }
 .tf-off { min-height: 44px; border: 1px solid #e3b4ac; border-radius: 999px; background: #fff; color: #b3402f; font: inherit; font-weight: 700; cursor: pointer; }
 .p-guest { max-width: 540px; margin: 0 auto; padding: 24px 16px; }
+
+/* Mehmon kirish sahifasi: profil kartasidan alohida, toza ekran */
+.p-guest .login-page { display: grid; gap: 12px; }
+.login-page-title { margin: 0; font: 600 26px/1.15 var(--f-display); color: #161b3b; letter-spacing: -.3px; }
+.login-page > div { display: grid; gap: 14px; }
+.login-page > div > p { margin: 0; color: #626072; font-size: 14px; line-height: 1.5; }

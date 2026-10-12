@@ -268,3 +268,8 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 
 - **Yangi buyurtma kelganda adminga xabar:** (1) ilovada: yuqoridagi profil rasmida qizil nishon (yangi buyurtmalar + o'qilmagan do'kon chatlari), kelganda xabar ("Yangi buyurtma keldi!"), Sozlamalardagi "Do'kon buyurtmalari" va "Do'kon chati" qatorlarida "N ta yangi"; (2) tashqarida: admin Telegram bilan kirgan bo'lsa — bot orqali Telegram xabari, emaili bo'lsa — email (`TELEGRAM_BOT_TOKEN` va `RESEND_API_KEY` + `MAIL_FROM` sozlangan bo'lsa; sozlanmagan kanal jim o'tkazib yuboriladi). Xabarda raqam, ism, telefon, Telegram, manzil, kitoblar va jami summa bor.
 - Hafta kitobi tanlanmaganda admin ko'radigan kartada uzun kitob nomi kartani o'ngga cho'zib yubormaydi.
+
+## Mehmon kirish sahifasi; Telegram tekshiruvi
+
+- Ro'yxatdan o'tmagan foydalanuvchi shaxsiy sahifada faqat mustaqil «Kirish» ekranini ko'radi (kartasiz): Google, Telegram (sozlangan bo'lsa) va email bilan kirish yoki hisob ochish.
+- Telegram tugmasi faqat serverda `TELEGRAM_BOT_TOKEN` VA `TELEGRAM_BOT_USERNAME` ikkalasi ham bo'lsa chiqadi. Tekshirish: brauzerda `https://birilm.uz/api/v1/auth/session` oching, `"telegramBot"` qiymati `"bir_ilm_uz_bot"` bo'lishi kerak. `null` bo'lsa, token `secrets.cmd` da yo'q yoki sayt uni ko'rmayapti.

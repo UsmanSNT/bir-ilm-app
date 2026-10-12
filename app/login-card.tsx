@@ -28,7 +28,11 @@ function TelegramButton({ bot }: { bot: string }) {
   return <div ref={host} className="login-telegram" />;
 }
 
-export default function LoginCard({ viewer, title = "Hisobingizni saqlang", text }: { viewer: Viewer; title?: string; text?: string }) {
+/**
+ * Kirish/ro'yxatdan o'tish. `page` — mustaqil ekran (mehmon uchun): kartochkasiz, sarlavha bilan.
+ * Aks holda profil ichidagi karta sifatida chiqadi.
+ */
+export default function LoginCard({ viewer, title = "Hisobingizni saqlang", text, page = false }: { viewer: Viewer; title?: string; text?: string; page?: boolean }) {
   const { google, telegramBot } = viewer.loginProviders;
   const available = google || telegramBot;
   const native = nativeAuth();
@@ -57,10 +61,10 @@ export default function LoginCard({ viewer, title = "Hisobingizni saqlang", text
   };
 
   return (
-    <section className="login-card" aria-label="Hisobga kirish">
-      <span className="login-card-icon"><LogIn size={20} /></span>
+    <section className={page ? "login-page" : "login-card"} aria-label="Hisobga kirish">
+      {!page && <span className="login-card-icon"><LogIn size={20} /></span>}
       <div>
-        <strong>{title}</strong>
+        {page ? <h1 className="login-page-title">{title}</h1> : <strong>{title}</strong>}
         <p>{text ?? "Email, Google yoki Telegram orqali kiring — shunda istalgan telefon va kompyuterdan shu akkauntga, postlaringiz va rolingiz bilan kirasiz."}</p>
         {available ? (
           <div className="login-buttons">

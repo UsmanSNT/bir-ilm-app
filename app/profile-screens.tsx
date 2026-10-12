@@ -93,7 +93,7 @@ export default function ProfileScreens(p: Props) {
   if (!viewer) return <section className="profile-space p-guest" aria-busy="true" />;
   if (!viewer.signedIn) {
     return <section className="profile-space p-guest">
-      <LoginCard viewer={viewer} title="Kirish yoki ro‘yxatdan o‘tish" text="Shaxsiy sahifa, postlar va suhbatlar uchun email, Google yoki Telegram bilan kiring." />
+      <LoginCard viewer={viewer} page title="Kirish" text="Shaxsiy sahifa, postlar va suhbatlar uchun hisobingizga kiring yoki yangi hisob oching." />
     </section>;
   }
 
