@@ -52,3 +52,7 @@ export const joinQuizByCode = (code: string) =>
   call<QuizJoin>("/quizzes/join", { method: "POST", body: JSON.stringify({ code }) });
 export const saveQuizResult = (input: { quizId: string; sessionId: string | null; correct: number; total: number }) =>
   call<{ score: number }>("/quizzes/results", { method: "POST", body: JSON.stringify(input) });
+
+/** Viktorina muqovasini yuklaydi; qaytgan yo'l viktorina saqlanganda yuboriladi. */
+export const uploadQuizImage = (file: Blob) =>
+  call<{ url: string }>("/quiz-media", { method: "POST", headers: { "Content-Type": file.type }, body: file }).then((d) => d.url);

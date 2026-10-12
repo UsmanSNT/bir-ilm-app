@@ -263,7 +263,7 @@ export default function MobileScreens({
       author: linked?.author ?? "",
       minutes: q.minutes,
       tone: "cream",
-      image: linked?.coverUrl ?? null,
+      image: q.image ?? linked?.coverUrl ?? null,
       color: linked?.color,
       questions: q.questions.map((qq) => ({ prompt: qq.prompt, choices: qq.choices.map((text, i) => ({ id: String(i), text })), answer: String(qq.answer) })),
     };
@@ -299,6 +299,7 @@ export default function MobileScreens({
 
   function openQuizzes() {
     setScreen("quizzes");
+    setQuizEditing(null);
     setMode("live");
     window.scrollTo({ top: 0 });
   }
@@ -528,7 +529,8 @@ export default function MobileScreens({
         </div>
       )}
 
-      {screen === "quizzes" && (
+      {screen === "quizzes" && quizEditing && <QuizEditor key={quizEditing.quiz?.id ?? "new"} quiz={quizEditing.quiz} onClose={() => setQuizEditing(null)} />}
+      {screen === "quizzes" && !quizEditing && (
         <div className="m-screen">
           <Subhead title="Viktorinalar" onBack={goHome} />
           <div className="m-seg" role="tablist" aria-label="Viktorina turlari">
@@ -672,7 +674,6 @@ export default function MobileScreens({
         </div>
       )}
 
-      {quizEditing && <QuizEditor key={quizEditing.quiz?.id ?? "new"} quiz={quizEditing.quiz} onClose={() => setQuizEditing(null)} />}
       <BookEditor open={Boolean(editing)} book={editing?.book ?? null} asWeekBook={!editing?.book} onClose={() => setEditing(null)} />
 
       {reminder && screen === "home" && (

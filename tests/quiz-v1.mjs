@@ -140,6 +140,17 @@ try {
   await call(quiz.PUT, "/api/v1/quizzes/qz_yoq", { method: "PUT", cookie: admin.cookie, params: { id: "qz_yoq" }, body: valid, expect: 404 });
   console.log("PASS: Yaratish, hamma ko'rishi, tahrirlash (savollar almashtiriladi), kitobga bog'lash.");
 
+  // Muqova rasmi: faqat quiz-media yuklagan `/media/quiz/` yo'li qabul qilinadi
+  await bad({ ...valid, image: "/etc/passwd" });
+  await bad({ ...valid, image: "/media/quiz/../../secret.png" });
+  const imageUrl = "/media/quiz/abcdefghijklmnop.png";
+  const withImage = (await call(quizzes.POST, "/api/v1/quizzes", { method: "POST", cookie: admin.cookie, body: { ...valid, title: "Rasmli", image: imageUrl }, expect: 201 })).payload.data;
+  assert.equal(withImage.image, imageUrl);
+  const noImage = (await call(quiz.PUT, `/api/v1/quizzes/${withImage.id}`, { method: "PUT", cookie: admin.cookie, params: { id: withImage.id }, body: { ...valid, title: "Rasmli", image: null } })).payload.data;
+  assert.equal(noImage.image, null, "Rasm olib tashlanganda maydon bo'shaydi");
+  assert.equal((await call(quizzes.GET, "/api/v1/quizzes", { cookie: g0.cookie })).payload.data.items.find((x) => x.id === made.id).image, null);
+  console.log("PASS: Muqova rasmi: faqat /media/quiz/ yo'li qabul qilinadi, olib tashlash saqlanadi.");
+
   // Moderator ham boshqaradi; kitob o'chirilsa viktorina qoladi
   const moderator = await makeUser("mod", "moderator");
   await call(quiz.PUT, `/api/v1/quizzes/${made.id}`, { method: "PUT", cookie: moderator.cookie, params: { id: made.id }, body: { ...valid, bookId } });

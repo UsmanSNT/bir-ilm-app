@@ -22,10 +22,17 @@ export const quizQuestionSchema = z
   .refine((q) => q.answer < q.choices.length, { message: "To'g'ri javobni belgilang.", path: ["answer"] })
   .refine((q) => new Set(q.choices.map((c) => c.toLowerCase())).size === q.choices.length, { message: "Variantlar bir xil bo'lmasin.", path: ["choices"] });
 
+/** Muqova rasmi hajmi (bayt) — server va brauzer bir xil chegarani qo'llaydi. */
+export const QUIZ_IMAGE_MAX_BYTES = 6 * 1024 * 1024;
+/** Viktorina muqovasi: quiz-media endpoint qaytargan yo'l. */
+export const QUIZ_IMAGE_PATTERN = /^\/media\/quiz\/[a-z0-9]{16,32}\.(jpg|png|webp)$/;
+
 export const quizInputSchema = z.object({
   title: z.string().trim().min(1, "Viktorina nomini yozing.").max(QUIZ_LIMITS.title),
   /** Bog'langan kitob (ixtiyoriy). */
   bookId: z.string().trim().min(1).max(96).nullable().default(null),
+  /** Muqova rasmi (ixtiyoriy). */
+  image: z.string().regex(QUIZ_IMAGE_PATTERN, "Rasm noto‘g‘ri.").nullable().default(null),
   questions: z.array(quizQuestionSchema).min(1, "Kamida bitta savol kerak.").max(QUIZ_LIMITS.maxQuestions, `${QUIZ_LIMITS.maxQuestions} tadan ko'p savol bo'lmasin.`),
 });
 export type QuizInput = z.infer<typeof quizInputSchema>;
@@ -72,6 +79,7 @@ export type Quiz = {
   id: string;
   title: string;
   bookId: string | null;
+  image: string | null;
   /** Taxminiy vaqt (daqiqa): savol soniga qarab. */
   minutes: number;
   questions: QuizQuestionInput[];

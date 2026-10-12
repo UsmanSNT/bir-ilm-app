@@ -4,6 +4,7 @@ import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ApiException, badRequest, notFound } from "@/server/http/errors";
 import { quizMinutes, quizSessionStatus, type Quiz, type QuizInput, type QuizJoin, type QuizResultInput, type QuizSession } from "@/shared/contract";
+import { removeQuizImage } from "./quiz-media";
 
 const { quizzes, quizQuestions, quizSessions, quizResults, books } = schema;
 
@@ -50,7 +51,7 @@ async function withQuestions(db: Database, rows: Array<typeof quizzes.$inferSele
     const own = questions
       .filter((q) => q.quizId === row.id)
       .map((q) => ({ prompt: q.prompt, choices: parseChoices(q.choices), answer: q.answer }));
-    return { id: row.id, title: row.title, bookId: row.bookId, minutes: quizMinutes(own.length), questions: own, sessions: sessions.get(row.id) ?? [], updatedAt: row.updatedAt };
+    return { id: row.id, title: row.title, bookId: row.bookId, image: row.image ?? null, minutes: quizMinutes(own.length), questions: own, sessions: sessions.get(row.id) ?? [], updatedAt: row.updatedAt };
   });
 }
 
@@ -86,7 +87,7 @@ export async function createQuiz(db: Database, userId: string, input: QuizInput)
   await checkBook(db, input.bookId);
   const id = newId("qz");
   await db.batch([
-    db.insert(quizzes).values({ id, bookId: input.bookId, title: input.title, createdBy: userId }),
+    db.insert(quizzes).values({ id, bookId: input.bookId, title: input.title, image: input.image, createdBy: userId }),
     db.insert(quizQuestions).values(questionRows(id, input)),
   ]);
   return getQuiz(db, id);
@@ -94,19 +95,22 @@ export async function createQuiz(db: Database, userId: string, input: QuizInput)
 
 /** Savollar to'liq almashtiriladi (yagona amal): tartib va to'g'ri javoblar har doim formadagidek bo'ladi. */
 export async function updateQuiz(db: Database, id: string, input: QuizInput): Promise<Quiz> {
-  await getQuiz(db, id);
+  const before = await getQuiz(db, id);
   await checkBook(db, input.bookId);
   await db.batch([
-    db.update(quizzes).set({ bookId: input.bookId, title: input.title, updatedAt: new Date().toISOString() }).where(eq(quizzes.id, id)),
+    db.update(quizzes).set({ bookId: input.bookId, title: input.title, image: input.image, updatedAt: new Date().toISOString() }).where(eq(quizzes.id, id)),
     db.delete(quizQuestions).where(eq(quizQuestions.quizId, id)),
     db.insert(quizQuestions).values(questionRows(id, input)),
   ]);
+  // Muqova almashtirilsa yoki olib tashlansa, eski fayl diskdan o'chiriladi.
+  if (before.image && before.image !== input.image) await removeQuizImage(before.image);
   return getQuiz(db, id);
 }
 
 export async function deleteQuiz(db: Database, id: string): Promise<void> {
-  await getQuiz(db, id);
+  const before = await getQuiz(db, id);
   await db.delete(quizzes).where(eq(quizzes.id, id));
+  if (before.image) await removeQuizImage(before.image);
 }
 
 // ── Jonli vaqtlar va kirish kodlari ────────────────────────────────

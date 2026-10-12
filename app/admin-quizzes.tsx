@@ -14,6 +14,9 @@ export default function AdminQuizzes() {
   const [editing, setEditing] = useState<{ quiz: Quiz | null } | null>(null);
   const bookTitle = (id: string | null) => (id ? catalog.items.find((b) => b.id === id)?.title ?? "Kitob o‘chirilgan" : "Kitobsiz");
 
+  // Tahrirlash alohida sahifa: ro'yxat o'rniga tahrirlovchi ochiladi.
+  if (editing) return <QuizEditor key={editing.quiz?.id ?? "new"} quiz={editing.quiz} onClose={() => setEditing(null)} />;
+
   return (
     <div className="admin-panel admin-quizzes">
       <button type="button" className="admin-add-book" onClick={() => setEditing({ quiz: null })}><Plus size={17} /> Yangi viktorina</button>
@@ -25,7 +28,6 @@ export default function AdminQuizzes() {
           <ChevronRight size={18} />
         </button>
       ))}
-      {editing && <QuizEditor key={editing.quiz?.id ?? "new"} quiz={editing.quiz} onClose={() => setEditing(null)} />}
     </div>
   );
 }

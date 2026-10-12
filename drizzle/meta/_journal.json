@@ -169,6 +169,13 @@
       "when": 1791089328814,
       "tag": "0023_quiz_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1791789855770,
+      "tag": "0024_quiz_image",
+      "breakpoints": true
     }
   ]
 }

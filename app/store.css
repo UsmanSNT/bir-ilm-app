@@ -453,6 +453,21 @@
 .qe-choices { display: grid; gap: 6px; }
 .qe-choice input[type="radio"] { flex: none; width: 20px !important; height: 20px; margin: 0; padding: 0; accent-color: #1f7a52; }
 .qe-choice.is-correct input:not([type="radio"]) { border-color: #1f7a52 !important; background: #f1faf4; }
+/* Viktorina sahifasi: sarlavha, muqova rasmi, qoralama xabari */
+.quiz-editor-page { display: grid; gap: 14px; padding: 4px 0 24px; }
+.quiz-editor-page form { display: grid; gap: 14px; }
+.qe-head { display: flex; align-items: center; gap: 10px; }
+.qe-head h2 { margin: 0; font: 600 22px/1.2 var(--f-display); color: #161b3b; }
+.qe-back { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 1px solid #e3d9c2; border-radius: 50%; background: #fff; color: #172351; cursor: pointer; }
+.qe-back:disabled { opacity: .4; cursor: default; }
+.qe-draft-note { margin: 0; padding: 9px 12px; border-radius: 10px; background: #fbf3e0; color: #6b5a2e; font-size: 13px; }
+.qe-draft-note button { border: 0; background: none; color: #1f7a52; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; }
+.qe-cover { display: grid; gap: 10px; padding: 10px; border: 1.5px dashed #c9bd9b; border-radius: 14px; background: #fffdf7; }
+.qe-cover img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; }
+.qe-cover-empty { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 90px; color: #7d7564; font-size: 13px; }
+.qe-cover-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.qe-cover-actions .qe-add { flex: 1 1 140px; margin: 0; cursor: pointer; }
+.qe-remove { color: #9a3b2c; border-color: #e6c3b9; }
 .qe-add-choice, .qe-add { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border: 1.5px dashed #c9bd9b; border-radius: 12px; background: transparent; color: #172351; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .qe-add { min-height: 44px; }
 .aq-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 12px 14px; border: 1px solid #e3d9c2; border-radius: 14px; background: #fff; color: #172351; text-align: left; cursor: pointer; }

@@ -276,3 +276,13 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - Suhbat bo'limida kirish so'ralmaydi, faqat suhbatga qo'shilish tugmasi bosilganda modal ochiladi. «Fikr yozish» kartasi olib tashlandi: yozuvlar hamjamiyatga chiqadi.
 - Hamjamiyat va Book Store da kirish talab qilinsa ham shu modal ochiladi.
 - Telegram tugmasi faqat serverda `TELEGRAM_BOT_TOKEN` VA `TELEGRAM_BOT_USERNAME` ikkalasi ham bo'lsa chiqadi. Tekshirish: brauzerda `https://birilm.uz/api/v1/auth/session` oching, `"telegramBot"` qiymati `"bir_ilm_uz_bot"` bo'lishi kerak. `null` bo'lsa, token `secrets.cmd` da yo'q yoki sayt uni ko'rmayapti.
+
+## Viktorina: alohida sahifa, qoralama va muqova rasmi
+
+- Viktorina tuzish modal emas, alohida sahifada ochiladi (admin «Viktorinalar» va mobil «Viktorinalar» ekrani). Sahifa sarlavhasidagi «←» yoki pastdagi «Orqaga» ro‘yxatga qaytaradi.
+- Saqlanmagan forma brauzerda (`localStorage`, kalit: `bir-ilm-quiz-draft-v1:<viktorina id yoki new>`) avtomatik saqlanadi. Sahifadan chiqib qaytilsa, tuzish o‘sha joydan davom etadi («Saqlanmagan qoralama tiklandi» xabari). «Qoralamani tozalash» uni o‘chiradi. Viktorina saqlanganda yoki o‘chirilganda qoralama o‘chadi.
+- Qoralama faqat shu brauzerda turadi, serverga yuborilmaydi. Boshqa qurilmada yoki brauzer ma’lumotlari tozalangach, qoralama yo‘qoladi.
+- Muqova rasmi: JPG, PNG yoki WebP, 6 MB gacha. Yuklangan rasm `/media/quiz/<fayl>` yo‘lida saqlanadi va viktorina saqlanganda bog‘lanadi. Saqlanmagan rasm yetim fayl bo‘lib qoladi (kichik hajm, tozalanmaydi). Muqova almashtirilsa yoki olib tashlansa, eski fayl diskdan o‘chadi.
+- Muqova mobil viktorinalar ro‘yxatida kitob muqovasi o‘rnida ko‘rinadi (kitob bog‘langan bo‘lsa, viktorina muqovasi ustun turadi).
+- Migratsiya: `drizzle/0024_quiz_image.sql` (`quizzes.image` ustuni, faqat qo‘shadi). Test: `node tests/quiz-v1.mjs`.
+- Hozircha rasm faqat viktorina muqovasi uchun. Har bir savolga alohida rasm kerak bo‘lsa, alohida qo‘shiladi.

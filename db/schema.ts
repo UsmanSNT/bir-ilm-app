@@ -484,6 +484,8 @@ export const quizzes = sqliteTable("quizzes", {
   id: text("id").primaryKey(),
   bookId: text("book_id").references(() => books.id, { onDelete: "set null" }),
   title: text("title").notNull(),
+  /** Muqova rasmi: `/media/quiz/<fayl>` (ixtiyoriy). */
+  image: text("image"),
   createdBy: text("created_by").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
