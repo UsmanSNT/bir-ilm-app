@@ -337,3 +337,9 @@ Bu bo'lim oldingi «Hisobim» va «Shaxsiy sahifa Hisobim ichida» bo'limlarini 
 - **Book Store hisobi** (do'kon, «Hisobim»): Savat (Oxirgi xaridlar | Savat | Baholar), Xabarlar (do'kon yozishmalari), va admin uchun «Boshqaruv» (Buyurtmalar, Do‘kon chati, Kitoblar). Yuqorida «Bir Ilm hisobi» havolasi Bir Ilm'ga o'tkazadi.
 - Do'kon bo'limida o'qilgan kitoblar, javon va Bir Ilm sozlamalari ko'rinmaydi. Bir Ilm profilida do'kon buyurtmalari va chati ko'rinmaydi; faqat «Do‘kon xabarlari» havolasi bor.
 - Bildirishnomadagi do'kon xabarlari va do'kon admin bandlari Book Store hisobini ochadi.
+
+## Do'kon sozlamalari va Boshqaruv menyusi
+
+- Book Store hisobida «Sozlamalar» bo'limi bor: yetkazib berish ma'lumotlari (ism, telefon, Telegram, manzil). Bu do'kon hisobiga tegishli va buyurtma berishda oldindan to'ldiriladi. Bir Ilm sozlamalariga ta'sir qilmaydi.
+- Migratsiya: `drizzle/0026_store_profiles.sql` (`store_profiles` jadvali). API: `GET/PUT /api/v1/store/profile`. Test: `node tests/store-v1.mjs`.
+- Admin «Boshqaruv» avval ro'yxat ko'rsatadi (Buyurtmalar, Do‘kon chati, Kitoblar — yangilari soni bilan). Bo'lim ochilganda «Boshqaruv» tugmasi ro'yxatga qaytaradi.

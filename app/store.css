@@ -572,3 +572,12 @@
 .sa-main-copy { display: grid; gap: 2px; flex: 1; min-width: 0; }
 .sa-main-copy strong { font-size: 14px; }
 .sa-main-copy small { color: #7d7564; font-size: 12px; }
+
+/* Do'kon sozlamalari (yetkazib berish ma'lumotlari) va Boshqaruv menyusi */
+.ss { display: grid; gap: 12px; }
+.ss h3 { margin: 0; color: #172351; font-size: 16px; }
+.ss-field { display: grid; gap: 6px; color: #172351; font-size: 13px; font-weight: 700; }
+.ss-field input, .ss-field textarea { width: 100%; padding: 10px 12px; border: 1px solid #e3d9c2; border-radius: 12px; background: #fff; color: #172351; font: inherit; font-size: 14px; font-weight: 400; }
+.ss-field textarea { resize: vertical; }
+.ss-save { justify-self: start; }
+.sa-back-link { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px 0 8px; border: 1px solid #e3d9c2; border-radius: 999px; background: #fff; color: #172351; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }

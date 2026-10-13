@@ -1,25 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronRight, Library, MessageCircle, Minus, Plus, ShoppingCart, Star, Trash2, UserRound, BookOpen } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight, Library, MessageCircle, Minus, Plus, ShoppingCart, Star, Trash2, UserRound } from "lucide-react";
 import { fetchMyReviews, fetchOrders, useCart } from "@/lib/api/store-client";
 import { useViewer } from "@/lib/api/roles-client";
+import { useAdminAttention } from "@/lib/api/admin-attention";
 import { formatPrice, type MyReview, ORDER_STATUS_LABELS, STORE_LIMITS, type StoreBook, type StoreOrder } from "@/shared/contract";
 import AdminOrders from "./admin-orders";
 import AdminStoreBooks from "./admin-store-books";
 import AdminStoreChat from "./admin-store-chat";
 import { OrderProgress } from "./order-status";
 import StoreMessages, { type Conversation } from "./store-messages";
+import StoreSettings from "./store-settings";
 import { BookCover } from "./store-ui";
 
 export type Cart = ReturnType<typeof useCart>;
 /** Book Store hisobi: faqat do'kon ma'lumotlari (savat, xaridlar, baholar, xabarlar, do'kon boshqaruvi). */
-export type AccountTab = "cart" | "messages" | "admin";
+export type AccountTab = "cart" | "messages" | "settings" | "admin";
 export type AdminArea = "orders" | "chat" | "books";
 export type PurchaseView = "orders" | "cart" | "reviews";
 const PURCHASE_VIEWS: [PurchaseView, string][] = [["orders", "Oxirgi xaridlar"], ["cart", "Savat"], ["reviews", "Baholar"]];
 
-const ACCOUNT_TABS: Record<AccountTab, string> = { cart: "Savat", messages: "Xabarlar", admin: "Boshqaruv" };
+const ACCOUNT_TABS: Record<AccountTab, string> = { cart: "Savat", messages: "Xabarlar", settings: "Sozlamalar", admin: "Boshqaruv" };
 const ADMIN_AREAS: [AdminArea, string][] = [
   ["orders", "Buyurtmalar"],
   ["chat", "Do‘kon chati"],
@@ -55,7 +57,7 @@ export default function StoreAccount({ tab, adminArea, purchaseView, onPurchaseV
   const viewer = useViewer();
   const signedIn = Boolean(viewer?.signedIn);
   const isAdmin = viewer?.role === "admin";
-  const tabs: AccountTab[] = isAdmin ? ["cart", "messages", "admin"] : ["cart", "messages"];
+  const tabs: AccountTab[] = isAdmin ? ["cart", "messages", "settings", "admin"] : ["cart", "messages", "settings"];
 
   return (
     <section className="sa" aria-label="Book Store hisobi">
@@ -81,7 +83,8 @@ export default function StoreAccount({ tab, adminArea, purchaseView, onPurchaseV
       {tab === "messages" && (signedIn
         ? <StoreMessages key={`${messagesStart?.kind === "order" ? messagesStart.order.id : "list"}-${chatBook?.id ?? ""}`} initial={messagesStart} bookId={chatBook?.id} bookTitle={chatBook?.title} onNeedLogin={onNeedLogin} />
         : <SignInPrompt text="Admin bilan yozishish faqat ro‘yxatdan o‘tgan kitobxonlar uchun." onNeedLogin={onNeedLogin} />)}
-      {tab === "admin" && isAdmin && <AdminArea initial={adminArea ?? "orders"} />}
+      {tab === "settings" && <StoreSettings />}
+      {tab === "admin" && isAdmin && <AdminArea initial={adminArea} />}
     </section>
   );
 }
@@ -97,16 +100,29 @@ function SignInPrompt({ text, onNeedLogin }: { text: string; onNeedLogin: () => 
   );
 }
 
-/** Admin «Boshqaruv»: do'kon boshqaruvi (buyurtmalar, do'kon chati, kitoblar). Bir Ilm boshqaruvi — Bir Ilm profilida. */
-function AdminArea({ initial }: { initial: AdminArea }) {
-  const [area, setArea] = useState<AdminArea>(initial);
+/** Admin «Boshqaruv»: do'kon boshqaruvi. Avval ro'yxat, bo'lim tanlanganda — shu bo'lim bilan (filtrlar bitta qatorda). */
+function AdminArea({ initial }: { initial?: AdminArea }) {
+  const [area, setArea] = useState<AdminArea | null>(initial ?? null);
+  const attention = useAdminAttention(true);
+  const counts: Partial<Record<AdminArea, number>> = { orders: attention.orders, chat: attention.chats };
+  if (!area) {
+    return (
+      <section className="sa-admin" aria-label="Do‘kon boshqaruvi">
+        <div className="sa-menu">
+          {ADMIN_AREAS.map(([id, label]) => (
+            <button key={id} type="button" className="sa-row" onClick={() => setArea(id)}>
+              <span>{label}</span>
+              {(counts[id] ?? 0) > 0 && <small>{counts[id]} ta yangi</small>}
+              <ChevronRight size={17} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      </section>
+    );
+  }
   return (
-    <section className="sa-admin" aria-label="Do‘kon boshqaruvi">
-      <div className="sa-chips" role="tablist" aria-label="Do‘kon boshqaruvi bo‘limlari">
-        {ADMIN_AREAS.map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={area === id} onClick={() => setArea(id)}>{label}</button>
-        ))}
-      </div>
+    <section className="sa-admin" aria-label={ADMIN_AREAS.find(([id]) => id === area)?.[1]}>
+      <button type="button" className="sa-back-link" onClick={() => setArea(null)}><ArrowLeft size={17} aria-hidden="true" />Boshqaruv</button>
       {area === "orders" && <AdminOrders />}
       {area === "chat" && <AdminStoreChat />}
       {area === "books" && <AdminStoreBooks />}

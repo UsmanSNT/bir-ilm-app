@@ -98,6 +98,22 @@ export const placeOrderSchema = z.object({
 });
 export type PlaceOrderInput = z.infer<typeof placeOrderSchema>;
 
+/** Do'kon hisobining yetkazib berish ma'lumotlari (buyurtma formasi oldindan to'ldiriladi). Bo'sh maydon — ko'rsatilmagan. */
+export const storeProfileSchema = z.object({
+  name: z.string().trim().max(STORE_LIMITS.name),
+  phone: z
+    .string()
+    .trim()
+    .transform((v) => (v ? normalizePhone(v) : ""))
+    .pipe(z.string().refine((v) => v === "" || PHONE_PATTERN.test(v), "Telefon +998… yoki +82… ko‘rinishida bo‘lsin.")),
+  telegram: z
+    .string()
+    .transform(normalizeTelegram)
+    .pipe(z.string().refine((v) => v === "" || TELEGRAM_PATTERN.test(v), "Telegram nomi: @nom (5–32 belgi: harf, raqam, _).")),
+  address: z.string().trim().max(STORE_LIMITS.address),
+});
+export type StoreProfile = z.infer<typeof storeProfileSchema>;
+
 export const orderStatusSchema = z.object({ status: z.enum(ORDER_STATUSES) });
 export type OrderStatusInput = z.infer<typeof orderStatusSchema>;
 

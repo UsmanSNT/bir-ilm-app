@@ -15,6 +15,7 @@ import {
   type StoreChat,
   type StoreInbox,
   type MyReview,
+  type StoreProfile,
   type StoreMessage,
   type StoreThread,
   type StoreOrder,
@@ -145,6 +146,8 @@ export function useCart(books: StoreBook[]) {
 
 export const fetchOrders = () => call<{ items: StoreOrder[] }>("/store/orders").then((d) => d.items);
 export const fetchMyReviews = () => call<{ items: MyReview[] }>("/store/reviews").then((d) => d.items);
+export const fetchStoreProfile = () => call<StoreProfile>("/store/profile");
+export const saveStoreProfile = (input: StoreProfile) => call<StoreProfile>("/store/profile", { method: "PUT", body: JSON.stringify(input) });
 export const placeOrder = (input: PlaceOrderInput) =>
   call<StoreOrder>("/store/orders", { method: "POST", body: JSON.stringify(input) });
 

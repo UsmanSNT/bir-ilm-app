@@ -336,6 +336,19 @@ export const userActivity = sqliteTable(
 // ── Book Store ──────────────────────────────────────────────────────
 
 /** Savat: har foydalanuvchi uchun bitta; narx bu yerda saqlanmaydi — har doim kitobdan olinadi. */
+/**
+ * Do'kon hisobining yetkazib berish ma'lumotlari (do'kon sozlamalari). Bir Ilm profilidan alohida.
+ * Buyurtma berishda oldindan to'ldiriladi; buyurtma o'zining nusxasini saqlaydi.
+ */
+export const storeProfiles = sqliteTable("store_profiles", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull().default(""),
+  phone: text("phone").notNull().default(""),
+  telegram: text("telegram").notNull().default(""),
+  address: text("address").notNull().default(""),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const storeCartItems = sqliteTable("store_cart_items", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   bookId: text("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),

@@ -18,6 +18,7 @@ import type {
   BookReview,
   CartInput,
   MyReview,
+  StoreProfile,
   CartLine,
   OrderStatus,
   PlaceOrderInput,
@@ -27,7 +28,7 @@ import type {
   StoreOrder,
 } from "@/shared/contract";
 
-const { books, bookReviews, storeCartItems, storeOrders, storeOrderItems, users } = schema;
+const { books, bookReviews, storeCartItems, storeOrders, storeOrderItems, storeProfiles, users } = schema;
 
 // Jadval nomlari to'g'ridan-to'g'ri: drizzle korrelyatsion subquery'da ustunni jadvalsiz yozadi.
 const ratingSql = sql<number>`coalesce((select avg(rating) from book_reviews where book_reviews.book_id = books.id), 0)`;
@@ -194,6 +195,22 @@ export async function setOrderStatus(db: Database, id: string, status: OrderStat
 }
 
 // ── Sharhlar ────────────────────────────────────────────────────────
+
+/** Do'kon hisobining yetkazib berish ma'lumotlari (yo'q bo'lsa — bo'sh). */
+export async function getStoreProfile(db: Database, userId: string): Promise<StoreProfile> {
+  const row = await db.query.storeProfiles.findFirst({ where: eq(storeProfiles.userId, userId) });
+  return { name: row?.name ?? "", phone: row?.phone ?? "", telegram: row?.telegram ?? "", address: row?.address ?? "" };
+}
+
+export async function saveStoreProfile(db: Database, userId: string, input: StoreProfile): Promise<StoreProfile> {
+  await requireSignedIn(db, userId, "Yetkazib berish ma'lumotlari");
+  const stamp = new Date().toISOString();
+  await db
+    .insert(storeProfiles)
+    .values({ userId, ...input, updatedAt: stamp })
+    .onConflictDoUpdate({ target: storeProfiles.userId, set: { ...input, updatedAt: stamp } });
+  return getStoreProfile(db, userId);
+}
 
 /** Xaridorning barcha baholari — eng yangisi birinchi. */
 export async function listMyReviews(db: Database, userId: string): Promise<MyReview[]> {

@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BookOpen, Check, MessageCircle, Pencil, Plus, Search, ShoppingCart, SlidersHorizontal, Store, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { useViewer } from "@/lib/api/roles-client";
-import { newOrderId, placeOrder, StoreError, useCart, useStoreBooks, useStoreInbox } from "@/lib/api/store-client";
+import { fetchStoreProfile, newOrderId, placeOrder, StoreError, useCart, useStoreBooks, useStoreInbox } from "@/lib/api/store-client";
 import {
   formatPrice,
   normalizePhone,
@@ -251,6 +251,16 @@ function Checkout({ cart, signedIn, defaultName, onLogin, onBack, onPlaced }: {
   // Qayta urinishda bir xil raqam yuboriladi — buyurtma ikki marta yozilmaydi.
   const [orderId] = useState(newOrderId);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  // Do'kon sozlamalaridagi yetkazib berish ma'lumotlari — bo'sh maydonlarni oldindan to'ldiradi (yozilgan narsani o'chirmaydi).
+  useEffect(() => {
+    if (!signedIn) return;
+    let alive = true;
+    fetchStoreProfile().then((saved) => {
+      if (!alive) return;
+      setForm((f) => ({ name: f.name || saved.name, phone: f.phone || saved.phone, telegram: f.telegram || saved.telegram, address: f.address || saved.address, note: f.note }));
+    }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [signedIn]);
 
   if (!cart.items.length) return <div className="zb-empty"><ShoppingCart size={30} /><h3>Savat bo‘sh</h3><button className="zb-btn zb-btn-ghost" onClick={onBack}>Savatga qaytish</button></div>;
   if (!signedIn) {

@@ -252,6 +252,17 @@ try {
   assert.equal(myReviews[0].rating, 5);
   assert.equal(myReviews[0].body, "Zo'r kitob");
   assert.equal((await other.call(reviewsRoute.GET, "/api/v1/store/reviews")).data.items.length, 0, "Boshqasining bahosi ko'rinmaydi");
+    // Do'kon sozlamalari: yetkazib berish ma'lumotlari — alohida saqlanadi, buyurtma formasini to'ldiradi.
+  const profileRoute = await load("app/api/v1/store/profile/route.ts");
+  const emptyProfile = (await buyer.call(profileRoute.GET, "/api/v1/store/profile")).data;
+  assert.deepEqual(emptyProfile, { name: "", phone: "", telegram: "", address: "" }, "Boshida bo'sh");
+  await buyer.call(profileRoute.PUT, "/api/v1/store/profile", { method: "PUT", body: { name: "Xaridor", phone: "+998 90 123 45 67", telegram: "@xaridor_tg", address: "Toshkent, Chilonzor 9", extra: 1 }, expect: 200 });
+  const savedProfile = (await buyer.call(profileRoute.GET, "/api/v1/store/profile")).data;
+  assert.deepEqual(savedProfile, { name: "Xaridor", phone: "+998901234567", telegram: "xaridor_tg", address: "Toshkent, Chilonzor 9" }, "Telefon va Telegram normallashadi");
+  await buyer.call(profileRoute.PUT, "/api/v1/store/profile", { method: "PUT", body: { name: "", phone: "12345", telegram: "", address: "" }, expect: 422 });
+  await guest.call(profileRoute.PUT, "/api/v1/store/profile", { method: "PUT", body: { name: "", phone: "", telegram: "", address: "" }, expect: 401 });
+  assert.equal((await other.call(profileRoute.GET, "/api/v1/store/profile")).data.name, "", "Boshqaruvchining ma'lumoti aralashmaydi");
+  console.log("PASS: Do‘kon sozlamalari: saqlanadi, normallashadi, xato qiymat rad etiladi, boshqasiga ko‘rinmaydi.");
   console.log("PASS: Sharhlar: kirganlar yozadi, bittadan, o'rtacha baho, faqat o'zini o'chiradi.");
 
   // --- Do'kon chati: xaridor ↔ admin, buyurtma chatga tushadi --------------

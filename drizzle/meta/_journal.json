@@ -183,6 +183,13 @@
       "when": 1791790421920,
       "tag": "0025_order_threads",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1791874797738,
+      "tag": "0026_store_profiles",
+      "breakpoints": true
     }
   ]
 }
