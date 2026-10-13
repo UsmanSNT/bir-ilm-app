@@ -3,25 +3,22 @@
 import { useState } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import {
-  CARD_BACKGROUNDS,
   CARD_FONTS,
   CARD_LIMITS,
   CARD_STICKERS,
-  type CardBackground,
   type CardDesign,
 } from "@/shared/contract/community";
 import DesignCard, { CARD_FONT_FAMILY } from "./design-card";
+import { CARD_THEMES, CARD_THEME_GROUPS, type CardThemeGroup, themesInGroup } from "./card-themes";
 
 const FONT_LABELS = { serif: "Klassik", sans: "Zamonaviy", mono: "Mashinka" } as const;
-const BG_LABELS: Record<CardBackground, string> = {
-  lojuvard: "Lojuvard", firuza: "Firuza", tilla: "Tilla", anor: "Anor", tun: "Tun", shom: "Shom", gul: "Gul", qogoz: "Qog‘oz",
-};
 
 export const EMPTY_CARD: CardDesign = { bg: "lojuvard", font: "serif", text: "", stickers: [] };
 
 /** Karta muharriri: fon, shrift, matn va sudrab joylashtiriladigan stikerlar. */
 export function CardEditor({ design, onChange }: { design: CardDesign; onChange: (next: CardDesign) => void }) {
   const [selected, setSelected] = useState(-1);
+  const [group, setGroup] = useState<CardThemeGroup>(CARD_THEMES[design.bg].group);
   const sel = design.stickers[selected];
 
   const updateSticker = (index: number, patch: Partial<CardDesign["stickers"][number]>) =>
@@ -52,10 +49,21 @@ export function CardEditor({ design, onChange }: { design: CardDesign; onChange:
         onChange={(e) => onChange({ ...design, text: e.target.value })}
         placeholder="Kitobdan iqtibos yoki fikr…"
       />
-      <div className="card-editor-row" role="radiogroup" aria-label="Fon rangi">
-        {(Object.keys(CARD_BACKGROUNDS) as CardBackground[]).map((bg) => (
-          <button key={bg} type="button" role="radio" aria-checked={design.bg === bg} aria-label={`Fon: ${BG_LABELS[bg]}`} title={BG_LABELS[bg]} className="card-swatch" style={{ background: CARD_BACKGROUNDS[bg] }} onClick={() => onChange({ ...design, bg })} />
+      <div className="card-editor-row" role="radiogroup" aria-label="Mavzu guruhi">
+        {CARD_THEME_GROUPS.map((g) => (
+          <button key={g.id} type="button" role="radio" aria-checked={group === g.id} className="card-group" onClick={() => setGroup(g.id)}>{g.label}</button>
         ))}
+      </div>
+      <div className="card-editor-row" role="radiogroup" aria-label="Karta mavzusi">
+        {themesInGroup(group).map((id) => {
+          const theme = CARD_THEMES[id];
+          return (
+            <button key={id} type="button" role="radio" aria-checked={design.bg === id} aria-label={`Mavzu: ${theme.label}`} className="card-theme" onClick={() => onChange({ ...design, bg: id })}>
+              <span className="card-theme-tile" aria-hidden="true" style={{ background: theme.background, color: theme.ink, fontFamily: CARD_FONT_FAMILY[design.font] }}>Aa</span>
+              <span className="card-theme-label">{theme.label}</span>
+            </button>
+          );
+        })}
       </div>
       <div className="card-editor-row" role="radiogroup" aria-label="Shrift">
         {CARD_FONTS.map((font) => (

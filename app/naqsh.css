@@ -300,8 +300,12 @@ body .app-shell[hidden] { display: none; }
 .card-editor { display: grid; gap: 10px; margin-bottom: 12px; }
 .card-editor-text { width: 100%; padding: 10px 12px; border: 1.5px solid var(--chiziq); border-radius: var(--r-sm); background: var(--sahifa); font-size: 16px; resize: vertical; }
 .card-editor-row { display: flex; gap: 8px; overflow-x: auto; padding: 3px; scrollbar-width: none; }
-.card-swatch { width: 36px; height: 36px; flex: none; border: 3px solid var(--sahifa); border-radius: 50%; box-shadow: 0 0 0 1px var(--chiziq); }
-.card-swatch[aria-checked="true"] { box-shadow: 0 0 0 2.5px var(--lojuvard); }
+.card-group { flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--qogoz-2); color: var(--siyoh-2); font-size: 13px; font-weight: 700; }
+.card-group[aria-checked="true"] { background: var(--siyoh); color: #fff; }
+.card-theme { flex: none; display: grid; justify-items: center; gap: 5px; width: 64px; padding: 0; border: 0; background: none; color: var(--siyoh-2); }
+.card-theme-tile { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 14px; font-size: 18px; font-weight: 700; box-shadow: inset 0 0 0 1px #0000001f; outline: 3px solid transparent; outline-offset: 2px; }
+.card-theme[aria-checked="true"] .card-theme-tile { outline-color: var(--lojuvard); }
+.card-theme-label { max-width: 64px; overflow: hidden; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .card-font { flex: none; height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--qogoz-2); color: var(--siyoh-2); font-weight: 700; }
 .card-font[aria-checked="true"] { background: var(--lojuvard); color: #fff; }
 .card-stickers { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }

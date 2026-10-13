@@ -1,7 +1,8 @@
 "use client";
 
 import { type PointerEvent as ReactPointerEvent, useRef } from "react";
-import { CARD_BACKGROUNDS, CARD_LIGHT_BACKGROUNDS, type CardDesign, type CardFont } from "@/shared/contract/community";
+import { type CardDesign, type CardFont } from "@/shared/contract/community";
+import { CARD_THEMES } from "./card-themes";
 
 export const CARD_FONT_FAMILY: Record<CardFont, string> = {
   serif: "var(--f-display)",
@@ -25,7 +26,7 @@ export default function DesignCard({ design, selected, onSelectSticker, onMoveSt
   const editable = Boolean(onMoveSticker);
   const len = design.text.length;
   const fontSize = len > 200 ? "clamp(15px, 3.6vw, 19px)" : len > 110 ? "clamp(18px, 4.4vw, 24px)" : len > 50 ? "clamp(22px, 5.4vw, 30px)" : "clamp(26px, 6.6vw, 38px)";
-  const light = CARD_LIGHT_BACKGROUNDS.includes(design.bg);
+  const theme = CARD_THEMES[design.bg];
 
   const move = (event: ReactPointerEvent) => {
     if (dragging.current === null || !box.current || !onMoveSticker) return;
@@ -38,7 +39,7 @@ export default function DesignCard({ design, selected, onSelectSticker, onMoveSt
     <div
       ref={box}
       className={`design-card${editable ? " is-editable" : ""}`}
-      style={{ background: CARD_BACKGROUNDS[design.bg], color: light ? "#1b1a2e" : "#ffffff", fontFamily: CARD_FONT_FAMILY[design.font] }}
+      style={{ background: theme.background, color: theme.ink, fontFamily: CARD_FONT_FAMILY[design.font] }}
       onPointerMove={move}
       onPointerUp={stop}
       onPointerCancel={stop}

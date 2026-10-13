@@ -114,6 +114,11 @@ try {
   await call(post.PUT, `/api/v1/community/posts/${id}`, { method: "PUT", params: { id }, cookie: other.cookie, body: { ...base, design }, expect: 403 });
   await call(post.PUT, `/api/v1/community/posts/${id}`, { method: "PUT", params: { id }, cookie: w.cookie, body: { ...base, design: { ...design, bg: "tilla", text: "Yangilandi" } } });
   assert.equal(JSON.parse(sqlite.prepare("SELECT design FROM reading_posts WHERE id = ?").get(id).design).bg, "tilla");
+  // Yangi mavzular (milliy, Bir Ilm, zamonaviy) ham qabul qilinadi va saqlanadi.
+  for (const bg of ["peshtoq", "daraxt", "nuqta"]) {
+    await call(post.PUT, `/api/v1/community/posts/${id}`, { method: "PUT", params: { id }, cookie: w.cookie, body: { ...base, design: { ...design, bg } } });
+    assert.equal(JSON.parse(sqlite.prepare("SELECT design FROM reading_posts WHERE id = ?").get(id).design).bg, bg);
+  }
   // Oddiy postga aylantirilsa — dizayn olib tashlanadi.
   await call(post.PUT, `/api/v1/community/posts/${id}`, { method: "PUT", params: { id }, cookie: w.cookie, body: { format: "post", content: [{ type: "p", c: [{ t: "Endi oddiy post" }] }], design } });
   assert.equal(sqlite.prepare("SELECT design FROM reading_posts WHERE id = ?").get(id).design, null);

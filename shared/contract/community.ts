@@ -127,19 +127,17 @@ export function readingMinutes(text: string): number {
 
 // ── Karta post: rangli fon + qisqa matn + stikerlar (Instagram "story" kabi) ──
 
-export const CARD_BACKGROUNDS = {
-  lojuvard: "linear-gradient(135deg, #131f4c 0%, #2c4398 100%)",
-  firuza: "linear-gradient(135deg, #0b4d4d 0%, #17a2a0 100%)",
-  tilla: "linear-gradient(135deg, #c08a2e 0%, #f3d48d 100%)",
-  anor: "linear-gradient(135deg, #7a2620 0%, #d0574a 100%)",
-  tun: "linear-gradient(160deg, #0d1022 0%, #262b55 100%)",
-  shom: "linear-gradient(135deg, #f58529 0%, #dd2a7b 55%, #8134af 100%)",
-  gul: "linear-gradient(135deg, #f8cdda 0%, #c86b98 100%)",
-  qogoz: "linear-gradient(135deg, #fffbf3 0%, #efe5d1 100%)",
-} as const;
-export type CardBackground = keyof typeof CARD_BACKGROUNDS;
-/** Och fonlarda matn to'q bo'ladi. */
-export const CARD_LIGHT_BACKGROUNDS: readonly CardBackground[] = ["tilla", "gul", "qogoz"];
+/**
+ * Karta mavzulari. Ko'rinishi (gradient, naqsh, matn rangi) klientda — `app/community/card-themes.ts`.
+ * Yangi mavzu qo'shish: shu ro'yxatga id qo'shiladi, saqlangan eski postlar o'zgarmaydi.
+ */
+export const CARD_THEME_IDS = [
+  "peshtoq", "girih", "kashi", "atlas", "bodom",
+  "daraxt", "barg", "ildiz",
+  "lojuvard", "firuza", "tilla", "anor", "tun", "shom", "gul", "qogoz",
+  "mesh", "okean", "neon", "nuqta",
+] as const;
+export type CardBackground = (typeof CARD_THEME_IDS)[number];
 export const CARD_FONTS = ["serif", "sans", "mono"] as const;
 export type CardFont = (typeof CARD_FONTS)[number];
 export const CARD_STICKERS = ["📚", "📖", "✨", "💡", "❤️", "🔥", "🌙", "☕", "🖋️", "🌿", "⭐", "🎯", "🕌", "🤲", "🌸", "🧠", "🏆", "👏"] as const;
@@ -149,7 +147,7 @@ const round = (value: number, step: number) => Math.round(value / step) * step;
 
 export const cardDesignSchema = z
   .object({
-    bg: z.enum(Object.keys(CARD_BACKGROUNDS) as [CardBackground, ...CardBackground[]]),
+    bg: z.enum(CARD_THEME_IDS),
     font: z.enum(CARD_FONTS),
     text: z.string().trim().max(CARD_LIMITS.text, `Karta matni ${CARD_LIMITS.text} belgidan oshmasin.`),
     stickers: z

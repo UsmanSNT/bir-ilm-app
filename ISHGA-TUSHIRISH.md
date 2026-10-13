@@ -350,3 +350,10 @@ Bu bo'lim oldingi «Hisobim» va «Shaxsiy sahifa Hisobim ichida» bo'limlarini 
 - Suhbatni boshqarish oynasining yuqorisida kitob bloki bor: muqova, nomi, ovoz vaqti va «Muqova va audio» tugmasi (kitob muharriri ochiladi — muqova rasmi, audio qismlar).
 - Kitob muharririda «Ovoz vaqti» maydoni sahifalar yonida turadi: barcha audio qismlarning jami davomiyligi (yangi fayllar tanlanganda brauzer o‘qiydi).
 - Muharrirda muqova rangi tanlagichi qaytarildi (rang faqat muqova rasmi bo‘lmaganda ko‘rinadi).
+
+## Karta postlar: mavzular
+
+- Karta muharririda fon o‘rniga mavzu tanlanadi: avval guruh (Milliy, Bir Ilm, Ranglar, Zamonaviy), so‘ng plitka. Har bir mavzu naqsh va gradient bilan.
+- Milliy: Peshtoq (lojuvard + oltin yulduz), Girih (firuza), Kashi (oq + ko‘k yulduz), Atlas (anor + chiziqlar), Bodom (tilla).
+- Bir Ilm (logotipdagi daraxt): Daraxt (to‘q kulrang-ko‘k + zumrad barglar), Barg (zumrad + oq barglar), Ildiz (och fon + shoxlar).
+- Mavzu ro‘yxati: `shared/contract/community.ts` (`CARD_THEME_IDS`); ko‘rinishi: `app/community/card-themes.ts`. Eski mavzular (lojuvard, firuza, tilla, anor, tun, shom, gul, qogoz) saqlangan postlarda o‘zgarmaydi.
