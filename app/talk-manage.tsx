@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import { uploadChunked } from "@/lib/api/books-client";
 import { API_PREFIX } from "@/lib/api/config";
 import { deleteLiveRecording, deleteLiveSession, removeLiveArchive, updateLiveSession, withMediaUrls } from "@/lib/api/live-client";
-import { LIMITS_LIVE, type LiveSession } from "@/shared/contract";
-import { clock, dayMonth, localInput, notifyTalksChanged, talkRescheduled } from "./talk-format";
+import { LIMITS_LIVE, type Book, type LiveSession } from "@/shared/contract";
+import { clock, dayMonth, durationLabel, localInput, notifyTalksChanged, talkRescheduled } from "./talk-format";
 
 // Suhbatni boshqarish (admin/moderator): xom yozuvni yuklab olish, ishlov berilgan
 // audioni joylash — shundan keyin suhbat «O'tgan suhbatlar»da hammaga ko'rinadi.
@@ -17,25 +17,23 @@ function mb(bytes: number) {
   return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(2)} GB` : `${Math.max(0.1, bytes / 1024 ** 2).toFixed(1)} MB`;
 }
 
-export function length(seconds: number) {
-  const s = Math.max(0, Math.round(seconds));
-  const h = Math.floor(s / 3600);
-  const m = String(Math.floor((s % 3600) / 60)).padStart(h ? 2 : 1, "0");
-  return `${h ? `${h}:` : ""}${m}:${String(s % 60).padStart(2, "0")}`;
-}
-
 export default function TalkManage({
   session,
+  book,
   isAdmin,
   onClose,
   onChange,
   onRemove,
+  onEditBook,
 }: {
   session: LiveSession;
+  /** Suhbatning kitobi kutubxonada bo'lsa — muqova va audiosini tahrirlash uchun. */
+  book: Book | null;
   isAdmin: boolean;
   onClose: () => void;
   onChange: (session: LiveSession) => void;
   onRemove: (id: string) => void;
+  onEditBook: (book: Book) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ sent: number; total: number } | null>(null);
@@ -139,6 +137,19 @@ export default function TalkManage({
           <button type="button" aria-label="Yopish" disabled={busy} onClick={onClose}><X size={20} /></button>
         </header>
 
+        {book && (
+          <section className="tb-book" aria-label="Kitob">
+            <span className="tb-book-cover" style={book.coverUrl ? undefined : { background: book.color }}>
+              {book.coverUrl && <img src={book.coverUrl} alt="" />}
+            </span>
+            <div>
+              <strong>{book.title}</strong>
+              <small>Ovoz vaqti: {book.audioSeconds ? durationLabel(book.audioSeconds) : "yuklanmagan"} · {book.pages} sahifa</small>
+            </div>
+            <button type="button" className="tb-sheet-btn" disabled={busy} onClick={() => onEditBook(book)}>Muqova va audio</button>
+          </section>
+        )}
+
         {isAdmin && session.status !== "ended" && (
           <section className="tb-resched" aria-label="Suhbat vaqti">
             <h4><span className="tb-resched-title"><CalendarClock size={16} /> Suhbat vaqti</span></h4>
@@ -174,7 +185,7 @@ export default function TalkManage({
                   <FileAudio size={18} />
                   <span>
                     <b>{index + 1}-yozuv</b>
-                    <small>{length(rec.seconds)} · {mb(rec.bytes)}</small>
+                    <small>{durationLabel(rec.seconds)} · {mb(rec.bytes)}</small>
                   </span>
                   <a href={`${rec.url}?download=1`} download aria-label={`${index + 1}-yozuvni yuklab olish`}><Download size={17} /></a>
                   {isAdmin && (
@@ -188,7 +199,7 @@ export default function TalkManage({
             {session.archive ? (
               <div className="tb-archive">
                 <audio controls preload="none" src={session.archive.url} />
-                <small>{length(session.archive.seconds)} · {mb(session.archive.bytes)}</small>
+                <small>{durationLabel(session.archive.seconds)} · {mb(session.archive.bytes)}</small>
                 <div>
                   <label className={`tb-sheet-btn${busy ? " is-disabled" : ""}`}>
                     <Upload size={16} /> Almashtirish

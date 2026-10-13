@@ -43,20 +43,6 @@
 }
 .tb-filters svg { flex-shrink: 0; }
 
-.tb-create {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 46px;
-  border: 1.5px dashed #6be5e3;
-  border-radius: 14px;
-  background: #fcf9f3;
-  color: var(--tb-green);
-  font-weight: 700;
-  cursor: pointer;
-}
-
 /* ── Kelgusi / jonli suhbat kartasi ── */
 .tb-feature {
   position: relative;
@@ -375,6 +361,11 @@ button.tb-wave:disabled { cursor: default; }
   cursor: pointer;
 }
 .tb-recs button { background: #fdeeee; color: #b4232f; }
+.tb-book { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px; border-radius: 14px; background: #fcf9f3; }
+.tb-book-cover { display: block; width: 46px; height: 64px; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 10px -4px rgba(19, 23, 49, .4); }
+.tb-book-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tb-book strong { display: block; overflow: hidden; color: var(--tb-ink); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.tb-book small { display: block; margin-top: 2px; color: var(--tb-muted); font-size: 12px; }
 .tb-archive { display: grid; gap: 8px; }
 .tb-archive audio { width: 100%; }
 .tb-archive small { color: var(--tb-muted); font-size: 12px; }

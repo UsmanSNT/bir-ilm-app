@@ -16,16 +16,17 @@ import {
   Mic,
   NotebookText,
   Play,
-  Plus,
   Radio,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
+import type { Book } from "@/shared/contract";
 import type { LiveSession } from "@/shared/contract/live";
-import TalkManage, { length } from "./talk-manage";
+import BookEditor from "./book-editor";
+import TalkManage from "./talk-manage";
 import TalkGate from "./talk-gate";
-import { WEEKDAYS, clock, dayMonth, toggleTalkReminder, useNow, useTalkReminders } from "./talk-format";
+import { WEEKDAYS, clock, dayMonth, durationLabel, toggleTalkReminder, useNow, useTalkReminders } from "./talk-format";
 
 // Suhbatlar bo'limining asosiy oynasi (xonaga kirishdan oldingi holat).
 
@@ -94,7 +95,6 @@ export default function TalksBoard({
   onJoin,
   onChange,
   onRemove,
-  onCreate,
 }: {
   sessions: LiveSession[];
   loading: boolean;
@@ -107,7 +107,6 @@ export default function TalksBoard({
   onJoin: (id: string) => void;
   onChange: (session: LiveSession) => void;
   onRemove: (id: string) => void;
-  onCreate: () => void;
   /** Suhbatga qo‘shilish uchun kirish oynasini ochadi. */
   onLogin: () => void;
 }) {
@@ -115,6 +114,7 @@ export default function TalksBoard({
   const reminders = useTalkReminders();
   const catalog = useCatalog();
   const [managing, setManaging] = useState<string | null>(null);
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [gateId, setGateId] = useState<string | null>(null);
   const gateSession = gateId ? sessions.find((s) => s.id === gateId) ?? null : null;
   const [player, setPlayer] = useState<{ id: string; playing: boolean; at: number } | null>(null);
@@ -163,6 +163,8 @@ export default function TalksBoard({
     const key = title.trim().toLowerCase();
     return catalog.items.find((b) => b.title.trim().toLowerCase() === key);
   };
+
+  const managed = managing ? sessions.find((s) => s.id === managing) ?? null : null;
 
   const { upcoming, past, pending } = useMemo(() => {
     const open = sessions
@@ -263,7 +265,7 @@ export default function TalksBoard({
           <h4>{s.bookTitle}</h4>
           <p className="tb-meta">
             <span><CalendarDays size={16} /> {dayMonth(when)}, {when.getFullYear()}</span>
-            <span><Clock3 size={16} /> {mine && player.at > 0 ? `${length(player.at)} / ` : ""}{total ? length(total) : duration(s) ?? "—"}</span>
+            <span><Clock3 size={16} /> {mine && player.at > 0 ? `${durationLabel(player.at)} / ` : ""}{total ? durationLabel(total) : duration(s) ?? "—"}</span>
           </p>
           <button
             type="button"
@@ -302,7 +304,7 @@ export default function TalksBoard({
         <span>
           <strong>{s.bookTitle} – {s.title}</strong>
           <small>
-            {dayMonth(when)}, {when.getFullYear()} · {s.recordings.length ? `${s.recordings.length} ta yozuv · ${length(recorded)}` : "yozib olinmagan"}
+            {dayMonth(when)}, {when.getFullYear()} · {s.recordings.length ? `${s.recordings.length} ta yozuv · ${durationLabel(recorded)}` : "yozib olinmagan"}
           </small>
         </span>
         <button type="button" onClick={() => setManaging(s.id)}>Boshqarish</button>
@@ -358,12 +360,6 @@ export default function TalksBoard({
       </div>
 
       {notice && <p className="live-list-notice">{notice}</p>}
-      {isAdmin && (
-        <button type="button" className="tb-create" onClick={onCreate}>
-          <Plus size={18} /> Yangi suhbat e’lon qilish
-        </button>
-      )}
-
       {content}
 
       {staff && !loading && pending.length > 0 && (filter === "all" || filter === "past") && (
@@ -390,9 +386,10 @@ export default function TalksBoard({
         />
       )}
 
-      {managing && sessions.find((s) => s.id === managing) && (
+      {managed && (
         <TalkManage
-          session={sessions.find((s) => s.id === managing)!}
+          session={managed}
+          book={bookFor(managed.bookTitle) ?? null}
           isAdmin={isAdmin}
           onClose={() => setManaging(null)}
           onChange={onChange}
@@ -400,8 +397,14 @@ export default function TalksBoard({
             if (player?.id === id) audioRef.current?.pause();
             onRemove(id);
           }}
+          onEditBook={(book) => {
+            setManaging(null);
+            setEditingBook(book);
+          }}
         />
       )}
+
+      <BookEditor book={editingBook} open={editingBook !== null} onClose={() => setEditingBook(null)} />
     </div>
   );
 }

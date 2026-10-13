@@ -343,3 +343,10 @@ Bu bo'lim oldingi «Hisobim» va «Shaxsiy sahifa Hisobim ichida» bo'limlarini 
 - Book Store hisobida «Sozlamalar» bo'limi bor: yetkazib berish ma'lumotlari (ism, telefon, Telegram, manzil). Bu do'kon hisobiga tegishli va buyurtma berishda oldindan to'ldiriladi. Bir Ilm sozlamalariga ta'sir qilmaydi.
 - Migratsiya: `drizzle/0026_store_profiles.sql` (`store_profiles` jadvali). API: `GET/PUT /api/v1/store/profile`. Test: `node tests/store-v1.mjs`.
 - Admin «Boshqaruv» avval ro'yxat ko'rsatadi (Buyurtmalar, Do‘kon chati, Kitoblar — yangilari soni bilan). Bo'lim ochilganda «Boshqaruv» tugmasi ro'yxatga qaytaradi.
+
+## Suhbat va kitob muharriri: muqova, audio, ovoz vaqti
+
+- «Yangi suhbat e’lon qilish» tugmasi va uning oynasi olib tashlandi. Suhbatlar endi haftaning kitobini muharrirda belgilash orqali yaratiladi («Haftaning kitobi» + «Suhbat vaqti»).
+- Suhbatni boshqarish oynasining yuqorisida kitob bloki bor: muqova, nomi, ovoz vaqti va «Muqova va audio» tugmasi (kitob muharriri ochiladi — muqova rasmi, audio qismlar).
+- Kitob muharririda «Ovoz vaqti» maydoni sahifalar yonida turadi: barcha audio qismlarning jami davomiyligi (yangi fayllar tanlanganda brauzer o‘qiydi).
+- Muharrirda muqova rangi tanlagichi qaytarildi (rang faqat muqova rasmi bo‘lmaganda ko‘rinadi).

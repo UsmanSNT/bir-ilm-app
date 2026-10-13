@@ -1,6 +1,5 @@
 "use client";
 
-import DateTimeField from "./datetime-field";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -30,7 +29,6 @@ import { useLiveMedia } from "@/lib/api/live-media";
 import {
   LiveClient,
   fetchLiveSessions,
-  createLiveSession,
   type LiveConnectionState,
 } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
@@ -38,8 +36,7 @@ import { RoomRecorder, recordingSupported, saveRecordingFile } from "@/lib/api/l
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { LoginDialog } from "./login-dialog";
 import TalksBoard from "./talks-board";
-import { TALKS_CHANGED, localInput, notifyTalksChanged, talkAnnouncement } from "./talk-format";
-import { useCatalog } from "@/lib/api/books-client";
+import { TALKS_CHANGED } from "./talk-format";
 import type {
   LiveSession as LiveSessionType,
   LiveParticipant,
@@ -129,7 +126,6 @@ export default function LiveSession({
 
   const [sessions, setSessions] = useState<LiveSessionType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
   const [listNotice, setListNotice] = useState("");
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -819,121 +815,14 @@ export default function LiveSession({
         onJoin={joinSession}
         onChange={(next) => setSessions((prev) => prev.map((s) => (s.id === next.id ? next : s)))}
         onRemove={(id) => setSessions((prev) => prev.filter((s) => s.id !== id))}
-        onCreate={() => setShowCreate(true)}
         onLogin={() => setLoginOpen(true)}
       />
       {viewer && <LoginDialog viewer={viewer} open={loginOpen} onOpenChange={setLoginOpen} />}
 
-      {showCreate && isAdmin && (
-        <CreateSessionDialog
-          name={name}
-          onClose={() => setShowCreate(false)}
-          onCreated={(s) => {
-            setShowCreate(false);
-            setSessions((prev) => [s, ...prev]);
-          }}
-        />
-      )}
       {overlay}
       {miniBar}
       {recFile && <SaveRecordingDialog file={recFile} onClose={() => setRecFile(null)} />}
     </>
-  );
-}
-
-// ── Yangi suhbat yaratish dialogi (faqat admin) ─────────────────────
-
-function toLocalInput(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function CreateSessionDialog({
-  onClose,
-  onCreated,
-}: {
-  name: string;
-  onClose: () => void;
-  onCreated: (s: LiveSessionType) => void;
-}) {
-  const [bookTitle, setBookTitle] = useState("");
-  const [title, setTitle] = useState("");
-  const [when, setWhen] = useState(() => toLocalInput(new Date()));
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [announce, setAnnounce] = useState(true);
-  const catalog = useCatalog();
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!bookTitle.trim() || !title.trim()) return;
-
-    setSubmitting(true);
-    setError("");
-
-    const scheduled = new Date(when);
-    const session = await createLiveSession({
-      bookTitle: bookTitle.trim(),
-      title: title.trim(),
-      scheduledAt: scheduled.toISOString(),
-      announcement: announce ? talkAnnouncement(bookTitle.trim(), title.trim(), scheduled) : undefined,
-    });
-    if (session) notifyTalksChanged();
-
-    setSubmitting(false);
-
-    if (session) {
-      onCreated(session);
-    } else {
-      setError("Suhbat yaratib bo'lmadi. Qayta urinib ko'ring.");
-    }
-  }
-
-  const fieldStyle = { padding: "0.5rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)", fontSize: "0.9rem" };
-  const labelStyle = { display: "flex", flexDirection: "column" as const, gap: "0.25rem" };
-
-  return (
-    <div className="live-overlay" role="dialog" aria-modal="true">
-      <div className="live-window" style={{ maxWidth: 420 }}>
-        <header className="live-topbar">
-          <button className="live-plain-btn" aria-label="Yopish" onClick={onClose}>
-            <ArrowLeft size={22} />
-          </button>
-          <div className="live-room-title">
-            <strong>Yangi suhbat</strong>
-            <span>Faqat admin e&apos;lon qiladi</span>
-          </div>
-        </header>
-        <form
-          onSubmit={handleSubmit}
-          style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}
-        >
-          <label style={labelStyle}>
-            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Kitob nomi</span>
-            <input value={bookTitle} onChange={(e) => setBookTitle(e.target.value)} placeholder="Kutubxonadan tanlang yoki yozing" list="talk-books" maxLength={160} required style={fieldStyle} />
-            <datalist id="talk-books">
-              {catalog.items.map((b) => <option key={b.id} value={b.title} />)}
-            </datalist>
-          </label>
-          <label style={labelStyle}>
-            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Suhbat sarlavhasi</span>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Birga tahlil qilamiz" maxLength={200} required style={fieldStyle} />
-          </label>
-          <label style={labelStyle}>
-            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Qachon</span>
-            <DateTimeField label="Suhbat sanasi va vaqti" value={when} onChange={setWhen} min={localInput(new Date())} />
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem" }}>
-            <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} style={{ width: 18, height: 18 }} />
-            Bosh sahifada e&apos;lon qilish (yangiliklar va qo&apos;ng&apos;iroqcha)
-          </label>
-          {error && <p style={{ color: "#e5484d", fontSize: "0.85rem" }}>{error}</p>}
-          <button className="button" type="submit" disabled={submitting}>
-            {submitting ? "Yaratilmoqda..." : "E'lon qilish"}
-          </button>
-        </form>
-      </div>
-    </div>
   );
 }
 

@@ -6,11 +6,11 @@ import { looksLikeMarkdown, stripMarkdown } from "@/lib/markdown";
 import { toast } from "sonner";
 import DateTimeField from "./datetime-field";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { createBook, deleteBook, deleteTrack, notifyCatalogChanged, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
+import { audioDuration, createBook, deleteBook, deleteTrack, notifyCatalogChanged, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
 import { createLiveSession, fetchLiveSessions, updateLiveSession } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { BOOK_LIMITS, STORE_CATEGORIES, STORE_LIMITS, type Book, type LiveSession } from "@/shared/contract";
-import { WEEKDAYS, clock, dayMonth, localInput, nextTalk, notifyTalksChanged, talkAnnouncement, talkRescheduled } from "./talk-format";
+import { clock, dayMonth, durationLabel, localInput, nextTalk, notifyTalksChanged, talkAnnouncement, talkRescheduled } from "./talk-format";
 
 const COLORS = ["#0f4f45", "#294256", "#7a3b2e", "#5b4a8b", "#8a6511", "#2f6f8f", "#374151"];
 
@@ -19,7 +19,7 @@ function mb(bytes: number) {
 }
 
 /** Audiokitob qismi: yuklangani (`id`) yoki endi yuklanadigan fayl (`file`). */
-type Part = { key: string; id?: string; title: string; bytes: number; file?: File };
+type Part = { key: string; id?: string; title: string; bytes: number; seconds: number; file?: File };
 
 // "2-bob.mp3" "10-bob.mp3" dan keyin emas, oldin tursin.
 const byName = (a: File, b: File) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
@@ -77,7 +77,7 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
   const existingPlanned = existingTalk?.status === "planned";
   const whenChanged = !existingTalk || talkWhen !== localInput(new Date(existingTalk.scheduledAt));
   const [cover, setCover] = useState<File | null>(null);
-  const [parts, setParts] = useState<Part[]>(() => (book?.tracks ?? []).map((t) => ({ key: t.id, id: t.id, title: t.title, bytes: t.bytes })));
+  const [parts, setParts] = useState<Part[]>(() => (book?.tracks ?? []).map((t) => ({ key: t.id, id: t.id, title: t.title, bytes: t.bytes, seconds: t.seconds })));
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ label: string; sent: number; total: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -93,14 +93,16 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
   }
 
   const totalBytes = parts.reduce((sum, p) => sum + p.bytes, 0);
+  const totalSeconds = parts.reduce((sum, p) => sum + p.seconds, 0);
 
-  function pickAudio(list: FileList | null) {
+  async function pickAudio(list: FileList | null) {
     const files = [...(list ?? [])].filter((f) => f.type.startsWith("audio/")).sort(byName);
     if (!files.length) return toast.error("Audio fayl tanlang (MP3, M4A, OGG, WAV, FLAC).");
     if (parts.length + files.length > BOOK_LIMITS.maxTracks) return toast.error(`Audiokitob ${BOOK_LIMITS.maxTracks} qismdan oshmasin.`);
     const added = files.reduce((sum, f) => sum + f.size, 0);
     if (totalBytes + added > BOOK_LIMITS.audioBytes) return toast.error(`Barcha qismlar jami 1 GB dan oshmasin (bo‘ladi: ${mb(totalBytes + added)}).`);
-    setParts((prev) => [...prev, ...files.map((file) => ({ key: `${file.name}-${file.size}-${Math.random()}`, title: titleOf(file), bytes: file.size, file }))]);
+    const seconds = await Promise.all(files.map(audioDuration));
+    setParts((prev) => [...prev, ...files.map((file, index) => ({ key: `${file.name}-${file.size}-${Math.random()}`, title: titleOf(file), bytes: file.size, seconds: seconds[index], file }))]);
   }
 
   function move(index: number, step: -1 | 1) {
@@ -230,6 +232,11 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
             <div className="book-editor-fields">
               <input aria-label="Kitob nomi" placeholder="Kitob nomi" required maxLength={BOOK_LIMITS.title} value={title} onChange={(e) => setTitle(e.target.value)} />
               <input aria-label="Muallif" placeholder="Muallif" required maxLength={BOOK_LIMITS.author} value={author} onChange={(e) => setAuthor(e.target.value)} />
+              {!store && <div className="book-editor-colors" role="radiogroup" aria-label="Muqova rangi">
+                {COLORS.map((c) => (
+                  <button key={c} type="button" role="radio" aria-checked={color === c} style={{ backgroundColor: c }} onClick={() => setColor(c)} aria-label={c} />
+                ))}
+              </div>}
             </div>
           </div>
           <textarea
@@ -275,10 +282,16 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
               <Upload size={16} />
               <input type="file" accept="audio/*" multiple disabled={busy} onChange={(e) => { pickAudio(e.target.files); e.target.value = ""; }} />
             </label>}
-              <label className="book-editor-pages">
-            <span>Sahifalar soni</span>
-            <input inputMode="numeric" pattern="[0-9]*" aria-label="Sahifalar soni" value={pages} disabled={busy} onChange={(e) => setPages(e.target.value.replace(/\D/g, "").slice(0, 4))} />
-          </label>
+            <label className="book-editor-pages">
+              <span>Sahifalar soni</span>
+              <input inputMode="numeric" pattern="[0-9]*" aria-label="Sahifalar soni" value={pages} disabled={busy} onChange={(e) => setPages(e.target.value.replace(/\D/g, "").slice(0, 4))} />
+            </label>
+            {!store && (
+              <div className="book-editor-length">
+                <span>Ovoz vaqti</span>
+                <strong aria-live="polite">{totalSeconds ? durationLabel(totalSeconds) : "—"}</strong>
+              </div>
+            )}
           </div>
 
           {!store && parts.length > 0 && (

@@ -11,6 +11,14 @@ export const WEEKDAYS = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Pay
 export const dayMonth = (d: Date) => `${d.getDate()}-${MONTHS[d.getMonth()]}`;
 export const clock = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
+/** Davomiylik: `m:ss`, bir soatdan oshsa `h:mm:ss`. */
+export function durationLabel(seconds: number) {
+  const s = Math.max(0, Math.round(seconds));
+  const h = Math.floor(s / 3600);
+  const m = String(Math.floor((s % 3600) / 60)).padStart(h ? 2 : 1, "0");
+  return `${h ? `${h}:` : ""}${m}:${String(s % 60).padStart(2, "0")}`;
+}
+
 /** "2 kun 5 soat qoldi", "3 soat 10 daqiqa qoldi", "Boshlanishi kutilmoqda". */
 export function countdown(iso: string, now = Date.now()) {
   const left = Date.parse(iso) - now;
