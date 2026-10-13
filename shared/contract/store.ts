@@ -162,6 +162,17 @@ export type StoreOrder = {
   userUnread: number;
 };
 
+/** Xaridorning o'z bahosi (Hisobim → Savat → Baholar). */
+export type MyReview = {
+  bookId: string;
+  title: string;
+  author: string;
+  coverUrl: string | null;
+  rating: number;
+  body: string;
+  updatedAt: string;
+};
+
 export type BookReview = {
   id: number;
   userId: string;

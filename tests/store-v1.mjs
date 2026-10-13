@@ -244,6 +244,14 @@ try {
   summary = (await other.call(reviews.DELETE, path, { method: "DELETE", params })).data;
   assert.equal(summary.count, 1, "Faqat o'z sharhini o'chiradi");
   await buyer.call(reviews.PUT, `/api/v1/books/book_yoq/reviews`, { method: "PUT", params: { id: "book_yoq" }, body: { rating: 5 }, expect: 404 });
+    // Savat → Baholar: xaridor o'z baholarini ko'radi, boshqasi — faqat o'zinikini.
+  const reviewsRoute = await load("app/api/v1/store/reviews/route.ts");
+  const myReviews = (await buyer.call(reviewsRoute.GET, "/api/v1/store/reviews")).data.items;
+  assert.equal(myReviews.length, 1, "Xaridor o'z bahosini ko'radi");
+  assert.equal(myReviews[0].bookId, forSale.id);
+  assert.equal(myReviews[0].rating, 5);
+  assert.equal(myReviews[0].body, "Zo'r kitob");
+  assert.equal((await other.call(reviewsRoute.GET, "/api/v1/store/reviews")).data.items.length, 0, "Boshqasining bahosi ko'rinmaydi");
   console.log("PASS: Sharhlar: kirganlar yozadi, bittadan, o'rtacha baho, faqat o'zini o'chiradi.");
 
   // --- Do'kon chati: xaridor ↔ admin, buyurtma chatga tushadi --------------

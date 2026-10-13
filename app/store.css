@@ -551,3 +551,17 @@
 .sa-tabs button { min-width: 0; padding: 0 4px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .sa-admin .admin-orders-filter { display: flex; flex-wrap: wrap; gap: 6px; }
 .sa-admin .admin-orders-filter button { white-space: nowrap; }
+
+/* Savat bo'limi: Oxirgi xaridlar | Savat | Baholar; Hisobim orqaga tugmasi; baholar ro'yxati */
+.sa-subtabs { margin-bottom: 14px; }
+.sa-back { position: sticky; top: 8px; z-index: 2; margin-bottom: 8px; justify-self: start; }
+.sa-reviews { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sa-review { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; width: 100%; padding: 12px; border: 1px solid #e3d9c2; border-radius: 14px; background: #fffdf7; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.sa-review:disabled { cursor: default; }
+.sa-review-cover { display: grid; place-items: center; width: 56px; height: 76px; overflow: hidden; border-radius: 8px; background: #efe7d6; color: #172351; }
+.sa-review-cover img { width: 100%; height: 100%; object-fit: cover; }
+.sa-review-body { display: grid; gap: 3px; min-width: 0; }
+.sa-review-body strong { color: #172351; font-size: 14px; }
+.sa-review-body small, .sa-review-body time { color: #7d7564; font-size: 12px; }
+.sa-review-body em { color: #4d4a3f; font-size: 13px; font-style: normal; line-height: 1.45; }
+.sa-stars { color: #c79a2b; font-size: 14px; letter-spacing: 1px; }

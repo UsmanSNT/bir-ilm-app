@@ -14,6 +14,7 @@ import {
   type StoreBook,
   type StoreChat,
   type StoreInbox,
+  type MyReview,
   type StoreMessage,
   type StoreThread,
   type StoreOrder,
@@ -143,6 +144,7 @@ export function useCart(books: StoreBook[]) {
 }
 
 export const fetchOrders = () => call<{ items: StoreOrder[] }>("/store/orders").then((d) => d.items);
+export const fetchMyReviews = () => call<{ items: MyReview[] }>("/store/reviews").then((d) => d.items);
 export const placeOrder = (input: PlaceOrderInput) =>
   call<StoreOrder>("/store/orders", { method: "POST", body: JSON.stringify(input) });
 

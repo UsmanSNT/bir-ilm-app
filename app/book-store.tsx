@@ -19,7 +19,7 @@ import Dock, { type DockItem } from "./dock";
 import { LoginDialog } from "./login-dialog";
 import StoreBookPage from "./store-book-page";
 import type { Conversation } from "./store-messages";
-import StoreAccount, { type AccountTab, type AdminArea, type Cart, Totals } from "./store-account";
+import StoreAccount, { type AccountTab, type AdminArea, type Cart, type PurchaseView, Totals } from "./store-account";
 import type { ProfileScreenId, ProfileScreensProps } from "./profile-screens";
 import StoreFabs from "./store-fabs";
 import BookEditor from "./book-editor";
@@ -38,6 +38,7 @@ export type StoreRoute = { tab: AccountTab; area?: AdminArea; screen?: ProfileSc
 export default function BookStore({ shelf, route, profile, onBack, onToggle }: { shelf: string[]; route?: StoreRoute; profile: ProfileScreensProps; onBack: () => void; onToggle: (bookId: string) => void }) {
   const [section, setSection] = useState<Section>(route ? "account" : "catalog");
   const [accountTab, setAccountTab] = useState<AccountTab>(route?.tab ?? "profile");
+  const [purchaseView, setPurchaseView] = useState<PurchaseView>("cart");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [placed, setPlaced] = useState<StoreOrder | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -65,6 +66,8 @@ export default function BookStore({ shelf, route, profile, onBack, onToggle }: {
   // Kitob haqida savol — shu kitob bilan umumiy yozishma ochiladi; tugmadan — yozishmalar ro'yxati.
   const askAdmin = (book: StoreBook | null) => (signedIn ? openAccount("messages", book ? { kind: "general" } : null, book) : setLoginOpen(true));
   const openOrderChat = (order: StoreOrder) => { if (signedIn) openAccount("messages", { kind: "order", order }); };
+  const openCart = () => { openAccount("cart"); setPurchaseView("cart"); };
+  const openOrders = () => { openAccount("cart"); setPurchaseView("orders"); };
   const open = (book: StoreBook) => { setDetailId(book.id); window.scrollTo({ top: 0 }); };
   const addToCart = (book: StoreBook) => { cart.add(book.id); toast.success(`«${book.title}» savatga qo‘shildi`); };
   const active = section === "checkout" ? "account" : section;
@@ -101,12 +104,15 @@ export default function BookStore({ shelf, route, profile, onBack, onToggle }: {
           />
         ) : (
           <>
-            {section !== "catalog" && !(section === "account" && accountTab === "profile") && <header className="zb-head"><button type="button" className="zb-back zb-back-round" onClick={() => (section === "checkout" ? openAccount("cart") : go("catalog"))} aria-label="Orqaga" title="Orqaga"><ArrowLeft size={20} /></button><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles[section]}</h1></header>}
+            {section === "checkout" && <header className="zb-head"><button type="button" className="zb-back zb-back-round" onClick={openCart} aria-label="Orqaga" title="Orqaga"><ArrowLeft size={20} /></button><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles.checkout}</h1></header>}
+            {section === "account" && accountTab !== "profile" && <button type="button" className="zb-back zb-back-round sa-back" onClick={() => openAccount("profile")} aria-label="Profilga qaytish" title="Profilga qaytish"><ArrowLeft size={20} /></button>}
             {section === "catalog" && <StoreHome books={store.items} loading={store.loading} error={store.error} onRetry={store.reload} onOpen={open} onAdd={addToCart} isAdmin={isAdmin} onCreate={() => setEditing({ id: null })} onEdit={(b) => setEditing({ id: b.id })} />}
             {section === "account" && (
               <StoreAccount
                 tab={accountTab}
                 adminArea={route?.area}
+                purchaseView={purchaseView}
+                onPurchaseView={setPurchaseView}
                 profile={profile}
                 profileRoute={route?.screen ? { screen: route.screen, nonce: route.nonce } : undefined}
                 onTab={setAccountTab}
@@ -123,11 +129,11 @@ export default function BookStore({ shelf, route, profile, onBack, onToggle }: {
               />
             )}
             {section === "checkout" && (placed
-              ? <Confirmation order={placed} onChat={() => openOrderChat(placed)} onLibrary={() => openAccount("library")} />
-              : <Checkout cart={cart} signedIn={Boolean(viewer?.signedIn)} defaultName={viewer?.name ?? ""} onLogin={() => setLoginOpen(true)} onBack={() => openAccount("cart")} onPlaced={setPlaced} />)}
+              ? <Confirmation order={placed} onChat={() => openOrderChat(placed)} onLibrary={openOrders} />
+              : <Checkout cart={cart} signedIn={Boolean(viewer?.signedIn)} defaultName={viewer?.name ?? ""} onLogin={() => setLoginOpen(true)} onBack={openCart} onPlaced={setPlaced} />)}
           </>
         )}
-        <footer className="zb-foot"><span><b>Bir Ilm</b> · Book Store</span><span>Har bir kitob — yangi imkoniyat</span></footer>
+        {section !== "account" && <footer className="zb-foot"><span><b>Bir Ilm</b> · Book Store</span><span>Har bir kitob — yangi imkoniyat</span></footer>}
       </div>
 
       {isAdmin && editing && <StoreBookEditor id={editing.id} onClose={() => { setEditing(null); store.reload(); }} />}

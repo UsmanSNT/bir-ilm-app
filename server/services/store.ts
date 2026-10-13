@@ -11,12 +11,13 @@ import { schema } from "@/server/db/client";
 import { ApiException, badRequest, notFound, validationFailed } from "@/server/http/errors";
 import { requireSignedIn } from "./community";
 import { orderMessageStatements, orderStatusStatements } from "./store-chat";
-import { withItems, type OrderRow } from "./store-order-view";
+import { withItems } from "./store-order-view";
 import { ensureUser } from "./social";
 import { alertAdminsOfOrder } from "./admin-alerts";
 import type {
   BookReview,
   CartInput,
+  MyReview,
   CartLine,
   OrderStatus,
   PlaceOrderInput,
@@ -193,6 +194,30 @@ export async function setOrderStatus(db: Database, id: string, status: OrderStat
 }
 
 // ── Sharhlar ────────────────────────────────────────────────────────
+
+/** Xaridorning barcha baholari — eng yangisi birinchi. */
+export async function listMyReviews(db: Database, userId: string): Promise<MyReview[]> {
+  const rows = await db
+    .select({
+      bookId: bookReviews.bookId,
+      rating: bookReviews.rating,
+      body: bookReviews.body,
+      reviewUpdatedAt: sql<string>`${bookReviews.updatedAt}`.as("review_updated_at"),
+      title: books.title,
+      author: books.author,
+      coverFile: books.coverFile,
+      bookUpdatedAt: sql<string>`${books.updatedAt}`.as("book_updated_at"),
+    })
+    .from(bookReviews)
+    .innerJoin(books, eq(books.id, bookReviews.bookId))
+    .where(eq(bookReviews.userId, userId))
+    .orderBy(desc(bookReviews.updatedAt));
+  return rows.map(({ coverFile, bookUpdatedAt, reviewUpdatedAt, ...row }) => ({
+    ...row,
+    updatedAt: reviewUpdatedAt,
+    coverUrl: coverUrl(row.bookId, coverFile, bookUpdatedAt),
+  }));
+}
 
 export async function listReviews(db: Database, bookId: string, viewerId: string): Promise<ReviewSummary> {
   const rows = await db

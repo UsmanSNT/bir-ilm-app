@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Heart, Library, MessageCircle, Minus, Plus, ShoppingCart, Trash2, UserRound } from "lucide-react";
-import { fetchOrders, useCart } from "@/lib/api/store-client";
+import { BookOpen, Heart, Library, MessageCircle, Minus, Plus, ShoppingCart, Star, Trash2, UserRound } from "lucide-react";
+import { fetchMyReviews, fetchOrders, useCart } from "@/lib/api/store-client";
 import { useViewer } from "@/lib/api/roles-client";
-import { formatPrice, ORDER_STATUS_LABELS, STORE_LIMITS, type StoreBook, type StoreOrder } from "@/shared/contract";
-import { USER_ROLE_LABELS } from "@/shared/contract/roles";
+import { formatPrice, type MyReview, ORDER_STATUS_LABELS, STORE_LIMITS, type StoreBook, type StoreOrder } from "@/shared/contract";
 import AdminOrders from "./admin-orders";
 import AdminPanel from "./admin-panel";
 import AdminQuizzes from "./admin-quizzes";
@@ -20,6 +19,8 @@ import { BookCover } from "./store-ui";
 export type Cart = ReturnType<typeof useCart>;
 export type AccountTab = "profile" | "cart" | "library" | "messages" | "admin";
 export type AdminArea = "orders" | "chat" | "books" | "quizzes" | "site" | "roles";
+export type PurchaseView = "orders" | "cart" | "reviews";
+const PURCHASE_VIEWS: [PurchaseView, string][] = [["orders", "Oxirgi xaridlar"], ["cart", "Savat"], ["reviews", "Baholar"]];
 
 const ACCOUNT_TABS: Record<AccountTab, string> = { profile: "Profil", cart: "Savat", library: "Kutubxona", messages: "Xabarlar", admin: "Boshqaruv" };
 const ADMIN_AREAS: [AdminArea, string][] = [
@@ -37,6 +38,9 @@ export type StoreAccountProps = {
   adminArea?: AdminArea;
   /** Profil ichida ochiladigan ekran (bildirishnomadan yoki tashqaridan). */
   profileRoute?: ProfileRoute;
+  /** Savat bo'limidagi ko'rinish: oxirgi xaridlar, savat yoki baholar. */
+  purchaseView: PurchaseView;
+  onPurchaseView: (view: PurchaseView) => void;
   /** Shaxsiy sahifa ma'lumotlari (asosiy sahifadan). */
   profile: ProfileScreensProps;
   onTab: (tab: AccountTab) => void;
@@ -56,25 +60,14 @@ export type StoreAccountProps = {
  * Hisobim — do'kon ichidagi yagona shaxsiy bo'lim: Profil (shaxsiy sahifa va sozlamalar), Savat, Kutubxona,
  * Xabarlar. Admin uchun qo'shimcha «Boshqaruv» bo'limi.
  */
-export default function StoreAccount({ tab, adminArea, profileRoute, profile, onTab, cart, books, shelf, messagesStart, chatBook, onOpen, onCheckout, onCatalog, onOrderChat, onNeedLogin }: StoreAccountProps) {
+export default function StoreAccount({ tab, adminArea, profileRoute, purchaseView, onPurchaseView, profile, onTab, cart, books, shelf, messagesStart, chatBook, onOpen, onCheckout, onCatalog, onOrderChat, onNeedLogin }: StoreAccountProps) {
   const viewer = useViewer();
   const signedIn = Boolean(viewer?.signedIn);
   const isAdmin = viewer?.role === "admin";
   const tabs: AccountTab[] = isAdmin ? ["profile", "cart", "library", "messages", "admin"] : ["profile", "cart", "library", "messages"];
-  const initial = (viewer?.name || "K").slice(0, 1).toUpperCase();
 
   return (
     <section className="sa" aria-label="Hisobim">
-      {tab !== "profile" && (
-        <div className="sa-card">
-          <span className="sa-avatar" aria-hidden="true">{initial}</span>
-          <div>
-            <strong>{viewer?.name || "Kitobxon"}</strong>
-            <small>{USER_ROLE_LABELS[viewer?.role ?? "user"]}{signedIn ? "" : " · mehmon"}</small>
-          </div>
-        </div>
-      )}
-
       <div className="zb-segment sa-tabs" role="tablist" aria-label="Hisobim bo‘limlari">
         {tabs.map((id) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => onTab(id)}>
@@ -85,8 +78,8 @@ export default function StoreAccount({ tab, adminArea, profileRoute, profile, on
       </div>
 
       {tab === "profile" && <ProfileScreens key={profileRoute?.nonce ?? 0} {...profile} route={profileRoute} embedded />}
-      {tab === "cart" && <CartView cart={cart} onCheckout={onCheckout} onCatalog={onCatalog} onOpen={onOpen} />}
-      {tab === "library" && <LibraryView books={books} shelf={shelf} signedIn={signedIn} onOpen={onOpen} onOrderChat={onOrderChat} />}
+      {tab === "cart" && <PurchasesView view={purchaseView} onView={onPurchaseView} cart={cart} books={books} signedIn={signedIn} onCheckout={onCheckout} onCatalog={onCatalog} onOpen={onOpen} onOrderChat={onOrderChat} onNeedLogin={onNeedLogin} />}
+      {tab === "library" && <LibraryView books={books} shelf={shelf} onOpen={onOpen} />}
       {tab === "messages" && (signedIn
         ? <StoreMessages key={`${messagesStart?.kind === "order" ? messagesStart.order.id : "list"}-${chatBook?.id ?? ""}`} initial={messagesStart} bookId={chatBook?.id} bookTitle={chatBook?.title} onNeedLogin={onNeedLogin} />
         : <SignInPrompt text="Admin bilan yozishish faqat ro‘yxatdan o‘tgan kitobxonlar uchun." onNeedLogin={onNeedLogin} />)}
@@ -159,8 +152,35 @@ export function Totals({ cart }: { cart: Cart }) {
 }
 
 
-function LibraryView({ books, shelf, signedIn, onOpen, onOrderChat }: { books: StoreBook[]; shelf: string[]; signedIn: boolean; onOpen: (book: StoreBook) => void; onOrderChat: (order: StoreOrder) => void }) {
-  const [view, setView] = useState<"saved" | "orders">("saved");
+function LibraryView({ books, shelf, onOpen }: { books: StoreBook[]; shelf: string[]; onOpen: (book: StoreBook) => void }) {
+  const saved = books.filter((b) => shelf.includes(b.id));
+  if (!saved.length) return <div className="zb-empty"><Heart size={30} /><h3>Javon bo‘sh</h3><p className="zb-muted">Kitob sahifasidagi ♡ tugmasi bilan qo‘shing.</p></div>;
+  return <div className="zb-grid">{saved.map((b) => <button key={b.id} className="zb-shelf-item" onClick={() => onOpen(b)}><BookCover book={b} /><strong>{b.title}</strong><span className="zb-muted">{b.author}</span></button>)}</div>;
+}
+
+/** Savat bo'limi: Oxirgi xaridlar | Savat | Baholar. */
+function PurchasesView({ view, onView, cart, books, signedIn, onCheckout, onCatalog, onOpen, onOrderChat, onNeedLogin }: {
+  view: PurchaseView; onView: (view: PurchaseView) => void; cart: Cart; books: StoreBook[]; signedIn: boolean;
+  onCheckout: () => void; onCatalog: () => void; onOpen: (book: StoreBook) => void; onOrderChat: (order: StoreOrder) => void; onNeedLogin: () => void;
+}) {
+  return (
+    <>
+      <div className="zb-segment sa-subtabs" role="tablist" aria-label="Xaridlar bo‘limlari">
+        {PURCHASE_VIEWS.map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => onView(id)}>
+            {label}
+            {id === "cart" && cart.count > 0 && <b aria-label={`${cart.count} ta mahsulot`}>{cart.count}</b>}
+          </button>
+        ))}
+      </div>
+      {view === "orders" && <OrdersView signedIn={signedIn} onOrderChat={onOrderChat} onNeedLogin={onNeedLogin} />}
+      {view === "cart" && <CartView cart={cart} onCheckout={onCheckout} onCatalog={onCatalog} onOpen={onOpen} />}
+      {view === "reviews" && <ReviewsView signedIn={signedIn} books={books} onOpen={onOpen} onNeedLogin={onNeedLogin} />}
+    </>
+  );
+}
+
+function OrdersView({ signedIn, onOrderChat, onNeedLogin }: { signedIn: boolean; onOrderChat: (order: StoreOrder) => void; onNeedLogin: () => void }) {
   const [orders, setOrders] = useState<StoreOrder[] | null>(null);
   useEffect(() => {
     if (!signedIn) return;
@@ -168,40 +188,57 @@ function LibraryView({ books, shelf, signedIn, onOpen, onOrderChat }: { books: S
     fetchOrders().then((items) => { if (alive) setOrders(items); }).catch(() => { if (alive) setOrders([]); });
     return () => { alive = false; };
   }, [signedIn]);
-  const saved = books.filter((b) => shelf.includes(b.id));
-  const list = signedIn ? orders : [];
-
+  if (!signedIn) return <SignInPrompt text="Xaridlaringiz kirgan hisobingizda saqlanadi." onNeedLogin={onNeedLogin} />;
+  if (orders === null) return <p className="zb-muted" role="status">Yuklanmoqda...</p>;
+  if (!orders.length) return <div className="zb-empty"><Library size={30} /><h3>Xaridlar yo‘q</h3><p className="zb-muted">Buyurtma bergach, bu yerda holati ko‘rinadi.</p></div>;
   return (
-    <>
-      <div className="zb-segment" role="tablist">
-        <button role="tab" aria-selected={view === "saved"} onClick={() => setView("saved")}><Heart size={16} />Javonda · {saved.length}</button>
-        <button role="tab" aria-selected={view === "orders"} onClick={() => setView("orders")}><Library size={16} />Buyurtmalar · {list?.length ?? "…"}</button>
-      </div>
-      {view === "saved" && (saved.length ? (
-        <div className="zb-grid">{saved.map((b) => <button key={b.id} className="zb-shelf-item" onClick={() => onOpen(b)}><BookCover book={b} /><strong>{b.title}</strong><span className="zb-muted">{b.author}</span></button>)}</div>
-      ) : (
-        <div className="zb-empty"><Heart size={30} /><h3>Javon bo‘sh</h3><p className="zb-muted">Kitob sahifasidagi ♡ tugmasi bilan qo‘shing.</p></div>
+    <div className="zb-cart">
+      {orders.map((o) => (
+        <article className="zb-order" key={o.id}>
+          <div className="zb-order-head"><strong>№ {o.id}</strong><span className="zb-status" data-status={o.status}>{ORDER_STATUS_LABELS[o.status]}</span></div>
+          <p className="zb-muted">{new Date(o.createdAt).toLocaleDateString("ru-RU")} · {o.lines.map((l) => `${l.title} ×${l.qty}`).join(", ")}</p>
+          <strong>{formatPrice(o.total)}</strong>
+          <OrderProgress status={o.status} />
+          <button type="button" className="zb-btn zb-btn-ghost zb-order-chat" onClick={() => onOrderChat(o)}>
+            <MessageCircle size={16} />Buyurtma yozishmasi
+            {o.userUnread > 0 && <b aria-label={`${o.userUnread} ta yangi xabar`}>{o.userUnread}</b>}
+          </button>
+        </article>
       ))}
-      {view === "orders" && (list === null ? (
-        <p className="zb-muted" role="status">Yuklanmoqda...</p>
-      ) : list.length ? (
-        <div className="zb-cart">
-          {list.map((o) => (
-            <article className="zb-order" key={o.id}>
-              <div className="zb-order-head"><strong>№ {o.id}</strong><span className="zb-status" data-status={o.status}>{ORDER_STATUS_LABELS[o.status]}</span></div>
-              <p className="zb-muted">{new Date(o.createdAt).toLocaleDateString("ru-RU")} · {o.lines.map((l) => `${l.title} ×${l.qty}`).join(", ")}</p>
-              <strong>{formatPrice(o.total)}</strong>
-              <OrderProgress status={o.status} />
-              <button type="button" className="zb-btn zb-btn-ghost zb-order-chat" onClick={() => onOrderChat(o)}>
-                <MessageCircle size={16} />Buyurtma yozishmasi
-                {o.userUnread > 0 && <b aria-label={`${o.userUnread} ta yangi xabar`}>{o.userUnread}</b>}
-              </button>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="zb-empty"><Library size={30} /><h3>Buyurtmalar yo‘q</h3>{!signedIn && <p className="zb-muted">Buyurtmalar kirgan hisobingizda saqlanadi.</p>}</div>
-      ))}
-    </>
+    </div>
+  );
+}
+
+function ReviewsView({ signedIn, books, onOpen, onNeedLogin }: { signedIn: boolean; books: StoreBook[]; onOpen: (book: StoreBook) => void; onNeedLogin: () => void }) {
+  const [reviews, setReviews] = useState<MyReview[] | null>(null);
+  useEffect(() => {
+    if (!signedIn) return;
+    let alive = true;
+    fetchMyReviews().then((items) => { if (alive) setReviews(items); }).catch(() => { if (alive) setReviews([]); });
+    return () => { alive = false; };
+  }, [signedIn]);
+  if (!signedIn) return <SignInPrompt text="Baholaringiz kirgan hisobingizda saqlanadi." onNeedLogin={onNeedLogin} />;
+  if (reviews === null) return <p className="zb-muted" role="status">Yuklanmoqda...</p>;
+  if (!reviews.length) return <div className="zb-empty"><Star size={30} /><h3>Baholar yo‘q</h3><p className="zb-muted">Kitob sahifasida baho va sharh qoldirsangiz, shu yerda chiqadi.</p></div>;
+  return (
+    <ul className="sa-reviews">
+      {reviews.map((r) => {
+        const book = books.find((b) => b.id === r.bookId);
+        return (
+          <li key={r.bookId}>
+            <button type="button" className="sa-review" onClick={() => book && onOpen(book)} disabled={!book}>
+              <span className="sa-review-cover">{r.coverUrl ? <img src={r.coverUrl} alt="" /> : <BookOpen size={18} />}</span>
+              <span className="sa-review-body">
+                <strong>{r.title}</strong>
+                <small>{r.author}</small>
+                <span className="sa-stars" aria-label={`${r.rating} yulduz`}>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                {r.body && <em>{r.body}</em>}
+                <time dateTime={r.updatedAt}>{new Date(r.updatedAt).toLocaleDateString("ru-RU")}</time>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

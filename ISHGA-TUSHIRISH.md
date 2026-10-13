@@ -319,3 +319,12 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - Hisobim tablari: Profil, Savat, Kutubxona, Xabarlar (admin uchun — Boshqaruv).
 - Sozlamalar yagona: profil sahifasidagi tishli belgi (shaxsiy ma'lumot, maxfiylik, ikki bosqichli himoya, parol, chiqish). Alohida «Sozlamalar» tabi olib tashlandi.
 - Admin: profil sozlamalaridagi admin bandlari olib tashlandi; boshqaruv faqat Hisobim → Boshqaruv orqali.
+
+## Hisobim: Savat — xaridlar, savat va baholar
+
+- Savat bo'limida tepada uchta bo'lim: **Oxirgi xaridlar | Savat | Baholar**. Standart — Savat.
+  - Oxirgi xaridlar: buyurtmalar, har birining jarayoni va buyurtma yozishmasi (Kutubxonadan ko'chirildi).
+  - Baholar: xaridor qoldirgan barcha baho va sharhlar (`GET /api/v1/store/reviews`). Kitobni bosish sahifasini ochadi.
+- Kutubxona faqat javonni ko'rsatadi.
+- Hisobimning har bir bo'limidan orqaga tugmasi Profilga qaytaradi; do'kon sarlavhasi va pastki yozuv Hisobimda yo'q.
+- Buyurtmadan keyin «Buyurtmalarim» tugmasi Savat → Oxirgi xaridlarni ochadi.
