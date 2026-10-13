@@ -7,10 +7,9 @@ const MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avg
 const MONTHS_SHORT = ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"];
 const WEEKDAYS_SHORT = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"];
 const WEEKDAYS = ["yakshanba", "dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba"];
-const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
-
 const pad = (n: number) => String(n).padStart(2, "0");
 const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const clampPart = (text: string, max: number) => Math.min(Math.max(Number(text) || 0, 0), max);
 
 /** `YYYY-MM-DDTHH:mm` (datetime-local qiymati) → Date (mahalliy vaqt). */
 function parse(value: string): Date | null {
@@ -42,15 +41,17 @@ export default function DateTimeField({ value, onChange, min, disabled, label, p
   const [step, setStep] = useState<"date" | "time">("date");
   const [day, setDay] = useState<Date | null>(null);
   const [cursor, setCursor] = useState(() => new Date((current ?? new Date()).getFullYear(), (current ?? new Date()).getMonth(), 1));
-  const [hour, setHour] = useState(10);
-  const [minute, setMinute] = useState(0);
+  const [hourText, setHourText] = useState("10");
+  const [minuteText, setMinuteText] = useState("00");
+  const hour = clampPart(hourText, 23);
+  const minute = clampPart(minuteText, 59);
 
   const start = () => {
     const base = current ?? new Date();
     setDay(current ? new Date(current.getFullYear(), current.getMonth(), current.getDate()) : null);
     setCursor(new Date(base.getFullYear(), base.getMonth(), 1));
-    setHour(current ? current.getHours() : 10);
-    setMinute(current ? Math.round(current.getMinutes() / 5) * 5 % 60 : 0);
+    setHourText(pad(current ? current.getHours() : 10));
+    setMinuteText(pad(current ? current.getMinutes() : 0));
     setStep("date");
     setOpen(true);
   };
@@ -60,7 +61,7 @@ export default function DateTimeField({ value, onChange, min, disabled, label, p
     if (!day || !minDate || dateKey(day) !== dateKey(minDate)) return true;
     return h * 60 + m >= minDate.getHours() * 60 + minDate.getMinutes();
   };
-  const hourAllowed = (h: number) => MINUTES.some((m) => timeAllowed(h, m));
+  const timeOk = timeAllowed(hour, minute);
 
   // Kalendar: dushanbadan boshlanadi.
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
@@ -71,14 +72,9 @@ export default function DateTimeField({ value, onChange, min, disabled, label, p
 
   const save = () => {
     if (!day) return;
-    // Tanlangan vaqt o'tib ketgan bo'lsa (bugun uchun) — eng yaqin ruxsat etilgan vaqt olinadi.
-    let h = hour;
-    let m = minute;
-    if (!timeAllowed(h, m)) {
-      h = Array.from({ length: 24 }, (_, i) => i).find(hourAllowed) ?? hour;
-      m = MINUTES.find((x) => timeAllowed(h, x)) ?? 0;
-    }
-    onChange(`${dateKey(day)}T${pad(h)}:${pad(m)}`);
+    // Tanlangan vaqt min'dan oldin bo'lsa (bugun uchun) — eng erta ruxsat etilgan vaqt olinadi.
+    const time = timeOk || !minDate ? { h: hour, m: minute } : { h: minDate.getHours(), m: minDate.getMinutes() };
+    onChange(`${dateKey(day)}T${pad(time.h)}:${pad(time.m)}`);
     setOpen(false);
   };
 
@@ -119,18 +115,36 @@ export default function DateTimeField({ value, onChange, min, disabled, label, p
           ) : (
             <>
               <p className="dtf-picked">{day ? `${day.getDate()}-${MONTHS_SHORT[day.getMonth()]}, ${WEEKDAYS[day.getDay()]}` : ""} · <b>{pad(hour)}:{pad(minute)}</b></p>
-              <span className="dtf-label">Soat</span>
-              <div className="dtf-times">
-                {Array.from({ length: 24 }, (_, h) => (
-                  <button key={h} type="button" className={`dtf-time${hour === h ? " is-on" : ""}`} disabled={!hourAllowed(h)} aria-pressed={hour === h} onClick={() => setHour(h)}>{pad(h)}</button>
-                ))}
+              <div className="dtf-clock" role="group" aria-label="Soat va daqiqa">
+                <input
+                  className="dtf-num"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={2}
+                  aria-label="Soat (00–23)"
+                  value={hourText}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => setHourText(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                  onBlur={() => setHourText(pad(hour))}
+                />
+                <span className="dtf-colon" aria-hidden="true">:</span>
+                <input
+                  className="dtf-num"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={2}
+                  aria-label="Daqiqa (00–59)"
+                  value={minuteText}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => setMinuteText(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                  onBlur={() => setMinuteText(pad(minute))}
+                />
               </div>
-              <span className="dtf-label">Daqiqa</span>
-              <div className="dtf-times dtf-minutes">
-                {MINUTES.map((m) => (
-                  <button key={m} type="button" className={`dtf-time${minute === m ? " is-on" : ""}`} disabled={!timeAllowed(hour, m)} aria-pressed={minute === m} onClick={() => setMinute(m)}>{pad(m)}</button>
-                ))}
-              </div>
+              {!timeOk && minDate && (
+                <p className="dtf-hint" role="status">{`Bu vaqt o'tib ketgan. Saqlanganda eng yaqin ruxsat etilgan vaqt — ${pad(minDate.getHours())}:${pad(minDate.getMinutes())} — olinadi.`}</p>
+              )}
               <div className="dtf-actions">
                 <button type="button" className="dtf-btn" onClick={() => setStep("date")}>Orqaga</button>
                 <button type="button" className="dtf-btn is-primary" onClick={save}>Saqlash</button>

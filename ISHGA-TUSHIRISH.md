@@ -240,7 +240,7 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 ## Filtr tugmalari, sana-vaqt tanlagich, kitob muharriri
 
 - Gurung filtri ochiladigan ro'yxat o'rniga bitta qatordagi kichik tugmalar; yozish paneli va birinchi post orasiga bo'shliq qo'shildi.
-- Sana va vaqt endi maxsus tanlagich: avval kalendar (sana) → «Keyingi» → soat va daqiqa (24 soatlik) → «Saqlash». Kitob muharriri, suhbatni boshqarish va yangi suhbat e'lon qilish oynalarida.
+- Sana va vaqt endi maxsus tanlagich: avval kalendar (sana) → «Keyingi» → soat va daqiqa (24 soatlik) → «Saqlash». Soat va daqiqa ikkita raqamli maydon («HH : MM») bo'lib, to'g'ridan-to'g'ri tahrirlanadi (soat 00–23, daqiqa 00–59; fokusda raqam tanlanadi, chiqqanda avtomatik to'g'rilanadi). O'tib ketgan vaqt tanlansa, ogohlantirish chiqadi va saqlanganda eng erta ruxsat etilgan vaqt olinadi. Kitob muharriri, suhbatni boshqarish va yangi suhbat e'lon qilish oynalarida.
 - Kitob muharriri: rang tanlash, ikkinchi sarlavha maydoni va «Kitobni tahrirlash» yozuvi olib tashlandi; audio va sahifalar soni bir qatorda; pastdagi uch tugma bir xil o'lchamda, hover faqat sichqoncha ustida.
 
 ## Ro'yxatdan o'tmaganlar

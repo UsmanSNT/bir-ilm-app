@@ -2498,14 +2498,16 @@ input {
 .dtf-month button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #d9cfb4; border-radius: 50%; background: #fff; color: #172351; cursor: pointer; }
 .dtf-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .dtf-weekdays span { padding: 4px 0; color: #8a7a4d; font-size: 11px; font-weight: 800; text-align: center; }
-.dtf-day, .dtf-time { height: 38px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #172351; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
-.dtf-day:hover:not(:disabled), .dtf-time:hover:not(:disabled) { background: #f1e9d2; }
-.dtf-day:disabled, .dtf-time:disabled { color: #bdb8c8; cursor: default; }
+.dtf-day { height: 38px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #172351; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.dtf-day:hover:not(:disabled) { background: #f1e9d2; }
+.dtf-day:disabled { color: #bdb8c8; cursor: default; }
 .dtf-day.is-today { border-color: #d9cfb4; }
-.dtf-day.is-on, .dtf-time.is-on { background: #172351; color: #fff; }
-.dtf-label { display: block; margin: 8px 2px 4px; color: #6b6577; font-size: 12px; font-weight: 800; }
-.dtf-times { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
-.dtf-time { border-color: #ece3cc; background: #fff; }
+.dtf-day.is-on { background: #172351; color: #fff; }
+.dtf-clock { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 0 4px; }
+.dtf-num { width: 84px; height: 56px; border: 1.5px solid #d9cfb4; border-radius: 14px; background: #fff; color: #172351; font: inherit; font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: center; }
+.dtf-num:focus { outline: none; border-color: #172351; box-shadow: 0 0 0 3px rgba(23, 35, 81, .15); }
+.dtf-colon { color: #172351; font-size: 28px; font-weight: 800; }
+.dtf-hint { margin: 8px 2px 0; color: #8a5a1f; font-size: 12px; font-weight: 600; text-align: center; }
 .dtf-picked { margin: 0 0 4px; font-size: 14px; color: #4a4f6a; }
 .dtf-picked b { font-size: 20px; color: #172351; }
 .dtf-actions { display: flex; gap: 8px; margin-top: 12px; }
