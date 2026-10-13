@@ -40,7 +40,7 @@ import BookDiscovery from "./book-discovery";
 import FocusTimer, { PomodoroButton } from "./focus-timer";
 import MobileScreens, { markNotificationsSeen, useAnnouncements, useUnreadCount } from "./mobile-screens";
 import MobileLibrary from "./mobile-library";
-import type { ProfileScreenId } from "./profile-screens";
+import ProfileScreens from "./profile-screens";
 import { requestAudio } from "./library-store";
 import { type CommunityComment, type LeaderboardMember } from "./app-data";
 import { RESET_TOKEN_PATTERN, type Book } from "@/shared/contract";
@@ -226,9 +226,9 @@ export default function App() {
   const [modal, setModal] = useState("");
   // Shaxsiy sahifa va do'kon Hisobim bitta joyda: Hisobim ochiladi (bildirishnoma, profil, avatar).
   const [storeRoute, setStoreRoute] = useState<StoreRoute | undefined>(undefined);
-  const openStoreAccount = (tab: AccountTab, area?: AdminArea, screen?: ProfileScreenId) => {
+  const openStoreAccount = (tab: AccountTab, area?: AdminArea) => {
     setModal("");
-    setStoreRoute({ tab, area, screen, nonce: (storeRoute?.nonce ?? 0) + 1 });
+    setStoreRoute({ tab, area, nonce: (storeRoute?.nonce ?? 0) + 1 });
     setStore(true);
     window.scrollTo({ top: 0 });
   };
@@ -297,9 +297,9 @@ export default function App() {
   };
 
   const go = (value: string) => {
-    // Profil endi Hisobim ichida (do'kon).
-    if (value === "profile") {
-      openStoreAccount("profile");
+    // "store:<bo'lim>" — Book Store hisobining bo'limi (masalan, xabarlar); qolgani — Bir Ilm yorliqlari.
+    if (value.startsWith("store:")) {
+      openStoreAccount(value.slice("store:".length) as AccountTab);
       return;
     }
     setTab(value);
@@ -463,17 +463,7 @@ export default function App() {
           key={storeRoute?.nonce ?? 0}
           route={storeRoute}
           shelf={data.shelf}
-          profile={{
-            name: data.name,
-            page: data.page,
-            total: data.total,
-            shelfCount: data.shelf.length,
-            streak: data.streak,
-            rank: myRank,
-            onNavigate: (value: string) => { setStore(false); go(value); },
-            onRename: (name: string) => setData((value) => ({ ...value, name })),
-            onNotifications: () => setModal("notifications"),
-          }}
+          onMain={(value) => { setStore(false); go(value); }}
           onBack={() => { setStore(false); window.scrollTo({ top: 0 }); }}
           onToggle={(id) => {
             const saved = data.shelf.includes(id);
@@ -578,6 +568,9 @@ export default function App() {
                 />
               </TabsContent>
 
+              <TabsContent value="profile">
+                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={data.streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} />
+              </TabsContent>
               <TabsContent value="leaders">
                 <button className="text-btn profile-ranking" onClick={() => go("profile")}>Profilga qaytish</button>
                 <div className="leaders-grid">

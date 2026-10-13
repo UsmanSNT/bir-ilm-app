@@ -565,3 +565,10 @@
 .sa-review-body small, .sa-review-body time { color: #7d7564; font-size: 12px; }
 .sa-review-body em { color: #4d4a3f; font-size: 13px; font-style: normal; line-height: 1.45; }
 .sa-stars { color: #c79a2b; font-size: 14px; letter-spacing: 1px; }
+
+/* Bir Ilm hisobiga havola (Book Store hisobi ichida) */
+.sa-main { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 1px solid #e3d9c2; border-radius: 14px; background: #fffdf7; color: #172351; font: inherit; text-align: left; cursor: pointer; }
+.sa-main-icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 12px; background: #efe7d6; }
+.sa-main-copy { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.sa-main-copy strong { font-size: 14px; }
+.sa-main-copy small { color: #7d7564; font-size: 12px; }

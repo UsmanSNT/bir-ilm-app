@@ -20,7 +20,6 @@ import { LoginDialog } from "./login-dialog";
 import StoreBookPage from "./store-book-page";
 import type { Conversation } from "./store-messages";
 import StoreAccount, { type AccountTab, type AdminArea, type Cart, type PurchaseView, Totals } from "./store-account";
-import type { ProfileScreenId, ProfileScreensProps } from "./profile-screens";
 import StoreFabs from "./store-fabs";
 import BookEditor from "./book-editor";
 import { notifyCatalogChanged, useStoreCatalog } from "@/lib/api/books-client";
@@ -33,11 +32,11 @@ const ALL = "Barchasi";
 
 /** Book Store: Bir Ilm ichidagi alohida rejim — pastki dock'da Do‘kon va Hisobim; markazdagi yulduz Bir Ilm'ga qaytaradi. */
 /** Bildirishnomadan Hisobim bo'limini ochish (nonce — har safar qayta ochish uchun). */
-export type StoreRoute = { tab: AccountTab; area?: AdminArea; screen?: ProfileScreenId; nonce: number };
+export type StoreRoute = { tab: AccountTab; area?: AdminArea; nonce: number };
 
-export default function BookStore({ shelf, route, profile, onBack, onToggle }: { shelf: string[]; route?: StoreRoute; profile: ProfileScreensProps; onBack: () => void; onToggle: (bookId: string) => void }) {
+export default function BookStore({ shelf, route, onMain, onBack, onToggle }: { shelf: string[]; route?: StoreRoute; onMain: (value: string) => void; onBack: () => void; onToggle: (bookId: string) => void }) {
   const [section, setSection] = useState<Section>(route ? "account" : "catalog");
-  const [accountTab, setAccountTab] = useState<AccountTab>(route?.tab ?? "profile");
+  const [accountTab, setAccountTab] = useState<AccountTab>(route?.tab ?? "cart");
   const [purchaseView, setPurchaseView] = useState<PurchaseView>("cart");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [placed, setPlaced] = useState<StoreOrder | null>(null);
@@ -74,7 +73,7 @@ export default function BookStore({ shelf, route, profile, onBack, onToggle }: {
   const catalogItem: DockItem = { id: "catalog", label: "Do‘kon", icon: Store, active: active === "catalog" && !detail, onClick: () => go("catalog") };
   const accountItem: DockItem = {
     id: "account", label: "Hisobim", icon: UserRound, active: active === "account" && !detail, badge: cart.count || undefined,
-    onClick: () => openAccount(section === "account" ? accountTab : "profile"),
+    onClick: () => openAccount(section === "account" ? accountTab : "cart"),
   };
 
   return (
@@ -105,7 +104,7 @@ export default function BookStore({ shelf, route, profile, onBack, onToggle }: {
         ) : (
           <>
             {section === "checkout" && <header className="zb-head"><button type="button" className="zb-back zb-back-round" onClick={openCart} aria-label="Orqaga" title="Orqaga"><ArrowLeft size={20} /></button><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles.checkout}</h1></header>}
-            {section === "account" && accountTab !== "profile" && <button type="button" className="zb-back zb-back-round sa-back" onClick={() => openAccount("profile")} aria-label="Profilga qaytish" title="Profilga qaytish"><ArrowLeft size={20} /></button>}
+            {section === "account" && <button type="button" className="zb-back zb-back-round sa-back" onClick={() => go("catalog")} aria-label="Katalogga qaytish" title="Katalogga qaytish"><ArrowLeft size={20} /></button>}
             {section === "catalog" && <StoreHome books={store.items} loading={store.loading} error={store.error} onRetry={store.reload} onOpen={open} onAdd={addToCart} isAdmin={isAdmin} onCreate={() => setEditing({ id: null })} onEdit={(b) => setEditing({ id: b.id })} />}
             {section === "account" && (
               <StoreAccount
@@ -113,12 +112,10 @@ export default function BookStore({ shelf, route, profile, onBack, onToggle }: {
                 adminArea={route?.area}
                 purchaseView={purchaseView}
                 onPurchaseView={setPurchaseView}
-                profile={profile}
-                profileRoute={route?.screen ? { screen: route.screen, nonce: route.nonce } : undefined}
+                onMain={() => onMain("profile")}
                 onTab={setAccountTab}
                 cart={cart}
                 books={store.items}
-                shelf={shelf}
                 messagesStart={messagesStart}
                 chatBook={chatBook}
                 onOpen={open}

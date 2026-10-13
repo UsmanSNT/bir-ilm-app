@@ -1,52 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Heart, Library, MessageCircle, Minus, Plus, ShoppingCart, Star, Trash2, UserRound } from "lucide-react";
+import { ChevronRight, Library, MessageCircle, Minus, Plus, ShoppingCart, Star, Trash2, UserRound, BookOpen } from "lucide-react";
 import { fetchMyReviews, fetchOrders, useCart } from "@/lib/api/store-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { formatPrice, type MyReview, ORDER_STATUS_LABELS, STORE_LIMITS, type StoreBook, type StoreOrder } from "@/shared/contract";
 import AdminOrders from "./admin-orders";
-import AdminPanel from "./admin-panel";
-import AdminQuizzes from "./admin-quizzes";
-import AdminSite from "./admin-site";
 import AdminStoreBooks from "./admin-store-books";
 import AdminStoreChat from "./admin-store-chat";
-import ProfileScreens, { type ProfileRoute, type ProfileScreensProps } from "./profile-screens";
 import { OrderProgress } from "./order-status";
 import StoreMessages, { type Conversation } from "./store-messages";
 import { BookCover } from "./store-ui";
 
 export type Cart = ReturnType<typeof useCart>;
-export type AccountTab = "profile" | "cart" | "library" | "messages" | "admin";
-export type AdminArea = "orders" | "chat" | "books" | "quizzes" | "site" | "roles";
+/** Book Store hisobi: faqat do'kon ma'lumotlari (savat, xaridlar, baholar, xabarlar, do'kon boshqaruvi). */
+export type AccountTab = "cart" | "messages" | "admin";
+export type AdminArea = "orders" | "chat" | "books";
 export type PurchaseView = "orders" | "cart" | "reviews";
 const PURCHASE_VIEWS: [PurchaseView, string][] = [["orders", "Oxirgi xaridlar"], ["cart", "Savat"], ["reviews", "Baholar"]];
 
-const ACCOUNT_TABS: Record<AccountTab, string> = { profile: "Profil", cart: "Savat", library: "Kutubxona", messages: "Xabarlar", admin: "Boshqaruv" };
+const ACCOUNT_TABS: Record<AccountTab, string> = { cart: "Savat", messages: "Xabarlar", admin: "Boshqaruv" };
 const ADMIN_AREAS: [AdminArea, string][] = [
   ["orders", "Buyurtmalar"],
   ["chat", "Do‘kon chati"],
   ["books", "Kitoblar"],
-  ["quizzes", "Viktorinalar"],
-  ["site", "Sayt"],
-  ["roles", "Rollar"],
 ];
 
 export type StoreAccountProps = {
   tab: AccountTab;
   /** Admin «Boshqaruv» ichida ochiladigan bo'lim (bildirishnomadan). */
   adminArea?: AdminArea;
-  /** Profil ichida ochiladigan ekran (bildirishnomadan yoki tashqaridan). */
-  profileRoute?: ProfileRoute;
   /** Savat bo'limidagi ko'rinish: oxirgi xaridlar, savat yoki baholar. */
   purchaseView: PurchaseView;
   onPurchaseView: (view: PurchaseView) => void;
-  /** Shaxsiy sahifa ma'lumotlari (asosiy sahifadan). */
-  profile: ProfileScreensProps;
+  /** Bir Ilm hisobiga o'tish (o'qilgan kitoblar, postlar, Bir Ilm sozlamalari). */
+  onMain: () => void;
   onTab: (tab: AccountTab) => void;
   cart: Cart;
   books: StoreBook[];
-  shelf: string[];
   messagesStart: Conversation | null;
   chatBook: StoreBook | null;
   onOpen: (book: StoreBook) => void;
@@ -57,18 +48,27 @@ export type StoreAccountProps = {
 };
 
 /**
- * Hisobim — do'kon ichidagi yagona shaxsiy bo'lim: Profil (shaxsiy sahifa va sozlamalar), Savat, Kutubxona,
- * Xabarlar. Admin uchun qo'shimcha «Boshqaruv» bo'limi.
+ * Book Store hisobi — Bir Ilm hisobidan alohida: xaridlar, savat, baholar va do'kon xabarlari.
+ * O'qilgan kitoblar va Bir Ilm sozlamalari — Bir Ilm hisobida («Bir Ilm hisobi» havolasi).
  */
-export default function StoreAccount({ tab, adminArea, profileRoute, purchaseView, onPurchaseView, profile, onTab, cart, books, shelf, messagesStart, chatBook, onOpen, onCheckout, onCatalog, onOrderChat, onNeedLogin }: StoreAccountProps) {
+export default function StoreAccount({ tab, adminArea, purchaseView, onPurchaseView, onMain, onTab, cart, books, messagesStart, chatBook, onOpen, onCheckout, onCatalog, onOrderChat, onNeedLogin }: StoreAccountProps) {
   const viewer = useViewer();
   const signedIn = Boolean(viewer?.signedIn);
   const isAdmin = viewer?.role === "admin";
-  const tabs: AccountTab[] = isAdmin ? ["profile", "cart", "library", "messages", "admin"] : ["profile", "cart", "library", "messages"];
+  const tabs: AccountTab[] = isAdmin ? ["cart", "messages", "admin"] : ["cart", "messages"];
 
   return (
-    <section className="sa" aria-label="Hisobim">
-      <div className="zb-segment sa-tabs" role="tablist" aria-label="Hisobim bo‘limlari">
+    <section className="sa" aria-label="Book Store hisobi">
+      <button type="button" className="sa-main" onClick={onMain}>
+        <span className="sa-main-icon" aria-hidden="true"><BookOpen size={18} /></span>
+        <span className="sa-main-copy">
+          <strong>Bir Ilm hisobi</strong>
+          <small>O‘qilgan kitoblar, postlar va Bir Ilm sozlamalari</small>
+        </span>
+        <ChevronRight size={18} aria-hidden="true" />
+      </button>
+
+      <div className="zb-segment sa-tabs" role="tablist" aria-label="Do‘kon hisobi bo‘limlari">
         {tabs.map((id) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => onTab(id)}>
             {ACCOUNT_TABS[id]}
@@ -77,13 +77,11 @@ export default function StoreAccount({ tab, adminArea, profileRoute, purchaseVie
         ))}
       </div>
 
-      {tab === "profile" && <ProfileScreens key={profileRoute?.nonce ?? 0} {...profile} route={profileRoute} embedded />}
       {tab === "cart" && <PurchasesView view={purchaseView} onView={onPurchaseView} cart={cart} books={books} signedIn={signedIn} onCheckout={onCheckout} onCatalog={onCatalog} onOpen={onOpen} onOrderChat={onOrderChat} onNeedLogin={onNeedLogin} />}
-      {tab === "library" && <LibraryView books={books} shelf={shelf} onOpen={onOpen} />}
       {tab === "messages" && (signedIn
         ? <StoreMessages key={`${messagesStart?.kind === "order" ? messagesStart.order.id : "list"}-${chatBook?.id ?? ""}`} initial={messagesStart} bookId={chatBook?.id} bookTitle={chatBook?.title} onNeedLogin={onNeedLogin} />
         : <SignInPrompt text="Admin bilan yozishish faqat ro‘yxatdan o‘tgan kitobxonlar uchun." onNeedLogin={onNeedLogin} />)}
-      {tab === "admin" && isAdmin && viewer && <AdminArea selfId={viewer.userId} initial={adminArea ?? "orders"} />}
+      {tab === "admin" && isAdmin && <AdminArea initial={adminArea ?? "orders"} />}
     </section>
   );
 }
@@ -99,12 +97,12 @@ function SignInPrompt({ text, onNeedLogin }: { text: string; onNeedLogin: () => 
   );
 }
 
-/** Admin «Boshqaruv»: do'kon boshqaruvining mavjud bo'limlari shu yerda ochiladi. */
-function AdminArea({ selfId, initial }: { selfId: string; initial: AdminArea }) {
+/** Admin «Boshqaruv»: do'kon boshqaruvi (buyurtmalar, do'kon chati, kitoblar). Bir Ilm boshqaruvi — Bir Ilm profilida. */
+function AdminArea({ initial }: { initial: AdminArea }) {
   const [area, setArea] = useState<AdminArea>(initial);
   return (
-    <section className="sa-admin" aria-label="Boshqaruv">
-      <div className="sa-chips" role="tablist" aria-label="Boshqaruv bo‘limlari">
+    <section className="sa-admin" aria-label="Do‘kon boshqaruvi">
+      <div className="sa-chips" role="tablist" aria-label="Do‘kon boshqaruvi bo‘limlari">
         {ADMIN_AREAS.map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={area === id} onClick={() => setArea(id)}>{label}</button>
         ))}
@@ -112,9 +110,6 @@ function AdminArea({ selfId, initial }: { selfId: string; initial: AdminArea }) 
       {area === "orders" && <AdminOrders />}
       {area === "chat" && <AdminStoreChat />}
       {area === "books" && <AdminStoreBooks />}
-      {area === "quizzes" && <AdminQuizzes />}
-      {area === "site" && <AdminSite />}
-      {area === "roles" && <AdminPanel selfId={selfId} />}
     </section>
   );
 }
@@ -151,12 +146,6 @@ export function Totals({ cart }: { cart: Cart }) {
   );
 }
 
-
-function LibraryView({ books, shelf, onOpen }: { books: StoreBook[]; shelf: string[]; onOpen: (book: StoreBook) => void }) {
-  const saved = books.filter((b) => shelf.includes(b.id));
-  if (!saved.length) return <div className="zb-empty"><Heart size={30} /><h3>Javon bo‘sh</h3><p className="zb-muted">Kitob sahifasidagi ♡ tugmasi bilan qo‘shing.</p></div>;
-  return <div className="zb-grid">{saved.map((b) => <button key={b.id} className="zb-shelf-item" onClick={() => onOpen(b)}><BookCover book={b} /><strong>{b.title}</strong><span className="zb-muted">{b.author}</span></button>)}</div>;
-}
 
 /** Savat bo'limi: Oxirgi xaridlar | Savat | Baholar. */
 function PurchasesView({ view, onView, cart, books, signedIn, onCheckout, onCatalog, onOpen, onOrderChat, onNeedLogin }: {

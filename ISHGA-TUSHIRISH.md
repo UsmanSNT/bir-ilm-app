@@ -328,3 +328,12 @@ Faqat qayta ishga tushirish kerak bo‘lsa (kod o‘zgarmagan): `scripts\restart
 - Kutubxona faqat javonni ko'rsatadi.
 - Hisobimning har bir bo'limidan orqaga tugmasi Profilga qaytaradi; do'kon sarlavhasi va pastki yozuv Hisobimda yo'q.
 - Buyurtmadan keyin «Buyurtmalarim» tugmasi Savat → Oxirgi xaridlarni ochadi.
+
+## Ikki alohida hisob bo'limi: Bir Ilm va Book Store
+
+Bu bo'lim oldingi «Hisobim» va «Shaxsiy sahifa Hisobim ichida» bo'limlarini almashtiradi. Login bitta — ma'lumotlar va sozlamalar ikki joyda alohida.
+
+- **Bir Ilm hisobi** (asosiy sahifa, avatar yoki «Profil»): o'qilgan kitoblar (javon, mutolaa), postlar, faollik, Bir Ilm sozlamalari (shaxsiy ma'lumot, maxfiylik, ikki bosqichli himoya, parol, chiqish). Bir Ilm admin vositalari — Rollar, Ijtimoiy tarmoqlar, Viktorinalar — shu yerda.
+- **Book Store hisobi** (do'kon, «Hisobim»): Savat (Oxirgi xaridlar | Savat | Baholar), Xabarlar (do'kon yozishmalari), va admin uchun «Boshqaruv» (Buyurtmalar, Do‘kon chati, Kitoblar). Yuqorida «Bir Ilm hisobi» havolasi Bir Ilm'ga o'tkazadi.
+- Do'kon bo'limida o'qilgan kitoblar, javon va Bir Ilm sozlamalari ko'rinmaydi. Bir Ilm profilida do'kon buyurtmalari va chati ko'rinmaydi; faqat «Do‘kon xabarlari» havolasi bor.
+- Bildirishnomadagi do'kon xabarlari va do'kon admin bandlari Book Store hisobini ochadi.
