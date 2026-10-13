@@ -82,9 +82,9 @@ export const CARD_THEMES: Record<CardBackground, CardTheme> = {
   gul: { label: "Gul", group: "rang", background: "linear-gradient(135deg, #f8cdda 0%, #c86b98 100%)", ink: INK_DARK },
   qogoz: { label: "Qog‘oz", group: "rang", background: "linear-gradient(135deg, #fffbf3 0%, #efe5d1 100%)", ink: INK_DARK },
 
-  mesh: { label: "Mesh", group: "zamonaviy", background: "radial-gradient(circle at 18% 22%, #ff8a5c 0, transparent 46%), radial-gradient(circle at 84% 18%, #7c5cff 0, transparent 48%), radial-gradient(circle at 70% 88%, #2ed3b7 0, transparent 50%), linear-gradient(135deg, #1b1b3a 0%, #3a1f4f 100%)", ink: INK_LIGHT },
+  mesh: { label: "Aralash", group: "zamonaviy", background: "radial-gradient(circle at 18% 22%, #ff8a5c 0, transparent 46%), radial-gradient(circle at 84% 18%, #7c5cff 0, transparent 48%), radial-gradient(circle at 70% 88%, #2ed3b7 0, transparent 50%), linear-gradient(135deg, #1b1b3a 0%, #3a1f4f 100%)", ink: INK_LIGHT },
   okean: { label: "Okean", group: "zamonaviy", background: "linear-gradient(160deg, #00c6fb 0%, #005bea 100%)", ink: INK_LIGHT },
-  neon: { label: "Neon", group: "zamonaviy", background: "radial-gradient(circle at 12% 88%, rgba(255,45,149,.55) 0, transparent 45%), radial-gradient(circle at 88% 12%, rgba(0,229,255,.5) 0, transparent 45%), #0d0d1a", ink: INK_LIGHT },
+  neon: { label: "Yorqin", group: "zamonaviy", background: "radial-gradient(circle at 12% 88%, rgba(255,45,149,.55) 0, transparent 45%), radial-gradient(circle at 88% 12%, rgba(0,229,255,.5) 0, transparent 45%), #0d0d1a", ink: INK_LIGHT },
   nuqta: { label: "Nuqta", group: "zamonaviy", background: `${NUQTA_DOTS}, linear-gradient(180deg, #17171f 0%, #0b0b10 100%)`, ink: INK_LIGHT },
 };
 
