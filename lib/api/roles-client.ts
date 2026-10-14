@@ -1,6 +1,6 @@
 /** Rol va admin boshqaruvi uchun REST yordamchilari. */
 import { useEffect, useState } from "react";
-import type { AdminUser, LinkCode, Session, UserRole, Viewer } from "@/shared/contract";
+import type { AdminUser, AdminUserKind, AdminUsersSummary, LinkCode, Session, UserRole, Viewer } from "@/shared/contract";
 import { API_PREFIX } from "./config";
 
 type Envelope<T> = { data?: T; error?: { message?: string } };
@@ -25,9 +25,14 @@ export function fetchViewer(): Promise<Viewer> {
   return call<Viewer>("/auth/session");
 }
 
-export function fetchAdminUsers(q = ""): Promise<AdminUser[]> {
-  const query = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
-  return call<AdminUser[]>(`/admin/users${query}`);
+export function fetchAdminUsers(q = "", kind: AdminUserKind = "all"): Promise<AdminUser[]> {
+  const params = new URLSearchParams({ kind });
+  if (q.trim()) params.set("q", q.trim());
+  return call<AdminUser[]>(`/admin/users?${params}`);
+}
+
+export function fetchAdminSummary(): Promise<AdminUsersSummary> {
+  return call<AdminUsersSummary>("/admin/user-summary");
 }
 
 export function updateUserRole(userId: string, role: UserRole): Promise<AdminUser> {

@@ -76,6 +76,7 @@ const health = await load("app/api/v1/health/route.ts");
 const live = await load("app/api/v1/live/route.ts");
 const adminUsers = await load("app/api/v1/admin/users/route.ts");
 const adminUser = await load("app/api/v1/admin/users/[id]/route.ts");
+const adminSummary = await load("app/api/v1/admin/user-summary/route.ts");
 
 // Eski (v1 dan oldingi) route'lar — mobil qobiq ular bilan ham ishlashi kerak.
 const legacySocial = await load("app/api/social/route.ts");
@@ -625,6 +626,27 @@ try {
 
     const { payload: found } = await admin.call(adminUsers.GET, `/api/v1/admin/users?q=${member.userId.slice(0, 20)}`);
     assert.ok(found.data.some((u) => u.id === member.userId && u.role === "moderator"));
+
+    // Ro'yxatdan o'tganlar va mehmonlar alohida; rol faqat ro'yxatdan o'tganga beriladi.
+    const guest = await webClient();
+    sqlite.prepare("INSERT OR IGNORE INTO users (id) VALUES (?)").run(guest.userId);
+    const listOf = async (kind, q) => (await admin.call(adminUsers.GET, `/api/v1/admin/users?kind=${kind}&q=${q}`)).payload.data;
+    assert.ok((await listOf("guests", guest.userId.slice(0, 20))).some((u) => u.id === guest.userId && !u.registered && u.accounts.length === 0));
+    assert.ok(!(await listOf("registered", guest.userId.slice(0, 20))).some((u) => u.id === guest.userId), "Mehmon ro'yxatdan o'tganlar ro'yxatida chiqmasin");
+    const registeredRow = (await listOf("registered", member.userId.slice(0, 20))).find((u) => u.id === member.userId);
+    assert.ok(registeredRow?.registered && registeredRow.accounts[0].provider === "google", "Hisob provayderi ko'rinsin");
+    assert.ok(!(await listOf("guests", member.userId.slice(0, 20))).some((u) => u.id === member.userId), "Ro'yxatdan o'tgan mehmonlar ro'yxatida chiqmasin");
+    await admin.call(adminUser.PATCH, `/api/v1/admin/users/${guest.userId}`, { method: "PATCH", body: { role: "moderator" }, params: { id: guest.userId }, expect: 400 });
+    assert.equal(sqlite.prepare("SELECT role FROM users WHERE id=?").get(guest.userId).role, "user", "Mehmonga rol berilmasin");
+    // Hisob bo'yicha qidiruv: email/ism.
+    sqlite.prepare("UPDATE auth_accounts SET email='rol.testi@example.com' WHERE user_id=?").run(member.userId);
+    assert.ok((await listOf("registered", "rol.testi@example")).some((u) => u.id === member.userId), "Email bo'yicha topilsin");
+    // Mehmon kirgach (hisob bog'langach) rol olishi mumkin.
+    signIn(guest.userId);
+    await admin.call(adminUser.PATCH, `/api/v1/admin/users/${guest.userId}`, { method: "PATCH", body: { role: "moderator" }, params: { id: guest.userId } });
+    const { payload: sum } = await admin.call(adminSummary.GET, "/api/v1/admin/user-summary");
+    assert.ok(sum.data.registered >= 3 && sum.data.moderators >= 2 && sum.data.admins >= 1 && Number.isInteger(sum.data.guests));
+    await member.call(adminSummary.GET, "/api/v1/admin/user-summary", { expect: 403 });
 
     console.log("PASS: faqat admin suhbat yaratadi va rol beradi; admin o'zini tushira olmaydi.");
   }

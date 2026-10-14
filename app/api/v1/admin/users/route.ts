@@ -10,7 +10,7 @@ export const GET = defineRoute<AdminUsersQuery, AdminUser[]>({
   source: "query",
   handler: async ({ db, identity, input }) => {
     await requireRole(db, identity.userId, ["admin"]);
-    return listUsers(db, input.q);
+    return listUsers(db, input.q, input.kind);
   },
 });
 

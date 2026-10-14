@@ -148,11 +148,23 @@ button.p-row:hover { background: #fcf9f2; }
 .p-admin-entry .p-row-icon { color: #a57b12; }
 .admin-panel { max-width: 640px; margin: 0 auto; padding-bottom: 12px; }
 .admin-intro { color: var(--p-muted); font-size: 12px; line-height: 1.7; text-align: center; padding: 2px 6px 16px; }
-.admin-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.admin-counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
 .admin-counts span { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border-radius: 12px; background: #fcf8f1; color: var(--p-muted); font-size: 10px; }
 .admin-counts b { color: var(--p-ink); font-size: 18px; }
+.admin-counts .registered svg { color: #0f6f4a; }
+.admin-counts .guests svg { color: #9997a8; }
 .admin-counts .role-admin svg { color: #a57b12; }
 .admin-counts .role-moderator svg { color: var(--p-green); }
+.admin-tabs { display: flex; padding: 3px; border-radius: 12px; background: #f8f2e6; margin-bottom: 8px; }
+.admin-tabs button { flex: 1; border: 0; background: none; padding: 9px 6px; border-radius: 10px; font-size: 12.5px; color: #6b687d; cursor: pointer; }
+.admin-tabs button.on { background: #fff; color: var(--p-ink); font-weight: 700; box-shadow: 0 1px 3px #1217311f; }
+.admin-hint { margin: 0 0 10px; color: var(--p-muted); font-size: 11.5px; line-height: 1.5; }
+.admin-accounts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.admin-chip { max-width: 100%; padding: 2px 7px; border-radius: 999px; background: #f1ece0; color: #6b687d; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-chip b { color: var(--p-ink); font-weight: 700; }
+.admin-chip.chip-google { background: #e8f1fd; }
+.admin-chip.chip-telegram { background: #e3f4fb; }
+.admin-chip.chip-email { background: #eaf6ec; }
 .admin-search { display: flex; align-items: center; gap: 8px; padding: 0 13px; border: 1px solid #ddf0ef; border-radius: 12px; background: #fcf9f3; color: #89879a; }
 .admin-search input { flex: 1; min-width: 0; border: 0; background: none; outline: 0; padding: 12px 0; font: inherit; font-size: 13px; color: var(--p-ink); }
 .admin-error { margin-top: 10px !important; padding: 10px 12px; border-radius: 10px; background: #fdeeee; color: #b4232f; font-size: 12px; }
