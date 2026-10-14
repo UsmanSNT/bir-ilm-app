@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { activeBookId, books, seedComments, seedLeaderboard } from "@/app/app-data";
+import { getSession } from "@/app/server/session";
 
 export const runtime = "edge";
 
@@ -14,8 +15,6 @@ type ActivityPayload = {
 
 type AppStatePayload = {
   type?: "comment" | "progress" | "profile";
-  userId?: string;
-  name?: string;
   text?: string;
   page?: number;
   total?: number;
@@ -64,19 +63,6 @@ function boundedInt(value: unknown, fallback: number, min: number, max: number) 
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
-}
-
-async function upsertUser(db: D1Database, userId: string, name: string) {
-  await db
-    .prepare(
-      `INSERT INTO users (id, name, updated_at)
-       VALUES (?, ?, CURRENT_TIMESTAMP)
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
-         updated_at = CURRENT_TIMESTAMP`,
-    )
-    .bind(userId, name)
-    .run();
 }
 
 async function upsertActivity(
@@ -195,6 +181,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    return Response.json({ error: "So'rov rad etildi." }, { status: 403 });
+  }
   const db = env.DB;
   if (!db) {
     return Response.json(
@@ -210,16 +199,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "JSON noto'g'ri." }, { status: 400 });
   }
 
-  const type = payload.type;
-  const userId = cleanText(payload.userId, "anonymous", 96);
-  if (userId.startsWith("reader_")) {
-    return Response.json({ error: "Bu profil uchun ijtimoiy bo'limdan foydalaning." }, { status: 403 });
+  // Identity comes only from the verified session, never from the request body.
+  const session = await getSession(request.headers);
+  if (session.kind !== "member") {
+    return Response.json({ error: "Chat va reyting uchun ro'yxatdan o'ting." }, { status: 401 });
   }
-  const name = cleanText(payload.name, "Kitobxon", 40);
+  const { id: userId, name } = session.member;
+  const type = payload.type;
 
   try {
-    await upsertUser(db, userId, name);
-
     if (type === "comment") {
       const text = cleanText(payload.text, "", 2000);
       if (!text) {

@@ -6,10 +6,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { SocialData, ReadingPost } from "./social-types";
+import RegisterCard from "./register-card";
+import type { Auth } from "./use-member";
 
 const empty: SocialData = { userId: "", posts: [], readers: [], following: [], followers: 0, focusMinutes: 0, sessions: 0, profile: null, authorProfile: null };
 
-export default function ReadingDashboard({ name, pages, shelfCount, streak, mode }: { name: string; pages: number; shelfCount: number; streak: number; mode: "feed" | "profile" }) {
+export default function ReadingDashboard({ auth, name, pages, shelfCount, streak, mode }: { auth: Auth; name: string; pages: number; shelfCount: number; streak: number; mode: "feed" | "profile" }) {
   const [data, setData] = useState<SocialData>(empty);
   const [scope, setScope] = useState(mode === "profile" ? "mine" : "all");
   const [author, setAuthor] = useState("");
@@ -46,18 +48,13 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
       void reload(ctrl.signal).catch(e => { if (!ctrl.signal.aborted) setError(e.message); }).finally(() => { if (!ctrl.signal.aborted) setLoading(false); });
     });
     return () => ctrl.abort();
-  }, [reload]);
+  }, [reload, auth.kind]);
 
   useEffect(() => {
     const refreshFocus = () => { void reload().catch(() => {}); };
     window.addEventListener("bir-focus-saved", refreshFocus);
     return () => window.removeEventListener("bir-focus-saved", refreshFocus);
   }, [reload]);
-
-  useEffect(() => {
-    if (!data.userId) return;
-    void fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "profile", name }) }).catch(() => {});
-  }, [data.userId, name]);
 
   async function write(payload: Record<string, unknown>) {
     const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, name }) });
@@ -123,6 +120,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
   </article>;
 
   return <div className={`reading-dashboard dashboard-${mode}`}>
+    <RegisterCard auth={auth} reason="Postlarni hamma o'qiy oladi. Post yozish, izoh qoldirish va obuna bo'lish uchun ro'yxatdan o'ting." />
     {mode === "profile" && <section className="social-profile" aria-label="Mening profilim">
       <div className="profile-identity"><span className="reader-avatar profile-avatar">{name.slice(0,1).toUpperCase()}</span><div><span className="profile-kicker">MENING DASHBOARDIM</span><h2>{name}</h2><p>{data.profile?.bio || "O'zingiz haqingizda qisqacha yozing."}</p></div></div>
       <button className="follow-button" disabled={!data.userId} onClick={() => { setBio(data.profile?.bio || ""); setEditingProfile(true); }}><Pencil size={16}/>Profilni tahrirlash</button>

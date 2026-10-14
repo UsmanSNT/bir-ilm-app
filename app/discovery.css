@@ -98,3 +98,9 @@ body { background: #edf0f7; color: #252840; }
  .genre-chips button { font-size: 12px; padding: 8px 11px; } .page-heading { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .discovery-cover { transition: none; } }
+
+.register-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--secondary); padding: 16px; margin: 12px 0; display: grid; gap: 10px; }
+.register-card h3 { margin: 0; color: var(--primary); }
+.register-card p { margin: 0; color: var(--muted-foreground); }
+.register-card form { display: grid; gap: 8px; }
+.register-card input { border: 1px solid var(--input); border-radius: var(--radius); padding: 10px 12px; background: var(--card); min-height: 44px; }

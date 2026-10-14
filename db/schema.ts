@@ -34,9 +34,22 @@ export const users = sqliteTable("users", {
   name: text("name").notNull().default("Kitobxon"),
   email: text("email"),
   bio: text("bio").notNull().default(""),
+  // Set only for explicitly registered members; `authId` is the platform sign-in identity.
+  authId: text("auth_id"),
+  registeredAt: text("registered_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+}, (t) => [uniqueIndex("idx_users_auth").on(t.authId)]);
+
+// Anonymous page visitors. Deliberately separate from `users`: no profile, no social rights.
+export const siteVisitors = sqliteTable("site_visitors", {
+  id: text("id").primaryKey(),
+  firstSeen: text("first_seen").notNull().default(sql`CURRENT_TIMESTAMP`),
+  lastSeen: text("last_seen").notNull().default(sql`CURRENT_TIMESTAMP`),
+  visits: integer("visits").notNull().default(1),
+  country: text("country"),
+  device: text("device"),
+}, (t) => [index("idx_visitors_last_seen").on(t.lastSeen)]);
 
 export const books = sqliteTable("books", {
   id: text("id").primaryKey(),

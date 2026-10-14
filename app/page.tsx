@@ -45,6 +45,8 @@ import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
+import RegisterCard from "./register-card";
+import { useMember } from "./use-member";
 import {
   Book,
   CommunityComment,
@@ -270,6 +272,8 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [backendMode, setBackendMode] = useState<BackendMode>("local");
   const [serverLeaders, setServerLeaders] = useState<LeaderboardMember[]>([]);
+  const auth = useMember();
+  const isMember = auth.kind === "member";
 
   const pct = Math.round((data.page / Math.max(1, data.total)) * 100);
   const secs = Math.max(0, Math.floor((session - now) / 1000));
@@ -313,14 +317,13 @@ export default function App() {
   };
 
   const syncState = async (payload: AppStatePayload, snapshot = data) => {
+    if (!isMember) return;
     try {
       const response = await fetch("/api/app-state", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           ...payload,
-          userId: "local-reader",
-          name: snapshot.name,
           activity: activityFromState(snapshot),
         }),
       });
@@ -329,6 +332,11 @@ export default function App() {
       setBackendMode("local");
     }
   };
+
+  useEffect(() => {
+    const memberName = auth.name;
+    if (memberName) queueMicrotask(() => setData((value) => (value.name === memberName ? value : { ...value, name: memberName })));
+  }, [auth.name]);
 
   const go = (value: string) => {
     setTab(value);
@@ -489,7 +497,7 @@ export default function App() {
   function submitComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = message.trim();
-    if (!text) return;
+    if (!text || !isMember) return;
 
     const comment: CommunityComment = {
       id: Date.now(),
@@ -560,7 +568,8 @@ export default function App() {
                   </h1>
                 </div>
                 <FocusTimer onComplete={async session => {
-                  const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", name: data.name, ...session }) });
+                  if (!isMember) return;
+                  const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", ...session }) });
                   if (!response.ok) throw Error("Seans saqlanmadi");
                   window.dispatchEvent(new Event("bir-focus-saved"));
                 }} />
@@ -568,10 +577,10 @@ export default function App() {
 
               <TabsContent value="home">
                 <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
-                <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
+                <ReadingDashboard auth={auth} mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
               </TabsContent>
               <TabsContent value="profile">
-                <ReadingDashboard mode="profile" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
+                <ReadingDashboard auth={auth} mode="profile" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
                 <button className="button profile-ranking" onClick={() => go("leaders")}><Trophy size={18}/>Faollar reytingi · #{myRank}</button>
                 <div className="home-grid">
                   <div className="stack">
@@ -662,6 +671,7 @@ export default function App() {
                           </article>
                         ))}
                       </div>
+                      {isMember ? (
                       <form className="composer" onSubmit={submitComment}>
                         <textarea
                           aria-label="Izoh yoki savol"
@@ -678,6 +688,9 @@ export default function App() {
                           <Send size={20} />
                         </button>
                       </form>
+                      ) : (
+                        <RegisterCard auth={auth} reason="Chatda yozish, post joylash va kitobxonlarni kuzatish faqat ro'yxatdan o'tganlar uchun." />
+                      )}
                     </div>
                   </div>
 

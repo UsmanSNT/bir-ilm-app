@@ -28,7 +28,7 @@ class Statement {
     return { success: true, meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid) } };
   }
 }
-export const env = { DB: {
+export const env = { ADMIN_EMAILS: process.env.ADMIN_EMAILS, DB: {
   prepare(sql) { return new Statement(sql); },
   async batch(statements) {
     sqlite.exec("BEGIN");
