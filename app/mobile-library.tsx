@@ -1,5 +1,6 @@
 "use client";
 
+import ListenLink, { audioLinkOf } from "./listen-link";
 import { useEffect, useRef, useState } from "react";
 import { Bookmark, ChevronLeft, Headphones, Library, Moon, Pause, Pencil, Play, Plus, Search, SkipBack, SkipForward } from "lucide-react";
 import { toast } from "sonner";
@@ -396,7 +397,7 @@ export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: 
                           <span className="lib-bar" aria-hidden="true"><i style={{ width: `${ratio}%` }} /></span>
                           <em>{clock(position(book))} / {clock(length)}</em>
                         </>
-                      ) : <em>Audio hali yuklanmagan</em>}
+                      ) : audioLinkOf(book) ? <em>{audioLinkOf(book)!.label} havolasi bor</em> : <em>Audio hali yuklanmagan</em>}
                     </span>
                   </button>
                   {book.audioUrl && (
@@ -455,6 +456,11 @@ export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: 
                 <button type="button" onClick={cycleSleep} disabled={live?.id !== active.id}><Moon size={16} /><small>{live?.sleepMinutes ? `${live.sleepMinutes} daq` : "Uyqu taymeri"}</small></button>
               </div>
             </>
+          ) : audioLinkOf(active) ? (
+            <div className="lib-link-card">
+              <p className="lib-link-address">{audioLinkOf(active)!.label} · {audioLinkOf(active)!.display}</p>
+              <ListenLink book={active} className="button lib-link-btn" />
+            </div>
           ) : (
             <p className="lib-empty">Bu kitobning audiosi hali yuklanmagan.{editor ? " Tahrirlash (qalam) tugmasi orqali qo‘shing." : ""}</p>
           )}
@@ -529,6 +535,12 @@ function BookShelf({ items, onOpen, onPlay }: { items: Book[]; onOpen: (id: stri
                         <Headphones size={14} />
                         <span>{book.audioSeconds ? lengthLabel(book.audioSeconds) : "Audio"}</span>
                       </button>
+                    )}
+                    {!book.audioUrl && audioLinkOf(book) && (
+                      <a className="lib-format lib-format-audio" href={audioLinkOf(book)!.href} target="_blank" rel="noopener noreferrer" aria-label={`${book.title}: ${audioLinkOf(book)!.label} havolasida eshitish`}>
+                        <Headphones size={14} />
+                        <span>Eshitish</span>
+                      </a>
                     )}
                     {book.active && <span className="lib-week">Hafta kitobi</span>}
                   </div>

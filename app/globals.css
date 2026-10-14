@@ -2401,14 +2401,12 @@ input {
 .book-editor-cover{position:relative;flex:none;width:96px;height:138px;border-radius:8px;overflow:hidden;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 16px #0002}
 .book-editor-cover span{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px}
 .book-editor-cover img{width:100%;height:100%;object-fit:cover}
-.book-editor-cover input,.book-editor-audio input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.book-editor-cover input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .book-editor-fields{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
 .book-editor input:not([type=file]):not([type=checkbox]),.book-editor textarea{width:100%;padding:9px 11px;border:1px solid #e9e0d2;border-radius:9px;font:inherit;font-size:14px;resize:vertical}
 .book-editor-colors{display:flex;flex-wrap:wrap;gap:6px}
 .book-editor-colors button{width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #e2d7c5;cursor:pointer}
 .book-editor-colors button[aria-checked=true]{box-shadow:0 0 0 2px #212856}
-.book-editor-audio{position:relative;display:flex;align-items:center;gap:10px;padding:12px;border:1px dashed #aedad7;border-radius:10px;background:#fcf9f3;color:#212856;cursor:pointer}
-.book-editor-audio span{flex:1;min-width:0;display:flex;flex-direction:column}
 .book-editor-parts{display:grid;gap:6px;margin:0;padding:0;list-style:none;max-height:260px;overflow-y:auto}
 .book-editor-parts li{display:grid;grid-template-columns:22px minmax(0,1fr) auto 30px 30px 30px;align-items:center;gap:6px;padding:6px 8px;border:1px solid #dcf0ee;border-radius:10px;background:#fff}
 .book-editor-parts li.is-new{border-color:#b9dfdd;background:#fcf9f3}
@@ -2417,8 +2415,6 @@ input {
 .book-editor-parts small{color:#6e6b81;font-size:11px;white-space:nowrap}
 .book-editor-parts button{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:8px;background:#faf5ec;color:#2b2947;cursor:pointer}
 .book-editor-parts button:disabled{opacity:.35;cursor:default}
-.book-editor-audio strong{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.book-editor-audio small{color:#6b687d;font-size:11px}
 .book-editor-active{display:flex;align-items:center;justify-content:flex-start;gap:8px;font-size:14px;font-weight:650;color:#7a5a0c;text-align:left;cursor:pointer}
 .book-editor-talk{display:grid;gap:8px;margin:0;padding:12px;border:1px solid #cde9e7;border-radius:12px;background:#fcf9f3;min-width:0}
 .book-editor-talk legend{display:inline-flex;align-items:center;gap:6px;padding:0 6px;color:#212856;font-size:14px;font-weight:750}

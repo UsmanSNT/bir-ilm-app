@@ -8,3 +8,4 @@ export * from "./community";
 export * from "./store";
 export * from "./site";
 export * from "./quiz";
+export * from "./audio-link";

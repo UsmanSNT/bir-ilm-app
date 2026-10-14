@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, CalendarClock, Headphones, ImagePlus, Megaphone, Sparkles, Store, Trash2, Upload, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, Clock3, Headphones, ImagePlus, Link2, Megaphone, Sparkles, Store, Trash2, Upload, X } from "lucide-react";
 import { looksLikeMarkdown, stripMarkdown } from "@/lib/markdown";
 import { toast } from "sonner";
 import DateTimeField from "./datetime-field";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { audioDuration, createBook, deleteBook, deleteTrack, notifyCatalogChanged, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
 import { createLiveSession, fetchLiveSessions, updateLiveSession } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
-import { BOOK_LIMITS, STORE_CATEGORIES, STORE_LIMITS, type Book, type LiveSession } from "@/shared/contract";
+import { BOOK_LIMITS, STORE_CATEGORIES, STORE_LIMITS, describeAudioLink, normalizeAudioLink, type Book, type LiveSession } from "@/shared/contract";
 import { clock, dayMonth, durationLabel, localInput, nextTalk, notifyTalksChanged, talkAnnouncement, talkRescheduled } from "./talk-format";
 
 const COLORS = ["#0f4f45", "#294256", "#7a3b2e", "#5b4a8b", "#8a6511", "#2f6f8f", "#374151"];
@@ -51,7 +51,9 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
   const [summary, setSummary] = useState(book?.summary ?? "");
   const [color, setColor] = useState(book?.color ?? COLORS[0]);
   const [price, setPrice] = useState(book?.price ? String(book.price) : "");
-  const [pages, setPages] = useState(String(book?.pages ?? 320));
+  // Bo'sh qoldirilsa 0 saqlanadi va hech qayerda ko'rsatilmaydi.
+  const [pages, setPages] = useState(book?.pages ? String(book.pages) : "");
+  const [audioLink, setAudioLink] = useState(book?.audioLink ?? "");
   const [category, setCategory] = useState(book?.category ?? "");
   const [active, setActive] = useState(store ? false : book?.active ?? asWeekBook);
   // Hafta kitobi bilan birga suhbat vaqtini belgilash (faqat admin suhbat yarata oladi).
@@ -94,6 +96,7 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
 
   const totalBytes = parts.reduce((sum, p) => sum + p.bytes, 0);
   const totalSeconds = parts.reduce((sum, p) => sum + p.seconds, 0);
+  const linkInfo = describeAudioLink(audioLink);
 
   async function pickAudio(list: FileList | null) {
     const files = [...(list ?? [])].filter((f) => f.type.startsWith("audio/")).sort(byName);
@@ -126,11 +129,13 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
     try {
       const priceValue = price.trim() ? Number(price) : 0;
       if (!Number.isInteger(priceValue) || priceValue < 0 || priceValue > STORE_LIMITS.maxPrice) throw new Error("Narx butun wonda (₩), 0 dan 10 000 000 gacha bo‘lsin.");
-      const pagesValue = Number(pages);
-      if (!Number.isInteger(pagesValue) || pagesValue < 1 || pagesValue > 5000) throw new Error("Sahifalar soni 1 dan 5000 gacha bo‘lsin.");
+      const pagesValue = pages.trim() ? Number(pages) : 0;
+      if (!Number.isInteger(pagesValue) || pagesValue < 0 || pagesValue > 5000) throw new Error("Sahifalar soni 1 dan 5000 gacha bo‘lsin (yoki bo‘sh qoldiring).");
+      const linkValue = audioLink.trim();
+      if (!store && linkValue && !normalizeAudioLink(linkValue)) throw new Error("Audio havolasi noto‘g‘ri. Masalan: https://youtu.be/… yoki https://t.me/…");
       const base = { title: title.trim(), author: author.trim(), summary: stripMarkdown(summary), color, pages: pagesValue };
       // Do'kon mahsuloti: narx va janr bor, audio/hafta kitobi yo'q. Kutubxona kitobida aksincha.
-      const fields = store ? { ...base, price: priceValue, category: category.trim() } : base;
+      const fields = store ? { ...base, price: priceValue, category: category.trim() } : { ...base, audioLink: linkValue };
       let saved = book ? await updateBook(book.id, store ? fields : { ...fields, active }) : await createBook({ ...fields, kind });
       if (!book && active && !store) saved = await updateBook(saved.id, { active: true });
 
@@ -272,49 +277,81 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
             </datalist>
           </fieldset>}
 
-          <div className="book-editor-row">
-            {!store && <label className="book-editor-audio">
-              <Headphones size={18} />
-              <span>
-                <strong>{parts.length ? "Yana audio" : "Audio qo‘shish"}</strong>
-                <small>{BOOK_LIMITS.maxTracks} tagacha · jami 1 GB{totalBytes ? ` · hozir ${mb(totalBytes)}` : ""}</small>
-              </span>
-              <Upload size={16} />
-              <input type="file" accept="audio/*" multiple disabled={busy} onChange={(e) => { pickAudio(e.target.files); e.target.value = ""; }} />
-            </label>}
-            <label className="book-editor-pages">
-              <span>Sahifalar soni</span>
-              <input inputMode="numeric" pattern="[0-9]*" aria-label="Sahifalar soni" value={pages} disabled={busy} onChange={(e) => setPages(e.target.value.replace(/\D/g, "").slice(0, 4))} />
-            </label>
-            {!store && (
-              <div className="book-editor-length">
-                <span>Ovoz vaqti</span>
-                <strong aria-live="polite">{totalSeconds ? durationLabel(totalSeconds) : "—"}</strong>
-              </div>
-            )}
-          </div>
+          {!store && (
+            <section className="book-editor-audio-card" aria-label="Audio">
+              <label className="book-editor-upload">
+                <span className="book-editor-upload-icon" aria-hidden="true"><Headphones size={22} /></span>
+                <span className="book-editor-upload-text">
+                  <strong>{parts.length ? "Yana audio qo‘shish" : "Audio yuklash"}</strong>
+                  <small>MP3, M4A, OGG, WAV · {BOOK_LIMITS.maxTracks} qismgacha · jami 1 GB</small>
+                </span>
+                <span className="book-editor-upload-btn"><Upload size={15} /> Tanlash</span>
+                <input type="file" accept="audio/*" multiple disabled={busy} onChange={(e) => { pickAudio(e.target.files); e.target.value = ""; }} />
+              </label>
 
-          {!store && parts.length > 0 && (
-            <ol className="book-editor-parts" aria-label="Audiokitob qismlari (ijro tartibi)">
-              {parts.map((part, index) => (
-                <li key={part.key} className={part.file ? "is-new" : undefined}>
-                  <b>{index + 1}</b>
-                  <input
-                    aria-label={`${index + 1}-qism nomi`}
-                    value={part.title}
-                    placeholder={`${index + 1}-qism`}
-                    maxLength={BOOK_LIMITS.trackTitle}
-                    disabled={busy}
-                    onChange={(e) => setParts((prev) => prev.map((p) => (p.key === part.key ? { ...p, title: e.target.value } : p)))}
-                  />
-                  <small>{part.file ? "yangi · " : ""}{mb(part.bytes)}</small>
-                  <button type="button" aria-label="Yuqoriga" disabled={busy || index === 0} onClick={() => move(index, -1)}><ArrowUp size={15} /></button>
-                  <button type="button" aria-label="Pastga" disabled={busy || index === parts.length - 1} onClick={() => move(index, 1)}><ArrowDown size={15} /></button>
-                  <button type="button" aria-label="Qismni olib tashlash" disabled={busy} onClick={() => setParts((prev) => prev.filter((p) => p.key !== part.key))}><Trash2 size={15} /></button>
-                </li>
-              ))}
-            </ol>
+              {parts.length > 0 && (
+                <p className="book-editor-summary" aria-live="polite">
+                  <Clock3 size={15} />
+                  {parts.length} qism{totalSeconds > 0 ? ` · ${durationLabel(totalSeconds)}` : ""} · {mb(totalBytes)}
+                </p>
+              )}
+
+              {parts.length > 0 && (
+                <ol className="book-editor-parts" aria-label="Audiokitob qismlari (ijro tartibi)">
+                  {parts.map((part, index) => (
+                    <li key={part.key} className={part.file ? "is-new" : undefined}>
+                      <b>{index + 1}</b>
+                      <input
+                        aria-label={`${index + 1}-qism nomi`}
+                        value={part.title}
+                        placeholder={`${index + 1}-qism`}
+                        maxLength={BOOK_LIMITS.trackTitle}
+                        disabled={busy}
+                        onChange={(e) => setParts((prev) => prev.map((p) => (p.key === part.key ? { ...p, title: e.target.value } : p)))}
+                      />
+                      <small>{part.file ? "yangi · " : ""}{mb(part.bytes)}</small>
+                      <button type="button" aria-label="Yuqoriga" disabled={busy || index === 0} onClick={() => move(index, -1)}><ArrowUp size={15} /></button>
+                      <button type="button" aria-label="Pastga" disabled={busy || index === parts.length - 1} onClick={() => move(index, 1)}><ArrowDown size={15} /></button>
+                      <button type="button" aria-label="Qismni olib tashlash" disabled={busy} onClick={() => setParts((prev) => prev.filter((p) => p.key !== part.key))}><Trash2 size={15} /></button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              <div className="book-editor-or"><span>yoki havola</span></div>
+              <label className="book-editor-link">
+                <Link2 size={16} aria-hidden="true" />
+                <input
+                  type="text"
+                  inputMode="url"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  aria-label="Audio havolasi"
+                  placeholder="YouTube, Telegram yoki boshqa havola"
+                  maxLength={2048}
+                  value={audioLink}
+                  disabled={busy}
+                  onChange={(e) => setAudioLink(e.target.value)}
+                />
+              </label>
+              {linkInfo ? (
+                <p className="book-editor-link-hint is-ok">
+                  <b>{linkInfo.label}</b> · {linkInfo.display}
+                  {parts.length > 0 && <em> — audio yuklangani uchun havola ishlatilmaydi</em>}
+                </p>
+              ) : audioLink.trim() ? (
+                <p className="book-editor-link-hint is-bad" role="alert">Havola noto‘g‘ri. Masalan: youtu.be/… yoki t.me/…</p>
+              ) : (
+                <p className="book-editor-link-hint">Audio yuklanmasa, «Eshitish» tugmasi shu havolaga olib boradi.</p>
+              )}
+            </section>
           )}
+
+          <label className="book-editor-pages">
+            <span>Sahifalar soni <small>ixtiyoriy</small></span>
+            <input inputMode="numeric" pattern="[0-9]*" placeholder="—" aria-label="Sahifalar soni (ixtiyoriy)" value={pages} disabled={busy} onChange={(e) => setPages(e.target.value.replace(/\D/g, "").slice(0, 4))} />
+          </label>
 
           {!store && <label className="book-editor-active">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />

@@ -56,6 +56,7 @@ export function toBook(row: BookRow, trackRows: TrackRow[] = []): Book {
     audioUrl: tracks[0]?.url ?? null,
     audioSeconds: tracks.reduce((sum, t) => sum + t.seconds, 0),
     audioBytes: tracks.reduce((sum, t) => sum + t.bytes, 0),
+    audioLink: row.audioLink,
     tracks,
     kind: row.kind,
     price: row.price,
@@ -140,7 +141,7 @@ export async function createBook(db: Database, userId: string, input: CreateBook
   const id = newBookId();
   const stamp = now();
   // Ikki ro'yxat aralashmaydi: kutubxona kitobida narx/janr yo'q, do'kon mahsuloti haftaning kitobi bo'lmaydi.
-  const fields = input.kind === "store" ? input : { ...input, price: 0, category: "" };
+  const fields = input.kind === "store" ? { ...input, audioLink: "" } : { ...input, price: 0, category: "" };
   await db.insert(books).values({ id, ...fields, createdBy: userId, createdAt: stamp, updatedAt: stamp });
   return getBook(db, id);
 }
@@ -148,8 +149,8 @@ export async function createBook(db: Database, userId: string, input: CreateBook
 export async function updateBook(db: Database, id: string, input: UpdateBookInput): Promise<Book> {
   const row = await getBookRow(db, id);
   const store = row.kind === "store";
-  const { active, price, category, ...common } = input;
-  const patch = store ? { ...common, price, category } : { ...common, active };
+  const { active, price, category, audioLink, ...common } = input;
+  const patch = store ? { ...common, price, category } : { ...common, active, audioLink };
   // Haftaning kitobi bitta bo'ladi (faqat kutubxona kitoblari orasida).
   if (!store && active) await db.update(books).set({ active: false }).where(and(ne(books.id, id), eq(books.kind, "library")));
   await db.update(books).set({ ...patch, updatedAt: now() }).where(eq(books.id, id));

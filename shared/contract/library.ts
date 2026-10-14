@@ -1,5 +1,6 @@
 /** Kutubxona: kitoblar, o'qish jarayoni, izohlar va reyting. */
 import { z } from "zod";
+import { AUDIO_LINK_MAX, normalizeAudioLink } from "./audio-link";
 
 export const LIBRARY_LIMITS = {
   commentBody: 2000,
@@ -26,6 +27,7 @@ export type Book = {
   author: string;
   summary: string;
   color: string;
+  /** Sahifalar soni; 0 — kiritilmagan (hech qayerda ko'rsatilmaydi). */
   pages: number;
   /** Haftaning kitobi. */
   active: boolean;
@@ -36,6 +38,8 @@ export type Book = {
   /** Barcha qismlar jami. */
   audioSeconds: number;
   audioBytes: number;
+  /** Tashqi audio havolasi (YouTube, Telegram...); "" — yo'q. Audio yuklanmaganda «Eshitish» shu manzilga olib boradi. */
+  audioLink: string;
   /** Audiokitob qismlari — tartib bilan ketma-ket ijro etiladi. */
   tracks: BookTrack[];
   /** library — suhbat/kutubxona kitobi; store — sotuv uchun alohida mahsulot. */
@@ -78,8 +82,21 @@ export const createBookSchema = z.object({
   author: z.string().trim().min(1, "Muallifni yozing.").max(BOOK_LIMITS.author),
   summary: z.string().trim().max(BOOK_LIMITS.summary).default(""),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Rang #RRGGBB ko'rinishida bo'lsin.").default("#0f4f45"),
-  /** Kitobdagi sahifalar soni (o'qish jarayoni shundan hisoblanadi). */
-  pages: z.coerce.number().int("Sahifalar soni butun son bo'lsin.").min(1, "Sahifalar soni kamida 1.").max(5000, "Sahifalar soni 5000 dan oshmasin.").default(320),
+  /** Kitobdagi sahifalar soni; kiritilmasa 0 (ko'rsatilmaydi). */
+  pages: z.coerce.number().int("Sahifalar soni butun son bo'lsin.").min(0, "Sahifalar soni manfiy bo'lmasin.").max(5000, "Sahifalar soni 5000 dan oshmasin.").default(0),
+  /** Audio o'rniga tashqi havola; bo'sh qoldirish mumkin. */
+  audioLink: z
+    .string()
+    .trim()
+    .max(AUDIO_LINK_MAX, "Havola juda uzun.")
+    .default("")
+    .transform((value, ctx) => {
+      if (!value) return "";
+      const link = normalizeAudioLink(value);
+      if (link) return link;
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Havola noto'g'ri. Masalan: https://youtu.be/… yoki https://t.me/…" });
+      return z.NEVER;
+    }),
   price: z.coerce.number().int("Narx butun wonda bo'lsin.").min(0).max(10_000_000).default(0),
   category: z.string().trim().max(40).default(""),
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { audioLinkOf } from "./listen-link";
 import { useMemo, useState } from "react";
 import { ArrowUpRight, BookOpen, Bookmark, Check, Headphones, Plus, Search, Sparkles, X } from "lucide-react";
 import { useCatalog } from "@/lib/api/books-client";
@@ -67,7 +68,8 @@ export default function BookDiscovery({ shelf, onOpen, onToggle, onNavigate, lib
       <button className="catalog-save" aria-label={`${book.title}: ${shelf.includes(book.id) ? "javondan olish" : "javonga qo‘shish"}`} aria-pressed={shelf.includes(book.id)} onClick={() => onToggle(book)}>{shelf.includes(book.id) ? <Check size={17}/> : <Bookmark size={17}/>}</button>
       {book.active && <span className="catalog-genre">Hafta kitobi</span>}
       <button className="catalog-book-title" onClick={() => onOpen(book)}>{book.title}</button><p>{book.author}</p>
-      <span className="catalog-pages"><Headphones size={13}/>{book.audioUrl ? (book.audioSeconds ? lengthLabel(book.audioSeconds) : "Audiokitob") : "Audio tez orada"}</span>
+      {book.audioUrl ? <span className="catalog-pages"><Headphones size={13}/>{book.audioSeconds ? lengthLabel(book.audioSeconds) : "Audiokitob"}</span>
+        : audioLinkOf(book) ? <a className="catalog-pages catalog-listen" href={audioLinkOf(book)!.href} target="_blank" rel="noopener noreferrer"><Headphones size={13}/>Eshitish · {audioLinkOf(book)!.label}</a> : null}
       {editor && <button className="text-btn catalog-edit" onClick={() => setEditing({ book })}>Tahrirlash</button>}
     </article>)}</div>
     {!catalog.loading && !filtered.length && <div className="catalog-empty"><Search size={28}/><h3>{catalog.items.length ? "Kitob topilmadi" : "Kutubxona hozircha bo‘sh"}</h3><p>{catalog.items.length ? "Boshqa nomni sinab ko‘ring." : editor ? "Birinchi kitobni qo‘shing." : "Tez orada kitoblar qo‘shiladi."}</p>{catalog.items.length ? <button onClick={() => { setQuery(""); setSavedOnly(false); }}>Filtrlarni tozalash</button> : editor && <button onClick={() => setEditing({ book: null })}>Kitob qo‘shish</button>}</div>}

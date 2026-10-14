@@ -159,6 +159,7 @@ export const books = sqliteTable("books", {
   author: text("author").notNull(),
   summary: text("summary").notNull().default(""),
   color: text("color").notNull().default("#0f4f45"),
+  // Ilova har doim aniq qiymat yozadi: 0 — sahifalar soni kiritilmagan (ko'rsatilmaydi).
   pages: integer("pages").notNull().default(320),
   /** Haftaning kitobi (bosh sahifa va profilda ko'rinadi). Bir vaqtda bittasi. */
   active: integer("active", { mode: "boolean" }).notNull().default(false),
@@ -168,6 +169,8 @@ export const books = sqliteTable("books", {
   audioMime: text("audio_mime"),
   audioBytes: integer("audio_bytes").notNull().default(0),
   audioSeconds: integer("audio_seconds").notNull().default(0),
+  /** Tashqi audio havolasi (YouTube, Telegram...); "" — yo'q. */
+  audioLink: text("audio_link").notNull().default(""),
   /**
    * library — suhbat/kutubxona kitobi (audio, haftaning kitobi); store — sotuv uchun alohida mahsulot
    * (o'z muqovasi, tavsifi, narxi). Ikkalasi aralashmaydi.

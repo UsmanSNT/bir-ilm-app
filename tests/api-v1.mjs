@@ -650,6 +650,17 @@ try {
     });
     const id = made.data.id;
     createdBooks.push(id);
+    // Sahifalar soni kiritilmasa 0, havola bo'sh; havola xavfsiz https manzilga keltiriladi.
+    assert.equal(made.data.pages, 0, "Sahifalar soni kiritilmasa 0 bo'lsin");
+    assert.equal(made.data.audioLink, "");
+    const patchBook = (client, body, expect) => client.call(bookItem.PATCH, `/api/v1/books/${id}`, { method: "PATCH", params: { id }, body, expect });
+    const linked = await patchBook(editor, { audioLink: "youtu.be/abc123", pages: 0 }, 200);
+    assert.equal(linked.payload.data.audioLink, "https://youtu.be/abc123");
+    assert.equal(linked.payload.data.audioUrl, null, "Havola yuklangan audio emas");
+    await patchBook(editor, { audioLink: "javascript:alert(1)" }, 422);
+    await patchBook(editor, { pages: -1 }, 422);
+    assert.equal((await patchBook(editor, { pages: 214 }, 200)).payload.data.pages, 214);
+    assert.equal((await patchBook(editor, { audioLink: "" }, 200)).payload.data.audioLink, "", "Havolani bo'shatish mumkin");
 
     const put = (client, bytes, offset, total, type, extra = {}) =>
       bookMedia.PUT(new Request(`${ORIGIN}/api/v1/books/${id}/media?kind=audio`, {

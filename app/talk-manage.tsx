@@ -144,7 +144,12 @@ export default function TalkManage({
             </span>
             <div>
               <strong>{book.title}</strong>
-              <small>Ovoz vaqti: {book.audioSeconds ? durationLabel(book.audioSeconds) : "yuklanmagan"} · {book.pages} sahifa</small>
+              {(book.audioSeconds > 0 || book.audioLink || book.pages > 0) && (
+                <small>{[
+                  book.audioSeconds > 0 ? `Ovoz vaqti: ${durationLabel(book.audioSeconds)}` : book.audioLink ? "Audio: havola" : "",
+                  book.pages > 0 ? `${book.pages} sahifa` : "",
+                ].filter(Boolean).join(" · ")}</small>
+              )}
             </div>
             <button type="button" className="tb-sheet-btn" disabled={busy} onClick={() => onEditBook(book)}>Muqova va audio</button>
           </section>

@@ -1,5 +1,6 @@
 "use client";
 
+import ListenLink, { audioLinkOf } from "./listen-link";
 import { FormEvent, useEffect, useMemo, useSyncExternalStore, useState, type CSSProperties } from "react";
 import {
   ArrowRight,
@@ -478,6 +479,9 @@ export default function MobileScreens({
                 {todaySeconds > 0 && <span>· bugun {listenedLabel(todaySeconds)}</span>}
               </p>
             )}
+            {featured && !featured.audioUrl && audioLinkOf(featured) ? (
+              <ListenLink book={featured} className="m-primary" />
+            ) : (
             <button className="m-primary" type="button" onClick={() => onContinue(listenBook)}>
               <Headphones size={18} />
               {listenBook
@@ -487,6 +491,7 @@ export default function MobileScreens({
                 : "Audiokitoblarni ko‘rish"}
               <ArrowRight size={18} />
             </button>
+            )}
           </section>
 
           <figure className="m-wisdom">

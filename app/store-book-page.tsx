@@ -49,7 +49,7 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
           <p className="zb-author">{book.author}</p>
           <div className="zb-book-facts">
             <RatingLine rating={book.rating} count={book.reviews} />
-            <span><BookOpen size={14} />{book.pages} bet</span>
+            {book.pages > 0 && <span><BookOpen size={14} />{book.pages} bet</span>}
             {book.hasAudio && <span className="zb-audio-chip"><Headphones size={14} />Audiokitob Javonda</span>}
           </div>
           <p className="zb-price">{formatPrice(book.price)}</p>

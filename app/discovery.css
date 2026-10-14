@@ -98,3 +98,11 @@ body { background: #f8f2e6; color: #211f36; }
  .genre-chips button { font-size: 12px; padding: 8px 11px; } .page-heading { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .discovery-cover { transition: none; } }
+
+/* Audio o'rniga tashqi havola: «Eshitish» */
+.catalog-listen { color: #0f6f7a; font-weight: 700; text-decoration: none; }
+.catalog-listen:hover { text-decoration: underline; }
+.book-detail-link span { min-width: 0; overflow-wrap: anywhere; }
+.lib-link-card { display: grid; gap: 10px; justify-items: center; width: 100%; padding: 14px; text-align: center; }
+.lib-link-address { margin: 0; color: #62757e; font-size: 13px; overflow-wrap: anywhere; }
+.lib-link-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }

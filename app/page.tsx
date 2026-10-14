@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast, Toaster } from "sonner";
+import ListenLink, { audioLinkOf } from "./listen-link";
 import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
 import SocialLinks from "./social-links";
@@ -772,12 +773,15 @@ export default function App() {
                     <span className="book-detail-cover" style={{ backgroundColor: selected.color }}>{selected.coverUrl ? <img src={selected.coverUrl} alt="" /> : selected.title}</span>
                     <div>
                       <p className="muted">{selected.author}</p>
-                      <p className="book-detail-meta"><Headphones size={18}/> {selected.audioUrl ? (selected.audioSeconds ? `${Math.floor(selected.audioSeconds / 3600)} soat ${Math.round((selected.audioSeconds % 3600) / 60)} daqiqa` : "Audiokitob") : "Audio tez orada"}</p>
+                      {selected.audioUrl
+                        ? <p className="book-detail-meta"><Headphones size={18}/> {selected.audioSeconds ? `${Math.floor(selected.audioSeconds / 3600)} soat ${Math.round((selected.audioSeconds % 3600) / 60)} daqiqa` : "Audiokitob"}</p>
+                        : audioLinkOf(selected) && <p className="book-detail-meta book-detail-link"><Headphones size={18}/> <span>{audioLinkOf(selected)!.label} · {audioLinkOf(selected)!.display}</span></p>}
                     </div>
                   </div>
                   {selected.summary && <p>{selected.summary}</p>}
                   <div className="book-detail-actions">
                     {selected.audioUrl && <button className="button" onClick={() => { setModal(""); go("shelf"); }}><Headphones size={17}/> Javonimda tinglash</button>}
+                    <ListenLink book={selected} />
                     <button
                       className="button secondary"
                       onClick={() => {
