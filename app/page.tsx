@@ -706,7 +706,8 @@ export default function App() {
         }}
       >
         <DialogContent className="app-dialog" showCloseButton={false}>
-          <DialogTitle>
+          {/* Bildirishnomalarda sarlavha va izoh ko'rinmaydi (ro'yxatning o'zi yetarli) — faqat ekran o'quvchilar uchun. */}
+          <DialogTitle className={data.onboarded && modal === "notifications" ? "sr-only" : undefined}>
             {!data.onboarded
               ? "Bir haftada bitta kitob"
               : ({
@@ -717,11 +718,11 @@ export default function App() {
                   about: "App holati",
                 } as Record<string, string>)[modal]}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className={data.onboarded && modal === "notifications" ? "sr-only" : undefined}>
             {!data.onboarded
               ? "Har kuni o'qing. Hafta oxirida kitobni birga tahlil qiling."
               : modal === "notifications"
-                ? "Faqat o‘qilmaganlar: postlaringizga reaksiya va izohlar, do‘kon xabarlari va e‘lonlar. Ochilgani ro‘yxatdan chiqadi."
+                ? "O‘qilmagan reaksiya va izohlar, do‘kon xabarlari va e‘lonlar."
               : "O'zgarishlar backend mavjud bo'lsa serverga, aks holda qurilmaga saqlanadi."}
           </DialogDescription>
 
