@@ -201,7 +201,7 @@ export default function TalksBoard({
     const live = s.status === "live";
     const reminded = reminders.includes(s.id);
     return (
-      <article className={`tb-feature${live ? " is-live" : ""}`} key={s.id}>
+      <article className={`tb-feature naqsh-card${live ? " is-live" : ""}`} key={s.id}>
         <button type="button" className="tb-stretch" aria-label={`${s.bookTitle} suhbatini ochish`} onClick={() => open(s)} />
         <Cover title={s.bookTitle} url={book?.coverUrl} color={book?.color} size="lg" />
         <div className="tb-feature-body">

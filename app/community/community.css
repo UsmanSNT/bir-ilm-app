@@ -37,9 +37,8 @@
 .rt-album { display: grid; gap: 3px; margin: 4px 0 14px; border-radius: 12px; overflow: hidden; background: #e2f2f1; }
 .rt-album-item { position: relative; display: block; min-width: 0; min-height: 0; padding: 0; border: 0; background: #d9eeed; cursor: zoom-in; overflow: hidden; }
 .rt-album-item img, .rt-album-item video { display: block; width: 100%; height: 100%; object-fit: cover; }
-.rt-album.count-1 .rt-album-item { max-height: 560px; }
-.rt-album.count-1 .rt-album-item img { object-fit: contain; background: #f9f3e8; }
-.rt-album-video { display: block; width: 100%; max-height: 560px; background: #000; }
+.rt-album.count-1 .rt-album-item { width: 100%; max-height: min(78vh, 680px); }
+.rt-album-video { display: block; width: 100%; max-height: min(78vh, 680px); background: #000; }
 .rt-album.count-2 { grid-template-columns: 1fr 1fr; aspect-ratio: 2 / 1.1; }
 .rt-album.count-3 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; aspect-ratio: 4 / 3; }
 .rt-album.count-3 .rt-album-item:first-child { grid-row: span 2; }
@@ -221,7 +220,7 @@
 
 /* ───────── Post albomi: karusel ───────── */
 .rt-carousel { position: relative; margin: 4px 0 14px; border-radius: 16px; overflow: hidden; background: #f1e8d4; }
-.rt-carousel-track { display: flex; width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; outline-offset: -3px; }
+.rt-carousel-track { display: flex; width: 100%; max-height: min(78vh, 680px); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; outline-offset: -3px; }
 .rt-carousel-track::-webkit-scrollbar { display: none; }
 .rt-carousel-slide { position: relative; flex: 0 0 100%; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; scroll-snap-align: center; scroll-snap-stop: always; cursor: zoom-in; }
 .rt-carousel-slide img, .rt-carousel-slide video { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; }
@@ -233,6 +232,11 @@
 .rt-carousel-dots { position: absolute; left: 0; right: 0; bottom: 10px; display: flex; justify-content: center; gap: 5px; pointer-events: none; }
 .rt-carousel-dots i { width: 6px; height: 6px; border-radius: 50%; background: #ffffff99; box-shadow: 0 0 0 1px #0003; transition: transform .15s, background .15s; }
 .rt-carousel-dots i.is-on { background: #fff; transform: scale(1.35); }
+
+/* Moslashuvchan ramka: rasm o'z nisbatida va to'liq ko'rinadi; ortiqcha joy shu rasmning xira nusxasi bilan to'ladi. */
+.rt-frame { position: relative; isolation: isolate; overflow: hidden; background: #1b1a2e; }
+.rt-frame .rt-frame-fill { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; filter: blur(22px) saturate(1.2) brightness(.82); transform: scale(1.15); pointer-events: none; user-select: none; }
+.rt-frame .rt-frame-img { position: relative; display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; }
 
 /* ───────── Composer: rasm tartibi ───────── */
 .composer-order-hint { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 8px; padding: 8px 12px; border-radius: 12px; background: #e2b65c24; color: #5b4510; font-size: 12.5px; line-height: 1.45; box-shadow: inset 0 0 0 1px #e2b65c66; }

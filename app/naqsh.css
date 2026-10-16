@@ -35,6 +35,8 @@
   --f-ui: "Manrope Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
 
   --girih: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23e2b65c' stroke-width='1'%3E%3Crect x='18' y='18' width='28' height='28'/%3E%3Crect x='18' y='18' width='28' height='28' transform='rotate(45 32 32)'/%3E%3Ccircle cx='32' cy='32' r='5'/%3E%3Cpath d='M32 0v8M32 56v8M0 32h8M56 32h8M0 0l12 12M64 0L52 12M0 64l12-12M64 64L52 52'/%3E%3C/g%3E%3C/svg%3E");
+  --koshin-rasm: url("/assets/girih-koshin.webp");
+  --hoshiya: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23c08a2e'%3E%3Crect x='6.5' y='6.5' width='35' height='35' stroke-opacity='.8'/%3E%3Crect x='9.5' y='9.5' width='29' height='29' stroke-width='.7' stroke-opacity='.45'/%3E%3C/g%3E%3Cg fill='%23e2b65c' stroke='%23c08a2e' stroke-width='.6'%3E%3Cpolygon points='8.00 2.80 9.52 4.32 11.68 4.32 11.68 6.48 13.20 8.00 11.68 9.52 11.68 11.68 9.52 11.68 8.00 13.20 6.48 11.68 4.32 11.68 4.32 9.52 2.80 8.00 4.32 6.48 4.32 4.32 6.48 4.32'/%3E%3Cpolygon points='40.00 2.80 41.52 4.32 43.68 4.32 43.68 6.48 45.20 8.00 43.68 9.52 43.68 11.68 41.52 11.68 40.00 13.20 38.48 11.68 36.32 11.68 36.32 9.52 34.80 8.00 36.32 6.48 36.32 4.32 38.48 4.32'/%3E%3Cpolygon points='40.00 34.80 41.52 36.32 43.68 36.32 43.68 38.48 45.20 40.00 43.68 41.52 43.68 43.68 41.52 43.68 40.00 45.20 38.48 43.68 36.32 43.68 36.32 41.52 34.80 40.00 36.32 38.48 36.32 36.32 38.48 36.32'/%3E%3Cpolygon points='8.00 34.80 9.52 36.32 11.68 36.32 11.68 38.48 13.20 40.00 11.68 41.52 11.68 43.68 9.52 43.68 8.00 45.20 6.48 43.68 4.32 43.68 4.32 41.52 2.80 40.00 4.32 38.48 4.32 36.32 6.48 36.32'/%3E%3C/g%3E%3Cg fill='%231e2f6e'%3E%3Ccircle cx='8' cy='8' r='1.3'/%3E%3Ccircle cx='40' cy='8' r='1.3'/%3E%3Ccircle cx='40' cy='40' r='1.3'/%3E%3Ccircle cx='8' cy='40' r='1.3'/%3E%3C/g%3E%3C/svg%3E");
   --ravoq: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='18' viewBox='0 0 30 18'%3E%3Cpath d='M0 0H30V18H27V11.5C27 7.8 19.5 6 15 2.4C10.5 6 3 7.8 3 11.5V18H0Z' fill='%231e2f6e'/%3E%3Cpath d='M3 18V11.5C3 7.8 10.5 6 15 2.4C19.5 6 27 7.8 27 11.5V18' fill='none' stroke='%23e2b65c' stroke-width='1.1'/%3E%3Crect width='30' height='1.4' fill='%23e2b65c'/%3E%3Cpath d='M0 9.5L1.6 11.6L0 13.7M30 9.5L28.4 11.6L30 13.7' fill='%23e2b65c'/%3E%3C/svg%3E");
   --koshin: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='10' viewBox='0 0 28 10'%3E%3Crect width='28' height='10' fill='%231e2f6e'/%3E%3Cpath d='M0 5L7 0L14 5L7 10Z' fill='%2317a2a0'/%3E%3Cpath d='M14 5L21 0L28 5L21 10Z' fill='%23fffbf3'/%3E%3Ccircle cx='7' cy='5' r='1.6' fill='%23e2b65c'/%3E%3Ccircle cx='21' cy='5' r='1.6' fill='%23c08a2e'/%3E%3C/svg%3E");
 
@@ -120,7 +122,7 @@ body .app-shell .app-header {
   border: 0; border-image: none; color: var(--sahifa);
   background:
     linear-gradient(90deg, #131f4cf2 0%, #1e2f6ed1 30%, #1e2f6e99 50%, #1e2f6ed1 70%, #131f4cf2 100%),
-    url("/assets/girih-koshin.webp") center / 146px 147px repeat,
+    var(--koshin-rasm) center / 146px 147px repeat,
     var(--lojuvard);
 }
 body .app-shell .app-header::before {
@@ -537,3 +539,38 @@ body .app-shell[hidden] { display: none; }
 .compose-ink { background: #f3ead2; color: #172351; }
 .topbar-avatar { position: relative; }
 .avatar-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #d6423a; color: #fff; font: 800 11px/18px var(--f-ui); text-align: center; box-shadow: 0 0 0 2px var(--sahifa, #f7f1e4); }
+
+/* ───────── Naqshinkor karta: koshin naqshi (suv belgisi kabi), tilla hoshiya va burchak yulduzlari ───────── */
+.naqsh-card { position: relative; isolation: isolate; overflow: hidden; border-radius: 14px; }
+.naqsh-card::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--koshin-rasm) right top / 146px 147px repeat; opacity: .13;
+  -webkit-mask-image: radial-gradient(120% 110% at 100% 0%, #000 0%, #0008 40%, transparent 78%);
+  mask-image: radial-gradient(120% 110% at 100% 0%, #000 0%, #0008 40%, transparent 78%);
+}
+.naqsh-card::after { content: ""; position: absolute; inset: 0; pointer-events: none; border: 16px solid transparent; border-image: var(--hoshiya) 16 / 16px stretch; }
+.social-links-card.naqsh-card { padding: 18px 20px 20px; background: linear-gradient(160deg, #fffbf3, #f6ecd6); }
+.tb-feature.naqsh-card { padding: 18px; border-color: #e5d3a6; background: linear-gradient(160deg, #fffbf3, #f7efdd); }
+.tb-feature.naqsh-card.is-live { border-color: #f2c6c6; background: linear-gradient(135deg, #fff5f4, #faf5ec 70%); }
+.tb-feature.naqsh-card .tb-cover-lg { box-shadow: 0 0 0 1.5px #e2b65c99, 0 10px 20px -8px #12173155; }
+@media (max-width: 640px) { .tb-feature.naqsh-card { padding: 16px; } }
+
+/* ───────── Do'kon hisobi bo'limlari: ikonkali tablar, koshin fonda ───────── */
+.sa .sa-tabs {
+  display: flex; gap: 6px; width: 100%; max-width: 560px; justify-self: center; padding: 6px; border-radius: 999px;
+  background: linear-gradient(90deg, #131f4ceb, #1e2f6eb8 50%, #131f4ceb), var(--koshin-rasm) center / 120px 121px repeat, var(--lojuvard);
+  box-shadow: inset 0 0 0 1px #e2b65c8c, inset 0 0 0 4px #131f4c59, 0 12px 24px -18px var(--lojuvard);
+}
+.sa .sa-tabs button {
+  flex: 1 1 0; min-width: 0; height: 46px; padding: 0 10px; gap: 0; overflow: visible;
+  color: var(--tilla-och); font-size: 13px; cursor: pointer; transition: flex-grow .25s ease, background .2s, color .2s;
+}
+.sa .sa-tabs button:hover:not([aria-selected="true"]) { background: #fffbf31a; color: #fff; }
+.sa .sa-tabs button:focus-visible { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
+.sa .sa-tabs button[aria-selected="true"] { flex-grow: 2.2; background: var(--sahifa); color: var(--lojuvard); box-shadow: 0 0 0 1.5px var(--tilla-2), 0 6px 14px -8px #000c; }
+.sa-tab-icon { position: relative; display: grid; place-items: center; flex: none; }
+.sa .sa-tabs .sa-tab-icon b { position: absolute; top: -7px; left: 12px; margin: 0; box-shadow: 0 0 0 2px var(--lojuvard-3); }
+.sa .sa-tabs button[aria-selected="true"] .sa-tab-icon b { box-shadow: 0 0 0 2px var(--sahifa); }
+.sa-tab-label { min-width: 0; max-width: 0; margin-left: 0; overflow: hidden; opacity: 0; white-space: nowrap; text-overflow: ellipsis; transition: max-width .25s ease, margin-left .25s ease, opacity .2s; }
+.sa .sa-tabs button[aria-selected="true"] .sa-tab-label { max-width: 120px; margin-left: 7px; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .sa .sa-tabs button, .sa-tab-label { transition: none; } }

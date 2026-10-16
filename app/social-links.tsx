@@ -15,7 +15,7 @@ export default function SocialLinks({ variant = "card" }: { variant?: "card" | "
   const active = SOCIAL_KEYS.filter((key): key is SocialKey => Boolean(links[key]));
   if (!active.length) return null;
   return (
-    <section className={`social-links social-links-${variant}`} aria-label="Bir Ilm ijtimoiy tarmoqlarda">
+    <section className={`social-links social-links-${variant}${variant === "card" ? " naqsh-card" : ""}`} aria-label="Bir Ilm ijtimoiy tarmoqlarda">
       {variant === "card" && (
         <div className="social-links-text">
           <strong>Bizni kuzating</strong>

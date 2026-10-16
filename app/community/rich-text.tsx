@@ -124,6 +124,7 @@ export function RichContent({ doc, text, media, className = "" }: { doc: Doc | n
  */
 export function MediaAlbum({ items }: { items: MediaItem[] }) {
   const [viewer, setViewer] = useState<number | null>(null);
+  const [measured, setMeasured] = useState<number | null>(null);
   if (!items.length) return null;
 
   const single = items.length === 1 ? items[0] : null;
@@ -142,12 +143,12 @@ export function MediaAlbum({ items }: { items: MediaItem[] }) {
         <div className="rt-album count-1">
           <button
             type="button"
-            className="rt-album-item"
-            style={single.width && single.height ? { aspectRatio: `${single.width} / ${single.height}` } : undefined}
+            className="rt-album-item rt-frame"
+            style={{ aspectRatio: frameRatio(ratioOf(single) ?? measured) }}
             onClick={() => setViewer(0)}
             aria-label="Rasmni ochish"
           >
-            <img src={mediaSrc(single)} alt="" loading="lazy" decoding="async" />
+            <FramedImage item={single} onRatio={ratioOf(single) ? undefined : setMeasured} />
           </button>
         </div>
       ) : (
@@ -158,15 +159,51 @@ export function MediaAlbum({ items }: { items: MediaItem[] }) {
   );
 }
 
-/** Karusel nisbati: birinchi rasmniki, lekin Instagram kabi 4:5 dan 1.91:1 gacha cheklanadi. */
-function carouselRatio(first: MediaItem): number {
-  const ratio = first.width && first.height ? first.width / first.height : 1;
-  return Math.min(1.91, Math.max(0.8, ratio));
+/** Juda cho'ziq rasmlar ham me'yorida ko'rinsin: ramka nisbati 9:16 (tik) dan 2.4:1 (panorama) gacha. */
+const FRAME_RATIO_MIN = 9 / 16;
+const FRAME_RATIO_MAX = 2.4;
+
+/** Rasmning eni/bo'yi nisbati; o'lchami saqlanmagan (eski) media uchun null. */
+function ratioOf(item: MediaItem): number | null {
+  return item.width > 0 && item.height > 0 ? item.width / item.height : null;
+}
+
+/** Ramka rasmning o'z nisbatini oladi (16:9, 9:16, 1:1 ...); noma'lum bo'lsa — kvadrat. */
+function frameRatio(ratio: number | null): number {
+  return Math.min(FRAME_RATIO_MAX, Math.max(FRAME_RATIO_MIN, ratio ?? 1));
+}
+
+/**
+ * Rasm ramkada to'liq (kesilmasdan) ko'rinadi. Nisbati ramkaga to'g'ri kelmasa (ekran balandligi
+ * cheklovi, karuseldagi boshqa o'lchamli rasm), bo'sh chiziqlar o'rniga shu rasmning xira nusxasi turadi.
+ */
+function FramedImage({ item, eager = false, onRatio }: { item: MediaItem; eager?: boolean; onRatio?: (ratio: number) => void }) {
+  const src = mediaSrc(item);
+  const loading = eager ? "eager" : "lazy";
+  return (
+    <>
+      <img className="rt-frame-fill" src={src} alt="" aria-hidden="true" loading={loading} decoding="async" draggable={false} />
+      <img
+        className="rt-frame-img"
+        src={src}
+        alt=""
+        loading={loading}
+        decoding="async"
+        draggable={false}
+        onLoad={onRatio && ((e) => {
+          const { naturalWidth, naturalHeight } = e.currentTarget;
+          if (naturalWidth > 0 && naturalHeight > 0) onRatio(naturalWidth / naturalHeight);
+        })}
+      />
+    </>
+  );
 }
 
 function Carousel({ items, onOpen }: { items: MediaItem[]; onOpen: (index: number) => void }) {
   const track = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  const [measured, setMeasured] = useState<number | null>(null);
+  const firstRatio = ratioOf(items[0]);
   const frame = useRef(0);
 
   const go = useCallback((index: number) => {
@@ -192,7 +229,7 @@ function Carousel({ items, onOpen }: { items: MediaItem[]; onOpen: (index: numbe
       <div
         ref={track}
         className="rt-carousel-track"
-        style={{ aspectRatio: carouselRatio(items[0]) }}
+        style={{ aspectRatio: frameRatio(firstRatio ?? measured) }}
         tabIndex={0}
         onScroll={onScroll}
         onKeyDown={(e) => {
@@ -201,14 +238,14 @@ function Carousel({ items, onOpen }: { items: MediaItem[]; onOpen: (index: numbe
         }}
       >
         {items.map((item, i) => (
-          <button type="button" key={item.id} className="rt-carousel-slide" onClick={() => onOpen(i)} aria-label={`${i + 1} / ${items.length}: ${item.kind === "video" ? "videoni" : "rasmni"} ochish`} aria-hidden={i === active ? undefined : true} tabIndex={i === active ? 0 : -1}>
+          <button type="button" key={item.id} className="rt-carousel-slide rt-frame" onClick={() => onOpen(i)} aria-label={`${i + 1} / ${items.length}: ${item.kind === "video" ? "videoni" : "rasmni"} ochish`} aria-hidden={i === active ? undefined : true} tabIndex={i === active ? 0 : -1}>
             {item.kind === "video" ? (
               <>
                 <video src={`${mediaSrc(item)}#t=0.1`} muted playsInline preload="metadata" />
                 <span className="rt-play"><Play size={26} fill="currentColor" /></span>
               </>
             ) : (
-              <img src={mediaSrc(item)} alt="" loading={i < 2 ? "eager" : "lazy"} decoding="async" draggable={false} />
+              <FramedImage item={item} eager={i < 2} onRatio={i === 0 && !firstRatio ? setMeasured : undefined} />
             )}
           </button>
         ))}

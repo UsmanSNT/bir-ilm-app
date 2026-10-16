@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, BookOpen, ChevronRight, Library, MessageCircle, Minus, Plus, ShoppingCart, Star, Trash2, UserRound } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight, LayoutDashboard, Library, MessageCircle, Minus, Plus, Settings, ShoppingCart, Star, Trash2, UserRound, type LucideIcon } from "lucide-react";
 import { fetchMyReviews, fetchOrders, useCart } from "@/lib/api/store-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { useAdminAttention } from "@/lib/api/admin-attention";
@@ -21,7 +21,12 @@ export type AdminArea = "orders" | "chat" | "books";
 export type PurchaseView = "orders" | "cart" | "reviews";
 const PURCHASE_VIEWS: [PurchaseView, string][] = [["orders", "Oxirgi xaridlar"], ["cart", "Savat"], ["reviews", "Baholar"]];
 
-const ACCOUNT_TABS: Record<AccountTab, string> = { cart: "Savat", messages: "Xabarlar", settings: "Sozlamalar", admin: "Boshqaruv" };
+const ACCOUNT_TABS: Record<AccountTab, { label: string; icon: LucideIcon }> = {
+  cart: { label: "Savat", icon: ShoppingCart },
+  messages: { label: "Xabarlar", icon: MessageCircle },
+  settings: { label: "Sozlamalar", icon: Settings },
+  admin: { label: "Boshqaruv", icon: LayoutDashboard },
+};
 const ADMIN_AREAS: [AdminArea, string][] = [
   ["orders", "Buyurtmalar"],
   ["chat", "Do‘kon chati"],
@@ -71,12 +76,18 @@ export default function StoreAccount({ tab, adminArea, purchaseView, onPurchaseV
       </button>
 
       <div className="zb-segment sa-tabs" role="tablist" aria-label="Do‘kon hisobi bo‘limlari">
-        {tabs.map((id) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => onTab(id)}>
-            {ACCOUNT_TABS[id]}
-            {id === "cart" && cart.count > 0 && <b aria-label={`${cart.count} ta mahsulot`}>{cart.count}</b>}
-          </button>
-        ))}
+        {tabs.map((id) => {
+          const { label, icon: Icon } = ACCOUNT_TABS[id];
+          return (
+            <button key={id} type="button" role="tab" aria-selected={tab === id} title={label} onClick={() => onTab(id)}>
+              <span className="sa-tab-icon">
+                <Icon size={20} strokeWidth={1.9} aria-hidden="true" />
+                {id === "cart" && cart.count > 0 && <b aria-label={`${cart.count} ta mahsulot`}>{cart.count > 99 ? "99+" : cart.count}</b>}
+              </span>
+              <span className="sa-tab-label">{label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {tab === "cart" && <PurchasesView view={purchaseView} onView={onPurchaseView} cart={cart} books={books} signedIn={signedIn} onCheckout={onCheckout} onCatalog={onCatalog} onOpen={onOpen} onOrderChat={onOrderChat} onNeedLogin={onNeedLogin} />}
