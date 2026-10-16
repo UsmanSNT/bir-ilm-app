@@ -35,6 +35,7 @@
   --f-ui: "Manrope Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
 
   --girih: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23e2b65c' stroke-width='1'%3E%3Crect x='18' y='18' width='28' height='28'/%3E%3Crect x='18' y='18' width='28' height='28' transform='rotate(45 32 32)'/%3E%3Ccircle cx='32' cy='32' r='5'/%3E%3Cpath d='M32 0v8M32 56v8M0 32h8M56 32h8M0 0l12 12M64 0L52 12M0 64l12-12M64 64L52 52'/%3E%3C/g%3E%3C/svg%3E");
+  --ravoq: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='18' viewBox='0 0 30 18'%3E%3Cpath d='M0 0H30V18H27V11.5C27 7.8 19.5 6 15 2.4C10.5 6 3 7.8 3 11.5V18H0Z' fill='%231e2f6e'/%3E%3Cpath d='M3 18V11.5C3 7.8 10.5 6 15 2.4C19.5 6 27 7.8 27 11.5V18' fill='none' stroke='%23e2b65c' stroke-width='1.1'/%3E%3Crect width='30' height='1.4' fill='%23e2b65c'/%3E%3Cpath d='M0 9.5L1.6 11.6L0 13.7M30 9.5L28.4 11.6L30 13.7' fill='%23e2b65c'/%3E%3C/svg%3E");
   --koshin: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='10' viewBox='0 0 28 10'%3E%3Crect width='28' height='10' fill='%231e2f6e'/%3E%3Cpath d='M0 5L7 0L14 5L7 10Z' fill='%2317a2a0'/%3E%3Cpath d='M14 5L21 0L28 5L21 10Z' fill='%23fffbf3'/%3E%3Ccircle cx='7' cy='5' r='1.6' fill='%23e2b65c'/%3E%3Ccircle cx='21' cy='5' r='1.6' fill='%23c08a2e'/%3E%3C/svg%3E");
 
   --background: var(--qogoz);
@@ -99,8 +100,8 @@ h1 em, h2 em { color: var(--firuza); font-weight: 500; font-style: italic; }
 
 /* ───────────── Brend ───────────── */
 .brand { display: flex; flex-direction: row; align-items: center; gap: 12px; min-width: 0; }
-.brand-mark { width: 44px; height: 50px; flex: none; overflow: hidden; border-radius: var(--r-arch); box-shadow: 0 0 0 2px var(--tilla-2), 0 6px 14px -6px var(--lojuvard); background: #fff; }
-.brand-mark img { width: 100%; height: 100%; object-fit: cover; }
+.brand-mark { display: grid; place-items: center; width: 50px; height: 50px; flex: none; overflow: hidden; border-radius: 50%; box-shadow: 0 0 0 2px var(--tilla-2), 0 6px 14px -6px var(--lojuvard); background: var(--sahifa); }
+.brand-mark img { width: 90%; height: 90%; object-fit: contain; }
 .brand-text { display: grid; line-height: 1.05; min-width: 0; }
 .brand .wordmark { font: 700 24px/1 var(--f-display); letter-spacing: -.02em; color: var(--lojuvard); font-variation-settings: "opsz" 144, "SOFT" 50; }
 .brand .brand-tag { margin-top: 4px; color: var(--tilla); font-size: 10.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
@@ -108,19 +109,57 @@ h1 em, h2 em { color: var(--firuza); font-weight: 500; font-style: italic; }
 /* ───────────── Qobiq: top bar va dock ───────────── */
 body .app-shell { display: block; width: auto; max-width: none; min-height: 100dvh; margin: 0 0 0 124px; border: 0; background: transparent; grid-template-columns: none; }
 body .app-shell .app-main { display: flex; flex-direction: column; min-height: 100dvh; }
+/*
+ * Navbar — peshtoq: lojuvard koshin (girih), tilla hoshiya va pastki qirradagi ravoqlar qatori.
+ * Koshin yon tomonlarda (logo va tugmalar ortida) to'qroq, o'rtada esa ochiqroq ko'rinadi.
+ */
 body .app-shell .app-header {
   position: sticky; top: 0; z-index: 40;
   align-items: center; justify-content: space-between; gap: 16px;
-  min-height: 0; padding: 14px clamp(16px, 3vw, 40px);
-  border: 0; border-image: none;
-  background: #f7f1e4d9; backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  min-height: 0; padding: 16px clamp(18px, 3vw, 42px) 14px;
+  border: 0; border-image: none; color: var(--sahifa);
+  background:
+    linear-gradient(90deg, #131f4cf2 0%, #1e2f6ed1 30%, #1e2f6e99 50%, #1e2f6ed1 70%, #131f4cf2 100%),
+    url("/assets/girih-koshin.webp") center / 146px 147px repeat,
+    var(--lojuvard);
 }
-body .app-shell .app-header::after { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 6px; background: var(--koshin) repeat-x; background-size: 28px 6px; opacity: .9; pointer-events: none; }
+body .app-shell .app-header::before {
+  content: ""; position: absolute; inset: 6px 7px 5px; pointer-events: none;
+  border: 1px solid #e2b65c80; border-bottom: 0; border-radius: 4px 4px 0 0;
+  box-shadow: inset 0 0 0 3px #131f4c40, inset 0 0 0 4px #e2b65c29;
+}
+body .app-shell .app-header::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -17px; height: 18px; pointer-events: none;
+  background: var(--ravoq) left top / 30px 18px round no-repeat;
+  filter: drop-shadow(0 5px 5px #131f4c2e);
+}
+.app-header .brand .wordmark { color: var(--sahifa); text-shadow: 0 1px 2px #0b123180; }
+.app-header .brand .brand-tag { color: var(--tilla-2); }
+.app-header .brand-mark { box-shadow: 0 0 0 2px var(--tilla-2), 0 0 0 4px var(--lojuvard-3), 0 0 0 5px #e2b65c80, 0 8px 18px -6px #000a; }
+.app-header .icon-btn { border-radius: 50%; border-color: #e2b65c66; background: #fffbf314; color: var(--tilla-och); }
+.app-header .icon-btn:hover:not(:disabled) { background: #fffbf329; }
+.app-header .pomo-btn.is-running { border-color: var(--firuza-2); background: #17a2a033; color: #fff; }
+.app-header .pomo-badge, .app-header .bell-badge { border-color: var(--lojuvard-3); }
+.app-header .avatar-badge { box-shadow: 0 0 0 2px var(--lojuvard-3); }
+.app-header .topbar-status { background: #17a2a02e; color: #bff0ea; box-shadow: inset 0 0 0 1px #17a2a073; }
+
+/* Kunlik streak — navbarda doim ko'rinadi; bosilganda Faollar reytingi ochiladi. */
+.streak-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 13px 0 5px;
+  border: 1px solid #e2b65c80; border-radius: 999px; background: #0b12314d; color: var(--sahifa);
+  font: 800 16px/1 var(--f-ui); cursor: pointer; white-space: nowrap; transition: background .15s, transform .12s;
+}
+.streak-chip:hover { background: #fffbf31f; }
+.streak-chip:active { transform: scale(.97); }
+.streak-chip:focus-visible { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
+.streak-chip small { color: var(--tilla-och); font-size: 12px; font-weight: 700; opacity: .85; }
+.streak-flame { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #fffbf31f; color: #c9c4d8; }
+.streak-chip[data-active="true"] .streak-flame { background: radial-gradient(circle at 50% 70%, #f6c453, #e8743b 55%, var(--anor)); color: #fff7e0; box-shadow: 0 0 0 2px #e2b65c59, 0 4px 12px -2px #e8743b99; }
 @media (min-width: 981px) { .app-shell .app-header { display: flex; } }
 .header-actions { display: flex; align-items: center; gap: 10px; }
 .topbar-status { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; background: var(--firuza-och); color: var(--firuza); font-size: 12px; font-weight: 800; white-space: nowrap; }
 .topbar-avatar {
-  width: 42px; height: 48px; padding: 2px; border: 0; border-radius: var(--r-arch); flex: none;
+  width: 44px; height: 44px; padding: 2px; border: 0; border-radius: 50%; flex: none; cursor: pointer;
   background: conic-gradient(from 210deg, var(--tilla-2), var(--firuza-2), var(--lojuvard-2), var(--anor), var(--tilla-2));
 }
 .topbar-avatar span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: inherit; background: var(--sahifa); color: var(--lojuvard); font: 800 17px var(--f-ui); border: 2px solid var(--sahifa); }
@@ -140,8 +179,8 @@ body .app-shell .page-heading h1 { font-size: clamp(30px, 4.2vw, 46px); line-hei
 }
 .dock[data-mode="store"] { background: var(--girih) center / 64px, linear-gradient(180deg, #13716f, #0b4d4d 50%, #07302f); background-blend-mode: soft-light, normal; }
 .dock::before { content: ""; position: absolute; inset: 7px; border-radius: 24px; border: 1px solid #e2b65c40; pointer-events: none; }
-.dock-logo { width: 52px; height: 60px; overflow: hidden; border-radius: var(--r-arch); box-shadow: 0 0 0 2px var(--tilla-2); background: #fff; }
-.dock-logo img { width: 100%; height: 100%; object-fit: cover; }
+.dock-logo { display: grid; place-items: center; width: 58px; height: 58px; flex: none; overflow: hidden; border-radius: 50%; box-shadow: 0 0 0 2px var(--tilla-2), 0 0 0 5px #131f4c, 0 0 0 6px #e2b65c66; background: var(--sahifa); }
+.dock-logo img { width: 90%; height: 90%; object-fit: contain; }
 .dock-items { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; width: 100%; }
 .dock-item, .dock-star { position: relative; display: grid; justify-items: center; gap: 5px; width: 76px; padding: 8px 0; border: 0; background: none; color: inherit; }
 .dock-icon { position: relative; display: grid; place-items: center; width: 48px; height: 40px; border-radius: 14px; transition: background .18s, color .18s; }
@@ -177,8 +216,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--firuza-2); }
   body .app-shell { margin-left: 0; }
   body .app-shell .app-header { padding: 10px 16px; }
   .topbar-status { display: none; }
-  .brand-mark { width: 38px; height: 44px; }
+  .brand-mark { width: 44px; height: 44px; }
   .brand .wordmark { font-size: 21px; }
+  body .app-shell .app-header { height: auto; padding: 13px 16px 11px; }
+  body .app-shell .app-header::after { bottom: -13px; height: 14px; background-size: 24px 14px; }
   .dock {
     left: 10px; right: 10px; top: auto; bottom: max(10px, env(safe-area-inset-bottom)); width: auto; height: 74px;
     flex-direction: row; padding: 0 8px; border-radius: 26px;
@@ -197,6 +238,21 @@ input:focus, textarea:focus, select:focus { border-color: var(--firuza-2); }
   .desktop-footer { display: none; }
 }
 @media (max-width: 440px) { .brand .brand-tag { display: none; } }
+/* Tor telefonlar: logo, streak va 3 ta tugma bir qatorga sig'sin. */
+@media (max-width: 400px) {
+  body .app-shell .app-header { gap: 8px; padding-left: 15px; padding-right: 14px; }
+  .app-header .brand { gap: 9px; }
+  .app-header .header-actions { gap: 6px; }
+  .app-header .icon-btn, .app-header .topbar-avatar, .streak-chip { min-width: 40px; min-height: 40px; height: 40px; }
+  .app-header .icon-btn { width: 40px; }
+  .app-header .topbar-avatar { width: 40px; }
+  .brand-mark { width: 40px; height: 40px; }
+  .brand .wordmark { font-size: 19px; }
+  .streak-chip { gap: 4px; padding-right: 10px; }
+  .streak-chip small { display: none; }
+  .streak-flame { width: 28px; height: 28px; }
+}
+@media (max-width: 349px) { .app-header .brand-text { display: none; } }
 @media (prefers-reduced-motion: reduce) {
   .dock-star-shape, .dock-icon { transition: none; }
 }

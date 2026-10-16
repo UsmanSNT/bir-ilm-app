@@ -157,10 +157,15 @@ function getInitialState() {
 }
 
 
+/** Streak oxirgi faollik bugun yoki kecha bo'lgandagina davom etadi; aks holda u uzilgan (0). */
+function currentStreak({ streak, lastActiveDate }: Pick<State, "streak" | "lastActiveDate">) {
+  return lastActiveDate === todayKey() || lastActiveDate === yesterdayKey() ? streak : 0;
+}
+
 function Brand() {
   return (
     <div className="brand">
-      <span className="brand-mark"><Image src="/assets/bir-ilm-logo.jpg" alt="" width={44} height={44} /></span>
+      <span className="brand-mark"><Image src="/assets/bir-ilm-mark.webp" alt="" width={52} height={52} priority /></span>
       <span className="brand-text">
         <span className="wordmark">Bir Ilm</span>
         <span className="brand-tag">Sinang · qo‘llang · ulashing</span>
@@ -251,6 +256,7 @@ export default function App() {
     [data, serverLeaders],
   );
   const myRank = Math.max(1, leaders.findIndex((leader) => leader.current) + 1);
+  const streak = currentStreak(data);
   const backendLabel =
     backendMode === "server"
       ? "Backend faol"
@@ -487,6 +493,10 @@ export default function App() {
             <Brand />
             <div className="header-actions">
               <span className="topbar-status" title="Ma'lumotlar qayerda saqlanmoqda"><Wifi size={15} />{backendLabel}</span>
+              <button type="button" className="streak-chip" data-active={streak > 0} title="Kunlik streak" aria-label={`Kunlik streak: ${streak} kun. Faollar reytingini ochish`} onClick={() => go("leaders")}>
+                <span className="streak-flame" aria-hidden="true"><Flame size={17} strokeWidth={2.2} /></span>
+                <b>{streak}</b><small>kun</small>
+              </button>
               <PomodoroButton className="icon-btn" />
               <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} />{badge}</button>
               <button className="topbar-avatar" aria-label={attention.total ? `Profil, ${attention.total} ta yangi` : "Profil"} onClick={() => go("profile")}>{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : <span>{(data.name || "K").slice(0, 1).toUpperCase()}</span>}{storeCount > 0 && <b className="avatar-badge">{storeCount > 9 ? "9+" : storeCount}</b>}</button>
@@ -512,8 +522,8 @@ export default function App() {
 
               <TabsContent value="home">
                 <div className="desktop-home">
-                  <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
-                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
+                  <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
+                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={streak} />
                 </div>
                 <MobileScreens
                   name={data.name}
@@ -546,7 +556,7 @@ export default function App() {
 
               <TabsContent value="community">
                 <section className="community-screen" aria-label="Gurung">
-                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
+                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={streak} />
                 </section>
               </TabsContent>
 
@@ -556,7 +566,7 @@ export default function App() {
 
               <TabsContent value="shelf">
                 <div className="desktop-shelf">
-                  <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
+                  <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
                 </div>
                 <MobileLibrary
                   onBack={() => go("home")}
@@ -570,7 +580,7 @@ export default function App() {
               </TabsContent>
 
               <TabsContent value="profile">
-                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={data.streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} />
+                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} />
               </TabsContent>
               <TabsContent value="leaders">
                 <button className="text-btn profile-ranking" onClick={() => go("profile")}>Profilga qaytish</button>
@@ -605,7 +615,7 @@ export default function App() {
                     <span className="flame">
                       <Flame size={28} />
                     </span>
-                    <h3>{data.streak || 0} kun streak</h3>
+                    <h3>{streak} kun streak</h3>
                     <p>Har kuni progress, izoh yoki suhbat harakati streakni davom ettiradi.</p>
                     <div className="streak-stats">
                       <div>

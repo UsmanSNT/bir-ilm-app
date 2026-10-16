@@ -21,7 +21,7 @@ export default function Dock({ mode, label, left, right, center }: {
     </button>
   );
   return <nav className="dock" data-mode={mode} aria-label={label}>
-    <span className="dock-logo" aria-hidden="true"><Image src="/assets/bir-ilm-logo.jpg" alt="" width={48} height={48} /></span>
+    <span className="dock-logo" aria-hidden="true"><Image src="/assets/bir-ilm-mark.webp" alt="" width={56} height={56} /></span>
     <div className="dock-items">
       {left.map(item)}
       <button type="button" className="dock-star" onClick={center.onClick} aria-label={center.ariaLabel}>
