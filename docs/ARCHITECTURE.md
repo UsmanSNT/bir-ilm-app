@@ -107,7 +107,7 @@ o'zgartirish ilovani buzmaydi.
 | `GET` | `/api/v1/feed` | Lenta: `scope=all\|following\|mine\|author`, `cursor`, `limit` |
 | `POST` | `/api/v1/posts` | Post yaratish |
 | `DELETE` | `/api/v1/posts/{id}` | O'z postini o'chirish |
-| `POST` | `/api/v1/posts/{id}/replies` | Izoh qoldirish |
+| `POST` | `/api/v1/posts/{id}/replies` | Izoh qoldirish (`parentId` — shu postdagi izohga javob) |
 | `GET` / `PATCH` | `/api/v1/profile` | Profilni o'qish / tahrirlash |
 | `GET` | `/api/v1/readers` | Kitobxonlar ro'yxati |
 | `POST` | `/api/v1/follows` | Obuna bo'lish / bekor qilish |
@@ -119,6 +119,9 @@ o'zgartirish ilovani buzmaydi.
 | `POST` | `/api/v1/community/posts` | Formatlangan post yoki maqola (faqat ro'yxatdan o'tganlar) |
 | `PUT` | `/api/v1/community/posts/{id}` | O'z postini tahrirlash |
 | `POST` | `/api/v1/community/reactions` | Reaksiya: qo'yish / almashtirish / olib tashlash |
+| `GET` | `/api/v1/community/reactions/received` | Postlaringizga boshqalar bildirgan reaksiyalar (Faollik) |
+| `GET` | `/api/v1/notifications` | Qo'ng'iroqcha: o'qilmagan reaksiya, izoh va izohga javob bildirishnomalari |
+| `POST` | `/api/v1/notifications/read` | Ochilganlarini (`ids`) yoki hammasini (`all: true`) o'chirish |
 | `POST` | `/api/v1/media` | Rasm/video yuklashni boshlash |
 | `GET` / `PUT` | `/api/v1/media/{id}` | Bo'laklab yuklash (`X-Upload-Offset`) va davom ettirish |
 | `GET` | `/media/posts/{fayl}` | Post rasmi/videosi (Range bilan) |

@@ -35,6 +35,8 @@ export const createPostSchema = z.object({
 
 export const createReplySchema = z.object({
   body: trimmed(LIMITS.replyBody).min(1, "Izohni yozing."),
+  /** Shu postdagi qaysi izohga javob (ixtiyoriy). */
+  parentId: z.string().min(1).max(64).optional(),
 });
 
 export const updateProfileSchema = z.object({
@@ -71,6 +73,10 @@ export type Reply = {
   name: string;
   body: string;
   createdAt: string;
+  /** Qaysi izohga javob; null — postning o'ziga izoh. */
+  parentId: string | null;
+  /** Javob berilgan izoh muallifi (izoh o'chirilgan bo'lsa null). */
+  parentName: string | null;
 };
 
 export type Post = {

@@ -6,6 +6,7 @@
  * funksiyalar web, Android va iOS uchun bir xil natija beradi.
  */
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { forbidden, notFound } from "@/server/http/errors";
@@ -24,6 +25,7 @@ import type {
 } from "@/shared/contract";
 import { decodeCursor, encodeCursor } from "./cursor";
 import { createCommunityPost, removePost, requireSignedIn } from "./community";
+import { notifyReply } from "./notifications";
 import { plainToDoc } from "@/shared/contract";
 
 const { users, readingPosts, postReplies, readerFollows, focusSessions } = schema;
@@ -167,6 +169,9 @@ export async function getFeed(
   };
 }
 
+const parentReply = alias(postReplies, "parent_reply");
+const parentAuthor = alias(users, "parent_author");
+
 async function getRepliesFor(db: Database, postIds: string[]): Promise<Reply[]> {
   if (!postIds.length) return [];
 
@@ -178,9 +183,13 @@ async function getRepliesFor(db: Database, postIds: string[]): Promise<Reply[]> 
       name: users.name,
       body: postReplies.body,
       createdAt: postReplies.createdAt,
+      parentId: postReplies.parentId,
+      parentName: sql<string | null>`${parentAuthor.name}`.as("parent_name"),
     })
     .from(postReplies)
     .innerJoin(users, eq(users.id, postReplies.userId))
+    .leftJoin(parentReply, eq(parentReply.id, postReplies.parentId))
+    .leftJoin(parentAuthor, eq(parentAuthor.id, parentReply.userId))
     .where(inArray(postReplies.postId, postIds))
     .orderBy(postReplies.createdAt, postReplies.id);
 }
@@ -240,18 +249,37 @@ export async function createReply(
   await ensureUser(db, userId);
   await requireSignedIn(db, userId, "Izoh yozish");
 
-  const post = await db
-    .select({ id: readingPosts.id })
+  const [post] = await db
+    .select({ id: readingPosts.id, userId: readingPosts.userId })
     .from(readingPosts)
     .where(eq(readingPosts.id, postId))
     .limit(1);
 
-  if (!post.length) throw notFound("Post topilmadi.");
+  if (!post) throw notFound("Post topilmadi.");
+
+  // Javob faqat shu postdagi izohga beriladi (boshqa postning izohiga bog'lab bo'lmaydi).
+  const [parent] = input.parentId
+    ? await db
+        .select({ id: postReplies.id, userId: postReplies.userId, name: users.name })
+        .from(postReplies)
+        .innerJoin(users, eq(users.id, postReplies.userId))
+        .where(and(eq(postReplies.id, input.parentId), eq(postReplies.postId, postId)))
+        .limit(1)
+    : [];
+  if (input.parentId && !parent) throw notFound("Javob berilayotgan izoh topilmadi.");
 
   const [created] = await db
     .insert(postReplies)
-    .values({ id: crypto.randomUUID(), postId, userId, body: input.body })
+    .values({ id: crypto.randomUUID(), postId, userId, parentId: parent?.id ?? null, body: input.body })
     .returning();
+
+  await notifyReply(db, {
+    replyId: created.id,
+    postId,
+    postOwnerId: post.userId,
+    actorId: userId,
+    parentAuthorId: parent?.userId ?? null,
+  });
 
   return {
     id: created.id,
@@ -260,6 +288,8 @@ export async function createReply(
     name: await readerName(db, userId),
     body: created.body,
     createdAt: created.createdAt,
+    parentId: created.parentId,
+    parentName: parent?.name ?? null,
   };
 }
 

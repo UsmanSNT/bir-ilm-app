@@ -5,7 +5,8 @@ import { Flame, Timer, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camer
 import { useViewer } from "@/lib/api/roles-client";
 import { refreshAdminAttention } from "@/lib/api/admin-attention";
 import { useCatalog } from "@/lib/api/books-client";
-import type { Book } from "@/shared/contract";
+import type { Book, ReceivedReaction } from "@/shared/contract";
+import { fetchReceivedReactions } from "@/lib/api/notifications-client";
 import { USER_ROLE_LABELS, canModerate } from "@/shared/contract/roles";
 import AdminPanel from "./admin-panel";
 import DeviceSettings from "./device-settings";
@@ -19,11 +20,12 @@ import AccountEditor from "./account-editor";
 import TwoFactorSettings from "./two-factor-settings";
 import { absoluteUrl } from "@/lib/api/config";
 import ReadingDashboard from "./reading-dashboard";
+import { formatDate } from "./community/post-card";
 import type { SocialData } from "./social-types";
 
 
 /** Bir Ilm shaxsiy sahifasi: o‘qish, postlar, faollik va Bir Ilm sozlamalari (do‘kon ma’lumotlari bu yerda emas). */
-export type ProfileScreensProps = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onNotifications: () => void };
+export type ProfileScreensProps = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onNotifications: () => void; onOpenPost: (postId: string, replyId?: string | null) => void };
 type ProfileTab = "reading" | "posts" | "activity";
 const PROFILE_TABS: [ProfileTab, string][] = [["reading", "Mutolaa"], ["posts", "Postlar"], ["activity", "Faollik"]];
 type Screen = "profile" | "activity" | "settings" | "posts" | "privacy" | "faq" | "about" | "admin" | "site" | "quizzes" | "devices" | "password" | "account" | "twofactor";
@@ -46,6 +48,10 @@ export default function ProfileScreens(p: ProfileScreensProps) {
   const [social, setSocial] = useState<SocialData | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [retry, setRetry] = useState(0);
+  // Faollik → Reaksiyalar: tab ochilganda yuklanadi (null — hali yuklanmagan).
+  const [reactions, setReactions] = useState<ReceivedReaction[] | null>(null);
+  const [reactionsFailed, setReactionsFailed] = useState(false);
+  const [reactionsRetry, setReactionsRetry] = useState(0);
   const viewer = useViewer();
   const featured = useCatalog().active;
   const role = viewer?.role ?? "user";
@@ -66,13 +72,40 @@ export default function ProfileScreens(p: ProfileScreensProps) {
     setScreen(next);
     window.scrollTo({ top: 0, behavior: "instant" });
   };
-  const replies = (social?.posts ?? []).flatMap(post => post.replies.filter(reply => reply.name !== p.name).map(reply => ({ ...reply, book: post.book }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  useEffect(() => {
+    if (tab !== "activity" || activity !== "Reaksiyalar") return;
+    let cancelled = false;
+    fetchReceivedReactions()
+      .then(items => { if (!cancelled) { setReactions(items); setReactionsFailed(false); } })
+      .catch(() => { if (!cancelled) setReactionsFailed(true); });
+    return () => { cancelled = true; };
+  }, [tab, activity, reactionsRetry]);
+  // Postlaringizga boshqalar yozgan izohlar (ism emas, foydalanuvchi ID si bo'yicha — bir xil ismlilar ham to'g'ri ajraladi).
+  const replies = (social?.posts ?? []).flatMap(post => post.replies.filter(reply => reply.userId !== social?.userId).map(reply => ({ ...reply, book: post.book }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Sozlamalar", posts: "Mening postlarim", privacy: "Maxfiylik va xavfsizlik", account: "Shaxsiy ma’lumotlar", twofactor: "Ikki bosqichli himoya", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", quizzes: "Viktorinalar", site: "Ijtimoiy tarmoqlar", devices: "Kamera va mikrofon", password: "Parol" };
   const count = (value: number | undefined) => status === "ready" ? value ?? 0 : "—";
 
+  const empty = (icon: ReactNode, title: string, text: string) => <div className="p-empty">{icon}<h2>{title}</h2><p>{text}</p><button className="p-primary" onClick={() => p.onNavigate("community")}>Hamjamiyatga o‘tish <ArrowRight size={16} /></button></div>;
+  const failed = (onRetry: () => void) => <div className="p-empty"><Bell /><h2>Faollikni yuklab bo‘lmadi</h2><button className="p-link" onClick={onRetry}>Qayta urinish <ArrowRight size={15} /></button></div>;
+  const avatar = (name: string, url: string | null | undefined) => <span className="p-small-avatar">{url ? <img src={absoluteUrl(url)} alt="" referrerPolicy="no-referrer" /> : name.slice(0, 1).toUpperCase() || "K"}</span>;
+  const activityBody = () => {
+    if (activity === "Reaksiyalar") {
+      if (reactionsFailed) return failed(() => { setReactionsFailed(false); setReactions(null); setReactionsRetry(v => v + 1); });
+      if (!reactions) return <div className="p-empty"><Heart /><h2>Reaksiyalar yuklanmoqda…</h2></div>;
+      if (!reactions.length) return empty(<Heart />, "Hali reaksiyalar yo‘q", "Postlaringizga bildirilgan reaksiyalar shu yerda ko‘rinadi.");
+      return <div className="p-activity-list"><p className="p-list-label">Postlaringizga bildirilgan reaksiyalar</p>{reactions.map(item => <button className="p-activity-row" key={`${item.postId}-${item.actor.id}`} onClick={() => p.onOpenPost(item.postId)}>{avatar(item.actor.name, item.actor.avatarUrl)}<span><strong>{item.actor.name}</strong> postingizga <span className="p-reaction-emoji">{item.emoji}</span> reaksiya bildirdi<time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time><p>{item.postExcerpt}</p></span><ChevronRight size={16} /></button>)}</div>;
+    }
+    if (status !== "ready") return status === "error" ? failed(() => { setStatus("loading"); setRetry(v => v + 1); }) : <div className="p-empty"><Bell /><h2>Faollik yuklanmoqda…</h2></div>;
+    if (activity === "Javoblar") {
+      if (!replies.length) return empty(<MessageCircle />, "Suhbat shu yerdan boshlanadi", "Postlaringizga kelgan javoblar shu yerda paydo bo‘ladi. Birinchi fikringizni ulashing.");
+      return <div className="p-activity-list"><p className="p-list-label">So‘nggi javoblar</p>{replies.map(reply => <button className="p-activity-row" key={reply.id} onClick={() => p.onOpenPost(reply.postId, reply.id)}>{avatar(reply.name, null)}<span><strong>{reply.name}</strong> {reply.parentId ? "izohga javob yozdi" : "postingizga javob berdi"}<time dateTime={reply.createdAt}>{formatDate(reply.createdAt)}</time><p>“{reply.body}”</p>{reply.book && <small><BookOpen size={13} />{reply.book}</small>}</span><ChevronRight size={16} /></button>)}</div>;
+    }
+    if (!social?.following.length) return empty(<Users />, "Yangi tanishuvlar oldinda", "Siz kuzatgan kitobxonlar shu yerda jamlanadi.");
+    return <div className="p-activity-list"><p className="p-list-label">Siz kuzatayotgan kitobxonlar</p>{social.following.map(id => { const reader = social.readers.find(item => item.id === id); return <div className="p-activity-row" key={id}>{avatar(reader?.name || "Kitobxon", null)}<span><strong>{reader?.name || "Kitobxon"}</strong><p>{reader?.bio || "Bir Ilm hamjamiyati a’zosi"}</p></span><Users size={18} /></div>; })}</div>;
+  };
   const activityView = <>
       <div className="p-tabs" role="tablist" aria-label="Faollik turi">{["Javoblar", "Reaksiyalar", "Obunalar"].map(label => <button key={label} role="tab" aria-selected={activity === label} onClick={() => setActivity(label)}>{label}</button>)}</div>
-      {status !== "ready" ? <div className="p-empty"><Bell /><h2>{status === "loading" ? "Faollik yuklanmoqda…" : "Faollikni yuklab bo‘lmadi"}</h2>{status === "error" && <button className="p-link" onClick={() => { setStatus("loading"); setRetry(v => v + 1); }}>Qayta urinish <ArrowRight size={15} /></button>}</div> : activity === "Javoblar" && replies.length > 0 ? <div className="p-activity-list"><p className="p-list-label">So‘nggi javoblar</p>{replies.map(reply => <button className="p-activity-row" key={reply.id} onClick={() => open("posts")}><span className="p-small-avatar">{reply.name[0]}</span><span><strong>{reply.name}</strong> postingizga javob berdi<time>{new Date(reply.createdAt).toLocaleDateString("uz-UZ")}</time><p>“{reply.body}”</p><small><BookOpen size={13} />{reply.book}</small></span><ChevronRight size={16} /></button>)}</div> : activity === "Obunalar" && Boolean(social?.following.length) ? <div className="p-activity-list"><p className="p-list-label">Siz kuzatayotgan kitobxonlar</p>{social?.following.map(id => { const reader = social.readers.find(item => item.id === id); return <div className="p-activity-row" key={id}><span className="p-small-avatar">{reader?.name[0] || "K"}</span><span><strong>{reader?.name || "Kitobxon"}</strong><p>{reader?.bio || "Bir Ilm hamjamiyati a’zosi"}</p></span><Users size={18} /></div>; })}</div> : <div className="p-empty">{activity === "Reaksiyalar" ? <Heart /> : activity === "Obunalar" ? <Users /> : <MessageCircle />}<h2>{activity === "Reaksiyalar" ? "Reaksiyalar tez orada" : activity === "Obunalar" ? "Yangi tanishuvlar oldinda" : "Suhbat shu yerdan boshlanadi"}</h2><p>{activity === "Reaksiyalar" ? "Postlarga bildirilgan reaksiyalar shu yerda ko‘rinadi. Bu imkoniyat hali ulanmagan." : activity === "Obunalar" ? "Siz kuzatgan kitobxonlar shu yerda jamlanadi." : "Postlaringizga kelgan javoblar shu yerda paydo bo‘ladi. Birinchi fikringizni ulashing."}</p><button className="p-primary" onClick={() => p.onNavigate("community")}>Hamjamiyatga o‘tish <ArrowRight size={16} /></button></div>}
+      {activityBody()}
       <div className="p-section-title"><h2><ShoppingBag size={19} />Do‘kon xabarlari</h2><button className="p-link" onClick={() => p.onNavigate("store:messages")}>Ochish <ArrowRight size={15} /></button></div><div className="p-message-note">Buyurtmalar va do‘kon savollari Book Store hisobida.</div>
   </>;
   const settingsView = <div className="p-settings">

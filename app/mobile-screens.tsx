@@ -200,6 +200,10 @@ export default function MobileScreens({
   const [finished, setFinished] = useState(false);
   const announcements = useAnnouncements();
   const unread = useUnreadCount(announcements);
+  // Yangiliklar ekrani e'lonlarni to'liq ko'rsatadi — ochilgach ular o'qilgan hisoblanadi.
+  useEffect(() => {
+    if (screen === "news") markAnnouncementsRead(announcements.map((item) => item.id));
+  }, [screen, announcements]);
   const catalog = useCatalog();
   const featured = catalog.active;
   const viewer = useViewer();
@@ -761,7 +765,7 @@ function NewsCard({
   );
 }
 
-type Announcement = { id: string; title: string; body: string; time: string; at: number };
+export type Announcement = { id: string; title: string; body: string; time: string; at: number };
 const parseTime = (iso: string) => new Date(iso.replace(" ", "T") + (iso.endsWith("Z") ? "" : "Z")).getTime();
 
 function relativeTime(iso: string): string {
@@ -794,37 +798,67 @@ export function useAnnouncements(): Announcement[] {
   return items;
 }
 
-// O'qilmagan bildirishnomalar: oxirgi marta oyna ochilgandan keyin kelgan e'lonlar.
-const SEEN_KEY = "bir-notifications-seen";
-const SEEN_EVENT = "bir-notifications-seen";
+// O'qilgan e'lonlar: har biri alohida belgilanadi (qo'ng'iroqchada faqat o'qilmaganlari qoladi).
+// Eski versiya oyna ochilgan vaqtni saqlardi — undan oldingi e'lonlar ham o'qilgan hisoblanadi.
+const READ_KEY = "bir-announcements-read";
+const LEGACY_SEEN_KEY = "bir-notifications-seen";
+const READ_EVENT = "bir-announcements-read";
+const READ_LIMIT = 200;
 
-function readSeen(): number {
+type ReadState = { ids: ReadonlySet<string>; before: number };
+const NO_READS: ReadState = { ids: new Set(), before: 0 };
+let readCache: { raw: string; state: ReadState } = { raw: "", state: NO_READS };
+
+function readRaw(): string {
   try {
-    return Number(localStorage.getItem(SEEN_KEY)) || 0;
+    return `${localStorage.getItem(READ_KEY) ?? ""}|${localStorage.getItem(LEGACY_SEEN_KEY) ?? ""}`;
   } catch {
-    return 0;
+    return "";
   }
 }
 
-export function markNotificationsSeen() {
+/** useSyncExternalStore uchun barqaror snapshot: saqlangan qiymat o'zgarmasa — o'sha obyekt. */
+function readState(): ReadState {
+  const raw = readRaw();
+  if (raw === readCache.raw) return readCache.state;
+  const [list, seen] = raw.split("|");
+  let ids: string[] = [];
   try {
-    localStorage.setItem(SEEN_KEY, String(Date.now()));
-  } catch {
-    /* shaxsiy rejim — son shu sessiyada qoladi */
-  }
-  window.dispatchEvent(new Event(SEEN_EVENT));
+    const parsed: unknown = JSON.parse(list || "[]");
+    if (Array.isArray(parsed)) ids = parsed.filter((id): id is string => typeof id === "string");
+  } catch { /* buzilgan qiymat — o'qilmagan deb hisoblanadi */ }
+  readCache = { raw, state: { ids: new Set(ids), before: Number(seen) || 0 } };
+  return readCache.state;
 }
 
-function subscribeSeen(onChange: () => void) {
-  window.addEventListener(SEEN_EVENT, onChange);
+const isRead = (item: Announcement, state: ReadState) => item.at <= state.before || state.ids.has(item.id);
+
+export function markAnnouncementsRead(ids: string[]) {
+  if (!ids.length) return;
+  const next = [...new Set([...readState().ids, ...ids])].slice(-READ_LIMIT);
+  try {
+    localStorage.setItem(READ_KEY, JSON.stringify(next));
+  } catch {
+    /* shaxsiy rejim — holat shu sessiyada saqlanmaydi */
+  }
+  window.dispatchEvent(new Event(READ_EVENT));
+}
+
+function subscribeRead(onChange: () => void) {
+  window.addEventListener(READ_EVENT, onChange);
   window.addEventListener("storage", onChange);
   return () => {
-    window.removeEventListener(SEEN_EVENT, onChange);
+    window.removeEventListener(READ_EVENT, onChange);
     window.removeEventListener("storage", onChange);
   };
 }
 
+/** Hali ochilmagan e'lonlar (yangisi tepada, ro'yxat tartibida). */
+export function useUnreadAnnouncements(items: Announcement[]): Announcement[] {
+  const state = useSyncExternalStore(subscribeRead, readState, () => NO_READS);
+  return useMemo(() => items.filter((item) => !isRead(item, state)), [items, state]);
+}
+
 export function useUnreadCount(items: Announcement[]): number {
-  const seen = useSyncExternalStore(subscribeSeen, readSeen, () => Number.MAX_SAFE_INTEGER);
-  return items.filter((item) => item.at > seen).length;
+  return useUnreadAnnouncements(items).length;
 }

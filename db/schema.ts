@@ -36,9 +36,35 @@ export const postReplies = sqliteTable("post_replies", {
   id: text("id").primaryKey(),
   postId: text("post_id").notNull().references(() => readingPosts.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  /** Qaysi izohga javob (shu postdagi izoh); null — postning o'ziga izoh. */
+  parentId: text("parent_id"),
   body: text("body").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_replies_post").on(t.postId, t.createdAt)]);
+
+/**
+ * Shaxsiy bildirishnomalar (qo'ng'iroqcha): postingizga reaksiya, izoh yoki izohingizga javob.
+ * Faqat o'qilmaganlari saqlanadi — foydalanuvchi ochgan bildirishnoma o'chiriladi.
+ * ID deterministik (`r:<post>:<actor>`, `c:<izoh>`, `p:<izoh>`), shuning uchun bir hodisa ikki marta yozilmaydi.
+ */
+export const notifications = sqliteTable("notifications", {
+  id: text("id").primaryKey(),
+  /** Kimga (post yoki izoh egasi). */
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  /** Kim (reaksiya bildirgan yoki izoh yozgan). */
+  actorId: text("actor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  /** reaction — postga reaksiya; reply — postga izoh; reply_to_reply — izohga javob. */
+  type: text("type", { enum: ["reaction", "reply", "reply_to_reply"] }).notNull(),
+  postId: text("post_id").notNull().references(() => readingPosts.id, { onDelete: "cascade" }),
+  /** Yangi izoh (izoh turlarida); reaksiyada null. */
+  replyId: text("reply_id").references(() => postReplies.id, { onDelete: "cascade" }),
+  emoji: text("emoji").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [
+  index("idx_notifications_user").on(t.userId, t.createdAt),
+  index("idx_notifications_post").on(t.postId),
+  index("idx_notifications_reply").on(t.replyId),
+]);
 
 /** Postga shikoyat: bir foydalanuvchi bir postga bir marta. */
 export const postReports = sqliteTable("post_reports", {

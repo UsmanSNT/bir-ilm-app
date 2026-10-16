@@ -7,7 +7,9 @@ import { COMMUNITY_LIMITS, plainToDoc, readingMinutes } from "@/shared/contract/
 import { tryGetDb } from "@/server/db/client";
 import { isSignedIn } from "@/server/services/accounts";
 import { ApiException } from "@/server/http/errors";
-import { createCommunityPost, loadPostExtras, parseContent, parseDesign, removePost, requireSignedIn } from "@/server/services/community";
+import { createCommunityPost, loadPostExtras, parseContent, parseDesign, removePost } from "@/server/services/community";
+import { clearReplyNotifications } from "@/server/services/notifications";
+import { createReply } from "@/server/services/social";
 
 export const runtime = "edge";
 
@@ -107,7 +109,7 @@ export async function GET(request: Request) {
     const posts = await decorate(rows, id, Boolean(single));
     const replies: PostReply[] = [];
     if (posts.length) {
-      const result = await db.prepare(`SELECT r.id, r.post_id AS postId, r.user_id AS userId, u.name, r.body, r.created_at AS createdAt FROM post_replies r JOIN users u ON u.id=r.user_id WHERE r.post_id IN (${posts.map(() => "?").join(",")}) ORDER BY r.rowid ASC`).bind(...posts.map(p => p.id)).all<PostReply>();
+      const result = await db.prepare(`SELECT r.id, r.post_id AS postId, r.user_id AS userId, u.name, r.body, r.created_at AS createdAt, r.parent_id AS parentId, pu.name AS parentName FROM post_replies r JOIN users u ON u.id=r.user_id LEFT JOIN post_replies pr ON pr.id=r.parent_id LEFT JOIN users pu ON pu.id=pr.user_id WHERE r.post_id IN (${posts.map(() => "?").join(",")}) ORDER BY r.rowid ASC`).bind(...posts.map(p => p.id)).all<PostReply>();
       replies.push(...result.results);
     }
     const profileQuery = "SELECT u.id, u.name, u.bio, (SELECT count(*) FROM reading_posts p WHERE p.user_id=u.id) AS posts, (SELECT count(*) FROM reader_follows f WHERE f.followed_id=u.id) AS followers FROM users u";
@@ -200,17 +202,19 @@ export async function POST(request: Request) {
       }
       case "deleteReply": {
         const replyId = value("replyId", 64);
-        // Muallif o'z izohini, moderator esa istalgan izohni o'chiradi.
-        const sql = moderator ? "DELETE FROM post_replies WHERE id=?" : "DELETE FROM post_replies WHERE id=? AND user_id=?";
-        await db.prepare(sql).bind(...(moderator ? [replyId] : [replyId, id])).run();
+        const reply = await db.prepare("SELECT user_id AS userId FROM post_replies WHERE id=?").bind(replyId).first<{ userId: string }>();
+        // Muallif o'z izohini, moderator esa istalgan izohni o'chiradi; unga oid bildirishnomalar ham o'chadi.
+        if (reply && (moderator || reply.userId === id)) {
+          await db.prepare("DELETE FROM post_replies WHERE id=?").bind(replyId).run();
+          await clearReplyNotifications(await orm(), [replyId]);
+        }
         break;
       }
       case "reply": {
-        await requireSignedIn(await orm(), id, "Izoh yozish");
-        const postId = value("postId", 64), body = value("body", 1000);
+        // v1 bilan bir xil yo'l: ro'yxatdan o'tganlik, post/izoh tekshiruvi va bildirishnoma shu yerda.
+        const postId = value("postId", 64), body = value("body", 1000), parentId = value("parentId", 64);
         if (!body) return fail("Izohni yozing.");
-        if (!await db.prepare("SELECT id FROM reading_posts WHERE id=?").bind(postId).first()) return fail("Post topilmadi.", 404);
-        await db.prepare("INSERT INTO post_replies (id,post_id,user_id,body) VALUES (?,?,?,?)").bind(crypto.randomUUID(), postId, id, body).run();
+        await createReply(await orm(), id, postId, { body, parentId: parentId || undefined });
         break;
       }
       case "follow": {

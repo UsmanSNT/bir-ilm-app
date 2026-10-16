@@ -2,7 +2,13 @@ import type { UserRole } from "@/shared/contract/roles";
 import type { CardDesign, Doc, MediaItem, PostFormat, ReactionCount } from "@/shared/contract/community";
 
 export type Reader = { id: string; name: string; bio: string; posts: number; followers: number };
-export type PostReply = { id: string; postId: string; userId: string; name: string; body: string; createdAt: string };
+export type PostReply = {
+  id: string; postId: string; userId: string; name: string; body: string; createdAt: string;
+  /** Qaysi izohga javob; null — postning o'ziga izoh. */
+  parentId: string | null;
+  /** Javob berilgan izoh muallifi (izoh o'chirilgan bo'lsa null). */
+  parentName: string | null;
+};
 export type ReadingPost = {
   id: string;
   userId: string;

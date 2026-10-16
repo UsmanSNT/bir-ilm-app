@@ -16,7 +16,10 @@ import { LoginRequiredError, apiCall } from "./community/upload";
 
 const empty: SocialData = { userId: "", role: "user", signedIn: false, reportedPosts: 0, posts: [], readers: [], following: [], followers: 0, focusMinutes: 0, sessions: 0, profile: null, authorProfile: null };
 
-export default function ReadingDashboard({ name, pages, shelfCount, streak, mode }: { name: string; pages: number; shelfCount: number; streak: number; mode: "feed" | "profile" }) {
+/** Tashqaridan ochiladigan post (bildirishnoma, Faollik); `nonce` — bir postni qayta ochish uchun. */
+export type PostFocus = { postId: string; replyId: string | null; nonce: number };
+
+export default function ReadingDashboard({ name, pages, shelfCount, streak, mode, focus = null }: { name: string; pages: number; shelfCount: number; streak: number; mode: "feed" | "profile"; focus?: PostFocus | null }) {
   const viewer = useViewer();
   const [data, setData] = useState<SocialData>(empty);
   const [scope, setScope] = useState(mode === "profile" ? "mine" : "all");
@@ -31,6 +34,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
   const [bio, setBio] = useState("");
   const [loginOpen, setLoginOpen] = useState(false);
   const [reader, setReader] = useState<ReadingPost | null>(null);
+  const [highlightReply, setHighlightReply] = useState<string | null>(null);
   const [readerLoading, setReaderLoading] = useState(false);
   const moderator = canModerate(data.role);
 
@@ -105,6 +109,15 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
     queueMicrotask(() => void openPost(id));
   }, [mode, openPost]);
 
+  // Bildirishnoma yoki Faollikdan: post o'qish oynasida ochiladi, izoh bo'lsa unga olib boriladi.
+  useEffect(() => {
+    if (!focus) return;
+    queueMicrotask(() => {
+      setHighlightReply(focus.replyId);
+      void openPost(focus.postId);
+    });
+  }, [focus, openPost]);
+
   /** Lentadagi va ochiq o'qish oynasidagi postni birga yangilaydi. */
   const patchPost = useCallback((id: string, change: (post: ReadingPost) => ReadingPost) => {
     setData(old => ({ ...old, posts: old.posts.map(p => (p.id === id ? change(p) : p)) }));
@@ -166,8 +179,8 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
           else toast.error(e instanceof Error ? e.message : "Reaksiya saqlanmadi.");
         });
     },
-    reply: async (postId, body) => {
-      const ok = await action({ type: "reply", postId, body });
+    reply: async (postId, body, parentId) => {
+      const ok = await action({ type: "reply", postId, body, ...(parentId ? { parentId } : {}) });
       if (ok) await refreshReader(postId);
       return ok;
     },
@@ -249,7 +262,7 @@ export default function ReadingDashboard({ name, pages, shelfCount, streak, mode
         </section>
       </aside>}
     </div>
-    <PostReader post={reader} loading={readerLoading} actions={actions} onClose={() => { setReader(null); setReaderLoading(false); }} />
+    <PostReader post={reader} loading={readerLoading} actions={actions} highlightReplyId={highlightReply} onClose={() => { setReader(null); setReaderLoading(false); setHighlightReply(null); }} />
     {viewer && <LoginDialog viewer={viewer} open={loginOpen} onOpenChange={setLoginOpen} />}
   </div>;
 }

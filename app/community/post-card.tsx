@@ -5,7 +5,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import {
-  BookOpen, Clock, Copy, Flag, Megaphone, MessageCircle, MoreHorizontal, Pencil, Send, Share2, SmilePlus, Trash2, UserCheck, UserPlus, X,
+  BookOpen, Clock, Copy, CornerDownRight, Flag, Megaphone, MessageCircle, MoreHorizontal, Pencil, Reply, Send, Share2, SmilePlus, Trash2, UserCheck, UserPlus, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -28,7 +28,8 @@ export type PostActions = {
   openAuthor: (userId: string) => void;
   follow: (userId: string, follow: boolean) => void;
   react: (post: ReadingPost, emoji: string | null) => void;
-  reply: (postId: string, body: string) => Promise<boolean>;
+  /** `parentId` — shu postdagi qaysi izohga javob (ixtiyoriy). */
+  reply: (postId: string, body: string, parentId?: string) => Promise<boolean>;
   deleteReply: (replyId: string) => void;
   edit: (post: ReadingPost) => void;
   remove: (post: ReadingPost) => void;
@@ -43,7 +44,8 @@ export function parseDate(value: string): Date {
 // Ko'p brauzerlarda o'zbekcha oy nomlari yo'q ("M09" chiqadi) — o'zimiz yozamiz.
 const MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
 
-function formatDate(value: string, long = false): string {
+/** «hozirgina», «5 soat oldin», «16-oktabr» — brauzerda o'zbekcha oy nomlari bo'lmasa ham to'g'ri. */
+export function formatDate(value: string, long = false): string {
   const date = parseDate(value);
   const minutes = Math.round((Date.now() - date.getTime()) / 60000);
   if (!long && minutes < 60) return minutes <= 1 ? "hozirgina" : `${minutes} daqiqa oldin`;
@@ -154,21 +156,38 @@ export function ReactionBar({ post, actions }: { post: ReadingPost; actions: Pos
 
 // ── Izohlar ─────────────────────────────────────────────────────────
 
-function Replies({ post, actions }: { post: ReadingPost; actions: PostActions }) {
+function Replies({ post, actions, highlightId = null }: { post: ReadingPost; actions: PostActions; highlightId?: string | null }) {
   const [draft, setDraft] = useState("");
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!draft.trim()) return;
-    if (await actions.reply(post.id, draft)) setDraft("");
+    if (await actions.reply(post.id, draft, replyTo?.id)) {
+      setDraft("");
+      setReplyTo(null);
+    }
+  };
+  const answer = (id: string, name: string) => {
+    setReplyTo({ id, name });
+    input.current?.focus();
   };
   return (
     <div className="post-replies">
       {post.replies.map((reply) => (
-        <div className="post-reply" key={reply.id}>
+        <div className={`post-reply${reply.id === highlightId ? " is-highlighted" : ""}`} key={reply.id} data-reply-id={reply.id}>
           <span className="reader-avatar small" aria-hidden="true">{reply.name.slice(0, 1).toUpperCase()}</span>
           <div>
             <strong>{reply.name}</strong> <time dateTime={reply.createdAt}>{formatDate(reply.createdAt)}</time>
+            {reply.parentName && (
+              <span className="reply-to"><CornerDownRight size={12} aria-hidden="true" />Javob: <b>{reply.parentName}</b></span>
+            )}
             <p>{reply.body}</p>
+            {actions.signedIn && reply.userId !== actions.viewerId && (
+              <button type="button" className="reply-answer" onClick={() => answer(reply.id, reply.name)} aria-label={`${reply.name} izohiga javob berish`}>
+                <Reply size={13} aria-hidden="true" />Javob berish
+              </button>
+            )}
           </div>
           {(reply.userId === actions.viewerId || actions.moderator) && (
             <button type="button" className="icon-btn reply-delete" title="Izohni o'chirish" aria-label="Izohni o'chirish" disabled={actions.busy} onClick={() => actions.deleteReply(reply.id)}><Trash2 size={14} /></button>
@@ -176,11 +195,20 @@ function Replies({ post, actions }: { post: ReadingPost; actions: PostActions })
         </div>
       ))}
       {actions.signedIn ? (
-        <form className="reply-form" onSubmit={(e) => void submit(e)}>
-          <textarea aria-label={`${post.name} postiga izoh`} placeholder="Izoh yozing…" rows={1} maxLength={1000} value={draft} onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void submit(e); }} />
-          <button className="icon-btn" title="Yuborish" aria-label="Izoh yuborish" disabled={actions.busy || !draft.trim()}><Send size={19} /></button>
-        </form>
+        <>
+          {replyTo && (
+            <div className="reply-target">
+              <CornerDownRight size={14} aria-hidden="true" />
+              <span>Javob: <b>{replyTo.name}</b></span>
+              <button type="button" onClick={() => setReplyTo(null)} aria-label="Javobni bekor qilish"><X size={14} /></button>
+            </div>
+          )}
+          <form className="reply-form" onSubmit={(e) => void submit(e)}>
+            <textarea ref={input} aria-label={replyTo ? `${replyTo.name} izohiga javob` : `${post.name} postiga izoh`} placeholder={replyTo ? "Javobingizni yozing…" : "Izoh yozing…"} rows={1} maxLength={1000} value={draft} onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void submit(e); }} />
+            <button className="icon-btn" title="Yuborish" aria-label="Izoh yuborish" disabled={actions.busy || !draft.trim()}><Send size={19} /></button>
+          </form>
+        </>
       ) : (
         <button type="button" className="text-btn reply-login" onClick={() => actions.requireLogin()}>Izoh yozish uchun kiring</button>
       )}
@@ -327,10 +355,21 @@ export function PostCard({ post, actions }: { post: ReadingPost; actions: PostAc
 
 // ── To'liq o'qish oynasi ────────────────────────────────────────────
 
-export function PostReader({ post, loading, actions, onClose }: { post: ReadingPost | null; loading: boolean; actions: PostActions; onClose: () => void }) {
+export function PostReader({ post, loading, actions, highlightReplyId = null, onClose }: { post: ReadingPost | null; loading: boolean; actions: PostActions; highlightReplyId?: string | null; onClose: () => void }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
   useEffect(() => { scroller.current?.scrollTo({ top: 0 }); }, [post?.id]);
+  // Bildirishnomadan kelgan izoh: oyna ochilib joylashgach o'sha izohga aylantiriladi.
+  const hasHighlight = Boolean(highlightReplyId && post?.replies.some((reply) => reply.id === highlightReplyId));
+  useEffect(() => {
+    if (!hasHighlight || !highlightReplyId) return;
+    const timer = window.setTimeout(() => {
+      const target = scroller.current?.querySelector<HTMLElement>(`[data-reply-id="${CSS.escape(highlightReplyId)}"]`);
+      const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target?.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [hasHighlight, highlightReplyId, post?.id]);
 
   const album = post ? albumOf(post) : [];
   return (
@@ -372,7 +411,7 @@ export function PostReader({ post, loading, actions, onClose }: { post: ReadingP
               </div>
               <section className="reader-comments" aria-label="Izohlar">
                 <h2>Izohlar {post.replies.length ? <span>{post.replies.length}</span> : null}</h2>
-                <Replies post={post} actions={actions} />
+                <Replies post={post} actions={actions} highlightId={highlightReplyId} />
               </section>
             </article>
           )}

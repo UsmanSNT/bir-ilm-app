@@ -16,6 +16,7 @@ import { schema } from "@/server/db/client";
 import { ApiException, badRequest, forbidden, notFound, unauthorized, validationFailed } from "@/server/http/errors";
 import { isSignedIn } from "./accounts";
 import { mediaRoot } from "./books";
+import { clearPostNotifications, clearReaction, notifyReaction } from "./notifications";
 import { getUserRole } from "./roles";
 import {
   COMMUNITY_LIMITS,
@@ -341,6 +342,7 @@ export async function removePost(db: Database, postId: string): Promise<void> {
   await db.delete(postReactions).where(eq(postReactions.postId, postId));
   await db.delete(postReplies).where(eq(postReplies.postId, postId));
   await db.delete(postReports).where(eq(postReports.postId, postId));
+  await clearPostNotifications(db, postId);
   await db.delete(readingPosts).where(eq(readingPosts.id, postId));
 }
 
@@ -348,7 +350,7 @@ export async function removePost(db: Database, postId: string): Promise<void> {
 
 export async function setReaction(db: Database, userId: string, input: ReactInput): Promise<{ reactions: ReactionCount[]; mine: string | null }> {
   await requireSignedIn(db, userId, "Reaksiya bildirish");
-  const post = await db.query.readingPosts.findFirst({ where: eq(readingPosts.id, input.postId), columns: { id: true } });
+  const post = await db.query.readingPosts.findFirst({ where: eq(readingPosts.id, input.postId), columns: { id: true, userId: true } });
   if (!post) throw notFound("Post topilmadi.");
 
   if (input.emoji) {
@@ -359,8 +361,10 @@ export async function setReaction(db: Database, userId: string, input: ReactInpu
         target: [postReactions.postId, postReactions.userId],
         set: { emoji: input.emoji, createdAt: sql`CURRENT_TIMESTAMP` },
       });
+    await notifyReaction(db, { postId: input.postId, ownerId: post.userId, actorId: userId, emoji: input.emoji });
   } else {
     await db.delete(postReactions).where(and(eq(postReactions.postId, input.postId), eq(postReactions.userId, userId)));
+    await clearReaction(db, input.postId, userId);
   }
   const extras = await loadPostExtras(db, [input.postId], userId);
   return { reactions: extras.reactions.get(input.postId) ?? [], mine: extras.mine.get(input.postId) ?? null };

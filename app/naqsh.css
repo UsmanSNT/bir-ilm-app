@@ -593,3 +593,38 @@ body .app-shell[hidden] { display: none; }
 .sa-tab-label { min-width: 0; max-width: 0; margin-left: 0; overflow: hidden; opacity: 0; white-space: nowrap; text-overflow: ellipsis; transition: max-width .25s ease, margin-left .25s ease, opacity .2s; }
 .sa .sa-tabs button[aria-selected="true"] .sa-tab-label { max-width: 120px; margin-left: 7px; opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .sa .sa-tabs button, .sa-tab-label { transition: none; } }
+
+/* ───────── Bildirishnomalar (qo'ng'iroqcha): faqat o'qilmaganlar ───────── */
+.notification-read-all { justify-self: end; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--firuza-och); color: var(--firuza); font: 800 12.5px var(--f-ui); cursor: pointer; }
+.notification-read-all:hover { filter: brightness(.97); }
+.notification-empty { display: grid; justify-items: center; gap: 6px; padding: 26px 10px 14px; text-align: center; }
+.notification-empty small { max-width: 300px; color: var(--siyoh-3); font-size: 13px; line-height: 1.5; }
+.notification-avatar { position: relative; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--firuza-och); color: var(--lojuvard); font: 600 18px var(--f-display); }
+.notification-avatar > img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.notification-badge { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; color: #fff; box-shadow: 0 0 0 2px var(--sahifa); }
+.notification-badge.is-reaction { background: var(--anor); }
+.notification-badge.is-reply { background: var(--firuza); }
+.notification-badge.is-reply_to_reply { background: var(--lojuvard-2); }
+.notification-copy strong { font-weight: 600; line-height: 1.4; }
+.notification-copy strong b { font-weight: 800; }
+.notification-copy .notification-quote { color: var(--siyoh); font-style: italic; }
+
+/* ───────── Izohga javob ───────── */
+.reply-to { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; color: var(--siyoh-3); font-size: 12px; }
+.reply-to b { color: var(--lojuvard); font-weight: 700; }
+.reply-answer { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; padding: 2px 0; border: 0; background: none; color: var(--firuza); font: 700 12px var(--f-ui); cursor: pointer; }
+.reply-answer:hover { text-decoration: underline; }
+.reply-target { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 6px 8px 6px 12px; border-radius: 12px; background: var(--firuza-och); color: var(--firuza); font-size: 13px; }
+.reply-target span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reply-target b { color: var(--lojuvard); }
+.reply-target button { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 50%; background: #fffbf3cc; color: var(--siyoh-2); cursor: pointer; }
+.reply-target + .reply-form { margin-top: 6px; }
+.post-reply.is-highlighted { border-radius: 12px; animation: reply-highlight 2.6s ease-out 1; }
+@keyframes reply-highlight { 0%, 35% { background: #e2b65c40; box-shadow: 0 0 0 6px #e2b65c40; } 100% { background: transparent; box-shadow: 0 0 0 6px transparent; } }
+@media (prefers-reduced-motion: reduce) { .post-reply.is-highlighted { animation: none; background: #e2b65c26; } }
+
+/* Faollik ro'yxatlari: avatar rasm, reaksiya belgisi */
+.p-small-avatar { overflow: hidden; }
+.p-small-avatar > img { width: 100%; height: 100%; object-fit: cover; }
+.p-reaction-emoji { font-size: 15px; }
+.p-activity-row p { margin: 4px 0 0; color: var(--p-muted, #737086); }

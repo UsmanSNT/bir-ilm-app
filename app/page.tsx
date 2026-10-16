@@ -12,7 +12,6 @@ import {
   Headphones,
   Home,
   Mic,
-  MessageSquare,
   MonitorSmartphone,
   Settings,
   Smartphone,
@@ -35,11 +34,12 @@ import {
 import { toast, Toaster } from "sonner";
 import ListenLink, { audioLinkOf } from "./listen-link";
 import LiveSession from "./live-session";
-import ReadingDashboard from "./reading-dashboard";
+import ReadingDashboard, { type PostFocus } from "./reading-dashboard";
 import SocialLinks from "./social-links";
 import BookDiscovery from "./book-discovery";
 import FocusTimer, { PomodoroButton } from "./focus-timer";
-import MobileScreens, { markNotificationsSeen, useAnnouncements, useUnreadCount } from "./mobile-screens";
+import MobileScreens, { markAnnouncementsRead, useAnnouncements, useUnreadAnnouncements } from "./mobile-screens";
+import NotificationCenter from "./notification-center";
 import MobileLibrary from "./mobile-library";
 import ProfileScreens from "./profile-screens";
 import { requestAudio } from "./library-store";
@@ -50,6 +50,7 @@ import { TwoFactorDialog } from "./two-factor";
 import { useViewer } from "@/lib/api/roles-client";
 import { useAdminAttention } from "@/lib/api/admin-attention";
 import { useStoreInbox } from "@/lib/api/store-client";
+import { markNotificationsRead, refreshNotifications, useNotifications } from "@/lib/api/notifications-client";
 import { absoluteUrl } from "@/lib/api/config";
 
 type BackendMode = "local" | "server" | "seed";
@@ -244,11 +245,13 @@ export default function App() {
   const [backendMode, setBackendMode] = useState<BackendMode>("local");
   const [serverLeaders, setServerLeaders] = useState<LeaderboardMember[]>([]);
   const announcements = useAnnouncements();
-  const unread = useUnreadCount(announcements);
+  const unreadAnnouncements = useUnreadAnnouncements(announcements);
+  // Bildirishnoma bosilganda ochiladigan post (va izoh) — Gurung lentasi uni o'qish oynasida ochadi.
+  const [focusPost, setFocusPost] = useState<PostFocus | null>(null);
 
-  // Bildirishnomalar oynasi ochilishi — hammasi o'qildi.
+  // Qo'ng'iroqcha ochilganda eng yangi holat olinadi. O'qilgan deb faqat bosilgan bildirishnoma belgilanadi.
   useEffect(() => {
-    if (modal === "notifications") markNotificationsSeen();
+    if (modal === "notifications") refreshNotifications();
   }, [modal]);
 
   const leaders = useMemo(
@@ -313,6 +316,13 @@ export default function App() {
     window.scrollTo({ top: 0 });
   };
 
+  /** Bildirishnoma yoki Faollikdan: Gurungga o'tib, postni (va izohni) ochadi. */
+  const openPost = (postId: string, replyId: string | null = null) => {
+    setModal("");
+    go("community");
+    setFocusPost({ postId, replyId, nonce: Date.now() });
+  };
+
   // Parolni tiklash havolasi (/?reset=<token>): token manzildan darhol olib tashlanadi.
   const [resetToken, setResetToken] = useState("");
   const [twoFactorOpen, setTwoFactorOpen] = useState(false);
@@ -328,7 +338,8 @@ export default function App() {
   const storeInbox = useStoreInbox(Boolean(viewer?.signedIn)).inbox;
   const customerUnread = storeInbox?.unread ?? 0;
   const storeCount = customerUnread + (isAdmin ? attention.total : 0);
-  const bell = unread + storeCount;
+  const inbox = useNotifications(Boolean(viewer?.signedIn));
+  const bell = unreadAnnouncements.length + inbox.unread + storeCount;
   const badge = bell > 0 ? <span className="bell-badge">{bell > 9 ? "9+" : bell}</span> : null;
   const unreadThreads = storeInbox?.items.filter((item) => item.unread > 0) ?? [];
   useEffect(() => {
@@ -556,7 +567,7 @@ export default function App() {
 
               <TabsContent value="community">
                 <section className="community-screen" aria-label="Gurung">
-                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={streak} />
+                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={streak} focus={focusPost} />
                 </section>
               </TabsContent>
 
@@ -580,7 +591,7 @@ export default function App() {
               </TabsContent>
 
               <TabsContent value="profile">
-                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} />
+                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} onOpenPost={openPost} />
               </TabsContent>
               <TabsContent value="leaders">
                 <button className="text-btn profile-ranking" onClick={() => go("profile")}>Profilga qaytish</button>
@@ -710,7 +721,7 @@ export default function App() {
             {!data.onboarded
               ? "Har kuni o'qing. Hafta oxirida kitobni birga tahlil qiling."
               : modal === "notifications"
-                ? "Ilovadagi muhim yangiliklar, suhbatlar va eslatmalar shu yerda jamlanadi."
+                ? "Faqat o‘qilmaganlar: postlaringizga reaksiya va izohlar, do‘kon xabarlari va e‘lonlar. Ochilgani ro‘yxatdan chiqadi."
               : "O'zgarishlar backend mavjud bo'lsa serverga, aks holda qurilmaga saqlanadi."}
           </DialogDescription>
 
@@ -808,52 +819,27 @@ export default function App() {
               )}
 
               {modal === "notifications" && (
-                <>
-                  <div className="notification-center">
-                    {!announcements.length && !unreadThreads.length && !(isAdmin && attention.total > 0) && <p className="muted">Yangi bildirishnoma yo‘q. Admin e‘lon joylaganda shu yerda ko‘rinadi.</p>}
-                    {unreadThreads.length > 0 && (
-                      <>
-                        <p className="notification-group">Do‘kon xabarlari</p>
-                        {unreadThreads.map((item) => (
-                          <button type="button" className="notification-item" key={item.key} onClick={() => openStoreAccount("messages")}>
-                            <span className="notification-icon"><MessageSquare size={19} /></span>
-                            <span className="notification-copy">
-                              <strong>{item.kind === "general" ? "Umumiy savollar" : `Buyurtma № ${item.order?.id}`}</strong>
-                              <small>{item.preview || "Yangi xabar"}</small>
-                              <time>{item.unread} ta yangi</time>
-                            </span>
-                            <ChevronRight size={18} />
-                          </button>
-                        ))}
-                      </>
-                    )}
-                    {isAdmin && attention.orders > 0 && (
-                      <button type="button" className="notification-item" onClick={() => openStoreAccount("admin", "orders")}>
-                        <span className="notification-icon"><MessageSquare size={19} /></span>
-                        <span className="notification-copy"><strong>Yangi buyurtmalar</strong><time>{attention.orders} ta</time></span>
-                        <ChevronRight size={18} />
-                      </button>
-                    )}
-                    {isAdmin && attention.chats > 0 && (
-                      <button type="button" className="notification-item" onClick={() => openStoreAccount("admin", "chat")}>
-                        <span className="notification-icon"><MessageSquare size={19} /></span>
-                        <span className="notification-copy"><strong>Do‘kon chati</strong><time>{attention.chats} ta o‘qilmagan</time></span>
-                        <ChevronRight size={18} />
-                      </button>
-                    )}
-                    {announcements.slice(0, 5).map((item) => (
-                      <button type="button" className="notification-item" key={item.id} onClick={() => { setModal(""); go("community"); }}>
-                        <span className="notification-icon"><MessageSquare size={19} /></span>
-                        <span className="notification-copy">
-                          <strong>{item.title}</strong>
-                          <small>{item.body.slice(0, 90)}{item.body.length > 90 ? "…" : ""}</small>
-                          <time>{item.time}</time>
-                        </span>
-                        <ChevronRight size={18} />
-                      </button>
-                    ))}
-                  </div>
-                </>
+                <NotificationCenter
+                  notifications={inbox.items}
+                  announcements={unreadAnnouncements}
+                  storeThreads={unreadThreads}
+                  isAdmin={isAdmin}
+                  adminOrders={attention.orders}
+                  adminChats={attention.chats}
+                  onOpenNotification={(item) => {
+                    void markNotificationsRead({ ids: [item.id] });
+                    openPost(item.postId, item.replyId);
+                  }}
+                  onOpenAnnouncement={(item) => {
+                    markAnnouncementsRead([item.id]);
+                    openPost(item.id);
+                  }}
+                  onOpenStore={openStoreAccount}
+                  onReadAll={() => {
+                    if (inbox.items.length) void markNotificationsRead({ all: true });
+                    markAnnouncementsRead(unreadAnnouncements.map((item) => item.id));
+                  }}
+                />
               )}
 
               {modal === "about" && (
