@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   Bell,
@@ -331,6 +331,26 @@ export default function App() {
   // Qo'ng'iroqcha = yangi e'lonlar + do'kon yozishmalari (xaridor: o'qilmagan xabarlar; admin: yangi buyurtma va chatlar).
   // Admin ham xarid qilishi mumkin — ikkala hisob birga qo'shiladi.
   const isAdmin = viewer?.role === "admin";
+
+  // Navbar: sahifa surilganda shaffof-xira (blur) holatga o'tadi; balandligi CSS'ga beriladi —
+  // bosh sahifadagi koshinli blok navbar ortidan boshlanib, u bilan bitta yaxlit blok bo'lib ko'rinadi.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  const headerObserver = useRef<ResizeObserver | null>(null);
+  // Navbar keyinroq (yuklanish ekranidan so'ng) paydo bo'ladi — shuning uchun callback ref.
+  const headerRef = useCallback((header: HTMLElement | null) => {
+    headerObserver.current?.disconnect();
+    headerObserver.current = null;
+    if (!header) return;
+    const observer = new ResizeObserver(() => document.documentElement.style.setProperty("--app-header-h", `${header.offsetHeight}px`));
+    observer.observe(header);
+    headerObserver.current = observer;
+  }, []);
   const storeInbox = useStoreInbox(Boolean(viewer?.signedIn)).inbox;
   const customerUnread = storeInbox?.unread ?? 0;
   const storeCount = customerUnread + (isAdmin ? attention.total : 0);
@@ -496,7 +516,7 @@ export default function App() {
         />
 
         <main className="app-main">
-          <header className="app-header">
+          <header ref={headerRef} className={`app-header${scrolled ? " is-scrolled" : ""}`}>
             <Brand />
             <div className="header-actions">
               <span className="topbar-status" title="Ma'lumotlar qayerda saqlanmoqda"><Wifi size={15} />{backendLabel}</span>

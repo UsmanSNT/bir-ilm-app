@@ -2235,11 +2235,13 @@ input {
 @media(max-width:500px){.live-overlay{padding:0}.live-window{width:100%;height:100dvh;border:0;border-radius:0;box-shadow:none}.live-video-view{padding:5px}.live-shared-slide{padding:14px 9px}}
 
 @media (max-width: 700px) {
+  /* clip — yonga toshish yashiriladi, lekin scroll konteyner yaratilmaydi (hidden navbar «sticky»sini buzardi). */
   html,
   body,
   .show-community {
     max-width: 100%;
     overflow-x: hidden;
+    overflow-x: clip;
   }
 
   .show-community .app-header {
@@ -2264,6 +2266,7 @@ input {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
+    overflow-x: clip;
   }
 
   .community-screen {

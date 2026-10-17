@@ -391,7 +391,7 @@ export default function MobileScreens({
             </div>
           </header>
 
-          <div className="m-greeting-row">
+          <div className="m-greeting-row m-hero">
             <div><h1 className="m-hello">Assalomu alaykum, <em>{name}</em></h1><p className="m-sub">Bugun ham bir sahifa oldinga.</p></div>
           </div>
 

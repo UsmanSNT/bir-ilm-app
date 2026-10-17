@@ -36,6 +36,11 @@
 
   --girih: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23e2b65c' stroke-width='1'%3E%3Crect x='18' y='18' width='28' height='28'/%3E%3Crect x='18' y='18' width='28' height='28' transform='rotate(45 32 32)'/%3E%3Ccircle cx='32' cy='32' r='5'/%3E%3Cpath d='M32 0v8M32 56v8M0 32h8M56 32h8M0 0l12 12M64 0L52 12M0 64l12-12M64 64L52 52'/%3E%3C/g%3E%3C/svg%3E");
   --koshin-rasm: url("/assets/girih-koshin.webp");
+  /* Navbar (peshtoq) foni: lojuvard koshin, yon tomonlari to'qroq. Bosh sahifa bloki ham shu fonda. */
+  --peshtoq-fon:
+    linear-gradient(90deg, #131f4cf2 0%, #1e2f6ed1 30%, #1e2f6e99 50%, #1e2f6ed1 70%, #131f4cf2 100%),
+    var(--koshin-rasm) center / 146px 147px repeat,
+    var(--lojuvard);
   --hoshiya: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23c08a2e'%3E%3Crect x='6.5' y='6.5' width='35' height='35' stroke-opacity='.8'/%3E%3Crect x='9.5' y='9.5' width='29' height='29' stroke-width='.7' stroke-opacity='.45'/%3E%3C/g%3E%3Cg fill='%23e2b65c' stroke='%23c08a2e' stroke-width='.6'%3E%3Cpolygon points='8.00 2.80 9.52 4.32 11.68 4.32 11.68 6.48 13.20 8.00 11.68 9.52 11.68 11.68 9.52 11.68 8.00 13.20 6.48 11.68 4.32 11.68 4.32 9.52 2.80 8.00 4.32 6.48 4.32 4.32 6.48 4.32'/%3E%3Cpolygon points='40.00 2.80 41.52 4.32 43.68 4.32 43.68 6.48 45.20 8.00 43.68 9.52 43.68 11.68 41.52 11.68 40.00 13.20 38.48 11.68 36.32 11.68 36.32 9.52 34.80 8.00 36.32 6.48 36.32 4.32 38.48 4.32'/%3E%3Cpolygon points='40.00 34.80 41.52 36.32 43.68 36.32 43.68 38.48 45.20 40.00 43.68 41.52 43.68 43.68 41.52 43.68 40.00 45.20 38.48 43.68 36.32 43.68 36.32 41.52 34.80 40.00 36.32 38.48 36.32 36.32 38.48 36.32'/%3E%3Cpolygon points='8.00 34.80 9.52 36.32 11.68 36.32 11.68 38.48 13.20 40.00 11.68 41.52 11.68 43.68 9.52 43.68 8.00 45.20 6.48 43.68 4.32 43.68 4.32 41.52 2.80 40.00 4.32 38.48 4.32 36.32 6.48 36.32'/%3E%3C/g%3E%3Cg fill='%231e2f6e'%3E%3Ccircle cx='8' cy='8' r='1.3'/%3E%3Ccircle cx='40' cy='8' r='1.3'/%3E%3Ccircle cx='40' cy='40' r='1.3'/%3E%3Ccircle cx='8' cy='40' r='1.3'/%3E%3C/g%3E%3C/svg%3E");
   --ravoq: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='18' viewBox='0 0 30 18'%3E%3Cpath d='M0 0H30V18H27V11.5C27 7.8 19.5 6 15 2.4C10.5 6 3 7.8 3 11.5V18H0Z' fill='%231e2f6e'/%3E%3Cpath d='M3 18V11.5C3 7.8 10.5 6 15 2.4C19.5 6 27 7.8 27 11.5V18' fill='none' stroke='%23e2b65c' stroke-width='1.1'/%3E%3Crect width='30' height='1.4' fill='%23e2b65c'/%3E%3Cpath d='M0 9.5L1.6 11.6L0 13.7M30 9.5L28.4 11.6L30 13.7' fill='%23e2b65c'/%3E%3C/svg%3E");
   --koshin: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='10' viewBox='0 0 28 10'%3E%3Crect width='28' height='10' fill='%231e2f6e'/%3E%3Cpath d='M0 5L7 0L14 5L7 10Z' fill='%2317a2a0'/%3E%3Cpath d='M14 5L21 0L28 5L21 10Z' fill='%23fffbf3'/%3E%3Ccircle cx='7' cy='5' r='1.6' fill='%23e2b65c'/%3E%3Ccircle cx='21' cy='5' r='1.6' fill='%23c08a2e'/%3E%3C/svg%3E");
@@ -120,11 +125,21 @@ body .app-shell .app-header {
   align-items: center; justify-content: space-between; gap: 16px;
   min-height: 0; padding: 16px clamp(18px, 3vw, 42px) 14px;
   border: 0; border-image: none; color: var(--sahifa);
-  background:
-    linear-gradient(90deg, #131f4cf2 0%, #1e2f6ed1 30%, #1e2f6e99 50%, #1e2f6ed1 70%, #131f4cf2 100%),
-    var(--koshin-rasm) center / 146px 147px repeat,
-    var(--lojuvard);
+  background: var(--peshtoq-fon);
+  transition: background-color .25s, box-shadow .25s;
 }
+/*
+ * Sahifa surilganda navbar joyida qoladi: foni shaffof, orqasidagi kontent xira (blur) ko'rinadi.
+ * Yengil lojuvard tus — oq belgilar va yozuv har qanday kontent ustida o'qilsin.
+ */
+body .app-shell .app-header.is-scrolled {
+  background: #131f4c8c;
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 10px 24px -18px #0b1231cc;
+}
+body .app-shell .app-header::before, body .app-shell .app-header::after { transition: opacity .2s; }
+body .app-shell .app-header.is-scrolled::before, body .app-shell .app-header.is-scrolled::after { opacity: 0; }
 body .app-shell .app-header::before {
   content: ""; position: absolute; inset: 6px 7px 5px; pointer-events: none;
   border: 1px solid #e2b65c80; border-bottom: 0; border-radius: 4px 4px 0 0;
@@ -692,3 +707,33 @@ button.m-listen-soon:focus-visible { outline: 3px solid var(--firuza-2); outline
 
 /* Faollar: faqat reyting doskasi qoldi — ikkinchi ustun (streak paneli) yo'q, doska butun kenglikda. */
 .leaders-grid { grid-template-columns: minmax(0, 1fr); }
+
+/*
+ * Bosh sahifa (telefon): navbar va salomlashuv — bitta koshinli blok (Mutolaa uslubida, pastki burchaklari yumaloq).
+ * Navbar tepada shaffof; blok uning ortidan boshlanadi (--app-header-h — navbar balandligi, page.tsx o'lchaydi).
+ */
+@media (max-width: 980px) {
+  body .app-shell.show-mobile-home .app-header:not(.is-scrolled) { background: transparent; box-shadow: none; }
+  body .app-shell.show-mobile-home .app-header::before,
+  body .app-shell.show-mobile-home .app-header::after { display: none; }
+  body .app-shell.show-mobile-home .workspace { padding-top: 0; }
+  .m-home-screen .m-hero {
+    position: relative;
+    display: block;
+    margin: calc(-6px - var(--app-header-h, 72px)) calc(50% - 50vw) 20px;
+    padding: calc(var(--app-header-h, 72px) + 18px) 22px 30px;
+    border-radius: 0 0 32px 32px;
+    background: var(--peshtoq-fon);
+    text-align: left;
+    box-shadow: 0 18px 32px -24px #131f4ccc;
+  }
+  .m-home-screen .m-hero::after {
+    content: ""; position: absolute; inset: 0 7px 7px; pointer-events: none;
+    border: 1px solid #e2b65c80; border-top: 0; border-radius: 0 0 26px 26px;
+    box-shadow: inset 0 0 0 3px #131f4c40, inset 0 0 0 4px #e2b65c29;
+  }
+  .m-hero > div { position: relative; z-index: 1; }
+  .m-hero .m-hello { margin-top: 0 !important; color: var(--sahifa); text-shadow: 0 1px 2px #0b123180; }
+  .m-hero .m-hello em { color: var(--tilla-2); }
+  .m-hero .m-sub { margin-bottom: 0 !important; color: #d9d5ea; }
+}
