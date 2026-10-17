@@ -13,6 +13,11 @@
  */
 import { createRoot } from "react-dom/client";
 
+// `app/layout.tsx` dagi shriftlar, o'sha tartibda.
+import "@fontsource-variable/fraunces";
+import "@fontsource-variable/fraunces/wght-italic.css";
+import "@fontsource-variable/caveat";
+import "@fontsource-variable/manrope";
 import "./entry.css";
 
 import Page from "@/app/page";

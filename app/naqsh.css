@@ -364,33 +364,80 @@ body .app-shell[hidden] { display: none; }
 .live-save-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 
 /* Gurung: karta postlar */
-.design-card { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; padding: 12% 10%; border-radius: var(--r-md); touch-action: pan-y; }
+/* Karta: o'lchamlar karta enining foizida (cqw) — muharrir, lenta va namunada bir xil. */
+.design-card { position: relative; display: block; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; border-radius: var(--r-md); container-type: inline-size; isolation: isolate; color: var(--dc-ink); background: var(--lojuvard-3); }
 .reading-post > .design-card { margin: 10px 0 6px; }
-.design-card-text { position: relative; z-index: 1; margin: 0; max-width: 100%; text-align: center; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; text-shadow: 0 1px 12px #0000001f; }
-.design-card-placeholder { opacity: .55; font-style: italic; }
-.design-sticker { position: absolute; z-index: 2; transform: translate(-50%, -50%); line-height: 1; filter: drop-shadow(0 4px 8px #00000033); user-select: none; }
-.design-card.is-editable { touch-action: none; }
+.design-card-bg, .design-card-frame { position: absolute; inset: 0; pointer-events: none; }
+.design-card-frame { background-position: center; background-size: 100% 100%; background-repeat: no-repeat; }
+.design-card-inner { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--dc-pad, 12cqw 10cqw); }
+.design-card-body { position: relative; z-index: 1; display: grid; gap: 2.6cqw; width: 100%; max-height: 100%; }
+.design-card-body.has-plate { padding: 6cqw 6.4cqw; border-radius: 3.2cqw; background: var(--dc-plate); box-shadow: 0 1.4cqw 5cqw #00000052, inset 0 0 0 .45cqw color-mix(in srgb, var(--dc-accent) 40%, transparent); }
+.design-card-quote { display: block; height: 7.4cqw; color: var(--dc-accent); font: 600 18cqw/1 var(--f-display); font-style: normal; letter-spacing: 0; }
+.design-card-text-box { position: relative; min-width: 0; }
+.design-card-text { margin: 0; line-height: 1.32; white-space: pre-wrap; overflow-wrap: anywhere; text-shadow: var(--dc-glow, none); }
+.design-card-book { margin: 0; color: var(--dc-accent); font: 800 3.1cqw/1.35 var(--f-ui); font-style: normal; letter-spacing: .14em; text-transform: uppercase; overflow-wrap: anywhere; }
+.design-card-brand { position: absolute; left: 0; right: 0; bottom: var(--dc-brand-at, 3.6cqw); z-index: 1; color: var(--dc-brand, var(--dc-accent)); font: 800 2.2cqw/1 var(--f-ui); letter-spacing: .42em; text-indent: .42em; text-align: center; opacity: .78; pointer-events: none; }
+.design-card-brand.is-in-plate { position: static; margin-top: .6cqw; text-align: inherit; }
+.design-sticker { position: absolute; z-index: 3; transform: translate(-50%, -50%); line-height: 1; filter: drop-shadow(0 .8cqw 1.6cqw #00000040); user-select: none; -webkit-user-select: none; }
+.design-card.is-sample { border-radius: 14px; }
+.design-card.is-sample .design-card-body { gap: 1cqw; }
+
+/* Muharrir rejimi: matn kartaning o'zida yoziladi (textarea yashirin nusxa ustida, bir xil shrift va o'lchamda). */
+.design-card.is-editable { cursor: text; box-shadow: 0 18px 44px -22px #1b1a2e8c; }
+.design-card.is-editable .design-card-text { visibility: hidden; }
+.design-card-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; line-height: 1.32; letter-spacing: inherit; text-align: inherit; text-shadow: var(--dc-glow, none); white-space: pre-wrap; overflow-wrap: anywhere; overflow: hidden; resize: none; outline: none; caret-color: var(--dc-accent); }
+.design-card-input::placeholder, .design-card-grow input::placeholder { color: inherit; opacity: .55; }
+.design-card-input:focus-visible, .design-card-grow input:focus-visible { outline: none; }
+.design-card-text-box:focus-within, .design-card-book.is-input:focus-within { outline: .45cqw dashed color-mix(in srgb, var(--dc-ink) 45%, transparent); outline-offset: 1.6cqw; border-radius: 1.2cqw; }
+.design-card-book.is-input { display: block; }
+.design-card-grow { display: inline-grid; min-width: 0; max-width: calc(100% - 1.6em); vertical-align: bottom; }
+.design-card-grow::after { content: attr(data-value) " "; grid-area: 1 / 1; visibility: hidden; white-space: pre; overflow: hidden; }
+.design-card-grow input { grid-area: 1 / 1; width: 100%; min-width: 2em; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; outline: none; caret-color: var(--dc-accent); }
 .design-card.is-editable .design-sticker { cursor: grab; touch-action: none; }
-.design-sticker.is-selected { outline: 2px dashed #ffffffcc; outline-offset: 4px; border-radius: 8px; }
-.card-editor { display: grid; gap: 10px; margin-bottom: 12px; }
-.card-editor-text { width: 100%; padding: 10px 12px; border: 1.5px solid var(--chiziq); border-radius: var(--r-sm); background: var(--sahifa); font-size: 16px; resize: vertical; }
-.card-editor-row { display: flex; gap: 8px; overflow-x: auto; padding: 3px; scrollbar-width: none; }
-.card-group { flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--qogoz-2); color: var(--siyoh-2); font-size: 13px; font-weight: 700; }
-.card-group[aria-checked="true"] { background: var(--siyoh); color: #fff; }
-.card-theme { flex: none; display: grid; justify-items: center; gap: 5px; width: 64px; padding: 0; border: 0; background: none; color: var(--siyoh-2); }
-.card-theme-tile { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 14px; font-size: 18px; font-weight: 700; box-shadow: inset 0 0 0 1px #0000001f; outline: 3px solid transparent; outline-offset: 2px; }
-.card-theme[aria-checked="true"] .card-theme-tile { outline-color: var(--lojuvard); }
-.card-theme-label { max-width: 64px; overflow: hidden; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.card-font { flex: none; height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--qogoz-2); color: var(--siyoh-2); font-weight: 700; }
-.card-font[aria-checked="true"] { background: var(--lojuvard); color: #fff; }
-.card-stickers { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
-.card-stickers button { aspect-ratio: 1; border: 0; border-radius: 12px; background: var(--qogoz); font-size: 22px; }
-.card-stickers button:hover { background: var(--qogoz-2); }
-.card-stickers button:disabled { opacity: .4; }
-.card-sticker-tools { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--qogoz); font-size: 13px; font-weight: 600; }
-.card-sticker-tools span { flex: 1; }
-.card-sticker-tools button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); }
-@media (max-width: 520px) { .card-stickers { grid-template-columns: repeat(6, 1fr); } }
+.design-card.is-editable .design-sticker:active { cursor: grabbing; }
+.design-sticker.is-selected { outline: .5cqw dashed #ffffffe0; outline-offset: 1cqw; border-radius: 2cqw; background: #00000014; }
+.design-sticker:focus-visible { outline: .6cqw solid var(--dc-accent); outline-offset: 1cqw; border-radius: 2cqw; }
+
+/* Muharrir asboblari (telefonga qulay: katta tugmalar, gorizontal aylantirish). */
+.ce { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 4px; }
+.ce-stage { display: grid; justify-items: center; }
+.ce-stage > .design-card { width: min(100%, 520px); }
+.ce-sticker-bar { display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-radius: 16px; background: var(--siyoh); color: #fff; }
+.ce-sticker-now { font-size: 24px; line-height: 1; }
+.ce-sticker-hint { flex: 1; min-width: 0; overflow: hidden; font-size: 13px; font-weight: 600; opacity: .8; text-overflow: ellipsis; white-space: nowrap; }
+.ce-sticker-bar button { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border: 0; border-radius: 12px; background: #ffffff1f; color: #fff; }
+.ce-sticker-bar button:disabled { opacity: .35; }
+.ce-sticker-bar .is-danger { background: #b83a2f; }
+.ce-sticker-bar .is-done { background: var(--firuza-2); }
+.ce-tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 16px; background: var(--qogoz-2); }
+.ce-tools [role="tab"] { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; border: 0; border-radius: 12px; background: none; color: var(--siyoh-2); font-size: 14px; font-weight: 800; }
+.ce-tools [role="tab"][aria-selected="true"] { background: var(--sahifa); color: var(--lojuvard); box-shadow: var(--soya-1); }
+.ce-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-height: 132px; align-content: start; }
+.ce-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.ce-chips [role="radio"] { flex: none; height: 34px; padding: 0 15px; border: 1px solid var(--chiziq); border-radius: 999px; background: var(--sahifa); color: var(--siyoh-2); font-size: 13.5px; font-weight: 800; }
+.ce-chips [role="radio"][aria-checked="true"] { border-color: var(--siyoh); background: var(--siyoh); color: #fff; }
+.ce-scroll { display: flex; gap: 10px; margin: 0 -2px; padding: 4px 2px 6px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; }
+.ce-chips::-webkit-scrollbar, .ce-scroll::-webkit-scrollbar { display: none; }
+.ce-theme { flex: none; display: grid; justify-items: center; gap: 6px; width: 82px; padding: 0; border: 0; background: none; color: var(--siyoh-2); font-size: 12px; font-weight: 800; scroll-snap-align: start; }
+.ce-theme > .design-card { width: 82px; box-shadow: 0 0 0 1px #1b1a2e1a; transition: box-shadow .15s, transform .15s; }
+.ce-theme[aria-checked="true"] > .design-card { box-shadow: 0 0 0 2.5px var(--sahifa), 0 0 0 5px var(--lojuvard); }
+.ce-theme[aria-checked="true"] { color: var(--lojuvard); }
+.ce-theme:active > .design-card { transform: scale(.96); }
+.ce-font { flex: none; display: grid; justify-items: center; align-content: center; gap: 2px; width: 82px; height: 74px; border: 1.5px solid var(--chiziq); border-radius: 16px; background: var(--sahifa); color: var(--siyoh); scroll-snap-align: start; }
+.ce-font b { line-height: 1.1; }
+.ce-font span { font-size: 11.5px; font-weight: 800; color: var(--siyoh-3); }
+.ce-font[aria-checked="true"] { border-color: var(--lojuvard); background: var(--lojuvard); color: #fff; }
+.ce-font[aria-checked="true"] span { color: #ffffffc7; }
+.ce-aligns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ce-aligns [role="radio"] { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; border: 1.5px solid var(--chiziq); border-radius: 12px; background: var(--sahifa); color: var(--siyoh-2); font-size: 13.5px; font-weight: 800; }
+.ce-aligns [role="radio"][aria-checked="true"] { border-color: var(--lojuvard); color: var(--lojuvard); background: #eef1fb; }
+.ce-stickers { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
+.ce-stickers button { aspect-ratio: 1; border: 0; border-radius: 14px; background: var(--qogoz); font-size: 24px; line-height: 1; transition: transform .12s; }
+.ce-stickers button:hover { background: var(--qogoz-2); }
+.ce-stickers button:active { transform: scale(.9); }
+.ce-stickers button:disabled { opacity: .35; }
+.ce-note { margin: 0; color: var(--siyoh-3); font-size: 12.5px; font-weight: 600; text-align: center; }
+@media (max-width: 520px) { .ce-stickers { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 
 /* Ixcham profil: statistika tepada, bo'limlar tablarda */
 .p-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 4px 0 18px; }

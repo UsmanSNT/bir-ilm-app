@@ -3,7 +3,8 @@
  *
  * `app/layout.tsx` dagi AYNAN o'sha fayllar, AYNAN o'sha tartibda import
  * qilinadi — shuning uchun ilovadagi ko'rinish webdagidan farq qilmaydi.
- * Yangi CSS qo'shilsa, uni layout.tsx ga ham, bu yerga ham qo'shish kerak.
+ * Yangi CSS qo'shilsa, uni layout.tsx ga ham, bu yerga ham qo'shish kerak
+ * (shriftlar `main.tsx` da, layout.tsx dagi kabi JS importi bilan).
  */
 @import "../app/globals.css";
 @import "../app/discovery.css";
@@ -11,6 +12,11 @@
 @import "../app/mobile-library.css";
 @import "../app/profile-screens.css";
 @import "../app/community/community.css";
+@import "../app/talks.css";
+@import "../app/store.css";
+@import "../app/naqsh.css";
+@import "../app/profile-v2.css";
+@import "../app/live-room.css";
 @import "./native.css";
 
 /*

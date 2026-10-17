@@ -119,6 +119,21 @@ try {
     await call(post.PUT, `/api/v1/community/posts/${id}`, { method: "PUT", params: { id }, cookie: w.cookie, body: { ...base, design: { ...design, bg } } });
     assert.equal(JSON.parse(sqlite.prepare("SELECT design FROM reading_posts WHERE id = ?").get(id).design).bg, bg);
   }
+  // Tekislash va yangi shriftlar saqlanadi; noma'lum qiymatlar rad etiladi; eski postda `align` bo'lmasa ham o'qiladi.
+  await call(post.PUT, `/api/v1/community/posts/${id}`, { method: "PUT", params: { id }, cookie: w.cookie, body: { ...base, design: { ...design, align: "chap" } }, expect: 422 });
+  await call(post.PUT, `/api/v1/community/posts/${id}`, { method: "PUT", params: { id }, cookie: w.cookie, body: { ...base, design: { ...design, font: "comic" } }, expect: 422 });
+  for (const [font, align] of [["hand", "left"], ["italic", "right"], ["bold", "center"]]) {
+    await call(post.PUT, `/api/v1/community/posts/${id}`, { method: "PUT", params: { id }, cookie: w.cookie, body: { ...base, design: { ...design, font, align } } });
+    const stored = JSON.parse(sqlite.prepare("SELECT design FROM reading_posts WHERE id = ?").get(id).design);
+    assert.equal(stored.font, font);
+    assert.equal(stored.align, align);
+  }
+  sqlite.prepare("UPDATE reading_posts SET design = ? WHERE id = ?").run(JSON.stringify({ bg: "firuza", font: "serif", text: "Eski karta", stickers: [] }), id);
+  const legacy = (await (await social.GET(new Request(`${ORIGIN}/api/social`, { headers: { Cookie: other.cookie } }))).json()).posts.find((p) => p.id === id);
+  assert.equal(legacy.design.text, "Eski karta", "`align` siz eski dizayn o'qiladi");
+  assert.equal(legacy.design.align, undefined);
+  console.log("PASS: Karta: tekislash va yangi shriftlar (Qo'lyozma, Nafis, Qalin); eski dizayn mos.");
+
   // Oddiy postga aylantirilsa — dizayn olib tashlanadi.
   await call(post.PUT, `/api/v1/community/posts/${id}`, { method: "PUT", params: { id }, cookie: w.cookie, body: { format: "post", content: [{ type: "p", c: [{ t: "Endi oddiy post" }] }], design } });
   assert.equal(sqlite.prepare("SELECT design FROM reading_posts WHERE id = ?").get(id).design, null);

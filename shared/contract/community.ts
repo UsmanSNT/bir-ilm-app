@@ -128,8 +128,10 @@ export function readingMinutes(text: string): number {
 // ── Karta post: rangli fon + qisqa matn + stikerlar (Instagram "story" kabi) ──
 
 /**
- * Karta mavzulari. Ko'rinishi (gradient, naqsh, matn rangi) klientda — `app/community/card-themes.ts`.
- * Yangi mavzu qo'shish: shu ro'yxatga id qo'shiladi, saqlangan eski postlar o'zgarmaydi.
+ * Karta mavzulari. Ko'rinishi (gradient, naqsh, ramka, matn rangi) klientda — `app/community/card-themes.ts`,
+ * shuning uchun mavzuning ko'rinishini id ni o'zgartirmasdan yangilash mumkin.
+ * Yangi id qo'shishdan oldin: telefondagi eski ilova versiyalari notanish id da xato bermasligi kerak
+ * (`DesignCard` notanish fonni «lojuvard» bilan ko'rsatadi — shu tuzatish bor versiyalar tarqalgach qo'shing).
  */
 export const CARD_THEME_IDS = [
   "peshtoq", "girih", "kashi", "atlas", "bodom",
@@ -138,8 +140,11 @@ export const CARD_THEME_IDS = [
   "mesh", "okean", "neon", "nuqta",
 ] as const;
 export type CardBackground = (typeof CARD_THEME_IDS)[number];
-export const CARD_FONTS = ["serif", "sans", "mono"] as const;
+/** Yangi shrift faqat oxiriga qo'shiladi; eski ilova notanish shriftni oddiy shriftda ko'rsatadi. */
+export const CARD_FONTS = ["serif", "sans", "mono", "italic", "bold", "hand"] as const;
 export type CardFont = (typeof CARD_FONTS)[number];
+export const CARD_ALIGNS = ["center", "left", "right"] as const;
+export type CardAlign = (typeof CARD_ALIGNS)[number];
 export const CARD_STICKERS = ["📚", "📖", "✨", "💡", "❤️", "🔥", "🌙", "☕", "🖋️", "🌿", "⭐", "🎯", "🕌", "🤲", "🌸", "🧠", "🏆", "👏"] as const;
 export const CARD_LIMITS = { text: 280, stickers: 12 } as const;
 
@@ -150,6 +155,8 @@ export const cardDesignSchema = z
     bg: z.enum(CARD_THEME_IDS),
     font: z.enum(CARD_FONTS),
     text: z.string().trim().max(CARD_LIMITS.text, `Karta matni ${CARD_LIMITS.text} belgidan oshmasin.`),
+    /** Matnni tekislash; yo'q bo'lsa — markazda (eski postlar). */
+    align: z.enum(CARD_ALIGNS).optional(),
     stickers: z
       .array(z.object({
         e: z.enum(CARD_STICKERS),

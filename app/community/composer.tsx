@@ -197,7 +197,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
           )}
         </div>
 
-        {card && <CardEditor design={design} onChange={(next) => { setDesign(next); setDirty(true); }} />}
+        {card && <CardEditor design={design} onChange={(next) => { setDesign(next); setDirty(true); }} book={book} onBookChange={(next) => { setBook(next); setDirty(true); }} />}
 
         {!card && slots.length > 1 && (
           <p className="composer-order-hint"><GripVertical size={15} aria-hidden="true" /><span>Raqam — ko‘rsatish tartibi (karusel). Sudrang yoki ‹ › bilan suring.</span></p>
@@ -256,7 +256,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
             onChange={(e) => { setTitle(e.target.value.replace(/\n/g, " ")); setDirty(true); fitHeight(e.target); }}
           />
         )}
-        {!announce && (
+        {!announce && !card && (
           <label className="composer-book">
             <BookOpen size={16} />
             <input placeholder="Qaysi kitob haqida? (ixtiyoriy)" maxLength={COMMUNITY_LIMITS.book} value={book} onChange={(e) => { setBook(e.target.value); setDirty(true); }} aria-label="Kitob nomi" />
@@ -277,7 +277,7 @@ function ComposerBody({ editing, moderator, onClose, onPublished, onLoginRequire
 
       <footer className="composer-foot">
         <span className={used > limit ? "is-over" : ""}>{used.toLocaleString("ru-RU")} / {limit.toLocaleString("ru-RU")}</span>
-        <span className="composer-hint">{card ? "Stikerni kartada sudrab joylang" : "Matnni belgilang — qalin, kursiv, spoiler, havola…"}</span>
+        <span className="composer-hint">{card ? "Matn va kitob nomini kartaning o‘zida yozing, stikerni sudrang" : "Matnni belgilang — qalin, kursiv, spoiler, havola…"}</span>
       </footer>
     </DialogContent>
   );

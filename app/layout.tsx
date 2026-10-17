@@ -1,6 +1,8 @@
 import PwaRegister from "./pwa-register";
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/fraunces";
+import "@fontsource-variable/fraunces/wght-italic.css";
+import "@fontsource-variable/caveat";
 import "@fontsource-variable/manrope";
 import "./globals.css";
 import "./discovery.css";

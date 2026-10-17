@@ -340,13 +340,13 @@ export function PostCard({ post, actions }: { post: ReadingPost; actions: PostAc
     <article className={`reading-post${post.kind === "announcement" ? " is-announcement" : ""}`}>
       <PostHeader post={post} actions={actions} />
       {post.title && <h3 className="post-title">{post.title}</h3>}
-      {post.design && <DesignCard design={post.design} />}
+      {post.design && <DesignCard design={post.design} book={post.book} />}
       <MediaAlbum items={album} />
       {!post.design && <div ref={body} className={`post-text${expanded ? "" : " is-clamped"}`}>
         <RichContent doc={post.content} text={post.body} media={post.media} />
       </div>}
       {clamped && !expanded && <button type="button" className="text-btn post-more" onClick={() => setExpanded(true)}>Ko&apos;proq o&apos;qish</button>}
-      {post.book && <div className="post-book"><BookOpen size={15} /><span>{post.book}</span></div>}
+      {post.book && !post.design && <div className="post-book"><BookOpen size={15} /><span>{post.book}</span></div>}
       {footer}
       {showReplies && <Replies post={post} actions={actions} />}
     </article>
@@ -403,8 +403,8 @@ export function PostReader({ post, loading, actions, highlightReplyId = null, on
                 </span>
               </div>
               {post.format !== "article" && <MediaAlbum items={album} />}
-              {post.design ? <DesignCard design={post.design} /> : <RichContent doc={post.content} text={post.body} media={post.media} className="reader-body" />}
-              {post.book && <div className="post-book"><BookOpen size={15} /><span>{post.book}</span></div>}
+              {post.design ? <DesignCard design={post.design} book={post.book} /> : <RichContent doc={post.content} text={post.body} media={post.media} className="reader-body" />}
+              {post.book && !post.design && <div className="post-book"><BookOpen size={15} /><span>{post.book}</span></div>}
               <div className="post-footer reader-footer">
                 <ReactionBar post={post} actions={actions} />
                 <ShareButton post={post} />
