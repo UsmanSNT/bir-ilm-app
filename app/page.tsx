@@ -538,8 +538,6 @@ export default function App() {
                 </div>
                 <MobileScreens
                   name={data.name}
-                  page={data.page}
-                  total={data.total}
                   session={session}
                   now={now}
                   reminderOn={data.talk}

@@ -1,6 +1,6 @@
 "use client";
 
-import ListenLink, { audioLinkOf } from "./listen-link";
+import { audioLinkOf } from "./listen-link";
 import { FormEvent, useEffect, useMemo, useRef, useSyncExternalStore, useState } from "react";
 import {
   ArrowRight,
@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  ExternalLink,
   Headphones,
   Leaf,
   Pencil,
@@ -161,8 +162,6 @@ function DiscussionArt({ variant = "talk" }: { variant?: string }) {
 
 export default function MobileScreens({
   name,
-  page,
-  total,
   session,
   now,
   reminderOn,
@@ -173,8 +172,6 @@ export default function MobileScreens({
   onAddReminder,
 }: {
   name: string;
-  page: number;
-  total: number;
   session: number;
   now: number;
   reminderOn: boolean;
@@ -233,16 +230,12 @@ export default function MobileScreens({
   const secs = Math.max(0, Math.floor((session - now) / 1000));
   const days = String(Math.floor(secs / 86400)).padStart(2, "0");
   const hours = String(Math.floor((secs / 3600) % 24)).padStart(2, "0");
-  // Hafta kitobining audiosi bo'lsa, progress — tinglangan joy; aks holda o'qilgan sahifa.
-  // Tugma doim audioga olib boradi: hafta kitobi, bo'lmasa oxirgi tinglangan kitob.
-  const listenBook = featured?.audioUrl
-    ? featured
-    : catalog.items.find((b) => b.id === library.last && b.audioUrl) ?? null;
+  // Tinglash tugmasi faqat hafta kitobiga tegishli: yuklangan audio — pleer, bo'lmasa tashqi havola.
+  // Progress chizig'i faqat yuklangan audiosi bor kitobda (tashqi havolada tinglangan joy noma'lum).
+  const featuredLink = featured ? audioLinkOf(featured) : null;
   const audioLength = featured?.audioUrl ? featured.audioSeconds : 0;
   const audioAt = featured ? library.progress[featured.id] ?? 0 : 0;
-  const percent = audioLength
-    ? Math.min(100, Math.round((audioAt / audioLength) * 100))
-    : Math.round((page / Math.max(1, total)) * 100);
+  const percent = audioLength ? Math.min(100, Math.round((audioAt / audioLength) * 100)) : 0;
   const todaySeconds = library.listenedDays[dayKey()] ?? 0;
   const bookSeconds = featured ? library.listenedBooks[featured.id] ?? 0 : 0;
   // Hafta kitobi suhbati: admin kitob oynasida yoki «Suhbatlar»da belgilagan haqiqiy vaqt.
@@ -498,27 +491,53 @@ export default function MobileScreens({
             ) : (
               editor && featured && <p className="m-talk-none">Suhbat vaqti belgilanmagan — «Tahrirlash»dan kalendar orqali tanlang.</p>
             )}
-            <div className="m-progress">
-              <div className="m-progress-track" aria-hidden="true">
-                <span style={{ width: `${percent}%` }} />
-              </div>
-              <strong>{percent}%</strong>
-            </div>
             {featured?.audioUrl && (
-              <p className="m-listened">
-                <Headphones size={15} />
-                {bookSeconds ? <>Tinglandi: <b>{listenedLabel(bookSeconds)}</b></> : "Hali tinglanmagan"}
-                {todaySeconds > 0 && <span>· bugun {listenedLabel(todaySeconds)}</span>}
-              </p>
+              <>
+                <div className="m-progress">
+                  <div className="m-progress-track" aria-hidden="true">
+                    <span style={{ width: `${percent}%` }} />
+                  </div>
+                  <strong>{percent}%</strong>
+                </div>
+                <p className="m-listened">
+                  <Headphones size={15} />
+                  {bookSeconds ? <>Tinglandi: <b>{listenedLabel(bookSeconds)}</b></> : "Hali tinglanmagan"}
+                  {todaySeconds > 0 && <span>· bugun {listenedLabel(todaySeconds)}</span>}
+                </p>
+              </>
             )}
-            {featured && !featured.audioUrl && audioLinkOf(featured) ? (
-              <ListenLink book={featured} className="m-primary" />
+            {featured?.audioUrl ? (
+              <button className="m-primary m-listen-cta" type="button" onClick={() => onContinue(featured)} aria-label={`${featured.title} — tinglash`}>
+                <Headphones size={20} />
+                <span className="m-listen-title">{featured.title}</span>
+                <ArrowRight size={18} />
+              </button>
+            ) : featured && featuredLink ? (
+              <a
+                className="m-primary m-listen-cta"
+                href={featuredLink.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${featured.title} — ${featuredLink.label} orqali tinglash (yangi oynada ochiladi)`}
+              >
+                <Headphones size={20} />
+                <span className="m-listen-title">{featured.title}</span>
+                <ExternalLink size={17} />
+              </a>
+            ) : featured ? (
+              editor ? (
+                <button type="button" className="m-listen-soon is-editor" onClick={() => setEditing({ book: featured })}>
+                  <Plus size={17} /> Audio yoki havola qo‘shish
+                </button>
+              ) : (
+                <p className="m-listen-soon"><Headphones size={17} /> Audio tez orada qo‘shiladi</p>
+              )
             ) : (
-            <button className="m-primary m-listen-cta" type="button" onClick={() => onContinue(listenBook)}>
-              <Headphones size={20} />
-              <span className="m-listen-title">{listenBook?.title ?? "Audiokitoblarni ko‘rish"}</span>
-              <ArrowRight size={18} />
-            </button>
+              <button className="m-primary m-listen-cta" type="button" onClick={() => onContinue(null)}>
+                <Headphones size={20} />
+                <span className="m-listen-title">Audiokitoblarni ko‘rish</span>
+                <ArrowRight size={18} />
+              </button>
             )}
           </section>
 
