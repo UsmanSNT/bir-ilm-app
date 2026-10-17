@@ -54,7 +54,7 @@ export default function AdminOrders() {
     <div className="admin-panel admin-orders">
       <div className="admin-orders-filter" role="group" aria-label="Holat bo'yicha">
         {(["all", ...ORDER_STATUSES] as const).map((s) => (
-          <button key={s} aria-pressed={filter === s} onClick={() => { setOrders(null); setFilter(s); }}>{s === "all" ? "Barchasi" : ORDER_STATUS_LABELS[s]}</button>
+          <button key={s} aria-pressed={filter === s} onClick={(e) => { e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); setOrders(null); setFilter(s); }}>{s === "all" ? "Barchasi" : ORDER_STATUS_LABELS[s]}</button>
         ))}
       </div>
       {error && <p className="admin-error" role="alert">{error}</p>}

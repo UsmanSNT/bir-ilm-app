@@ -216,8 +216,10 @@
 
 /* Admin: buyurtmalar */
 .admin-orders { display: grid; gap: 12px; }
-.admin-orders-filter { display: flex; flex-wrap: wrap; gap: 6px; }
-.admin-orders-filter button { height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--qogoz-2); font-size: 13px; font-weight: 750; color: var(--siyoh-2); }
+/* Holat filtrlari bitta qatorda — sig'masa yonga suriladi (aylantirish chizig'i yashirin). */
+.admin-orders-filter { display: flex; flex-wrap: nowrap; gap: 6px; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; padding: 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.admin-orders-filter::-webkit-scrollbar { display: none; }
+.admin-orders-filter button { flex: none; white-space: nowrap; height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--qogoz-2); font-size: 13px; font-weight: 750; color: var(--siyoh-2); }
 .admin-orders-filter button[aria-pressed="true"] { background: var(--lojuvard); color: #fff; }
 .admin-order { display: grid; gap: 6px; padding: 14px; border-radius: var(--r-md); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq); font-size: 14px; }
 .admin-order-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
@@ -567,7 +569,6 @@
 .sa-chips button[aria-selected="true"] { border-color: #172351; background: #172351; color: #fff; }
 .sa-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .sa-tabs button { min-width: 0; padding: 0 4px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.sa-admin .admin-orders-filter { display: flex; flex-wrap: wrap; gap: 6px; }
 .sa-admin .admin-orders-filter button { white-space: nowrap; }
 
 /* Savat bo'limi: Oxirgi xaridlar | Savat | Baholar; Hisobim orqaga tugmasi; baholar ro'yxati */

@@ -130,7 +130,7 @@ export default function BookStore({ shelf, route, onMain, onBack, onToggle }: { 
               : <Checkout cart={cart} signedIn={Boolean(viewer?.signedIn)} defaultName={viewer?.name ?? ""} onLogin={() => setLoginOpen(true)} onBack={openCart} onPlaced={setPlaced} />)}
           </>
         )}
-        {section !== "account" && <footer className="zb-foot"><span><b>Bir Ilm</b> · Book Store</span><span>Har bir kitob — yangi imkoniyat</span></footer>}
+        {section !== "account" && <footer className="zb-foot"><span>Har bir kitob — yangi imkoniyat</span></footer>}
       </div>
 
       {isAdmin && editing && <StoreBookEditor id={editing.id} onClose={() => { setEditing(null); store.reload(); }} />}
