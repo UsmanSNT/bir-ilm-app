@@ -1,7 +1,7 @@
 "use client";
 
 import ListenLink, { audioLinkOf } from "./listen-link";
-import { FormEvent, useEffect, useMemo, useSyncExternalStore, useState, type CSSProperties } from "react";
+import { FormEvent, useEffect, useMemo, useSyncExternalStore, useState } from "react";
 import {
   ArrowRight,
   Bell,
@@ -15,7 +15,6 @@ import {
   Leaf,
   Pencil,
   Plus,
-  TreePine,
   Trophy,
   Users,
   X,
@@ -35,7 +34,6 @@ import { TALKS_CHANGED, WEEKDAYS, clock, countdown, dayMonth, nextTalk, toggleTa
 import type { Book } from "@/shared/contract";
 import { dayKey, listenedLabel, useLibrarySave } from "./library-store";
 import { PomodoroButton } from "./focus-timer";
-import { uzDate } from "./uz-date";
 
 type Save = {
   joined: boolean;
@@ -186,6 +184,8 @@ export default function MobileScreens({
   onAddReminder: () => void;
 }) {
   const [screen, setScreen] = useState<Screen>("home");
+  // Hafta suhbati uchun eslatma: qo'ng'iroqcha bosilganda «yoqasizmi?» savoli ko'rsatiladi.
+  const [reminderAsk, setReminderAsk] = useState(false);
   const [reminder, setReminder] = useState(false);
   const saveRaw = useSyncExternalStore(subscribeSave, readSaveSnapshot, () => "");
   const save = useMemo(() => parseSave(saveRaw), [saveRaw]);
@@ -240,8 +240,6 @@ export default function MobileScreens({
     : Math.round((page / Math.max(1, total)) * 100);
   const todaySeconds = library.listenedDays[dayKey()] ?? 0;
   const bookSeconds = featured ? library.listenedBooks[featured.id] ?? 0 : 0;
-  const dailyMinutes = Math.floor(todaySeconds / 60);
-  const dailyProgress = Math.min(100, (dailyMinutes / 5) * 100);
   // Hafta kitobi suhbati: admin kitob oynasida yoki «Suhbatlar»da belgilagan haqiqiy vaqt.
   const [talks, setTalks] = useState<LiveSession[]>([]);
   useEffect(() => {
@@ -385,12 +383,6 @@ export default function MobileScreens({
           <header className="m-top">
             <p className="m-wordmark">BIR ILM</p>
             <div className="m-top-actions">
-              <span className="m-daily-progress" aria-label={`Bugun ${dailyMinutes} daqiqa tinglandi, maqsad 5 daqiqa`}>
-                <TreePine size={18} />
-                <span className="m-daily-ring" style={{ "--daily-progress": `${dailyProgress * 3.6}deg` } as CSSProperties}>
-                  <b>{dailyMinutes}</b><small>/5</small>
-                </span>
-              </span>
               <PomodoroButton className="m-icon" />
               <button className="m-icon" type="button" aria-label="Bildirishnomalar" onClick={onOpenNotifications}>
                 <Bell size={22} />
@@ -400,15 +392,15 @@ export default function MobileScreens({
           </header>
 
           <div className="m-greeting-row">
-            <div><p className="eyebrow m-date">{uzDate(new Date())}</p><h1 className="m-hello">Assalomu alaykum, <em>{name}</em></h1><p className="m-sub">Bugun ham bir sahifa oldinga.</p></div>
+            <div><h1 className="m-hello">Assalomu alaykum, <em>{name}</em></h1><p className="m-sub">Bugun ham bir sahifa oldinga.</p></div>
           </div>
 
           <section className="m-card m-week">
             <div className="m-week-head">
               <p className="m-kicker">Hafta kitobi</p>
               {editor && featured && (
-                <button type="button" className="m-week-edit" onClick={() => setEditing({ book: featured })}>
-                  <Pencil size={15} /> Tahrirlash
+                <button type="button" className="m-week-edit m-week-edit-icon" onClick={() => setEditing({ book: featured })} aria-label="Hafta kitobini tahrirlash" title="Tahrirlash">
+                  <Pencil size={16} />
                 </button>
               )}
             </div>
@@ -438,11 +430,7 @@ export default function MobileScreens({
               <div className={`m-week-timeline m-talk-next ${talkProgress >= 80 ? "is-finishing" : ""}`}>
                 <button type="button" className="m-talk-when" onClick={onOpenTalks}>
                   <span className={`m-talk-badge${talk.status === "live" ? " live" : ""}`}>{talk.status === "live" ? "JONLI" : "SUHBAT"}</span>
-                  <span>
-                    <strong>{talk.title}</strong>
-                    <small><Calendar size={13} /> {dayMonth(talkAt)}, {WEEKDAYS[talkAt.getDay()]} · <Clock size={13} /> {clock(talkAt)}</small>
-                  </span>
-                  <ChevronRight size={18} />
+                  <strong>{talk.title}</strong>
                 </button>
                 <div className="m-week-labels">
                   <span>E’lon</span>
@@ -453,18 +441,38 @@ export default function MobileScreens({
                   <span style={{ width: `${talkProgress}%` }} />
                   <Leaf size={17} style={{ left: `${Math.min(96, talkProgress)}%` }} />
                 </div>
-                {talk.status !== "live" && (
-                  <button
-                    type="button"
-                    className={`m-talk-remind${reminders.includes(talk.id) ? " on" : ""}`}
-                    aria-pressed={reminders.includes(talk.id)}
-                    onClick={() => {
-                      const on = toggleTalkReminder(talk.id);
-                      toast.success(on ? `${dayMonth(talkAt)}, ${clock(talkAt)} uchun eslatma qo‘yildi` : "Eslatma olib tashlandi");
-                    }}
-                  >
-                    <Bell size={15} /> {reminders.includes(talk.id) ? "Eslatma qo‘yildi" : "Eslatma qo‘yish"}
-                  </button>
+                <div className="m-talk-foot">
+                  <span className="m-talk-meta">
+                    <span><Calendar size={14} /> {dayMonth(talkAt)}, {WEEKDAYS[talkAt.getDay()]}</span>
+                    <span><Clock size={14} /> {clock(talkAt)}</span>
+                  </span>
+                  {talk.status !== "live" && (
+                    <button
+                      type="button"
+                      className={`m-talk-bell${reminders.includes(talk.id) ? " on" : ""}`}
+                      aria-pressed={reminders.includes(talk.id)}
+                      aria-label={reminders.includes(talk.id) ? "Eslatma yoqilgan" : "Eslatma qo‘yish"}
+                      title={reminders.includes(talk.id) ? "Eslatma yoqilgan" : "Eslatma qo‘yish"}
+                      onClick={() => setReminderAsk(true)}
+                    >
+                      <Bell size={17} />
+                    </button>
+                  )}
+                </div>
+                {reminderAsk && talk.status !== "live" && (
+                  <div className="m-talk-ask" role="group" aria-label="Eslatma">
+                    <span>{reminders.includes(talk.id) ? "Eslatmani o‘chiraymi?" : "Eslatmani yoqasizmi?"}</span>
+                    <button
+                      type="button"
+                      className="m-talk-yes"
+                      onClick={() => {
+                        const on = toggleTalkReminder(talk.id);
+                        setReminderAsk(false);
+                        toast.success(on ? `${dayMonth(talkAt)}, ${clock(talkAt)} uchun eslatma qo‘yildi` : "Eslatma olib tashlandi");
+                      }}
+                    >Ha</button>
+                    <button type="button" className="m-talk-no" onClick={() => setReminderAsk(false)}>Yo‘q</button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -486,13 +494,9 @@ export default function MobileScreens({
             {featured && !featured.audioUrl && audioLinkOf(featured) ? (
               <ListenLink book={featured} className="m-primary" />
             ) : (
-            <button className="m-primary" type="button" onClick={() => onContinue(listenBook)}>
-              <Headphones size={18} />
-              {listenBook
-                ? listenBook.id === featured?.id
-                  ? audioAt > 0 ? "Tinglashni davom ettirish" : "Tinglashni boshlash"
-                  : `«${listenBook.title}»ni davom ettirish`
-                : "Audiokitoblarni ko‘rish"}
+            <button className="m-primary m-listen-cta" type="button" onClick={() => onContinue(listenBook)}>
+              <Headphones size={20} />
+              <span className="m-listen-title">{listenBook?.title ?? "Audiokitoblarni ko‘rish"}</span>
               <ArrowRight size={18} />
             </button>
             )}

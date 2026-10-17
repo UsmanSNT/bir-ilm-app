@@ -213,40 +213,40 @@ export default function TalksBoard({
             <span><CalendarDays size={17} /> {dayMonth(when)}, {WEEKDAYS[when.getDay()]}</span>
             <span><Clock3 size={17} /> {clock(when)}</span>
           </p>
-          <div className="tb-feature-foot">
-            <span className="tb-people">
-              {live || s.participantCount > 0 ? (
-                <><Users size={16} /> {s.participantCount} kishi qatnashmoqda</>
-              ) : (
-                <><Clock3 size={16} /> <UntilText iso={s.scheduledAt} /></>
-              )}
-            </span>
-            {isAdmin && (
-              <button type="button" className="tb-action tb-manage" onClick={() => setManaging(s.id)} aria-label="Suhbatni boshqarish">
-                <Settings2 size={17} />
-              </button>
-            )}
-            {!live && !isAdmin && (
-              <button type="button" className={`tb-action tb-icon${reminded ? " on" : ""}`} onClick={() => toggleReminder(s)} aria-pressed={reminded} aria-label={reminded ? "Eslatmani olib tashlash" : "Eslatma qo‘yish"}>
-                {reminded ? <BellRing size={17} /> : <Bell size={17} />}
-              </button>
-            )}
-            {live ? (
-              <button type="button" className="tb-action primary" onClick={() => open(s)} >
-                <Mic size={17} /> Qo‘shilish
-              </button>
-            ) : isAdmin ? (
-              <button type="button" className="tb-action primary" onClick={() => open(s)} >
-                <Play size={17} /> Suhbatni boshlash
-              </button>
-            ) : (
-              <button type="button" className="tb-action" onClick={() => open(s)} >
-                <Clock3 size={17} /> Suhbat hali boshlanmadi
-              </button>
-            )}
-          </div>
         </div>
         <ChevronRight className="tb-chevron" size={24} aria-hidden="true" />
+        <div className="tb-feature-foot">
+          <span className="tb-people">
+            {live || s.participantCount > 0 ? (
+              <><Users size={16} /> {s.participantCount} kishi qatnashmoqda</>
+            ) : (
+              <><Clock3 size={16} /> <UntilText iso={s.scheduledAt} /></>
+            )}
+          </span>
+          {isAdmin && (
+            <button type="button" className="tb-action tb-manage" onClick={() => setManaging(s.id)} aria-label="Suhbatni boshqarish">
+              <Settings2 size={17} />
+            </button>
+          )}
+          {!live && !isAdmin && (
+            <button type="button" className={`tb-action tb-icon${reminded ? " on" : ""}`} onClick={() => toggleReminder(s)} aria-pressed={reminded} aria-label={reminded ? "Eslatmani olib tashlash" : "Eslatma qo‘yish"}>
+              {reminded ? <BellRing size={17} /> : <Bell size={17} />}
+            </button>
+          )}
+          {live ? (
+            <button type="button" className="tb-action primary" onClick={() => open(s)} >
+              <Mic size={17} /> Qo‘shilish
+            </button>
+          ) : isAdmin ? (
+            <button type="button" className="tb-action primary" onClick={() => open(s)} >
+              <Play size={17} /> Suhbatni boshlash
+            </button>
+          ) : (
+            <button type="button" className="tb-action" onClick={() => open(s)} >
+              <Clock3 size={17} /> Suhbat hali boshlanmadi
+            </button>
+          )}
+        </div>
       </article>
     );
   };

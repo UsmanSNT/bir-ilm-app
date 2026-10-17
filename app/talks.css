@@ -491,3 +491,25 @@ button.tb-wave:disabled { cursor: default; }
 .tb-actions-row { display: flex; align-items: stretch; gap: 8px; }
 .tb-actions-row .tb-resched-save { flex: none; }
 .tb-actions-row .tb-danger { flex: 1; margin-top: 0; padding: 0 12px; }
+
+/*
+ * Kelgusi suhbat: muqova va matn yuqorida; pastki qator — sanoq chapda, belgi o'ngda, asosiy tugma to'liq kenglikda.
+ * Kompyuterda pastki qator matn ostida, telefonda butun karta kengligida (muqova ostidan ham).
+ */
+.tb-feature .tb-cover-lg { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
+.tb-feature-body { grid-column: 2; grid-row: 1; align-self: end; }
+.tb-feature .tb-chevron { grid-column: 3; grid-row: 1 / span 2; }
+.tb-feature-foot { grid-column: 2; grid-row: 2; align-self: start; margin-top: 0; pointer-events: none; }
+.tb-feature-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 10px; }
+.tb-feature-foot .tb-people { grid-column: 1; grid-row: 1; min-width: 0; }
+.tb-feature-foot .tb-manage,
+.tb-feature-foot .tb-icon { grid-column: 2; grid-row: 1; width: 40px; min-height: 40px; padding: 0; justify-content: center; }
+.tb-feature-foot .tb-action.primary,
+.tb-feature-foot .tb-action:not(.tb-manage):not(.tb-icon) { grid-column: 1 / -1; grid-row: 2; justify-content: center; white-space: nowrap; }
+@media (max-width: 640px) {
+  .tb-feature { row-gap: 12px; }
+  .tb-feature .tb-cover-lg { grid-row: 1; align-self: center; }
+  .tb-feature-body { align-self: center; gap: 8px; }
+  .tb-feature .tb-chevron { grid-row: 1; }
+  .tb-feature-foot { grid-column: 1 / -1; padding-top: 12px; border-top: 1px dashed #d9c9a3; }
+}

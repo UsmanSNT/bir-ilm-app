@@ -252,3 +252,10 @@
 .composer-slot-move button:disabled { opacity: .3; cursor: default; }
 .composer-slot-move button:only-child { margin-left: auto; }
 .composer-full { margin: 6px 2px 0; color: #8a5a00; font-size: 13px; }
+
+/* Post sarlavhasi: Obuna va amallar tugmasi ixcham, bir qatorda */
+.reading-post .post-header { flex-wrap: nowrap; gap: 8px; }
+.reading-post .post-header .follow-button { min-height: 30px; height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; gap: 4px; white-space: nowrap; flex-shrink: 0; }
+.reading-post .post-header .follow-button svg { width: 14px; height: 14px; }
+.reading-post .post-header .icon-btn { width: 30px; height: 30px; min-width: 30px; min-height: 30px; padding: 0; flex-shrink: 0; }
+.reading-post .post-header .icon-btn svg { width: 16px; height: 16px; }
