@@ -221,3 +221,28 @@ button.acc2-row:focus-visible { outline: 3px solid var(--firuza-2); outline-offs
 
 /* Profil ichidagi tab paneli ham ekran kengligidan oshmasin. */
 .p-tab-panel { grid-template-columns: minmax(0, 1fr); }
+
+/* ═════════════ Book Store hisobi: Bir Ilm profili bilan bir xil ko'rinish ═════════════ */
+.pv-cover.is-firuza:not(.has-image) { background: var(--girih) center / 64px, linear-gradient(160deg, #13716f, #0b4d4d 55%, #07302f); background-blend-mode: soft-light, normal; }
+.pv-role-chip.is-store { background: var(--firuza-och); color: var(--firuza); }
+.sa { --pv-pad: 16px; grid-template-columns: minmax(0, 1fr); max-width: 760px; margin: 0 auto; }
+.sa > .pv { margin: -22px calc(-1 * var(--pv-pad)) 4px; }
+.sa .p-main-tabs { position: sticky; top: 8px; z-index: 5; margin: 0; }
+/* Do'konning umumiy tugma rangi bu yerdagi tugmalarni bosib ketmasin. */
+.sa .pv-edit { color: #fff; font: 800 14.5px var(--f-ui); }
+.sa .pv-cover-btn { color: var(--sahifa); }
+.sa .pv-share { color: var(--lojuvard); }
+.sa-msg { position: relative; }
+.sa-msg b { position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; padding: 0 5px; border: 2px solid var(--sahifa); border-radius: 999px; background: var(--anor); color: #fff; font: 800 11px/16px var(--f-ui); text-align: center; }
+/* Ichki ekran (Menyu, Xabarlar, Hisob sozlamalari, Boshqaruv): orqaga + sarlavha. */
+.sa-head { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; min-height: 52px; margin: -8px 0 4px; }
+.sa-head h1 { margin: 0; overflow: hidden; color: var(--siyoh); font: 600 20px var(--f-display); text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.sa-head-back { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--siyoh); cursor: pointer; }
+.sa-head-back:hover { background: var(--qogoz-2); }
+.sa-head-back:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
+@media (min-width: 981px) {
+  .sa { --pv-pad: 24px; }
+  .sa > .pv { margin: 0 0 4px; overflow: hidden; border-radius: 26px; background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq), 0 16px 34px -28px #131f4c99; padding-bottom: var(--pv-pad); }
+}
+/* Hisob sozlamalari formasi — menyu kartalari bilan bir xil karta ichida. */
+.sa-screen .ss { padding: 18px; border-radius: 22px; background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq), 0 12px 26px -24px #131f4c99; }

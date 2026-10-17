@@ -316,7 +316,7 @@ export default function App() {
   const openPost = (postId: string, replyId: string | null = null) => {
     setModal("");
     go("community");
-    setFocusPost({ postId, replyId, nonce: Date.now() });
+    setFocusPost((prev) => ({ postId, replyId, nonce: (prev?.nonce ?? 0) + 1 }));
   };
 
   // Parolni tiklash havolasi (/?reset=<token>): token manzildan darhol olib tashlanadi.
@@ -497,7 +497,6 @@ export default function App() {
           key={storeRoute?.nonce ?? 0}
           route={storeRoute}
           shelf={data.shelf}
-          onMain={(value) => { setStore(false); go(value); }}
           onBack={() => { setStore(false); window.scrollTo({ top: 0 }); }}
           onToggle={(id) => {
             const saved = data.shelf.includes(id);

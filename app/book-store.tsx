@@ -34,7 +34,7 @@ const ALL = "Barchasi";
 /** Bildirishnomadan Hisobim bo'limini ochish (nonce — har safar qayta ochish uchun). */
 export type StoreRoute = { tab: AccountTab; area?: AdminArea; nonce: number };
 
-export default function BookStore({ shelf, route, onMain, onBack, onToggle }: { shelf: string[]; route?: StoreRoute; onMain: (value: string) => void; onBack: () => void; onToggle: (bookId: string) => void }) {
+export default function BookStore({ shelf, route, onBack, onToggle }: { shelf: string[]; route?: StoreRoute; onBack: () => void; onToggle: (bookId: string) => void }) {
   const [section, setSection] = useState<Section>(route ? "account" : "catalog");
   const [accountTab, setAccountTab] = useState<AccountTab>(route?.tab ?? "cart");
   const [purchaseView, setPurchaseView] = useState<PurchaseView>("cart");
@@ -104,7 +104,6 @@ export default function BookStore({ shelf, route, onMain, onBack, onToggle }: { 
         ) : (
           <>
             {section === "checkout" && <header className="zb-head"><button type="button" className="zb-back zb-back-round" onClick={openCart} aria-label="Orqaga" title="Orqaga"><ArrowLeft size={20} /></button><span className="zb-eyebrow">Bir Ilm · Book Store</span><h1>{titles.checkout}</h1></header>}
-            {section === "account" && <button type="button" className="zb-back zb-back-round sa-back" onClick={() => go("catalog")} aria-label="Katalogga qaytish" title="Katalogga qaytish"><ArrowLeft size={20} /></button>}
             {section === "catalog" && <StoreHome books={store.items} loading={store.loading} error={store.error} onRetry={store.reload} onOpen={open} onAdd={addToCart} isAdmin={isAdmin} onCreate={() => setEditing({ id: null })} onEdit={(b) => setEditing({ id: b.id })} />}
             {section === "account" && (
               <StoreAccount
@@ -112,7 +111,7 @@ export default function BookStore({ shelf, route, onMain, onBack, onToggle }: { 
                 adminArea={route?.area}
                 purchaseView={purchaseView}
                 onPurchaseView={setPurchaseView}
-                onMain={() => onMain("profile")}
+                unread={unread}
                 onTab={setAccountTab}
                 cart={cart}
                 books={store.items}

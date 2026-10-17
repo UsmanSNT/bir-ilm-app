@@ -5,7 +5,7 @@
  * «o'zim haqimda» (havolalar bosiladi), kasb va a'zolik yili, obunalar hamda to'rtta ko'rsatkich kartasi.
  */
 import { type ReactNode } from "react";
-import { Briefcase, CalendarDays, ChevronRight, Crown, Gem, Headphones, Menu, Share2, ShieldCheck, TrendingDown, TrendingUp, Trophy, Timer } from "lucide-react";
+import { Briefcase, CalendarDays, ChevronRight, Crown, Gem, Headphones, Menu, Share2, ShieldCheck, TrendingDown, TrendingUp, Trophy, Timer, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { Viewer } from "@/shared/contract";
 import { USER_ROLE_LABELS } from "@/shared/contract/roles";
@@ -28,7 +28,7 @@ export type ProfileHeroProps = {
 };
 
 /** 86842 → «86 842». */
-const grouped = (value: number) => String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+export const grouped = (value: number) => String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 const shown = (value: number | null) => (value === null ? "—" : grouped(value));
 
 const URL_IN_TEXT = /(https?:\/\/[^\s<>"']+)/g;
@@ -73,11 +73,72 @@ function useListening() {
   return { total, current, trend };
 }
 
+// ── Umumiy qismlar (Bir Ilm profili va do'kon hisobi bir xil ko'rinishda) ──
+
+/** Muqova (rasm yoki koshin naqsh), menyu tugmasi, avatar va rol belgisi hamda o'ng tomondagi tugmalar. */
+export function HeroTop({ viewer, tone = "lojuvard", onMenu, actions }: { viewer: Viewer; tone?: "lojuvard" | "firuza"; onMenu: () => void; actions: ReactNode }) {
+  const cover = absoluteUrl(viewer.coverUrl);
+  const avatar = absoluteUrl(viewer.avatarUrl);
+  const role = viewer.role;
+  return (
+    <>
+      <div className={`pv-cover is-${tone}${cover ? " has-image" : ""}`} style={cover ? { backgroundImage: `url("${cover}")` } : undefined}>
+        <button type="button" className="pv-cover-btn" onClick={onMenu} aria-label="Menyu va sozlamalar" title="Menyu">
+          <Menu size={21} />
+        </button>
+      </div>
+      <div className="pv-head">
+        <div className="pv-avatar">
+          {avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : (viewer.name.trim().slice(0, 1).toUpperCase() || "K")}
+          {role !== "user" && (
+            <span className={`pv-role is-${role}`} title={USER_ROLE_LABELS[role]} aria-label={USER_ROLE_LABELS[role]}>
+              {role === "admin" ? <Crown size={15} /> : <ShieldCheck size={15} />}
+            </span>
+          )}
+        </div>
+        <div className="pv-actions">{actions}</div>
+      </div>
+    </>
+  );
+}
+
+export type StatTone = "tilla" | "firuza" | "anor" | "lojuvard";
+export type StatItem = {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  tone: StatTone;
+  value: string;
+  unit?: string;
+  /** Sarlavha yonidagi qo'shimcha (masalan, o'sish foizi). */
+  extra?: ReactNode;
+  onClick?: () => void;
+};
+
+/** Ikki ustunli ko'rsatkich kartalari; bosiladiganlarida o'ng tomonda «›». */
+export function StatGrid({ items }: { items: StatItem[] }) {
+  return (
+    <div className="pv-stats">
+      {items.map((item) => {
+        const Icon = item.icon;
+        const body = (
+          <>
+            <small>{item.label}{item.extra}</small>
+            <span><i className={`pv-stat-icon is-${item.tone}`}><Icon size={17} /></i><b>{item.value}</b>{item.unit && <em>{item.unit}</em>}</span>
+            {item.onClick && <ChevronRight className="pv-stat-go" size={18} aria-hidden="true" />}
+          </>
+        );
+        return item.onClick
+          ? <button key={item.key} type="button" className="pv-stat" onClick={item.onClick}>{body}</button>
+          : <div key={item.key} className="pv-stat">{body}</div>;
+      })}
+    </div>
+  );
+}
+
 export default function ProfileHero(p: ProfileHeroProps) {
   const { viewer } = p;
   const listening = useListening();
-  const cover = absoluteUrl(viewer.coverUrl);
-  const avatar = absoluteUrl(viewer.avatarUrl);
   const joinedYear = viewer.joinedAt ? new Date(viewer.joinedAt).getFullYear() : null;
   const role = viewer.role;
 
@@ -98,28 +159,16 @@ export default function ProfileHero(p: ProfileHeroProps) {
 
   return (
     <header className="pv">
-      <div className={`pv-cover${cover ? " has-image" : ""}`} style={cover ? { backgroundImage: `url("${cover}")` } : undefined}>
-        <button type="button" className="pv-cover-btn" onClick={p.onMenu} aria-label="Menyu va sozlamalar" title="Menyu">
-          <Menu size={21} />
-        </button>
-      </div>
-
-      <div className="pv-head">
-        <div className="pv-avatar">
-          {avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : (viewer.name.trim().slice(0, 1).toUpperCase() || "K")}
-          {role !== "user" && (
-            <span className={`pv-role is-${role}`} title={USER_ROLE_LABELS[role]} aria-label={USER_ROLE_LABELS[role]}>
-              {role === "admin" ? <Crown size={15} /> : <ShieldCheck size={15} />}
-            </span>
-          )}
-        </div>
-        <div className="pv-actions">
+      <HeroTop
+        viewer={viewer}
+        onMenu={p.onMenu}
+        actions={<>
           <button type="button" className="pv-edit" onClick={p.onEdit}>Profilni tahrirlash</button>
           <button type="button" className="pv-share" onClick={() => void share()} aria-label="Profilni ulashish" title="Ulashish">
             <Share2 size={19} />
           </button>
-        </div>
-      </div>
+        </>}
+      />
 
       <div className="pv-identity">
         <h2>{viewer.name || "Kitobxon"}</h2>
@@ -143,32 +192,26 @@ export default function ProfileHero(p: ProfileHeroProps) {
         </p>
       </div>
 
-      <div className="pv-stats">
-        <div className="pv-stat">
-          <small>Ball</small>
-          <span><i className="pv-stat-icon is-tilla"><Gem size={17} /></i><b>{grouped(p.points)}</b></span>
-        </div>
-        <div className="pv-stat">
-          <small>Umumiy tinglash</small>
-          <span><i className="pv-stat-icon is-firuza"><Headphones size={17} /></i><b>{grouped(listening.total)}</b><em>daq</em></span>
-        </div>
-        <button type="button" className="pv-stat" onClick={p.onRank}>
-          <small>Reyting</small>
-          <span><i className="pv-stat-icon is-anor"><Trophy size={17} /></i><b>#{p.rank}</b></span>
-          <ChevronRight className="pv-stat-go" size={18} aria-hidden="true" />
-        </button>
-        <div className="pv-stat">
-          <small>
-            Oxirgi 7 kun
-            {listening.trend !== null && (
+      <StatGrid
+        items={[
+          { key: "points", label: "Ball", icon: Gem, tone: "tilla", value: grouped(p.points) },
+          { key: "listened", label: "Umumiy tinglash", icon: Headphones, tone: "firuza", value: grouped(listening.total), unit: "daq" },
+          { key: "rank", label: "Reyting", icon: Trophy, tone: "anor", value: `#${p.rank}`, onClick: p.onRank },
+          {
+            key: "week",
+            label: "Oxirgi 7 kun",
+            icon: Timer,
+            tone: "lojuvard",
+            value: grouped(listening.current),
+            unit: "daq",
+            extra: listening.trend !== null && (
               <span className={`pv-trend${listening.trend < 0 ? " is-down" : ""}`}>
                 {listening.trend < 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}{Math.abs(listening.trend)}%
               </span>
-            )}
-          </small>
-          <span><i className="pv-stat-icon is-lojuvard"><Timer size={17} /></i><b>{grouped(listening.current)}</b><em>daq</em></span>
-        </div>
-      </div>
+            ),
+          },
+        ]}
+      />
     </header>
   );
 }
