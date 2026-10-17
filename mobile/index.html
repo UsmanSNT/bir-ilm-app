@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      `viewport-fit=cover` telefon ekranining to'liq maydonini beradi;
+      "tirqish" va pastki chiziqni `env(safe-area-inset-*)` hisobga oladi
+      (mobile/native.css ga qarang). Bu app/layout.tsx dagi viewport bilan
+      bir xil, shuning uchun UI webdagi bilan aynan bir xil ko'rinadi.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#f4f7f5" />
+    <!-- Native qobiqda telefon raqamlarini avtomatik link qilmasin. -->
+    <meta name="format-detection" content="telephone=no" />
+    <title>Bir Ilm</title>
+  </head>
+  <body class="antialiased">
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

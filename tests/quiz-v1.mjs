@@ -1,0 +1,217 @@
+/**
+ * Viktorinalar testlari.
+ * Ishga tushirish: `node tests/quiz-v1.mjs`
+ */
+import assert from "node:assert/strict";
+import { statSync } from "node:fs";
+import { registerHooks } from "node:module";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = new URL("../", import.meta.url);
+const d1Module = new URL("scripts/local-d1.mjs", projectRoot).href;
+
+/** Bundler kengaytmasiz import qiladi; Node uchun uni o'zimiz topamiz. */
+function isFile(url) {
+  try {
+    return statSync(fileURLToPath(url)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function withExtension(url) {
+  if (isFile(url)) return url;
+
+  for (const candidate of [".ts", ".tsx", "/index.ts", "/index.tsx"]) {
+    const attempt = `${url}${candidate}`;
+    if (isFile(attempt)) return attempt;
+  }
+
+  return url;
+}
+
+// Loyihada `@/*` aliasi va Worker moduli ishlatiladi; Node uchun ularni
+// preview serveri qiladigan tarzda xaritalaymiz.
+registerHooks({
+  resolve(specifier, context, next) {
+    if (specifier === "cloudflare:workers") return { url: d1Module, shortCircuit: true };
+
+    if (specifier.startsWith("@/")) {
+      return next(withExtension(new URL(specifier.slice(2), projectRoot).href), context);
+    }
+
+    if (specifier.startsWith(".") && context.parentURL?.startsWith("file:")) {
+      return next(withExtension(new URL(specifier, context.parentURL).href), context);
+    }
+
+    return next(specifier, context);
+  },
+});
+
+const { sqlite } = await import(d1Module);
+
+
+const load = (path) => import(new URL(path, projectRoot).href);
+const session = await load("app/api/v1/auth/session/route.ts");
+const register = await load("app/api/v1/auth/register/route.ts");
+const login = await load("app/api/v1/auth/login/route.ts");
+const quizzes = await load("app/api/v1/quizzes/route.ts");
+const quiz = await load("app/api/v1/quizzes/[id]/route.ts");
+const sessionsRoute = await load("app/api/v1/quizzes/[id]/sessions/route.ts");
+const sessionRoute = await load("app/api/v1/quizzes/[id]/sessions/[sid]/route.ts");
+const joinRoute = await load("app/api/v1/quizzes/join/route.ts");
+const resultsRoute = await load("app/api/v1/quizzes/results/route.ts");
+
+const ORIGIN = "http://127.0.0.1:8787";
+const created = new Set();
+let ipCounter = 0;
+
+async function call(handler, path, { expect = 200, method = "GET", body, cookie, ip, params } = {}) {
+  const response = await handler(new Request(`${ORIGIN}${path}`, {
+    method,
+    headers: {
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      Origin: ORIGIN,
+      "X-Forwarded-For": ip ?? `10.0.0.${++ipCounter % 250}`,
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  }), { params: Promise.resolve(params ?? {}) });
+  const payload = await response.json();
+  assert.equal(response.status, expect, `${method} ${path} → ${response.status}: ${JSON.stringify(payload)}`);
+  const setCookie = response.headers.get("set-cookie");
+  return { payload, cookie: setCookie ? setCookie.split(";")[0] : null };
+}
+
+async function guest() {
+  const { payload, cookie } = await call(session.POST, "/api/v1/auth/session", { method: "POST", body: { platform: "web" }, expect: 201 });
+  created.add(payload.data.userId);
+  return { userId: payload.data.userId, cookie };
+}
+const viewerOf = async (cookie) => (await call(session.GET, "/api/v1/auth/session", { cookie })).payload.data;
+const suffix = Math.random().toString(36).slice(2, 8);
+const makeUser = async (label, role) => {
+  const g = await guest();
+  const reg = await call(register.POST, "/api/v1/auth/register", { method: "POST", cookie: g.cookie, expect: 201, body: { name: `Viktorina ${label}`, email: `quiz-${label}-${suffix}@example.com`, password: "kitob-sevaman-1" } });
+  if (role) sqlite.prepare("UPDATE users SET role=? WHERE id=?").run(role, reg.payload.data.userId);
+  return { cookie: reg.cookie, userId: reg.payload.data.userId };
+};
+const q = (prompt, choices, answer) => ({ prompt, choices, answer });
+const valid = { title: "Atom odatlar", bookId: null, questions: [q("Muallif kim?", ["James Clear", "Cal Newport"], 0), q("Odat halqasi necha bosqich?", ["2", "3", "4"], 2)] };
+
+try {
+  const admin = await makeUser("admin", "admin");
+  const user = await makeUser("user");
+  const g0 = await guest();
+
+  // Ruxsatlar: yaratish faqat admin/moderator; ko'rish hamma uchun.
+  await call(quizzes.POST, "/api/v1/quizzes", { method: "POST", cookie: user.cookie, body: valid, expect: 403 });
+  await call(quizzes.POST, "/api/v1/quizzes", { method: "POST", cookie: g0.cookie, body: valid, expect: 403 });
+
+  // Tekshiruvlar
+  const bad = (body) => call(quizzes.POST, "/api/v1/quizzes", { method: "POST", cookie: admin.cookie, body, expect: 422 });
+  await bad({ ...valid, title: " " });
+  await bad({ ...valid, questions: [] });
+  await bad({ ...valid, questions: [q("S?", ["faqat bitta"], 0)] });
+  await bad({ ...valid, questions: [q("S?", ["A", "B"], 2)] });
+  await bad({ ...valid, questions: [q("S?", ["A", "a"], 0)] });
+  await bad({ ...valid, questions: [q("", ["A", "B"], 0)] });
+  await call(quizzes.POST, "/api/v1/quizzes", { method: "POST", cookie: admin.cookie, body: { ...valid, bookId: "yoq-kitob" }, expect: 400 });
+  console.log("PASS: Ruxsatlar va tekshiruvlar: faqat admin/moderator yaratadi; bo'sh nom, savolsiz, bitta variant, noto'g'ri javob, takror variant, yo'q kitob rad etiladi.");
+
+  // Yaratish → hamma ko'radi
+  const made = (await call(quizzes.POST, "/api/v1/quizzes", { method: "POST", cookie: admin.cookie, body: valid, expect: 201 })).payload.data;
+  assert.equal(made.questions.length, 2);
+  assert.equal(made.minutes, 1);
+  const seen = (await call(quizzes.GET, "/api/v1/quizzes", { cookie: g0.cookie })).payload.data.items;
+  const mine = seen.find((x) => x.id === made.id);
+  assert.ok(mine);
+  assert.deepEqual(mine.questions[1], { prompt: "Odat halqasi necha bosqich?", choices: ["2", "3", "4"], answer: 2 });
+
+  // Kitobga bog'lash
+  const bookId = `quiz-book-${suffix}`;
+  sqlite.prepare("INSERT INTO books (id, title, author, summary, color, created_by) VALUES (?, 'Sinov kitobi', 'Muallif', '', '#123456', ?)").run(bookId, admin.userId);
+  const linked = (await call(quiz.PUT, `/api/v1/quizzes/${made.id}`, { method: "PUT", cookie: admin.cookie, params: { id: made.id }, body: { ...valid, title: "Yangilangan", bookId, questions: [...valid.questions, q("Uchinchi?", ["a", "b", "c", "d"], 3)] } })).payload.data;
+  assert.equal(linked.bookId, bookId);
+  assert.equal(linked.title, "Yangilangan");
+  assert.equal(linked.questions.length, 3);
+  assert.equal(linked.questions[2].answer, 3);
+  await call(quiz.PUT, `/api/v1/quizzes/${made.id}`, { method: "PUT", cookie: user.cookie, params: { id: made.id }, body: valid, expect: 403 });
+  await call(quiz.PUT, "/api/v1/quizzes/qz_yoq", { method: "PUT", cookie: admin.cookie, params: { id: "qz_yoq" }, body: valid, expect: 404 });
+  console.log("PASS: Yaratish, hamma ko'rishi, tahrirlash (savollar almashtiriladi), kitobga bog'lash.");
+
+  // Muqova rasmi: faqat quiz-media yuklagan `/media/quiz/` yo'li qabul qilinadi
+  await bad({ ...valid, image: "/etc/passwd" });
+  await bad({ ...valid, image: "/media/quiz/../../secret.png" });
+  const imageUrl = "/media/quiz/abcdefghijklmnop.png";
+  const withImage = (await call(quizzes.POST, "/api/v1/quizzes", { method: "POST", cookie: admin.cookie, body: { ...valid, title: "Rasmli", image: imageUrl }, expect: 201 })).payload.data;
+  assert.equal(withImage.image, imageUrl);
+  const noImage = (await call(quiz.PUT, `/api/v1/quizzes/${withImage.id}`, { method: "PUT", cookie: admin.cookie, params: { id: withImage.id }, body: { ...valid, title: "Rasmli", image: null } })).payload.data;
+  assert.equal(noImage.image, null, "Rasm olib tashlanganda maydon bo'shaydi");
+  assert.equal((await call(quizzes.GET, "/api/v1/quizzes", { cookie: g0.cookie })).payload.data.items.find((x) => x.id === made.id).image, null);
+  console.log("PASS: Muqova rasmi: faqat /media/quiz/ yo'li qabul qilinadi, olib tashlash saqlanadi.");
+
+  // Moderator ham boshqaradi; kitob o'chirilsa viktorina qoladi
+  const moderator = await makeUser("mod", "moderator");
+  await call(quiz.PUT, `/api/v1/quizzes/${made.id}`, { method: "PUT", cookie: moderator.cookie, params: { id: made.id }, body: { ...valid, bookId } });
+  sqlite.prepare("DELETE FROM books WHERE id=?").run(bookId);
+  const afterBook = (await call(quizzes.GET, "/api/v1/quizzes")).payload.data.items.find((x) => x.id === made.id);
+  assert.ok(afterBook && afterBook.bookId === null, "Kitob o'chirilsa, viktorina qoladi (kitobsiz)");
+
+  // --- Jonli vaqtlar va kirish kodlari ------------------------------------
+  const soon = new Date(Date.now() + 5 * 60_000).toISOString();      // kirish ochiq (10 daqiqa oldin)
+  const later = new Date(Date.now() + 3 * 3600_000).toISOString();   // hali ochilmagan
+  await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: user.cookie, params: { id: made.id }, body: { startsAt: soon }, expect: 403 });
+  await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: "ertaga" }, expect: 422 });
+  await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: new Date(Date.now() - 3600_000).toISOString() }, expect: 400 });
+  const withOne = (await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: soon }, expect: 201 })).payload.data;
+  const withTwo = (await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: later }, expect: 201 })).payload.data;
+  assert.equal(withTwo.sessions.length, 2);
+  const [s1, s2] = withTwo.sessions;
+  assert.match(s1.code, /^\d{6}$/);
+  assert.notEqual(s1.code, s2.code, "Har bir vaqtning o'z kodi bor");
+  // Kod faqat admin/moderatorga ko'rinadi
+  const pub = (await call(quizzes.GET, "/api/v1/quizzes", { cookie: user.cookie })).payload.data.items.find((x) => x.id === made.id);
+  assert.equal(pub.sessions.length, 2);
+  assert.ok(pub.sessions.every((x) => x.code === null), "Oddiy foydalanuvchiga kod ko'rinmaydi");
+  const staffView = (await call(quizzes.GET, "/api/v1/quizzes", { cookie: admin.cookie })).payload.data.items.find((x) => x.id === made.id);
+  assert.equal(staffView.sessions[0].code, s1.code);
+  // Kod bo'yicha kirish: holatlar
+  const j1 = (await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", cookie: user.cookie, body: { code: s1.code } })).payload.data;
+  assert.deepEqual([j1.quizId, j1.sessionId, j1.status], [made.id, s1.id, "open"]);
+  assert.equal((await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", body: { code: s2.code } })).payload.data.status, "upcoming");
+  await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", body: { code: "000000" }, expect: 404 });
+  await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", body: { code: "12ab" }, expect: 422 });
+  // Natija: faqat kirganlar; ishtirokchilar soni
+  await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: g0.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 2, total: 3 }, expect: 401 });
+  await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: user.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 4, total: 3 }, expect: 422 });
+  const saved = (await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: user.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 2, total: 3 }, expect: 201 })).payload.data;
+  assert.equal(saved.score, 67 * 3 + 8);
+  await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: user.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 3, total: 3 }, expect: 201 }); // qayta o'ynadi
+  const counted = (await call(quizzes.GET, "/api/v1/quizzes", { cookie: admin.cookie })).payload.data.items.find((x) => x.id === made.id);
+  assert.equal(counted.sessions[0].participants, 1, "Bir foydalanuvchi ikki marta o'ynasa ham bitta ishtirokchi");
+  // O'chirish
+  await call(sessionRoute.DELETE, `/api/v1/quizzes/${made.id}/sessions/${s2.id}`, { method: "DELETE", cookie: user.cookie, params: { id: made.id, sid: s2.id }, expect: 403 });
+  const afterDrop = (await call(sessionRoute.DELETE, `/api/v1/quizzes/${made.id}/sessions/${s2.id}`, { method: "DELETE", cookie: admin.cookie, params: { id: made.id, sid: s2.id } })).payload.data;
+  assert.equal(afterDrop.sessions.length, 1);
+  await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", body: { code: s2.code }, expect: 404 });
+  console.log("PASS: Jonli vaqtlar: har birining o'z kodi, kod faqat adminga ko'rinadi, kod bo'yicha kirish holatlari, natija va ishtirokchilar soni, o'chirish.");
+
+  // O'chirish
+  await call(quiz.DELETE, `/api/v1/quizzes/${made.id}`, { method: "DELETE", cookie: user.cookie, params: { id: made.id }, expect: 403 });
+  await call(quiz.DELETE, `/api/v1/quizzes/${made.id}`, { method: "DELETE", cookie: admin.cookie, params: { id: made.id } });
+  assert.ok(!(await call(quizzes.GET, "/api/v1/quizzes")).payload.data.items.some((x) => x.id === made.id));
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM quiz_questions WHERE quiz_id=?").get(made.id).n, 0, "Savollar ham o'chdi");
+  console.log("PASS: Moderator ham tahrirlaydi; kitob o'chsa viktorina qoladi; o'chirish savollar bilan birga.");
+
+  console.log("\nHAMMASI O'TDI: viktorinalar.");
+} finally {
+  const ids = [...created];
+  if (ids.length) {
+    const ph = ids.map(() => "?").join(",");
+    sqlite.prepare(`DELETE FROM quizzes WHERE created_by IN (${ph})`).run(...ids);
+    for (const table of ["user_sessions", "user_passwords", "auth_accounts"]) sqlite.prepare(`DELETE FROM ${table} WHERE user_id IN (${ph})`).run(...ids);
+    sqlite.prepare(`DELETE FROM users WHERE id IN (${ph})`).run(...ids);
+  }
+  console.log(`Tozalandi: ${ids.length} ta foydalanuvchi.`);
+}

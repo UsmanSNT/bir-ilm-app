@@ -1,6 +1,20 @@
-import type { Metadata } from "next";
+import PwaRegister from "./pwa-register";
+import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/fraunces";
+import "@fontsource-variable/fraunces/wght-italic.css";
+import "@fontsource-variable/caveat";
+import "@fontsource-variable/manrope";
 import "./globals.css";
 import "./discovery.css";
+import "./mobile-screens.css";
+import "./mobile-library.css";
+import "./profile-screens.css";
+import "./community/community.css";
+import "./talks.css";
+import "./store.css";
+import "./naqsh.css";
+import "./profile-v2.css";
+import "./live-room.css";
 
 export const metadata: Metadata = {
   title: "Bir Ilm — kitobxonlik ilovasi",
@@ -17,10 +31,17 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/assets/bir-ilm-logo.jpg",
+    icon: [{ url: "/assets/bir-ilm-logo.jpg", type: "image/jpeg" }],
+    shortcut: "/assets/bir-ilm-logo.jpg",
+    apple: "/assets/icon-192.png",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f7f1e4",
 };
 
 export default function RootLayout({
@@ -30,7 +51,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="uz">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">{children}<PwaRegister /></body>
     </html>
   );
 }

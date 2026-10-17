@@ -1,0 +1,519 @@
+/* Suhbatlar bo'limi — xonaga kirishdan oldingi asosiy oyna. */
+.talks-board {
+  --tb-green: #192558;
+  --tb-green-dark: #202755;
+  --tb-mint: #e6f4f3;
+  --tb-line: #daefed;
+  --tb-ink: #131731;
+  --tb-muted: #605d70;
+  display: grid;
+  gap: 16px;
+  padding-bottom: 8px;
+}
+
+.tb-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--tb-line);
+  border-radius: 999px;
+  background: #fcf9f3;
+}
+.tb-filters button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #162250;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tb-filters button.active {
+  background: var(--tb-green);
+  color: #fff;
+  box-shadow: 0 4px 12px #19255830;
+}
+.tb-filters svg { flex-shrink: 0; }
+
+/* ── Kelgusi / jonli suhbat kartasi ── */
+.tb-feature {
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid #cde9e7;
+  border-radius: 18px;
+  background: #faf5ec;
+}
+.tb-feature.is-live {
+  border-color: #f2c6c6;
+  background: linear-gradient(135deg, #fff5f4, #faf5ec 70%);
+}
+.tb-stretch {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.tb-stretch:focus-visible { outline: 3px solid #273b8a; outline-offset: 2px; }
+.tb-feature-body { display: grid; gap: 12px; min-width: 0; }
+.tb-feature-body > * { pointer-events: none; }
+.tb-feature .tb-action { pointer-events: auto; position: relative; z-index: 1; }
+
+.tb-cover {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  color: #fff;
+  box-shadow: 0 8px 18px #12173120;
+  pointer-events: none;
+}
+.tb-cover img { width: 100%; height: 100%; object-fit: cover; }
+.tb-cover b {
+  padding: 10px;
+  font-family: var(--f-display);
+  font-weight: 500;
+  line-height: 1.15;
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.tb-cover-lg { width: 150px; aspect-ratio: 3 / 4; }
+.tb-cover-lg b { font-size: 22px; }
+.tb-cover-sm { width: 110px; height: 112px; border-radius: 10px; }
+.tb-cover-sm b { font-size: 15px; }
+
+.tb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  padding: 5px 10px;
+  border: 1px solid #b9dfdd;
+  border-radius: 8px;
+  background: #e0f1f0;
+  color: var(--tb-green-dark);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.tb-badge.live { border-color: #f3b7b4; background: #fde6e4; color: #b4232f; }
+.tb-badge i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e5484d;
+  animation: tb-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tb-pulse { 50% { opacity: 0.35; } }
+
+.tb-feature h3 {
+  margin: 0;
+  color: var(--tb-ink);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.tb-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin: 0;
+  color: #2f2d4f;
+  font-size: 16px;
+}
+.tb-meta span { display: inline-flex; align-items: center; gap: 8px; }
+.tb-meta svg { color: #595668; flex-shrink: 0; }
+
+.tb-feature-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+.tb-people { display: inline-flex; align-items: center; gap: 8px; color: var(--tb-muted); font-size: 15px; }
+.tb-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1.5px solid #bde2df;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--tb-green-dark);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tb-action.on { background: var(--tb-mint); }
+.tb-action.primary { border-color: var(--tb-green); background: var(--tb-green); color: #fff; }
+.tb-action:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── O'tgan suhbatlar ── */
+.tb-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+.tb-section-head h3 { margin: 0; color: var(--tb-ink); font-size: 24px; font-weight: 700; }
+.tb-section-head button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: #4e4c5a;
+  font-size: 16px;
+  cursor: pointer;
+}
+.tb-past-list { display: grid; gap: 14px; }
+.tb-past {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 14px 18px 14px 14px;
+  border: 1px solid #f7f0e2;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 14px #1a20460d;
+}
+.tb-past-body { display: grid; gap: 10px; min-width: 0; }
+.tb-past h4 { margin: 0; color: var(--tb-ink); font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.tb-past .tb-meta { font-size: 15px; }
+.tb-wave { display: flex; align-items: center; gap: 3px; height: 24px; overflow: hidden; }
+.tb-wave i { flex: 0 0 3px; border-radius: 2px; background: #dbceb7; }
+.tb-wave i.on { background: #223378; }
+.tb-play {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--tb-mint);
+  color: var(--tb-green-dark);
+  cursor: pointer;
+}
+.tb-play svg { margin-left: 3px; }
+.tb-play:hover { background: #d7edec; }
+
+.tb-empty {
+  margin: 0;
+  padding: 22px 18px;
+  border: 1px dashed #c8e7e5;
+  border-radius: 16px;
+  background: #fcf9f3;
+  color: var(--tb-muted);
+  text-align: center;
+}
+
+/* ── Fikr ulashish kartasi ── */
+.tb-share {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 18px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 20px 22px;
+  border: 0;
+  border-radius: 18px;
+  background: #fbf6ed;
+  color: var(--tb-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.tb-share-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border: 1px solid #cde9e7;
+  border-radius: 50%;
+  background: #f9f3e7;
+  color: var(--tb-green);
+}
+.tb-share-copy { display: grid; gap: 6px; }
+.tb-share-copy strong { font-size: 18px; }
+.tb-share-copy small { color: #504e5e; font-size: 15px; line-height: 1.45; }
+.tb-share-art { color: #54e1df; }
+
+/* Tinglash tugmalari va to'lqin chizig'i (joyni tanlash). */
+.tb-past-actions { display: flex; align-items: center; gap: 4px; }
+.tb-kebab {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #4e4c5a;
+  cursor: pointer;
+}
+.tb-kebab:hover { background: #faf5ec; }
+button.tb-wave { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+button.tb-wave:disabled { cursor: default; }
+.tb-manage, .tb-icon { padding: 0 10px; }
+
+/* Qayta ishlanmoqda (faqat admin/moderator). */
+.tb-pending-list { display: grid; gap: 10px; }
+.tb-pending-hint { margin: -4px 0 2px; color: var(--tb-muted); font-size: 13px; }
+.tb-pending {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px dashed #d8c48f;
+  border-radius: 14px;
+  background: #fffaf0;
+}
+.tb-pending-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #f6ecd2; color: #8a6511; }
+.tb-pending strong, .tb-pending small { display: block; overflow-wrap: anywhere; }
+.tb-pending strong { color: var(--tb-ink); font-size: 15px; }
+.tb-pending small { margin-top: 3px; color: var(--tb-muted); font-size: 13px; }
+.tb-pending button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1.5px solid #d8c48f;
+  border-radius: 12px;
+  background: #fff;
+  color: #6b4f0e;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Boshqaruv oynasi. */
+.tb-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: end center;
+  padding: 16px;
+  background: rgba(15, 18, 40, 0.45);
+}
+@media (min-width: 641px) { .tb-sheet-backdrop { place-items: center; } }
+.tb-sheet {
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 18, 40, 0.25);
+}
+.tb-sheet header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.tb-sheet header strong, .tb-sheet header small { display: block; }
+.tb-sheet header strong { color: var(--tb-ink); font-size: 18px; }
+.tb-sheet header small { margin-top: 2px; color: var(--tb-muted); }
+.tb-sheet header button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 10px; background: #faf5ec; cursor: pointer; }
+.tb-sheet h4 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 6px 0 0; color: var(--tb-ink); font-size: 15px; }
+.tb-sheet h4 span { color: var(--tb-muted); font-size: 12px; font-weight: 500; }
+.tb-sheet-empty { margin: 0; color: var(--tb-muted); font-size: 14px; }
+.tb-recs { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tb-recs li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #def0ef;
+  border-radius: 12px;
+  color: var(--tb-green-dark);
+}
+.tb-recs b, .tb-recs small { display: block; }
+.tb-recs b { color: var(--tb-ink); font-size: 14px; }
+.tb-recs small { color: var(--tb-muted); font-size: 12px; }
+.tb-recs a, .tb-recs button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--tb-mint);
+  color: var(--tb-green-dark);
+  cursor: pointer;
+}
+.tb-recs button { background: #fdeeee; color: #b4232f; }
+.tb-book { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px; border-radius: 14px; background: #fcf9f3; }
+.tb-book-cover { display: block; width: 46px; height: 64px; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 10px -4px rgba(19, 23, 49, .4); }
+.tb-book-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tb-book strong { display: block; overflow: hidden; color: var(--tb-ink); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.tb-book small { display: block; margin-top: 2px; color: var(--tb-muted); font-size: 12px; }
+.tb-archive { display: grid; gap: 8px; }
+.tb-archive audio { width: 100%; }
+.tb-archive small { color: var(--tb-muted); font-size: 12px; }
+.tb-archive div { display: flex; flex-wrap: wrap; gap: 8px; }
+.tb-sheet-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1.5px solid #bde2df;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--tb-green-dark);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tb-sheet-btn input, .tb-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.tb-upload {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1.5px dashed #6be5e3;
+  border-radius: 14px;
+  background: #fcf9f3;
+  color: var(--tb-green-dark);
+  cursor: pointer;
+}
+.tb-upload strong, .tb-upload small { display: block; }
+.tb-upload small { margin-top: 2px; color: var(--tb-muted); font-size: 12px; }
+.tb-upload.is-disabled, .tb-sheet-btn.is-disabled { opacity: 0.55; pointer-events: none; }
+.tb-progress { display: grid; gap: 6px; font-size: 13px; color: #1b295f; }
+.tb-progress .bar { height: 6px; overflow: hidden; border-radius: 99px; background: #def0ef; }
+.tb-progress .bar i { display: block; height: 100%; background: var(--tb-green); }
+.tb-progress button { justify-self: start; border: 0; background: transparent; color: #b4232f; cursor: pointer; }
+.tb-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  margin-top: 6px;
+  border: 1px solid #f3c1c1;
+  border-radius: 12px;
+  background: #fff5f5;
+  color: #b4232f;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tb-danger:disabled, .tb-sheet button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Boshqaruv oynasida suhbat vaqtini o'zgartirish. */
+.tb-resched { display: grid; gap: 8px; }
+.tb-resched-title { display: inline-flex; align-items: center; gap: 6px; }
+.tb-resched input[type="datetime-local"],
+.tb-resched input:not([type]) {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid #c8e7e5;
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 15px;
+}
+.tb-resched-announce { display: flex; align-items: center; gap: 8px; color: #2b2947; font-size: 13px; cursor: pointer; }
+.tb-resched-announce input { width: 18px; height: 18px; margin: 0; accent-color: #192558; }
+.tb-resched-save { justify-self: start; }
+
+/* Suhbat oynasidagi «yozilmoqda» belgisi — hamma qatnashchi ko'radi. */
+.live-rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fde6e4;
+  color: #b4232f;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.live-rec i { width: 8px; height: 8px; border-radius: 50%; background: #e5484d; animation: tb-pulse 1.2s ease-in-out infinite; }
+
+@media (max-width: 640px) {
+  .talks-board { gap: 14px; }
+  .tb-filters { border-radius: 16px; }
+  .tb-filters button { flex-direction: column; gap: 3px; min-height: 52px; padding: 4px 2px; border-radius: 12px; font-size: 12.5px; }
+  .tb-feature { grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 12px; }
+  .tb-cover-lg { width: 96px; }
+  .tb-cover-lg b { font-size: 16px; }
+  .tb-feature h3 { font-size: 17px; }
+  .tb-meta { gap: 4px 14px; font-size: 13.5px; }
+  .tb-meta svg { width: 15px; height: 15px; }
+  .tb-badge { font-size: 11px; padding: 4px 8px; }
+  .tb-feature-foot { grid-column: 1 / -1; }
+  .tb-people { font-size: 13px; }
+  .tb-action { min-height: 40px; padding: 0 12px; font-size: 13.5px; border-radius: 12px; }
+  .tb-section-head h3 { font-size: 20px; }
+  .tb-section-head button { font-size: 14px; }
+  .tb-past { gap: 12px; padding: 10px 12px 10px 10px; }
+  .tb-cover-sm { width: 70px; height: 74px; }
+  .tb-cover-sm b { font-size: 10px; padding: 5px; }
+  .tb-past h4 { font-size: 16px; }
+  .tb-past .tb-meta { font-size: 13px; }
+  .tb-wave { height: 18px; gap: 2px; }
+  .tb-wave i { flex-basis: 2px; }
+  .tb-play { width: 46px; height: 46px; }
+  .tb-play svg { width: 17px; height: 17px; }
+  .tb-share { grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; padding: 16px; }
+  .tb-share-icon { width: 54px; height: 54px; }
+  .tb-share-icon svg { width: 22px; height: 22px; }
+  .tb-share-copy strong { font-size: 16px; }
+  .tb-share-copy small { font-size: 13px; }
+  .tb-share-art { display: none; }
+}
+
+/* «Saqlash» va «O'chirish» bitta qatorda */
+.tb-actions-row { display: flex; align-items: stretch; gap: 8px; }
+.tb-actions-row .tb-resched-save { flex: none; }
+.tb-actions-row .tb-danger { flex: 1; margin-top: 0; padding: 0 12px; }
+
+/*
+ * Kelgusi suhbat kartasi: yuqorida muqova va nom; muqova ostida bir qatorda vaqt («2026.10.17 22:00 KR»);
+ * pastda asosiy tugma va uning yonida boshqarish (admin) yoki eslatma belgisi.
+ * Kompyuterda vaqt muqova ostida, tugmalar uning yonida; telefonda har biri alohida qatorda, butun kenglikda.
+ */
+.tb-feature { row-gap: 14px; }
+.tb-feature .tb-cover-lg { grid-column: 1; grid-row: 1; }
+.tb-feature-body { grid-column: 2; grid-row: 1; align-self: center; gap: 10px; pointer-events: none; }
+.tb-when { grid-column: 1; grid-row: 2; align-self: center; justify-self: center; text-align: center; color: var(--tb-ink); font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .01em; white-space: nowrap; pointer-events: none; }
+.tb-feature-foot { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: 0; pointer-events: none; }
+.tb-feature-foot .tb-action { justify-content: center; white-space: nowrap; }
+.tb-feature-foot .tb-manage,
+.tb-feature-foot .tb-icon { width: 44px; padding: 0; }
+@media (max-width: 640px) {
+  .tb-feature { row-gap: 10px; }
+  .tb-feature-body { gap: 8px; }
+  .tb-when { grid-column: 1 / -1; font-size: 13px; }
+  .tb-feature-foot { grid-column: 1 / -1; grid-row: 3; padding-top: 12px; border-top: 1px dashed #d9c9a3; }
+  .tb-feature-foot .tb-manage,
+  .tb-feature-foot .tb-icon { width: 40px; }
+}
+
+/* Telefonda «Suhbat» sarlavhasi kerak emas: sahifaning o'z bo'limlar qatori bor. */
+@media (max-width: 980px) {
+  .show-talks .page-heading { display: none; }
+}
