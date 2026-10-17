@@ -1,6 +1,5 @@
 "use client";
 
-import { TalkCountdownText } from "./talk-waiting";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Bell,
@@ -26,7 +25,7 @@ import type { LiveSession } from "@/shared/contract/live";
 import BookEditor from "./book-editor";
 import TalkManage from "./talk-manage";
 import TalkGate from "./talk-gate";
-import { WEEKDAYS, clock, dayMonth, durationLabel, toggleTalkReminder, useNow, useTalkReminders } from "./talk-format";
+import { clock, dayMonth, durationLabel, koreaStamp, toggleTalkReminder, useTalkReminders } from "./talk-format";
 
 // Suhbatlar bo'limining asosiy oynasi (xonaga kirishdan oldingi holat).
 
@@ -46,23 +45,6 @@ function duration(s: LiveSession) {
   const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
   const sec = String(total % 60).padStart(2, "0");
   return h ? `${h}:${m}:${sec}` : `${Number(m)}:${sec}`;
-}
-
-function untilLabel(iso: string) {
-  if (Date.parse(iso) <= Date.now()) return "Boshlanishi kutilmoqda";
-  const days = Math.round((new Date(iso).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86_400_000);
-  if (days <= 0) return "Bugun";
-  if (days === 1) return "Ertaga";
-  return `${days} kundan keyin`;
-}
-
-/** Kartada: 24 soatdan kam qolsa — jonli hisoblagich, aks holda "Ertaga" / "N kundan keyin". */
-function UntilText({ iso }: { iso: string }) {
-  const now = useNow(60_000);
-  const left = Date.parse(iso) - now;
-  if (left > 0 && left < 86_400_000) return <>Boshlanishiga <TalkCountdownText scheduledAt={iso} /></>;
-  if (left <= 0) return <>Boshlanishi kutilmoqda</>;
-  return <>{untilLabel(iso)}</>;
 }
 
 // To'lqin chizig'i suhbat id'sidan hosil bo'ladi — har safar bir xil ko'rinadi.
@@ -196,7 +178,6 @@ export default function TalksBoard({
   }
 
   const featured = (s: LiveSession) => {
-    const when = new Date(s.scheduledAt);
     const book = bookFor(s.bookTitle);
     const live = s.status === "live";
     const reminded = reminders.includes(s.id);
@@ -205,34 +186,15 @@ export default function TalksBoard({
         <button type="button" className="tb-stretch" aria-label={`${s.bookTitle} suhbatini ochish`} onClick={() => open(s)} />
         <Cover title={s.bookTitle} url={book?.coverUrl} color={book?.color} size="lg" />
         <div className="tb-feature-body">
-          <span className={`tb-badge${live ? " live" : ""}`}>
-            {live ? <><i /> JONLI EFIRDA</> : <><CalendarDays size={15} /> KELGUSI SUHBAT</>}
-          </span>
+          {live && <span className="tb-badge live"><i /> JONLI EFIRDA</span>}
           <h3>{s.bookTitle} – {s.title}</h3>
-          <p className="tb-meta">
-            <span><CalendarDays size={17} /> {dayMonth(when)}, {WEEKDAYS[when.getDay()]}</span>
-            <span><Clock3 size={17} /> {clock(when)}</span>
-          </p>
+          {(live || s.participantCount > 0) && (
+            <span className="tb-people"><Users size={16} /> {s.participantCount} kishi qatnashmoqda</span>
+          )}
         </div>
         <ChevronRight className="tb-chevron" size={24} aria-hidden="true" />
+        <time className="tb-when" dateTime={s.scheduledAt}>{koreaStamp(s.scheduledAt)}</time>
         <div className="tb-feature-foot">
-          <span className="tb-people">
-            {live || s.participantCount > 0 ? (
-              <><Users size={16} /> {s.participantCount} kishi qatnashmoqda</>
-            ) : (
-              <><Clock3 size={16} /> <UntilText iso={s.scheduledAt} /></>
-            )}
-          </span>
-          {isAdmin && (
-            <button type="button" className="tb-action tb-manage" onClick={() => setManaging(s.id)} aria-label="Suhbatni boshqarish">
-              <Settings2 size={17} />
-            </button>
-          )}
-          {!live && !isAdmin && (
-            <button type="button" className={`tb-action tb-icon${reminded ? " on" : ""}`} onClick={() => toggleReminder(s)} aria-pressed={reminded} aria-label={reminded ? "Eslatmani olib tashlash" : "Eslatma qo‘yish"}>
-              {reminded ? <BellRing size={17} /> : <Bell size={17} />}
-            </button>
-          )}
           {live ? (
             <button type="button" className="tb-action primary" onClick={() => open(s)} >
               <Mic size={17} /> Qo‘shilish
@@ -244,6 +206,16 @@ export default function TalksBoard({
           ) : (
             <button type="button" className="tb-action" onClick={() => open(s)} >
               <Clock3 size={17} /> Suhbat hali boshlanmadi
+            </button>
+          )}
+          {isAdmin && (
+            <button type="button" className="tb-action tb-manage" onClick={() => setManaging(s.id)} aria-label="Suhbatni boshqarish" title="Boshqarish">
+              <Settings2 size={17} />
+            </button>
+          )}
+          {!live && !isAdmin && (
+            <button type="button" className={`tb-action tb-icon${reminded ? " on" : ""}`} onClick={() => toggleReminder(s)} aria-pressed={reminded} aria-label={reminded ? "Eslatmani olib tashlash" : "Eslatma qo‘yish"}>
+              {reminded ? <BellRing size={17} /> : <Bell size={17} />}
             </button>
           )}
         </div>

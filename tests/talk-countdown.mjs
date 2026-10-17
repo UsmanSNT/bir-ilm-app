@@ -1,6 +1,6 @@
 /** Suhbat boshlanish hisoblagichi (sof funksiyalar). `node tests/talk-countdown.mjs` */
 import assert from "node:assert/strict";
-import { countdownParts, countdownShort } from "../app/talk-format.ts";
+import { countdownParts, countdownShort, koreaStamp } from "../app/talk-format.ts";
 
 const T0 = Date.parse("2026-10-04T13:00:00.000Z");
 const at = (ms) => new Date(T0).toISOString() && T0 + ms;
@@ -40,4 +40,10 @@ assert.equal(countdownShort(new Date(T0).toISOString(), T0 - (3600 + 125) * 1000
 assert.equal(countdownShort(new Date(T0).toISOString(), T0 - (86_400 + 3600) * 1000), "1 kun 01:00:00");
 assert.equal(countdownShort(new Date(T0).toISOString(), T0 + 1), "Boshlanishi kutilmoqda");
 
-console.log("PASS: hisoblagich: kun/soat/daqiqa/soniya, chegaralar, kechikish, noto'g'ri sana, qisqa ko'rinish.");
+// Koreya vaqti (UTC+9), bir qatorda; yarim tun "00", "24" emas; noto'g'ri sana — bo'sh.
+assert.equal(koreaStamp("2026-10-17T13:00:00.000Z"), "2026.10.17 22:00 KR");
+assert.equal(koreaStamp("2026-10-17T15:00:00.000Z"), "2026.10.18 00:00 KR");
+assert.equal(koreaStamp("2026-01-05T00:05:00.000Z"), "2026.01.05 09:05 KR");
+assert.equal(koreaStamp("sana-emas"), "");
+
+console.log("PASS: hisoblagich: kun/soat/daqiqa/soniya, chegaralar, kechikish, noto'g'ri sana, qisqa ko'rinish, Koreya vaqti.");

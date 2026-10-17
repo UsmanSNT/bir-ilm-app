@@ -11,6 +11,25 @@ export const WEEKDAYS = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Pay
 export const dayMonth = (d: Date) => `${d.getDate()}-${MONTHS[d.getMonth()]}`;
 export const clock = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
+// Suhbatlar Koreya vaqti bilan o'tadi: qayerdan qaralmasin, vaqt bir xil ko'rinadi.
+const KOREA_TIME = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Bir qatorda Koreya vaqti: "2026.10.17 22:00 KR". Noto'g'ri sana bo'lsa — bo'sh satr. */
+export function koreaStamp(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const part = Object.fromEntries(KOREA_TIME.formatToParts(date).map((p) => [p.type, p.value]));
+  return `${part.year}.${part.month}.${part.day} ${part.hour}:${part.minute} KR`;
+}
+
 /** Davomiylik: `m:ss`, bir soatdan oshsa `h:mm:ss`. */
 export function durationLabel(seconds: number) {
   const s = Math.max(0, Math.round(seconds));
