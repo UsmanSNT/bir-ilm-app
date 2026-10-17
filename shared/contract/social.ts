@@ -11,6 +11,7 @@ export const FOCUS_MINUTE_OPTIONS = [15, 25, 45, 60] as const;
 export const LIMITS = {
   name: 40,
   bio: 300,
+  profession: 60,
   bookTitle: 160,
   postBody: 2000,
   replyBody: 1000,
@@ -39,9 +40,47 @@ export const createReplySchema = z.object({
   parentId: z.string().min(1).max(64).optional(),
 });
 
+// ── Shaxsiy ma'lumotlar ─────────────────────────────────────────────
+
+export const GENDERS = ["male", "female"] as const;
+export type Gender = (typeof GENDERS)[number];
+export const GENDER_LABELS: Record<Gender, string> = { male: "Erkak", female: "Ayol" };
+
+/** Tahallus: 3–24 belgi — lotin kichik harf, raqam, «_» va «.» (nuqta boshida/oxirida yoki ketma-ket emas). */
+export const USERNAME_PATTERN = /^(?![.])(?!.*[.]{2})[a-z0-9_.]{3,24}(?<![.])$/;
+/** Ilova nomi va xizmat rollari bilan adashtiradigan tahalluslar band qilingan. */
+const RESERVED_USERNAMES = new Set(["admin", "administrator", "moderator", "birilm", "bir_ilm", "bir.ilm", "support", "help", "root", "system", "official"]);
+
+/** «@Ali_99 » → «ali_99». */
+export const normalizeUsername = (value: string) => value.trim().replace(/^@+/, "").toLowerCase();
+
+const usernameSchema = z
+  .string()
+  .max(40)
+  .transform(normalizeUsername)
+  .refine((value) => USERNAME_PATTERN.test(value), "Tahallus 3–24 belgi: lotin harflari, raqam, «_» yoki «.» bo'lsin.")
+  .refine((value) => !RESERVED_USERNAMES.has(value), "Bu tahallusni tanlab bo'lmaydi.");
+
+/** Tug'ilgan sana: haqiqiy kun, 1900-yildan keyin va kamida 5 yosh. */
+const birthDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Sanani YYYY-MM-DD ko'rinishida yuboring.")
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00Z`);
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) return false;
+    const latest = new Date();
+    latest.setUTCFullYear(latest.getUTCFullYear() - 5);
+    return date.getUTCFullYear() >= 1900 && date <= latest;
+  }, "Tug'ilgan sana noto'g'ri.");
+
 export const updateProfileSchema = z.object({
   name: trimmed(LIMITS.name).min(1).optional(),
   bio: trimmed(LIMITS.bio).optional(),
+  /** null — olib tashlash. */
+  username: usernameSchema.nullable().optional(),
+  birthDate: birthDateSchema.nullable().optional(),
+  gender: z.enum(GENDERS).nullable().optional(),
+  profession: trimmed(LIMITS.profession).optional(),
 });
 
 export const followSchema = z.object({

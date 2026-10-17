@@ -62,6 +62,16 @@ export type Viewer = {
   twoFactor: boolean;
   /** Shaxsiy sahifa orqa foni (rasm manzili) yoki null. */
   coverUrl: string | null;
+  /** Tahallus (@ siz) yoki null. */
+  username: string | null;
+  /** Kasb / soha (bo'sh bo'lishi mumkin). */
+  profession: string;
+  /** Tug'ilgan sana (YYYY-MM-DD) — faqat o'ziga qaytariladi. */
+  birthDate: string | null;
+  /** Jins — faqat o'ziga qaytariladi. */
+  gender: "male" | "female" | null;
+  /** Hisob yaratilgan vaqt (ISO). */
+  joinedAt: string | null;
 };
 
 export type LinkedAccount = {

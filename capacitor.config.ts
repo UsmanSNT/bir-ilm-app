@@ -44,6 +44,12 @@ const config: CapacitorConfig = {
       // Kontent status bar ostiga chiqmasin — joylashuvni CSS hal qiladi.
       overlaysWebView: false,
     },
+    SystemBars: {
+      // WebView ekran chetigacha (edge-to-edge): pastki tizim paneli ostida kontent ko'rinadi,
+      // `env(safe-area-inset-*)` to'g'ri qiymat beradi (mobile/index.html: viewport-fit=cover).
+      insetsHandling: "css",
+      initialViewportFitValueHint: "cover",
+    },
     Keyboard: {
       // Klaviatura ochilganda WebView'ni native tarzda kichraytiradi.
       resize: KeyboardResize.Native,

@@ -22,13 +22,17 @@ body {
 }
 
 body {
-  /* Status bar va home indicator ostida kontent qolib ketmasin. */
+  /* Status bar ostida kontent qolib ketmasin. */
   padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
+  /*
+   * Pastda padding yo'q: kontent tizim navigatsiya paneli (Android tugmalari / iPhone chizig'i) ostidan
+   * shaffof ko'rinib o'tadi. Pastki menyu va sahifa oxiri o'zi `env(safe-area-inset-bottom)` ni hisobga oladi.
+   */
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
-  /* Yon tomonga tortib "oq chiziq" chiqmasin. */
+  /* Yon tomonga tortib "oq chiziq" chiqmasin; clip — scroll konteyner yaratmaydi (sticky navbar ishlaydi). */
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 #root {

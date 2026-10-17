@@ -46,7 +46,10 @@ export const GET = defineRoute<undefined, Viewer>({
       getProfile(db, identity.userId),
       getUserRole(db, identity.userId),
       listAccounts(db, identity.userId),
-      db.query.users.findFirst({ where: eq(schema.users.id, identity.userId), columns: { avatarUrl: true, coverUrl: true } }),
+      db.query.users.findFirst({
+        where: eq(schema.users.id, identity.userId),
+        columns: { avatarUrl: true, coverUrl: true, username: true, profession: true, birthDate: true, gender: true, createdAt: true },
+      }),
       isSignedIn(db, identity.userId),
       hasPassword(db, identity.userId),
       hasTwoFactor(db, identity.userId),
@@ -72,6 +75,12 @@ export const GET = defineRoute<undefined, Viewer>({
       hasPassword: passwordSet,
       twoFactor,
       coverUrl: user?.coverUrl ?? null,
+      username: user?.username ?? null,
+      profession: user?.profession ?? "",
+      birthDate: user?.birthDate ?? null,
+      gender: user?.gender ?? null,
+      // SQLite CURRENT_TIMESTAMP — UTC, «YYYY-MM-DD HH:MM:SS».
+      joinedAt: user?.createdAt ? (user.createdAt.includes("T") ? user.createdAt : `${user.createdAt.replace(" ", "T")}Z`) : null,
     };
   },
 });

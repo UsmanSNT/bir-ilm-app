@@ -133,9 +133,17 @@ export const users = sqliteTable("users", {
   avatarUrl: text("avatar_url"),
   /** Shaxsiy sahifa orqa foni: /media/profile/<fayl>. */
   coverUrl: text("cover_url"),
+  /** Tahallus (@...): kichik harf, yagona; null — tanlanmagan. */
+  username: text("username"),
+  /** Tug'ilgan sana (YYYY-MM-DD) — faqat egasiga ko'rinadi. */
+  birthDate: text("birth_date"),
+  /** Jins — faqat egasiga ko'rinadi. */
+  gender: text("gender", { enum: ["male", "female"] }),
+  /** Kasb / soha: profilda ko'rinadi. */
+  profession: text("profession").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+}, (t) => [uniqueIndex("idx_users_username").on(t.username)]);
 
 /**
  * Kirish (login) sessiyalari: token xeshi → foydalanuvchi.

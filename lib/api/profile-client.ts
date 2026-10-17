@@ -1,4 +1,5 @@
 /** Profil: ism/bio va rasmlar (avatar, orqa fon). */
+import type { UpdateProfileInput } from "@/shared/contract";
 import { API_PREFIX } from "./config";
 
 type Envelope<T> = { data?: T; error?: { message?: string; fields?: Record<string, string[]> } };
@@ -18,7 +19,8 @@ async function send<T>(path: string, init: RequestInit): Promise<T> {
   return body.data;
 }
 
-export const saveProfileText = (input: { name: string; bio: string }) =>
+/** Faqat yuborilgan maydonlar o'zgaradi; `null` — tahallus/sana/jinsni olib tashlash. */
+export const saveProfile = (input: UpdateProfileInput) =>
   send<unknown>("/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
 
 export type ProfileImageKind = "avatar" | "cover";

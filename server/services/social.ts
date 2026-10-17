@@ -5,11 +5,11 @@
  * tekshirilgan, `userId` allaqachon serverda hisoblangan. Shu sababli aynan shu
  * funksiyalar web, Android va iOS uchun bir xil natija beradi.
  */
-import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
-import { forbidden, notFound } from "@/server/http/errors";
+import { forbidden, notFound, validationFailed } from "@/server/http/errors";
 import type {
   CreatePostInput,
   CreateReplyInput,
@@ -69,6 +69,16 @@ export async function getProfile(db: Database, userId: string): Promise<ReaderPr
   return rows[0] ?? null;
 }
 
+const USERNAME_TAKEN = { username: ["Bu tahallus band. Boshqasini tanlang."] };
+
+/** Yagona indeks buzilishi (D1 xatosi drizzle ichida `cause` sifatida keladi). */
+function isUniqueViolation(error: unknown): boolean {
+  for (let e: unknown = error; e instanceof Error; e = e.cause) {
+    if (/UNIQUE constraint failed/i.test(e.message)) return true;
+  }
+  return false;
+}
+
 export async function updateProfile(
   db: Database,
   userId: string,
@@ -76,11 +86,36 @@ export async function updateProfile(
 ): Promise<ReaderProfile> {
   await ensureUser(db, userId, input.name);
 
-  if (input.bio !== undefined) {
-    await db
-      .update(users)
-      .set({ bio: input.bio, updatedAt: sql`CURRENT_TIMESTAMP` })
-      .where(eq(users.id, userId));
+  const patch: Partial<typeof users.$inferInsert> = {};
+  if (input.bio !== undefined) patch.bio = input.bio;
+  if (input.profession !== undefined) patch.profession = input.profession;
+  if (input.birthDate !== undefined) patch.birthDate = input.birthDate;
+  if (input.gender !== undefined) patch.gender = input.gender;
+  if (input.username !== undefined) {
+    if (input.username !== null) {
+      // Mehmon sessiyalari tahalluslarni band qilib qo'ymasin — faqat hisobga kirganlar.
+      await requireSignedIn(db, userId, "Tahallus tanlash");
+      const taken = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.username, input.username), ne(users.id, userId)))
+        .limit(1);
+      if (taken.length) throw validationFailed(USERNAME_TAKEN);
+    }
+    patch.username = input.username;
+  }
+
+  if (Object.keys(patch).length) {
+    try {
+      await db
+        .update(users)
+        .set({ ...patch, updatedAt: sql`CURRENT_TIMESTAMP` })
+        .where(eq(users.id, userId));
+    } catch (error) {
+      // Ikki so'rov bir vaqtda bir xil tahallusni olsa — yagona indeks ikkinchisini rad etadi.
+      if (patch.username && isUniqueViolation(error)) throw validationFailed(USERNAME_TAKEN);
+      throw error;
+    }
   }
 
   const profile = await getProfile(db, userId);

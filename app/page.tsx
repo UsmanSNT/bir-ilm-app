@@ -604,7 +604,7 @@ export default function App() {
               </TabsContent>
 
               <TabsContent value="profile">
-                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={streak} rank={myRank} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} onOpenPost={openPost} />
+                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={streak} rank={myRank} points={activityFromState(data).score} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} onOpenPost={openPost} />
               </TabsContent>
               <TabsContent value="leaders">
                 <button className="text-btn profile-ranking" onClick={() => go("profile")}>Profilga qaytish</button>
