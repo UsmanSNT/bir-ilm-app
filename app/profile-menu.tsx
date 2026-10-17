@@ -25,7 +25,7 @@ export type MenuGroup = { id: string; title: string; items: MenuItem[] };
 
 const fold = (text: string) => text.toLocaleLowerCase("uz").replace(/[‘’'`ʻʼ]/g, "'").trim();
 
-export default function ProfileMenu({ groups, footer }: { groups: MenuGroup[]; footer?: ReactNode }) {
+export default function ProfileMenu({ groups, footer, search = true }: { groups: MenuGroup[]; footer?: ReactNode; search?: boolean }) {
   const [query, setQuery] = useState("");
   const needle = fold(query);
   const visible = useMemo(
@@ -37,11 +37,11 @@ export default function ProfileMenu({ groups, footer }: { groups: MenuGroup[]; f
 
   return (
     <div className="pm">
-      <label className="pm-search">
+      {search && <label className="pm-search">
         <Search size={19} aria-hidden="true" />
         <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Qidirish" aria-label="Menyudan qidirish" />
         {query && <button type="button" onClick={() => setQuery("")} aria-label="Qidiruvni tozalash"><X size={17} /></button>}
-      </label>
+      </label>}
 
       {visible.map((group) => (
         <section className="pm-group" key={group.id} aria-labelledby={`pm-${group.id}`}>

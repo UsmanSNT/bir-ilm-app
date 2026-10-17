@@ -75,17 +75,19 @@ function useListening() {
 
 // ── Umumiy qismlar (Bir Ilm profili va do'kon hisobi bir xil ko'rinishda) ──
 
-/** Muqova (rasm yoki koshin naqsh), menyu tugmasi, avatar va rol belgisi hamda o'ng tomondagi tugmalar. */
-export function HeroTop({ viewer, tone = "lojuvard", onMenu, actions }: { viewer: Viewer; tone?: "lojuvard" | "firuza"; onMenu: () => void; actions: ReactNode }) {
+/** Muqova (rasm yoki koshin naqsh), menyu tugmasi (`onMenu` bo'lsa), avatar va rol belgisi hamda o'ng tomondagi tugmalar. */
+export function HeroTop({ viewer, tone = "lojuvard", onMenu, actions }: { viewer: Viewer; tone?: "lojuvard" | "firuza"; onMenu?: () => void; actions: ReactNode }) {
   const cover = absoluteUrl(viewer.coverUrl);
   const avatar = absoluteUrl(viewer.avatarUrl);
   const role = viewer.role;
   return (
     <>
       <div className={`pv-cover is-${tone}${cover ? " has-image" : ""}`} style={cover ? { backgroundImage: `url("${cover}")` } : undefined}>
-        <button type="button" className="pv-cover-btn" onClick={onMenu} aria-label="Menyu va sozlamalar" title="Menyu">
-          <Menu size={21} />
-        </button>
+        {onMenu && (
+          <button type="button" className="pv-cover-btn" onClick={onMenu} aria-label="Menyu va sozlamalar" title="Menyu">
+            <Menu size={21} />
+          </button>
+        )}
       </div>
       <div className="pv-head">
         <div className="pv-avatar">
@@ -115,10 +117,10 @@ export type StatItem = {
   onClick?: () => void;
 };
 
-/** Ikki ustunli ko'rsatkich kartalari; bosiladiganlarida o'ng tomonda «›». */
-export function StatGrid({ items }: { items: StatItem[] }) {
+/** Ko'rsatkich kartalari (2 yoki 3 ustun); bosiladiganlarida o'ng tomonda «›». */
+export function StatGrid({ items, columns = 2 }: { items: StatItem[]; columns?: 2 | 3 }) {
   return (
-    <div className="pv-stats">
+    <div className={`pv-stats${columns === 3 ? " is-three" : ""}`}>
       {items.map((item) => {
         const Icon = item.icon;
         const body = (

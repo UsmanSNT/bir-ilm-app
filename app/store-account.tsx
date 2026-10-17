@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, LayoutDashboard, Library, MessageCircle, Minus, Package, Plus, Settings, ShoppingBag, ShoppingCart, Star, Store, Trash2, UserRound } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, ChevronLeft, ChevronRight, LayoutDashboard, Library, MessageCircle, Minus, Plus, ShoppingBag, ShoppingCart, Star, Trash2, UserRound } from "lucide-react";
 import { fetchMyReviews, fetchOrders, useCart } from "@/lib/api/store-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { useAdminAttention } from "@/lib/api/admin-attention";
@@ -14,7 +14,7 @@ import StoreMessages, { type Conversation } from "./store-messages";
 import StoreSettings from "./store-settings";
 import { BookCover } from "./store-ui";
 import { HeroTop, StatGrid, grouped } from "./profile-hero";
-import ProfileMenu, { type MenuGroup, type MenuItem } from "./profile-menu";
+import ProfileMenu, { type MenuItem } from "./profile-menu";
 
 export type Cart = ReturnType<typeof useCart>;
 /**
@@ -27,7 +27,7 @@ export type PurchaseView = "orders" | "cart" | "reviews";
 const PURCHASE_VIEWS: [PurchaseView, string][] = [["orders", "Xaridlar"], ["cart", "Savat"], ["reviews", "Baholar"]];
 
 const SCREEN_TITLES: Record<Exclude<AccountTab, "cart">, string> = {
-  menu: "Menyu",
+  menu: "Do‘kon boshqaruvi",
   messages: "Xabarlar",
   settings: "Hisob sozlamalari",
   admin: "Do‘kon boshqaruvi",
@@ -100,25 +100,11 @@ export default function StoreAccount({ tab, adminArea, purchaseView, onPurchaseV
   if (!viewer) return <section className="sa" aria-busy="true" />;
 
   if (tab !== "cart") {
-    const menuGroups: MenuGroup[] = [
-      { id: "account", title: "Hisob", items: [
-        { id: "settings", title: "Hisob sozlamalari", icon: Settings, tone: "firuza", onClick: () => go("settings") },
-        { id: "messages", title: "Xabarlar", icon: MessageCircle, tone: "binafsha", value: unread ? `${unread} ta yangi` : undefined, onClick: () => go("messages") },
-      ] },
-      { id: "purchases", title: "Xaridlar", items: [
-        { id: "orders", title: "Olingan kitoblar", icon: Package, tone: "tilla", value: orders ? String(orders.length) : undefined, onClick: () => showView("orders") },
-        { id: "cart", title: "Savat", icon: ShoppingCart, tone: "anor", value: cart.count ? String(cart.count) : undefined, onClick: () => showView("cart") },
-        { id: "reviews", title: "Baholarim", icon: Star, tone: "yashil", value: reviews ? String(reviews.length) : undefined, onClick: () => showView("reviews") },
-      ] },
-      ...(isAdmin ? [{ id: "admin", title: "Boshqaruv", items: [
-        { id: "admin-orders", title: "Buyurtmalar", icon: ShoppingBag, tone: "tilla", value: attention.orders ? `${attention.orders} ta yangi` : undefined, onClick: () => openArea("orders") },
-        { id: "admin-chat", title: "Do‘kon chati", icon: MessageCircle, tone: "firuza", value: attention.chats ? `${attention.chats} ta yangi` : undefined, onClick: () => openArea("chat") },
-        { id: "admin-books", title: "Kitoblar", icon: LayoutDashboard, tone: "lojuvard", onClick: () => openArea("books") },
-      ] satisfies MenuItem[] }] : []),
-      { id: "help", title: "Yordam", items: [
-        { id: "support", title: "Admin bilan bog‘lanish", icon: MessageCircle, tone: "yashil", onClick: () => (signedIn ? go("messages") : onNeedLogin()) },
-        { id: "catalog", title: "Kitob do‘koni", icon: Store, tone: "lojuvard", onClick: onCatalog },
-      ] },
+    // Menyu faqat adminga: unda do'kon boshqaruvi. Hisob sozlamalari, xabarlar va xaridlar asosiy sahifaning o'zida.
+    const adminItems: MenuItem[] = [
+      { id: "admin-orders", title: "Buyurtmalar", icon: ShoppingBag, tone: "tilla", value: attention.orders ? `${attention.orders} ta yangi` : undefined, onClick: () => openArea("orders") },
+      { id: "admin-chat", title: "Do‘kon chati", icon: MessageCircle, tone: "firuza", value: attention.chats ? `${attention.chats} ta yangi` : undefined, onClick: () => openArea("chat") },
+      { id: "admin-books", title: "Kitoblar", icon: LayoutDashboard, tone: "lojuvard", onClick: () => openArea("books") },
     ];
     return (
       <section className="sa sa-screen" aria-label={SCREEN_TITLES[tab]}>
@@ -127,18 +113,16 @@ export default function StoreAccount({ tab, adminArea, purchaseView, onPurchaseV
           <h1>{SCREEN_TITLES[tab]}</h1>
           <span />
         </header>
-        {tab === "menu" && <ProfileMenu groups={menuGroups} />}
+        {tab === "menu" && isAdmin && <ProfileMenu search={false} groups={[{ id: "admin", title: "Boshqaruv", items: adminItems }]} />}
         {tab === "messages" && (signedIn
           ? <StoreMessages key={`${messagesStart?.kind === "order" ? messagesStart.order.id : "list"}-${chatBook?.id ?? ""}`} initial={messagesStart} bookId={chatBook?.id} bookTitle={chatBook?.title} onNeedLogin={onNeedLogin} />
           : <SignInPrompt text="Admin bilan yozishish faqat ro‘yxatdan o‘tgan kitobxonlar uchun." onNeedLogin={onNeedLogin} />)}
         {tab === "settings" && (signedIn ? <StoreSettings /> : <SignInPrompt text="Yetkazib berish ma’lumotlari kirgan hisobingizda saqlanadi." onNeedLogin={onNeedLogin} />)}
-        {tab === "admin" && isAdmin && <AdminArea key={area ?? "list"} initial={area} />}
+        {tab === "admin" && isAdmin && <AdminArea key={area ?? "list"} initial={area} embedded={backTo === "menu"} />}
       </section>
     );
   }
 
-  // Olingan kitoblar: bekor qilinmagan buyurtmalardagi nusxalar soni.
-  const bought = orders?.filter((o) => o.status !== "cancelled").reduce((sum, o) => sum + o.lines.reduce((n, l) => n + l.qty, 0), 0) ?? null;
   const joinedYear = viewer.joinedAt ? new Date(viewer.joinedAt).getFullYear() : null;
   const count = (value: number | null | undefined) => (signedIn ? (value == null ? "—" : grouped(value)) : "0");
 
@@ -148,7 +132,7 @@ export default function StoreAccount({ tab, adminArea, purchaseView, onPurchaseV
         <HeroTop
           viewer={viewer}
           tone="firuza"
-          onMenu={() => go("menu")}
+          onMenu={isAdmin ? () => go("menu") : undefined}
           actions={signedIn ? <>
             <button type="button" className="pv-edit" onClick={() => go("settings")}>Hisob sozlamalari</button>
             <button type="button" className="pv-share sa-msg" onClick={() => go("messages")} aria-label={unread ? `Xabarlar, ${unread} ta yangi` : "Xabarlar"} title="Xabarlar">
@@ -166,9 +150,9 @@ export default function StoreAccount({ tab, adminArea, purchaseView, onPurchaseV
           {joinedYear && <ul className="pv-meta"><li><CalendarDays size={17} />{joinedYear}-yildan beri a’zo</li></ul>}
         </div>
         <StatGrid
+          columns={3}
           items={[
             { key: "orders", label: "Xaridlar", icon: ShoppingBag, tone: "tilla", value: count(orders?.length), onClick: () => showView("orders") },
-            { key: "bought", label: "Olingan kitoblar", icon: BookOpen, tone: "firuza", value: count(bought), unit: "ta" },
             { key: "cart", label: "Savatda", icon: ShoppingCart, tone: "anor", value: grouped(cart.count), onClick: () => showView("cart") },
             { key: "reviews", label: "Baholar", icon: Star, tone: "lojuvard", value: count(reviews?.length), onClick: () => showView("reviews") },
           ]}
@@ -191,7 +175,7 @@ function SignInPrompt({ text, onNeedLogin }: { text: string; onNeedLogin: () => 
 }
 
 /** Admin «Boshqaruv»: do'kon boshqaruvi. Avval ro'yxat, bo'lim tanlanganda — shu bo'lim bilan (filtrlar bitta qatorda). */
-function AdminArea({ initial }: { initial?: AdminArea }) {
+function AdminArea({ initial, embedded = false }: { initial?: AdminArea; embedded?: boolean }) {
   const [area, setArea] = useState<AdminArea | null>(initial ?? null);
   const attention = useAdminAttention(true);
   const counts: Partial<Record<AdminArea, number>> = { orders: attention.orders, chat: attention.chats };
@@ -212,7 +196,7 @@ function AdminArea({ initial }: { initial?: AdminArea }) {
   }
   return (
     <section className="sa-admin" aria-label={ADMIN_AREAS.find(([id]) => id === area)?.[1]}>
-      <button type="button" className="sa-back-link" onClick={() => setArea(null)}><ArrowLeft size={17} aria-hidden="true" />Boshqaruv</button>
+      {!embedded && <button type="button" className="sa-back-link" onClick={() => setArea(null)}><ArrowLeft size={17} aria-hidden="true" />Boshqaruv</button>}
       {area === "orders" && <AdminOrders />}
       {area === "chat" && <AdminStoreChat />}
       {area === "books" && <AdminStoreBooks />}

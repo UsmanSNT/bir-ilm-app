@@ -69,6 +69,15 @@
 .pv-follow i { width: 1px; height: 16px; background: var(--chiziq); }
 
 .pv-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 18px var(--pv-pad) 0; }
+/* Uch ustun (do'kon hisobi): ixchamroq karta, «›» yuqori burchakda. */
+.pv-stats.is-three { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pv-stats.is-three .pv-stat { gap: 6px; padding: 12px 11px 13px; }
+.pv-stats.is-three .pv-stat small { padding-right: 14px; font-size: 12.5px; }
+.pv-stats.is-three .pv-stat-icon { width: 30px; height: 30px; }
+.pv-stats.is-three .pv-stat-go { top: 13px; right: 8px; transform: none; width: 15px; height: 15px; }
+/* Sichqoncha bilan bosilganda chiziq qolmasin; klaviaturada aniq ko'rinsin. */
+.pv-stat:focus { outline: none; }
+.pv-stat:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
 .pv-stat {
   position: relative; display: grid; gap: 8px; min-width: 0; overflow: hidden;
   padding: 13px 14px 14px; border: 0; border-radius: 18px;
@@ -103,7 +112,7 @@ button.pv-stat:hover { box-shadow: inset 0 0 0 1.5px var(--tilla-2), 0 10px 22px
 }
 
 /* ═════════════ Menyu: guruhlangan kartalar va qidiruv ═════════════ */
-.pm { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; max-width: 560px; margin: 0 auto; padding-bottom: 8px; }
+.pm { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; width: 100%; max-width: 560px; margin: 0 auto; padding-bottom: 8px; }
 .pm-search {
   display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 14px;
   border-radius: 16px; background: #fffaf0; box-shadow: inset 0 0 0 1.5px var(--chiziq); color: var(--siyoh-3);
