@@ -575,6 +575,12 @@
   border-radius: 0;
 }
 
+/* E'lon rasmi: kartaga sig'diriladi (cho'zilmaydi), yuklanguncha qog'oz rangi. */
+.m-news-photo {
+  object-fit: cover;
+  background: #efe5d1;
+}
+
 .m-news > span {
   display: block;
   padding: 13px 14px 15px;

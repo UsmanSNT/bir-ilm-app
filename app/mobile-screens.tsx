@@ -34,7 +34,8 @@ import BookEditor from "./book-editor";
 import { fetchLiveSessions } from "@/lib/api/live-client";
 import type { LiveSession } from "@/shared/contract/live";
 import { TALKS_CHANGED, WEEKDAYS, clock, countdown, dayMonth, nextTalk, toggleTalkReminder, useTalkReminders } from "./talk-format";
-import type { Book } from "@/shared/contract";
+import type { Book, MediaItem } from "@/shared/contract";
+import { absoluteUrl } from "@/lib/api/config";
 import { dayKey, listenedLabel, useLibrarySave } from "./library-store";
 import { PomodoroButton } from "./focus-timer";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -557,12 +558,12 @@ export default function MobileScreens({
           </div>
 
           <div className="m-section-head">
-            <h2>Bir ilm yangiliklari</h2>
+            <h2>Yangiliklar</h2>
             <button type="button" onClick={() => { setScreen("news"); window.scrollTo({ top: 0 }); }}>
-              Barchasini ko‘rish <ChevronRight size={16} />
+              Barchasi <ChevronRight size={16} />
             </button>
           </div>
-          <div className="m-news-carousel" aria-label="Bir ilm yangiliklari">
+          <div className="m-news-carousel" aria-label="Yangiliklar">
             {!news.length && <p className="m-news-empty">Hozircha e‘lonlar yo‘q.</p>}
             {news.slice(0, 3).map((item) => <NewsCard key={item.id} item={item} />)}
           </div>
@@ -644,7 +645,7 @@ export default function MobileScreens({
             <h2>O‘zingizni sinang</h2>
             {quizzes.length > 2 && (
               <button type="button" onClick={() => setShowQuizzes((value) => !value)}>
-                {showQuizzes ? "Yig‘ish" : "Barchasini ko‘rish"} <ChevronRight size={16} />
+                {showQuizzes ? "Yig‘ish" : "Barchasi"} <ChevronRight size={16} />
               </button>
             )}
           </div>
@@ -673,7 +674,7 @@ export default function MobileScreens({
           <div className="m-section-head">
             <h2>Haftaning bilimdonlari</h2>
             <button type="button" onClick={() => setShowLeaders((value) => !value)}>
-              {showLeaders ? "Yig‘ish" : "Barchasini ko‘rish"} <ChevronRight size={16} />
+              {showLeaders ? "Yig‘ish" : "Barchasi"} <ChevronRight size={16} />
             </button>
           </div>
           <ol className="m-card m-leaders">
@@ -790,11 +791,11 @@ function Subhead({ title, onBack }: { title: string; onBack: () => void }) {
 function NewsCard({
   item,
 }: {
-  item: { id?: string; title: string; body: string; time: string; open: () => void };
+  item: { id?: string; title: string; body: string; time: string; image: string | null; open: () => void };
 }) {
   return (
     <button className="m-card m-news" type="button" onClick={item.open}>
-      <DiscussionArt variant={item.id} />
+      {item.image ? <img className="m-news-art m-news-photo" src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <DiscussionArt variant={item.id} />}
       <span>
         <span className="m-news-brand">
           <b>BIR ILM</b>
@@ -808,7 +809,9 @@ function NewsCard({
   );
 }
 
-export type Announcement = { id: string; title: string; body: string; time: string; at: number };
+/** `image` — e'lonning birinchi rasmi (albomdan, bo'lmasa matn ichidan); rasm yo'q bo'lsa null. */
+export type Announcement = { id: string; title: string; body: string; time: string; at: number; image: string | null };
+type AnnouncementPost = { id: string; title?: string; book: string; body: string; createdAt: string; media?: MediaItem[]; attachments?: string[] };
 const parseTime = (iso: string) => new Date(iso.replace(" ", "T") + (iso.endsWith("Z") ? "" : "Z")).getTime();
 
 function relativeTime(iso: string): string {
@@ -816,7 +819,15 @@ function relativeTime(iso: string): string {
   const minutes = Math.max(0, Math.round((Date.now() - when) / 60000));
   if (minutes < 60) return minutes <= 1 ? "Hozirgina" : `${minutes} daqiqa oldin`;
   if (minutes < 24 * 60) return `${Math.round(minutes / 60)} soat oldin`;
-  return new Date(when).toLocaleDateString("uz-UZ", { day: "numeric", month: "short" });
+  // Brauzerning "uz" lokali ba'zan "M10 13" deb chiqaradi — o'zimizning "13-okt" ko'rinishi.
+  return dayMonth(new Date(when));
+}
+
+function announcementImage(post: AnnouncementPost): string | null {
+  const media = post.media ?? [];
+  const album = (post.attachments ?? []).flatMap((id) => media.filter((item) => item.id === id));
+  const image = [...album, ...media].find((item) => item.kind === "image");
+  return image ? absoluteUrl(image.url) : null;
 }
 
 // Bosh sahifadagi yangiliklar — admin/moderator joylagan e'lonlar.
@@ -825,9 +836,9 @@ export function useAnnouncements(): Announcement[] {
   useEffect(() => {
     const ctrl = new AbortController();
     const load = () => fetch("/api/social?scope=announcements", { signal: ctrl.signal })
-      .then((r) => (r.ok ? (r.json() as Promise<{ posts?: { id: string; title?: string; book: string; body: string; createdAt: string }[] }>) : null))
+      .then((r) => (r.ok ? (r.json() as Promise<{ posts?: AnnouncementPost[] }>) : null))
       .then((data) => {
-        setItems((data?.posts ?? []).map((p) => ({ id: p.id, title: p.title || p.book, body: p.body, time: relativeTime(p.createdAt), at: parseTime(p.createdAt) })));
+        setItems((data?.posts ?? []).map((p) => ({ id: p.id, title: p.title || p.book, body: p.body, time: relativeTime(p.createdAt), at: parseTime(p.createdAt), image: announcementImage(p) })));
       })
       .catch(() => {});
     load();
