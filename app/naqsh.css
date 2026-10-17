@@ -223,20 +223,22 @@ input:focus, textarea:focus, select:focus { border-color: var(--firuza-2); }
   body .app-shell .app-header { height: auto; padding: 13px 16px 11px; }
   body .app-shell .app-header::after { bottom: -13px; height: 14px; background-size: 24px 14px; }
   .dock {
-    left: 10px; right: 10px; top: auto; bottom: max(10px, env(safe-area-inset-bottom)); width: auto; height: 74px;
-    flex-direction: row; padding: 0 8px; border-radius: 26px;
+    left: 10px; right: 10px; top: auto; bottom: max(8px, env(safe-area-inset-bottom)); width: auto; height: 62px;
+    flex-direction: row; padding: 0 8px; border-radius: 22px;
   }
-  .dock::before { inset: 5px; border-radius: 21px; }
+  .dock::before { inset: 4px; border-radius: 18px; }
   .dock-logo { display: none; }
   .dock-items { flex-direction: row; justify-content: space-around; gap: 0; height: 100%; }
-  .dock-item, .dock-star { width: auto; flex: 1; padding: 0; gap: 3px; }
-  .dock-icon { width: 46px; height: 34px; }
-  .dock-label { font-size: 10.5px; }
-  .dock-item[aria-current="page"]::before { left: 50%; top: 4px; transform: translateX(-50%); width: 7px; height: 7px; }
-  .dock-star { margin: -34px 0 0; align-self: flex-start; }
-  .dock-star-shape { width: 70px; height: 70px; }
-  .dock-star-inner { width: 54px; height: 54px; }
-  body .app-shell .workspace { padding: 22px 16px calc(110px + env(safe-area-inset-bottom)); }
+  .dock-item, .dock-star { width: auto; flex: 1; padding: 0; gap: 2px; }
+  .dock-icon { width: 42px; height: 29px; border-radius: 11px; }
+  .dock-icon svg { width: 20px; height: 20px; }
+  .dock-label { font-size: 10px; }
+  .dock-item[aria-current="page"]::before { left: 50%; top: 3px; transform: translateX(-50%); width: 6px; height: 6px; }
+  .dock-star { margin: -28px 0 0; align-self: flex-start; }
+  .dock-star-shape { width: 60px; height: 60px; }
+  .dock-star-inner { width: 46px; height: 46px; }
+  .dock-star-inner svg { width: 21px; height: 21px; }
+  body .app-shell .workspace { padding: 22px 16px calc(96px + env(safe-area-inset-bottom)); }
   .desktop-footer { display: none; }
 }
 @media (max-width: 440px) { .brand .brand-tag { display: none; } }

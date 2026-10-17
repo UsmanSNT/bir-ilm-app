@@ -23,7 +23,7 @@ import StoreAccount, { type AccountTab, type AdminArea, type Cart, type Purchase
 import StoreFabs from "./store-fabs";
 import BookEditor from "./book-editor";
 import { notifyCatalogChanged, useStoreCatalog } from "@/lib/api/books-client";
-import { BookCover, RatingLine } from "./store-ui";
+import { BookCover } from "./store-ui";
 
 type Section = "catalog" | "account" | "checkout";
 
@@ -130,7 +130,6 @@ export default function BookStore({ shelf, route, onMain, onBack, onToggle }: { 
               : <Checkout cart={cart} signedIn={Boolean(viewer?.signedIn)} defaultName={viewer?.name ?? ""} onLogin={() => setLoginOpen(true)} onBack={openCart} onPlaced={setPlaced} />)}
           </>
         )}
-        {section !== "account" && <footer className="zb-foot"><span>Har bir kitob — yangi imkoniyat</span></footer>}
       </div>
 
       {isAdmin && editing && <StoreBookEditor id={editing.id} onClose={() => { setEditing(null); store.reload(); }} />}
@@ -202,7 +201,6 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, isAdmin, onC
               <button key={b.id} className="zb-rail-item" onClick={() => onOpen(b)}>
                 <BookCover book={b} size="md" />
                 <strong>{b.title}</strong>
-                <RatingLine rating={b.rating} count={b.reviews} />
               </button>
             ))}
           </div>
@@ -223,10 +221,9 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, isAdmin, onC
                 <div className="zb-card-body">
                   <button className="zb-card-title" onClick={() => onOpen(b)}>{b.title}</button>
                   <span className="zb-muted">{b.author}</span>
-                  <RatingLine rating={b.rating} count={b.reviews} />
                   <div className="zb-card-foot">
                     <strong>{formatPrice(b.price)}</strong>
-                    <button className="zb-add" aria-label={`${b.title}ni savatga qo‘shish`} onClick={() => onAdd(b)}><Plus size={18} /></button>
+                    <button className="zb-add" aria-label={`${b.title}ni savatga qo‘shish`} onClick={() => onAdd(b)}><Plus size={15} strokeWidth={2.4} /></button>
                   </div>
                 </div>
               </article>

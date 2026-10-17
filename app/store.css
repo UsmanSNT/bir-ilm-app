@@ -58,11 +58,10 @@
 .zb-card-title { padding: 0; border: 0; background: none; font: 600 18px/1.2 var(--f-display); text-align: left; }
 .zb-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 10px; }
 .zb-card-foot strong { color: var(--lojuvard); font-size: 15.5px; font-weight: 800; }
-.zb-add { display: grid; place-items: center; width: 42px; height: 42px; flex: none; border: 0; clip-path: var(--star); background: linear-gradient(135deg, var(--firuza-2), var(--firuza)); color: #fff !important; transition: transform .25s; }
+.zb-add { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border: 0; clip-path: var(--star); background: linear-gradient(135deg, var(--firuza-2), var(--firuza)); color: #fff !important; transition: transform .25s; }
 .zb-add:hover { transform: rotate(22.5deg); }
 .zb-rating { display: inline-flex; align-items: center; gap: 4px; color: var(--tilla); font-size: 13px; font-weight: 800; }
 .zb-rating .zb-muted { font-weight: 600; }
-.zb-rating.zb-muted { color: var(--siyoh-3); }
 .zb-stars { display: inline-flex; gap: 1px; color: var(--tilla); }
 
 /* Tugmalar */
@@ -96,7 +95,7 @@
 .zb-book-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; color: #cfcde3; font-size: 13.5px; font-weight: 700; }
 .zb-book-facts span { display: inline-flex; align-items: center; gap: 5px; }
 .zb-book-hero .zb-rating { color: var(--tilla-2); }
-.zb-book-hero .zb-rating.zb-muted, .zb-book-hero .zb-muted { color: #cfcde3; }
+.zb-book-hero .zb-muted { color: #cfcde3; }
 .zb-price { margin-top: 4px; color: #fff; font: 600 32px/1 var(--f-display); }
 .zb-book-actions { display: flex; gap: 10px; margin-top: 8px; }
 .zb-book-actions .zb-btn-primary { flex: 1; max-width: 320px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 40%, var(--tilla)); color: var(--lojuvard-3) !important; }
@@ -164,7 +163,8 @@
 .zb-status { padding: 4px 12px; border-radius: 999px; background: var(--tilla-och); color: #7a5512; font-size: 12px; font-weight: 800; }
 
 @media (max-width: 980px) {
-  .zb-page { padding: 22px 16px 120px; }
+  /* Pastki joy: menyu (62px) + chat tugmasi ustidan ham o'tsin — oxirgi kartadagi «+» yopilib qolmasin. */
+  .zb-page { padding: 22px 16px calc(max(10px, env(safe-area-inset-bottom)) + 168px); }
   .zb .store-ai-form { bottom: 100px; }
 }
 @media (max-width: 700px) {
@@ -204,8 +204,6 @@
 .zb-cover.has-image .zb-cover-spine { z-index: 1; }
 
 /* Do'kon pastki qismi (Bir Ilm'dan alohida) */
-.zb-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 48px; padding: 22px 0 8px; border-top: 1px solid var(--chiziq); color: var(--siyoh-3); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.zb-foot b { color: var(--firuza); }
 .zb-login { margin-top: 4px; }
 .zb-note { margin: 0; padding: 12px 14px; border-radius: var(--r-sm); background: var(--tilla-och); color: #6b4a12; font-size: 13.5px; line-height: 1.5; }
 .zb-status[data-status="confirmed"], .zb-status[data-status="shipped"] { background: var(--firuza-och); color: var(--firuza); }
@@ -307,8 +305,8 @@
 
 /* Suriladigan yordamchi tugmalar (AI va Adminga yozish) */
 .store-fab { position: fixed; z-index: 45; right: 14px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
-.store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 54px); }
-.store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 54px + 64px); }
+.store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 62px + 54px); }
+.store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 62px + 54px + 64px); }
 .store-fab:active { cursor: grabbing; }
 .store-fab { display: grid; place-items: center; width: 54px; height: 54px; border: 0; border-radius: 50%; color: #fff; box-shadow: 0 12px 24px -10px #000c, inset 0 0 0 2px #ffffff40; cursor: inherit; }
 .store-fab.is-ai { background: radial-gradient(circle at 30% 25%, #ffffff, #f6ecd6 70%); box-shadow: 0 12px 24px -10px #000c, 0 0 0 3px var(--tilla-2); }
@@ -385,8 +383,8 @@
 /* Yordamchi tugmalar kichikroq */
 .store-fab { width: 46px; height: 46px; }
 .store-fab svg { width: 21px; height: 21px; }
-.store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 50px); }
-.store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 50px + 54px); }
+.store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 62px + 50px); }
+.store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 62px + 50px + 54px); }
 @media (min-width: 981px) { .store-fab.is-chat { bottom: 28px; } .store-fab.is-ai { bottom: 82px; } }
 
 /* Kitob muharriri: sahifalar soni; pastdagi uch tugma bitta qatorda */
@@ -423,8 +421,8 @@
 .store-fab.is-chat { width: 44px; height: 44px; color: #0f6f7a; box-shadow: inset 0 0 0 1.5px #d9cfb4, 0 10px 20px -10px #000b; }
 .store-fab.is-ai { width: 54px; height: 54px; padding: 0; overflow: visible; background: #cfd8f5; box-shadow: 0 10px 20px -10px #000b, 0 0 0 3px #fff; }
 .store-fab.is-ai img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none; }
-.store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 46px); }
-.store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px + 46px + 58px); }
+.store-fab.is-chat { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 62px + 46px); }
+.store-fab.is-ai { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 62px + 46px + 58px); }
 @media (min-width: 981px) { .store-fab.is-chat { bottom: 28px; } .store-fab.is-ai { bottom: 82px; } }
 
 /* Kitob muharriri: audio kartasi (yuklash + havola); pastdagi uchta tugma bir xil o'lchamda */

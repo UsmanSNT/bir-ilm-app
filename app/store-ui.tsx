@@ -31,8 +31,9 @@ export function Stars({ value, size = 14 }: { value: number; size?: number }) {
   );
 }
 
+/** Baho bo'lmasa hech narsa ko'rsatilmaydi («Hali baho yo'q» yozuvi kerak emas). */
 export function RatingLine({ rating, count }: { rating: number; count: number }) {
-  if (!count) return <span className="zb-rating zb-muted">Hali baho yo‘q</span>;
+  if (!count) return null;
   return <span className="zb-rating"><Star size={13} fill="currentColor" />{rating.toFixed(1)}<span className="zb-muted">({count})</span></span>;
 }
 
