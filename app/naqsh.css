@@ -690,5 +690,5 @@ a.m-listen-cta { text-decoration: none; }
 button.m-listen-soon { color: var(--tilla-2); font-weight: 800; cursor: pointer; }
 button.m-listen-soon:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
 
-/* Faollar: «Sozlamalar» sarlavhasi reyting panelidan ajralib tursin (ism kartasi olib tashlangan). */
-.leaders-grid + .section-title { margin-top: 28px; }
+/* Faollar: faqat reyting doskasi qoldi — ikkinchi ustun (streak paneli) yo'q, doska butun kenglikda. */
+.leaders-grid { grid-template-columns: minmax(0, 1fr); }

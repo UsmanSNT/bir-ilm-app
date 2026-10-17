@@ -7,14 +7,10 @@ import {
   BookOpen,
   ChevronRight,
   Crown,
-  Database,
   Flame,
   Headphones,
   Home,
   Mic,
-  MonitorSmartphone,
-  Settings,
-  Smartphone,
   Store,
   Users,
   UserRound,
@@ -618,48 +614,7 @@ export default function App() {
                       ))}
                     </div>
                   </section>
-
-                  <aside className="streak-panel">
-                    <span className="flame">
-                      <Flame size={28} />
-                    </span>
-                    <h3>{streak} kun streak</h3>
-                    <p>Har kuni progress, izoh yoki suhbat harakati streakni davom ettiradi.</p>
-                    <div className="streak-stats">
-                      <div>
-                        <strong>#{myRank}</strong>
-                        <span>reyting</span>
-                      </div>
-                      <div>
-                        <strong>{activityFromState(data).score}</strong>
-                        <span>ball</span>
-                      </div>
-                    </div>
-                  </aside>
                 </div>
-
-                <h3 className="section-title">Sozlamalar</h3>
-                {/* Ism Profil → Sozlamalar → «Shaxsiy ma'lumotlar»da o'zgartiriladi; «App holati» — faqat admin uchun. */}
-                {[
-                  ["notifications", "Bildirishnomalar", "O'qish va suhbat eslatmalari", Bell],
-                  ...(isAdmin ? [["about", "App holati", "Web, backend va app chiqarish yo'li", Settings]] : []),
-                ].map(([id, title, sub, Icon]) => {
-                  const SettingIcon = Icon as typeof Bell;
-                  return (
-                    <button
-                      className="setting"
-                      key={id as string}
-                      onClick={() => setModal(id as string)}
-                    >
-                      <SettingIcon size={22} />
-                      <span>
-                        <strong>{title as string}</strong>
-                        <small>{sub as string}</small>
-                      </span>
-                      <ChevronRight size={18} />
-                    </button>
-                  );
-                })}
               </TabsContent>
             </div>
           </Tabs>
@@ -700,7 +655,6 @@ export default function App() {
                   note: "Muhim fikringiz",
                   book: selected?.title ?? "Kitob",
                   notifications: "Bildirishnomalar",
-                  about: "App holati",
                 } as Record<string, string>)[modal]}
           </DialogTitle>
           <DialogDescription className={data.onboarded && modal === "notifications" ? "sr-only" : undefined}>
@@ -813,47 +767,6 @@ export default function App() {
                 />
               )}
 
-              {modal === "about" && (
-                <>
-                  <Brand />
-                  <div className="readiness modal-readiness">
-                    <div className="readiness-item">
-                      <MonitorSmartphone size={20} />
-                      <span>
-                        <strong>Web</strong>
-                        <small>PC va mobile responsive</small>
-                      </span>
-                    </div>
-                    <div className="readiness-item">
-                      <Smartphone size={20} />
-                      <span>
-                        <strong>Android/iOS</strong>
-                        <small>PWA manifest va app shell tayyor</small>
-                      </span>
-                    </div>
-                    <div className="readiness-item">
-                      <Database size={20} />
-                      <span>
-                        <strong>Backend</strong>
-                        <small>D1 schema va API qo&apos;shildi</small>
-                      </span>
-                    </div>
-                  </div>
-                  <p>
-                    Keyingi qadam: real login, push bildirishnoma, audio fayllar uchun server
-                    storage va Play Market/App Store paketlarini ulash.
-                  </p>
-                  <button
-                    className="text-btn"
-                    onClick={() => {
-                      setModal("");
-                      update({ onboarded: false });
-                    }}
-                  >
-                    Onboardingni qayta ko&apos;rish
-                  </button>
-                </>
-              )}
 
               <DialogClose asChild>
                 <button
