@@ -689,3 +689,6 @@ a.m-listen-cta { text-decoration: none; }
 .m-listen-soon { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; margin: 6px 0 0; padding: 0 16px; border: 1.5px dashed #e2b65c80; border-radius: 999px; background: #ffffff0f; color: #e6e3f4; font: 700 14px var(--f-ui); }
 button.m-listen-soon { color: var(--tilla-2); font-weight: 800; cursor: pointer; }
 button.m-listen-soon:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
+
+/* Faollar: «Sozlamalar» sarlavhasi reyting panelidan ajralib tursin (ism kartasi olib tashlangan). */
+.leaders-grid + .section-title { margin-top: 28px; }

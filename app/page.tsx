@@ -638,22 +638,11 @@ export default function App() {
                   </aside>
                 </div>
 
-                <div className="profile card">
-                  <span className="avatar large">{data.name[0]}</span>
-                  <div>
-                    <h3>{data.name}</h3>
-                    <p className="muted">Bir Ilm kitobxoni</p>
-                  </div>
-                  <button className="text-btn" onClick={() => setModal("profile")}>
-                    Tahrirlash
-                  </button>
-                </div>
-
                 <h3 className="section-title">Sozlamalar</h3>
+                {/* Ism Profil → Sozlamalar → «Shaxsiy ma'lumotlar»da o'zgartiriladi; «App holati» — faqat admin uchun. */}
                 {[
                   ["notifications", "Bildirishnomalar", "O'qish va suhbat eslatmalari", Bell],
-                  ["profile", "Profil", "Kitobxon ismini o'zgartirish", Users],
-                  ["about", "App holati", "Web, backend va app chiqarish yo'li", Settings],
+                  ...(isAdmin ? [["about", "App holati", "Web, backend va app chiqarish yo'li", Settings]] : []),
                 ].map(([id, title, sub, Icon]) => {
                   const SettingIcon = Icon as typeof Bell;
                   return (
@@ -710,7 +699,6 @@ export default function App() {
               : ({
                   note: "Muhim fikringiz",
                   book: selected?.title ?? "Kitob",
-                  profile: "Profil",
                   notifications: "Bildirishnomalar",
                   about: "App holati",
                 } as Record<string, string>)[modal]}
@@ -769,21 +757,6 @@ export default function App() {
                     if (data.note.trim().length > 8) touchActivity(10);
                   }}
                 />
-              )}
-
-              {modal === "profile" && (
-                <label>
-                  Ismingiz
-                  <input
-                    value={data.name}
-                    maxLength={40}
-                    onChange={(event) => {
-                      const next = { ...data, name: event.target.value };
-                      setData(next);
-                      void syncState({ type: "profile" }, next);
-                    }}
-                  />
-                </label>
               )}
 
               {modal === "book" && selected && (
