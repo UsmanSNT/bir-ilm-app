@@ -2,7 +2,7 @@
 
 import ListenLink, { audioLinkOf } from "./listen-link";
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, ChevronLeft, Headphones, Library, Moon, Pause, Pencil, Play, Plus, Search, SkipBack, SkipForward } from "lucide-react";
+import { BookPlus, Bookmark, ChevronLeft, Headphones, Library, Moon, Pause, Pencil, Play, Plus, Search, SkipBack, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
@@ -22,7 +22,7 @@ import {
   writeLibrarySave,
 } from "./library-store";
 
-type Screen = "catalog" | "mine" | "player";
+type Screen = "catalog" | "player";
 type MineTab = "saved" | "finished";
 
 export function clock(seconds: number) {
@@ -73,7 +73,8 @@ export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: 
   const editor = canModerate(viewer?.role);
   const save = useLibrarySave();
   const [screen, setScreen] = useState<Screen>("catalog");
-  const [returnTo, setReturnTo] = useState<Screen>("catalog");
+  // «Kitoblarim» alohida sahifa emas: shu kutubxona sahifasida javon o'rniga shaxsiy ro'yxat ko'rsatiladi.
+  const [showMine, setShowMine] = useState(false);
   const [mine, setMine] = useState<MineTab>("saved");
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -218,15 +219,14 @@ export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: 
     queueMicrotask(() => {
       setWanted(null);
       if (!byId(id)) return;
-      openBook(id, "catalog");
+      openBook(id);
       if (byId(id)?.audioUrl) play(id);
     });
     // byId/openBook/play har renderda yangi, lekin so'rov bir marta bajariladi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted, catalog.loading, catalog.items]);
 
-  function openBook(id: string, from: Screen = screen) {
-    setReturnTo(from);
+  function openBook(id: string) {
     setActiveId(id);
     setScreen("player");
     window.scrollTo({ top: 0 });
@@ -311,7 +311,7 @@ export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: 
   const text = query.trim().toLocaleLowerCase();
   const found = catalog.items.filter((b) => !text || `${b.title} ${b.author}`.toLocaleLowerCase().includes(text));
   const lastBook = byId(save.last);
-  const mineItems = catalog.items.filter((b) => (mine === "saved" ? shelf.includes(b.id) : save.finished.includes(b.id)));
+  const mineItems = found.filter((b) => (mine === "saved" ? shelf.includes(b.id) : save.finished.includes(b.id)));
 
   return (
     <div className="mobile-library">
@@ -323,10 +323,12 @@ export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: 
               <h1>Kutubxona</h1>
             </div>
             <div className="lib-head-actions">
-              <button type="button" className="lib-mine" onClick={() => setScreen("mine")}><Library size={17} /> Kitoblarim</button>
+              <button type="button" className={`lib-mine${showMine ? " is-on" : ""}`} aria-pressed={showMine} onClick={() => setShowMine((on) => !on)}>
+                <Library size={16} /> Kitoblarim
+              </button>
               {editor && (
-                <button type="button" className="lib-add" onClick={() => setEditing({ book: null })}>
-                  <Plus size={17} /> Kitob qo‘shish
+                <button type="button" className="lib-add" onClick={() => setEditing({ book: null })} aria-label="Kitob qo‘shish" title="Kitob qo‘shish">
+                  <BookPlus size={19} />
                 </button>
               )}
             </div>
@@ -337,86 +339,87 @@ export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: 
             {query && <button type="button" aria-label="Qidiruvni tozalash" onClick={() => setQuery("")}>×</button>}
           </label>
 
-          {!query && lastBook && lastBook.audioUrl && (
-            <section className="lib-continue">
-              <div className="lib-section"><h2>Tinglashni davom ettirish</h2></div>
-              <article>
-                <Cover book={lastBook} size="sm" />
-                <span>
-                  <strong>{lastBook.title}</strong>
-                  <small>{lastBook.author}</small>
-                  <em>{clock(position(lastBook))} / {clock(lengthOf(lastBook))}</em>
-                </span>
-                <button type="button" className="lib-round" aria-label={playingNow(lastBook.id) ? "Pauza" : "Davom ettirish"} onClick={() => toggle(lastBook.id)}>
-                  {playingNow(lastBook.id) ? <Pause size={18} /> : <Play size={18} />}
-                </button>
-              </article>
-            </section>
-          )}
-
-          {catalog.loading ? (
-            <p className="lib-empty">Kitoblar yuklanmoqda…</p>
+          {showMine ? (
+            <>
+              <div className="lib-mine-tabs" role="tablist" aria-label="Mening kitoblarim">
+                {([["saved", "Saqlangan"], ["finished", "Tugatilgan"]] as const).map(([id, label]) => (
+                  <button key={id} type="button" role="tab" aria-selected={mine === id} className={mine === id ? "is-on" : ""} onClick={() => setMine(id)}>{label}</button>
+                ))}
+              </div>
+              <div className="lib-list">
+                {mineItems.map((book) => {
+                  const length = lengthOf(book);
+                  const ratio = length ? Math.min(100, (position(book) / length) * 100) : 0;
+                  return (
+                    <article key={book.id} className="lib-row">
+                      <button type="button" className="lib-row-main" onClick={() => openBook(book.id)}>
+                        <Cover book={book} />
+                        <span>
+                          <strong>{book.title}</strong>
+                          <small>{book.author}</small>
+                          {book.audioUrl ? (
+                            <>
+                              <span className="lib-bar" aria-hidden="true"><i style={{ width: `${ratio}%` }} /></span>
+                              <em>{clock(position(book))} / {clock(length)}</em>
+                            </>
+                          ) : audioLinkOf(book) ? <em>{audioLinkOf(book)!.label} havolasi bor</em> : <em>Audio hali yuklanmagan</em>}
+                        </span>
+                      </button>
+                      {book.audioUrl && (
+                        <button type="button" className="lib-round" aria-label={`${book.title}ni tinglash`} onClick={() => toggle(book.id)}>
+                          {playingNow(book.id) ? <Pause size={16} /> : <Headphones size={16} />}
+                        </button>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+              {!catalog.loading && !mineItems.length && (
+                <p className="lib-empty">
+                  {text ? "Bu so‘rov bo‘yicha kitob topilmadi." : mine === "saved" ? "Saqlangan kitob yo‘q. Kitob sahifasidagi xatcho‘p bilan qo‘shing." : "Oxirigacha tinglangan kitoblar shu yerda ko‘rinadi."}
+                </p>
+              )}
+            </>
           ) : (
-            <BookShelf items={found} onOpen={(id) => openBook(id)} onPlay={(id) => { play(id); openBook(id); }} />
-          )}
-          {!catalog.loading && !catalog.items.length && (
-            <div className="lib-empty">
-              <p>Hozircha kutubxonada kitob yo‘q.</p>
-              {editor && <button type="button" className="button" onClick={() => setEditing({ book: null })}><Plus size={16} /> Birinchi kitobni qo‘shish</button>}
-            </div>
-          )}
-          {!catalog.loading && catalog.items.length > 0 && !found.length && <p className="lib-empty">Bu so‘rov bo‘yicha kitob topilmadi.</p>}
-        </div>
-      )}
-
-      {screen === "mine" && (
-        <div className="lib-screen">
-          <header className="lib-head lib-head-center">
-            <button type="button" aria-label="Orqaga" onClick={() => setScreen("catalog")}><ChevronLeft size={22} /></button>
-            <h1>Mening kitoblarim</h1>
-            <span />
-          </header>
-          <div className="lib-mine-tabs" role="tablist">
-            {([["saved", "Saqlangan"], ["finished", "Tugatilgan"]] as const).map(([id, label]) => (
-              <button key={id} type="button" role="tab" aria-selected={mine === id} className={mine === id ? "is-on" : ""} onClick={() => setMine(id)}>{label}</button>
-            ))}
-          </div>
-          <div className="lib-list">
-            {mineItems.map((book) => {
-              const length = lengthOf(book);
-              const ratio = length ? Math.min(100, (position(book) / length) * 100) : 0;
-              return (
-                <article key={book.id} className="lib-row">
-                  <button type="button" className="lib-row-main" onClick={() => openBook(book.id, "mine")}>
-                    <Cover book={book} />
+            <>
+              {!query && lastBook && lastBook.audioUrl && (
+                <section className="lib-continue">
+                  <div className="lib-section"><h2>Tinglashni davom ettirish</h2></div>
+                  <article>
+                    <Cover book={lastBook} size="sm" />
                     <span>
-                      <strong>{book.title}</strong>
-                      <small>{book.author}</small>
-                      {book.audioUrl ? (
-                        <>
-                          <span className="lib-bar" aria-hidden="true"><i style={{ width: `${ratio}%` }} /></span>
-                          <em>{clock(position(book))} / {clock(length)}</em>
-                        </>
-                      ) : audioLinkOf(book) ? <em>{audioLinkOf(book)!.label} havolasi bor</em> : <em>Audio hali yuklanmagan</em>}
+                      <strong>{lastBook.title}</strong>
+                      <small>{lastBook.author}</small>
+                      <em>{clock(position(lastBook))} / {clock(lengthOf(lastBook))}</em>
                     </span>
-                  </button>
-                  {book.audioUrl && (
-                    <button type="button" className="lib-round" aria-label={`${book.title}ni tinglash`} onClick={() => toggle(book.id)}>
-                      {playingNow(book.id) ? <Pause size={16} /> : <Headphones size={16} />}
+                    <button type="button" className="lib-round" aria-label={playingNow(lastBook.id) ? "Pauza" : "Davom ettirish"} onClick={() => toggle(lastBook.id)}>
+                      {playingNow(lastBook.id) ? <Pause size={18} /> : <Play size={18} />}
                     </button>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-          {!mineItems.length && <p className="lib-empty">{mine === "saved" ? "Saqlangan kitob yo‘q. Kitob sahifasidagi xatcho‘p bilan qo‘shing." : "Oxirigacha tinglangan kitoblar shu yerda ko‘rinadi."}</p>}
+                  </article>
+                </section>
+              )}
+
+              {catalog.loading ? (
+                <p className="lib-empty">Kitoblar yuklanmoqda…</p>
+              ) : (
+                <BookShelf items={found} onOpen={(id) => openBook(id)} onPlay={(id) => { play(id); openBook(id); }} />
+              )}
+              {!catalog.loading && !catalog.items.length && (
+                <div className="lib-empty">
+                  <p>Hozircha kutubxonada kitob yo‘q.</p>
+                  {editor && <button type="button" className="button" onClick={() => setEditing({ book: null })}><Plus size={16} /> Birinchi kitobni qo‘shish</button>}
+                </div>
+              )}
+              {!catalog.loading && catalog.items.length > 0 && !found.length && <p className="lib-empty">Bu so‘rov bo‘yicha kitob topilmadi.</p>}
+            </>
+          )}
         </div>
       )}
 
       {screen === "player" && active && (
         <div className="lib-screen lib-player">
           <header className="lib-head">
-            <button type="button" aria-label="Orqaga" onClick={() => setScreen(returnTo)}><ChevronLeft size={22} /></button>
+            <button type="button" aria-label="Orqaga" onClick={() => setScreen("catalog")}><ChevronLeft size={22} /></button>
             <h1>Audio kitob</h1>
             {editor && <button type="button" aria-label="Kitobni tahrirlash" onClick={() => setEditing({ book: active })}><Pencil size={17} /></button>}
             <button type="button" aria-label={shelf.includes(active.id) ? "Saqlangandan olish" : "Saqlash"} aria-pressed={shelf.includes(active.id)} onClick={() => onToggleSave(active.id)}>
