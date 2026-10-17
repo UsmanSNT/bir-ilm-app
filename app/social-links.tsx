@@ -7,7 +7,8 @@ import { SOCIAL_KEYS, SOCIAL_LABELS, type SocialKey } from "@/shared/contract";
 const ICONS = { telegram: Telegram, youtube: YouTube, instagram: Instagram, facebook: Facebook } as const;
 
 /**
- * «Bizni kuzating»: Bir Ilm'ning Telegram, YouTube, Instagram va Facebook sahifalariga o'tish.
+ * Bir Ilm'ning Telegram, YouTube, Instagram va Facebook sahifalariga o'tish.
+ * Kartada faqat belgilar (o'rtada, ikki tomonga tarqaladi); nomi `aria-label` va `title`da.
  * Havolalar admin paneldan kiritiladi; hech biri kiritilmagan bo'lsa, blok ko'rinmaydi.
  */
 export default function SocialLinks({ variant = "card" }: { variant?: "card" | "inline" }) {
@@ -16,19 +17,14 @@ export default function SocialLinks({ variant = "card" }: { variant?: "card" | "
   if (!active.length) return null;
   return (
     <section className={`social-links social-links-${variant}${variant === "card" ? " naqsh-card" : ""}`} aria-label="Bir Ilm ijtimoiy tarmoqlarda">
-      {variant === "card" && (
-        <div className="social-links-text">
-          <strong>Bizni kuzating</strong>
-        </div>
-      )}
       <ul>
         {active.map((key) => {
           const Icon = ICONS[key];
           return (
             <li key={key}>
-              <a className={`social-link is-${key}`} href={links[key]} target="_blank" rel="noopener noreferrer" aria-label={`Bir Ilm — ${SOCIAL_LABELS[key]}`}>
-                <Icon size={19} aria-hidden="true" />
-                <span>{SOCIAL_LABELS[key]}</span>
+              <a className={`social-link is-${key}`} href={links[key]} target="_blank" rel="noopener noreferrer" aria-label={`Bir Ilm — ${SOCIAL_LABELS[key]}`} title={SOCIAL_LABELS[key]}>
+                <Icon size={variant === "card" ? 22 : 19} aria-hidden="true" />
+                {variant === "inline" && <span>{SOCIAL_LABELS[key]}</span>}
               </a>
             </li>
           );
