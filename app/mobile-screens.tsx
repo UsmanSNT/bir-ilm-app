@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useSyncExternalStore, useState } from "r
 import {
   ArrowRight,
   Bell,
+  BellRing,
   BookOpen,
   Calendar,
   Check,
@@ -30,7 +31,7 @@ import { canModerate } from "@/shared/contract/roles";
 import BookEditor from "./book-editor";
 import { fetchLiveSessions } from "@/lib/api/live-client";
 import type { LiveSession } from "@/shared/contract/live";
-import { TALKS_CHANGED, WEEKDAYS, clock, countdown, dayMonth, nextTalk, toggleTalkReminder, useTalkReminders } from "./talk-format";
+import { TALKS_CHANGED, clock, countdown, dayMonth, nextTalk, toggleTalkReminder, useTalkReminders } from "./talk-format";
 import type { Book } from "@/shared/contract";
 import { dayKey, listenedLabel, useLibrarySave } from "./library-store";
 import { PomodoroButton } from "./focus-timer";
@@ -250,6 +251,7 @@ export default function MobileScreens({
   }, []);
   const talk = nextTalk(talks, featured?.title);
   const reminders = useTalkReminders();
+  const reminded = talk ? reminders.includes(talk.id) : false;
   const talkAt = talk ? new Date(talk.scheduledAt) : null;
   // Chiziq: e'londan (7 kun oldin) suhbatgacha o'tgan vaqt.
   const talkProgress = talk
@@ -398,10 +400,40 @@ export default function MobileScreens({
           <section className="m-card m-week">
             <div className="m-week-head">
               <p className="m-kicker">Hafta kitobi</p>
-              {editor && featured && (
-                <button type="button" className="m-week-edit m-week-edit-icon" onClick={() => setEditing({ book: featured })} aria-label="Hafta kitobini tahrirlash" title="Tahrirlash">
-                  <Pencil size={16} />
-                </button>
+              <div className="m-week-tools">
+                {talk && talkAt && talk.status !== "live" && (
+                  <button
+                    type="button"
+                    className={`m-week-edit m-week-edit-icon m-talk-bell${reminded ? " on" : ""}`}
+                    aria-pressed={reminded}
+                    aria-expanded={reminderAsk}
+                    aria-label={reminded ? "Suhbat eslatmasi yoqilgan" : "Suhbat uchun eslatma qo‘yish"}
+                    title={reminded ? "Eslatma yoqilgan" : "Eslatma qo‘yish"}
+                    onClick={() => setReminderAsk((open) => !open)}
+                  >
+                    {reminded ? <BellRing size={16} /> : <Bell size={16} />}
+                  </button>
+                )}
+                {editor && featured && (
+                  <button type="button" className="m-week-edit m-week-edit-icon" onClick={() => setEditing({ book: featured })} aria-label="Hafta kitobini tahrirlash" title="Tahrirlash">
+                    <Pencil size={16} />
+                  </button>
+                )}
+              </div>
+              {reminderAsk && talk && talkAt && talk.status !== "live" && (
+                <div className="m-talk-ask" role="group" aria-label="Suhbat eslatmasi">
+                  <span>{reminded ? "Eslatmani o‘chiraymi?" : "Eslatmani yoqasizmi?"}</span>
+                  <button
+                    type="button"
+                    className="m-talk-yes"
+                    onClick={() => {
+                      const on = toggleTalkReminder(talk.id);
+                      setReminderAsk(false);
+                      toast.success(on ? `${dayMonth(talkAt)}, ${clock(talkAt)} uchun eslatma qo‘yildi` : "Eslatma olib tashlandi");
+                    }}
+                  >Ha</button>
+                  <button type="button" className="m-talk-no" onClick={() => setReminderAsk(false)}>Yo‘q</button>
+                </div>
               )}
             </div>
             {editor && !featured && (
@@ -441,39 +473,6 @@ export default function MobileScreens({
                   <span style={{ width: `${talkProgress}%` }} />
                   <Leaf size={17} style={{ left: `${Math.min(96, talkProgress)}%` }} />
                 </div>
-                <div className="m-talk-foot">
-                  <span className="m-talk-meta">
-                    <span><Calendar size={14} /> {dayMonth(talkAt)}, {WEEKDAYS[talkAt.getDay()]}</span>
-                    <span><Clock size={14} /> {clock(talkAt)}</span>
-                  </span>
-                  {talk.status !== "live" && (
-                    <button
-                      type="button"
-                      className={`m-talk-bell${reminders.includes(talk.id) ? " on" : ""}`}
-                      aria-pressed={reminders.includes(talk.id)}
-                      aria-label={reminders.includes(talk.id) ? "Eslatma yoqilgan" : "Eslatma qo‘yish"}
-                      title={reminders.includes(talk.id) ? "Eslatma yoqilgan" : "Eslatma qo‘yish"}
-                      onClick={() => setReminderAsk(true)}
-                    >
-                      <Bell size={17} />
-                    </button>
-                  )}
-                </div>
-                {reminderAsk && talk.status !== "live" && (
-                  <div className="m-talk-ask" role="group" aria-label="Eslatma">
-                    <span>{reminders.includes(talk.id) ? "Eslatmani o‘chiraymi?" : "Eslatmani yoqasizmi?"}</span>
-                    <button
-                      type="button"
-                      className="m-talk-yes"
-                      onClick={() => {
-                        const on = toggleTalkReminder(talk.id);
-                        setReminderAsk(false);
-                        toast.success(on ? `${dayMonth(talkAt)}, ${clock(talkAt)} uchun eslatma qo‘yildi` : "Eslatma olib tashlandi");
-                      }}
-                    >Ha</button>
-                    <button type="button" className="m-talk-no" onClick={() => setReminderAsk(false)}>Yo‘q</button>
-                  </div>
-                )}
               </div>
             ) : (
               editor && featured && <p className="m-talk-none">Suhbat vaqti belgilanmagan — «Tahrirlash»dan kalendar orqali tanlang.</p>

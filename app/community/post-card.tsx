@@ -237,7 +237,7 @@ function PostHeader({ post, actions }: { post: ReadingPost; actions: PostActions
           </span>
         </div>
         {!mine && actions.viewerId && (
-          <button type="button" className="follow-button" disabled={actions.busy} aria-pressed={following} onClick={() => actions.follow(post.userId, !following)}>
+          <button type="button" className="follow-button" disabled={actions.busy} aria-pressed={following} title={following ? "Obunadasiz" : "Obuna bo‘lish"} onClick={() => actions.follow(post.userId, !following)}>
             {following ? <UserCheck size={16} /> : <UserPlus size={16} />}<span>{following ? "Obunadasiz" : "Obuna"}</span>
           </button>
         )}

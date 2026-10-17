@@ -634,12 +634,11 @@ body .app-shell[hidden] { display: none; }
 .m-home-screen .m-talk-when { position: relative; display: block; padding: 14px 14px 12px; padding-right: 96px; text-align: left; }
 .m-home-screen .m-talk-when strong { display: block; font-size: 15px; line-height: 1.3; }
 .m-home-screen .m-talk-badge { position: absolute; top: 10px; right: 10px; padding: 2px 7px; font-size: 10px; border-radius: 999px; }
-.m-talk-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
-.m-talk-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: #cfcde3; font-size: 12.5px; }
-.m-talk-meta > span { display: inline-flex; align-items: center; gap: 5px; }
-.m-talk-bell { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border: 1.5px solid #ffffff40; border-radius: 50%; background: #ffffff14; color: #fff; cursor: pointer; }
-.m-talk-bell.on { background: #e2b65c33; border-color: var(--tilla-2); color: var(--tilla-2); }
-.m-talk-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #ffffff1a; color: #fff; font-size: 13px; font-weight: 700; }
+/* Eslatma qo'ng'iroqchasi qalamcha yonida; savol sarlavha ostida, butun kenglikda ochiladi. */
+.m-home-screen .m-week-head { flex-wrap: wrap; row-gap: 10px; }
+.m-week-tools { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.m-home-screen .m-week-edit.m-talk-bell.on { background: #e2b65c33; border-color: var(--tilla-2); color: var(--tilla-2); }
+.m-talk-ask { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid #e2b65c55; border-radius: 12px; background: #ffffff1a; color: #fff; font-size: 13px; font-weight: 700; }
 .m-talk-ask > span { flex: 1 1 100%; }
 .m-talk-yes, .m-talk-no { min-height: 34px; padding: 0 16px; border: 0; border-radius: 999px; font: 800 13px var(--f-ui); cursor: pointer; }
 .m-talk-yes { background: var(--tilla-2); color: var(--lojuvard-3); }

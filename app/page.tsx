@@ -490,7 +490,7 @@ export default function App() {
           }}
         />
       )}
-      <div hidden={store} className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}${tab === "shelf" ? " show-mobile-shelf" : ""}${tab === "profile" ? " show-profile" : ""}`}>
+      <div hidden={store} className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}${tab === "shelf" ? " show-mobile-shelf" : ""}${tab === "talks" ? " show-talks" : ""}${tab === "profile" ? " show-profile" : ""}`}>
         <Dock
           mode="main"
           label="Asosiy bo'limlar"
