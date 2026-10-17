@@ -1,10 +1,11 @@
 "use client";
 
 import ListenLink, { audioLinkOf } from "./listen-link";
-import { FormEvent, useEffect, useMemo, useSyncExternalStore, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useSyncExternalStore, useState } from "react";
 import {
   ArrowRight,
   Bell,
+  BellOff,
   BellRing,
   BookOpen,
   Calendar,
@@ -31,10 +32,11 @@ import { canModerate } from "@/shared/contract/roles";
 import BookEditor from "./book-editor";
 import { fetchLiveSessions } from "@/lib/api/live-client";
 import type { LiveSession } from "@/shared/contract/live";
-import { TALKS_CHANGED, clock, countdown, dayMonth, nextTalk, toggleTalkReminder, useTalkReminders } from "./talk-format";
+import { TALKS_CHANGED, WEEKDAYS, clock, countdown, dayMonth, nextTalk, toggleTalkReminder, useTalkReminders } from "./talk-format";
 import type { Book } from "@/shared/contract";
 import { dayKey, listenedLabel, useLibrarySave } from "./library-store";
 import { PomodoroButton } from "./focus-timer";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 type Save = {
   joined: boolean;
@@ -185,8 +187,10 @@ export default function MobileScreens({
   onAddReminder: () => void;
 }) {
   const [screen, setScreen] = useState<Screen>("home");
-  // Hafta suhbati uchun eslatma: qo'ng'iroqcha bosilganda «yoqasizmi?» savoli ko'rsatiladi.
-  const [reminderAsk, setReminderAsk] = useState(false);
+  // Hafta suhbati eslatmasi: qo'ng'iroqcha modal oynada so'raydi. «enable» ochilgan paytda belgilanadi —
+  // yopilish animatsiyasida savol matni almashib ketmaydi.
+  const [reminderAsk, setReminderAsk] = useState({ open: false, enable: true });
+  const reminderBell = useRef<HTMLButtonElement>(null);
   const [reminder, setReminder] = useState(false);
   const saveRaw = useSyncExternalStore(subscribeSave, readSaveSnapshot, () => "");
   const save = useMemo(() => parseSave(saveRaw), [saveRaw]);
@@ -403,13 +407,14 @@ export default function MobileScreens({
               <div className="m-week-tools">
                 {talk && talkAt && talk.status !== "live" && (
                   <button
+                    ref={reminderBell}
                     type="button"
                     className={`m-week-edit m-week-edit-icon m-talk-bell${reminded ? " on" : ""}`}
                     aria-pressed={reminded}
-                    aria-expanded={reminderAsk}
+                    aria-haspopup="dialog"
                     aria-label={reminded ? "Suhbat eslatmasi yoqilgan" : "Suhbat uchun eslatma qo‘yish"}
                     title={reminded ? "Eslatma yoqilgan" : "Eslatma qo‘yish"}
-                    onClick={() => setReminderAsk((open) => !open)}
+                    onClick={() => setReminderAsk({ open: true, enable: !reminded })}
                   >
                     {reminded ? <BellRing size={16} /> : <Bell size={16} />}
                   </button>
@@ -420,22 +425,38 @@ export default function MobileScreens({
                   </button>
                 )}
               </div>
-              {reminderAsk && talk && talkAt && talk.status !== "live" && (
-                <div className="m-talk-ask" role="group" aria-label="Suhbat eslatmasi">
-                  <span>{reminded ? "Eslatmani o‘chiraymi?" : "Eslatmani yoqasizmi?"}</span>
-                  <button
-                    type="button"
-                    className="m-talk-yes"
-                    onClick={() => {
-                      const on = toggleTalkReminder(talk.id);
-                      setReminderAsk(false);
-                      toast.success(on ? `${dayMonth(talkAt)}, ${clock(talkAt)} uchun eslatma qo‘yildi` : "Eslatma olib tashlandi");
-                    }}
-                  >Ha</button>
-                  <button type="button" className="m-talk-no" onClick={() => setReminderAsk(false)}>Yo‘q</button>
-                </div>
-              )}
             </div>
+            {talk && talkAt && talk.status !== "live" && (
+              <Dialog open={reminderAsk.open} onOpenChange={(open) => setReminderAsk((ask) => ({ ...ask, open }))}>
+                <DialogContent
+                  className="talk-remind-dialog"
+                  showCloseButton={false}
+                  // Trigger komponenti yo'q — yopilganda fokus qo'ng'iroqchaga qaytariladi.
+                  onCloseAutoFocus={(event) => { event.preventDefault(); reminderBell.current?.focus(); }}
+                >
+                  <span className="talk-remind-icon" aria-hidden="true">
+                    {reminderAsk.enable ? <BellRing size={26} /> : <BellOff size={26} />}
+                  </span>
+                  <DialogTitle>{reminderAsk.enable ? "Eslatmani yoqasizmi?" : "Eslatmani o‘chiraymi?"}</DialogTitle>
+                  <DialogDescription>
+                    «{talk.title}» — {dayMonth(talkAt)}, {WEEKDAYS[talkAt.getDay()]}, soat {clock(talkAt)}
+                  </DialogDescription>
+                  <div className="talk-remind-actions">
+                    <button
+                      type="button"
+                      className="talk-remind-yes"
+                      onClick={() => {
+                        // Holat boshqa joyda allaqachon o'zgargan bo'lsa, qayta almashtirilmaydi.
+                        if (reminded !== reminderAsk.enable) toggleTalkReminder(talk.id);
+                        setReminderAsk((ask) => ({ ...ask, open: false }));
+                        toast.success(reminderAsk.enable ? `${dayMonth(talkAt)}, ${clock(talkAt)} uchun eslatma qo‘yildi` : "Eslatma olib tashlandi");
+                      }}
+                    >Ha</button>
+                    <DialogClose className="talk-remind-no">Yo‘q</DialogClose>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
             {editor && !featured && (
               <div className="m-week-admin">
                 <button type="button" className="m-week-add" onClick={() => setEditing({ book: null })}>

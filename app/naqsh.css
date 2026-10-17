@@ -638,11 +638,28 @@ body .app-shell[hidden] { display: none; }
 .m-home-screen .m-week-head { flex-wrap: wrap; row-gap: 10px; }
 .m-week-tools { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .m-home-screen .m-week-edit.m-talk-bell.on { background: #e2b65c33; border-color: var(--tilla-2); color: var(--tilla-2); }
-.m-talk-ask { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid #e2b65c55; border-radius: 12px; background: #ffffff1a; color: #fff; font-size: 13px; font-weight: 700; }
-.m-talk-ask > span { flex: 1 1 100%; }
-.m-talk-yes, .m-talk-no { min-height: 34px; padding: 0 16px; border: 0; border-radius: 999px; font: 800 13px var(--f-ui); cursor: pointer; }
-.m-talk-yes { background: var(--tilla-2); color: var(--lojuvard-3); }
-.m-talk-no { background: #ffffff26; color: #fff; }
+/* Eslatma so'rovi — alohida modal oyna (portal orqali, shuning uchun .m-home-screen ga bog'lanmagan). */
+.talk-remind-dialog {
+  justify-items: center;
+  gap: 10px;
+  width: min(340px, calc(100% - 32px));
+  max-width: 340px;
+  padding: 28px 22px 20px;
+  border: 1px solid var(--tilla-2);
+  border-radius: var(--r-md);
+  background: var(--sahifa);
+  box-shadow: var(--soya-2);
+  text-align: center;
+}
+.talk-remind-dialog::after { content: ""; position: absolute; inset: 4px; pointer-events: none; border: 16px solid transparent; border-image: var(--hoshiya) 16 / 16px stretch; }
+.talk-remind-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--lojuvard); color: var(--tilla-2); box-shadow: 0 0 0 4px var(--tilla-och); }
+.talk-remind-dialog h2 { margin: 6px 0 0; color: var(--siyoh); font: 600 21px/1.25 var(--f-display); }
+.talk-remind-dialog p { margin: 0; color: var(--siyoh-2); font-size: 14px; line-height: 1.45; }
+.talk-remind-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 10px; }
+.talk-remind-yes, .talk-remind-no { min-height: 46px; border-radius: 999px; font: 800 15px var(--f-ui); cursor: pointer; }
+.talk-remind-yes { border: 0; background: linear-gradient(180deg, var(--tilla-2), var(--tilla)); color: var(--lojuvard-3); box-shadow: 0 6px 16px -8px #c08a2e; }
+.talk-remind-no { border: 1.5px solid var(--chiziq); background: #fff; color: var(--lojuvard); }
+.talk-remind-yes:focus-visible, .talk-remind-no:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
 /* Belgilar nomga yopishib turadi (chetlarga tarqalmaydi); uzun nom bir qatorda «…» bilan qisqaradi. */
 .m-home-screen .m-primary.m-listen-cta { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 18px; }
 .m-listen-cta svg { flex: none; }
