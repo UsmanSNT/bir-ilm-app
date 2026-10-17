@@ -47,7 +47,7 @@
 .tb-feature {
   position: relative;
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) 24px;
+  grid-template-columns: 150px minmax(0, 1fr);
   gap: 20px;
   align-items: center;
   padding: 16px;
@@ -70,9 +70,8 @@
 }
 .tb-stretch:focus-visible { outline: 3px solid #273b8a; outline-offset: 2px; }
 .tb-feature-body { display: grid; gap: 12px; min-width: 0; }
-.tb-feature-body > *, .tb-chevron { pointer-events: none; }
+.tb-feature-body > * { pointer-events: none; }
 .tb-feature .tb-action { pointer-events: auto; position: relative; z-index: 1; }
-.tb-chevron { color: #162250; }
 
 .tb-cover {
   display: grid;
@@ -458,7 +457,7 @@ button.tb-wave:disabled { cursor: default; }
   .talks-board { gap: 14px; }
   .tb-filters { border-radius: 16px; }
   .tb-filters button { flex-direction: column; gap: 3px; min-height: 52px; padding: 4px 2px; border-radius: 12px; font-size: 12.5px; }
-  .tb-feature { grid-template-columns: 96px minmax(0, 1fr) 18px; gap: 12px; padding: 12px; }
+  .tb-feature { grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 12px; }
   .tb-cover-lg { width: 96px; }
   .tb-cover-lg b { font-size: 16px; }
   .tb-feature h3 { font-size: 17px; }
@@ -500,8 +499,7 @@ button.tb-wave:disabled { cursor: default; }
 .tb-feature { row-gap: 14px; }
 .tb-feature .tb-cover-lg { grid-column: 1; grid-row: 1; }
 .tb-feature-body { grid-column: 2; grid-row: 1; align-self: center; gap: 10px; pointer-events: none; }
-.tb-feature .tb-chevron { grid-column: 3; grid-row: 1; }
-.tb-when { grid-column: 1; grid-row: 2; align-self: center; color: var(--tb-ink); font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .01em; white-space: nowrap; pointer-events: none; }
+.tb-when { grid-column: 1; grid-row: 2; align-self: center; justify-self: center; text-align: center; color: var(--tb-ink); font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .01em; white-space: nowrap; pointer-events: none; }
 .tb-feature-foot { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: 0; pointer-events: none; }
 .tb-feature-foot .tb-action { justify-content: center; white-space: nowrap; }
 .tb-feature-foot .tb-manage,

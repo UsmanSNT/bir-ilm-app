@@ -192,7 +192,6 @@ export default function TalksBoard({
             <span className="tb-people"><Users size={16} /> {s.participantCount} kishi qatnashmoqda</span>
           )}
         </div>
-        <ChevronRight className="tb-chevron" size={24} aria-hidden="true" />
         <time className="tb-when" dateTime={s.scheduledAt}>{koreaStamp(s.scheduledAt)}</time>
         <div className="tb-feature-foot">
           {live ? (

@@ -445,20 +445,13 @@ body .app-shell[hidden] { display: none; }
 .lib-head-catalog .lib-mine.is-on { background: var(--lojuvard); color: #fff; box-shadow: inset 0 0 0 1.5px var(--lojuvard), 0 0 0 3px var(--tilla-och); }
 .lib-head-catalog .lib-add { display: grid; place-items: center; width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; background: var(--lojuvard); color: var(--tilla-2); box-shadow: 0 0 0 2px var(--tilla-och); }
 .lib-head-catalog .lib-mine:focus-visible, .lib-head-catalog .lib-add:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
-/* Telefonda sarlavha to'liq ko'rinsin: tugmalar ixcham; eng tor ekranda (≤ 380px) «Kitoblarim» belgisiz. */
+/* Telefonda sarlavha to'liq ko'rinsin: tugmalar biroz ixcham. */
 @media (max-width: 440px) {
   .lib-head-catalog { gap: 6px; }
   .lib-head-catalog .lib-title-row { gap: 6px; }
-  .lib-head-catalog .lib-back { width: 34px; height: 34px; }
   .lib-head-catalog h1 { font-size: 22px !important; }
   .lib-head-catalog .lib-mine { padding: 0 11px; }
   .lib-head-catalog .lib-add { width: 38px; height: 38px; min-height: 38px; }
-}
-@media (max-width: 380px) {
-  .lib-head-catalog, .lib-head-catalog .lib-title-row { gap: 5px; }
-  .lib-head-catalog h1 { font-size: 20px !important; }
-  .lib-head-catalog .lib-mine { padding: 0 10px; font-size: 12.5px; }
-  .lib-head-catalog .lib-mine svg { display: none; }
 }
 /* «Kitoblarim» ro'yxati: muqova kichik eskiz (javondagidek butun kenglikni egallamaydi). */
 .lib-row { grid-template-columns: minmax(0, 1fr) auto; }

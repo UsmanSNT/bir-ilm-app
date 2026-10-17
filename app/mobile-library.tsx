@@ -67,7 +67,7 @@ function loadPart(el: HTMLAudioElement, book: Book, index: number, offset: numbe
   el.currentTime = offset;
 }
 
-export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: string[]; onToggleSave: (id: string) => void; onBack?: () => void }) {
+export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]; onToggleSave: (id: string) => void }) {
   const catalog = useCatalog();
   const viewer = useViewer();
   const editor = canModerate(viewer?.role);
@@ -226,6 +226,14 @@ export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted, catalog.loading, catalog.items]);
 
+  /** «Kutubxona» sarlavhasi: qidiruv va «Kitoblarim» tozalanib, javon boshiga qaytiladi. */
+  function showLibraryHome() {
+    setShowMine(false);
+    setQuery("");
+    setScreen("catalog");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function openBook(id: string) {
     setActiveId(id);
     setScreen("player");
@@ -319,8 +327,7 @@ export default function MobileLibrary({ shelf, onToggleSave, onBack }: { shelf: 
         <div className="lib-screen">
           <header className="lib-head lib-head-catalog">
             <div className="lib-title-row">
-              {onBack && <button type="button" className="lib-back" aria-label="Orqaga" onClick={onBack}><ChevronLeft size={22} /></button>}
-              <h1>Kutubxona</h1>
+              <h1><button type="button" className="lib-home" onClick={showLibraryHome} title="Kutubxona boshiga">Kutubxona</button></h1>
             </div>
             <div className="lib-head-actions">
               <button type="button" className={`lib-mine${showMine ? " is-on" : ""}`} aria-pressed={showMine} onClick={() => setShowMine((on) => !on)}>
