@@ -517,3 +517,38 @@ button.tb-wave:disabled { cursor: default; }
 @media (max-width: 980px) {
   .show-talks .page-heading { display: none; }
 }
+
+/* ───────── Suhbat izohlari oynasi (admin/moderator) ─────────
+ * Xona (z-index 1000) va boshqaruv oynasi (120) ustida ochiladi.
+ */
+[data-slot="dialog-overlay"]:has(+ .talk-comments) { z-index: 1100; }
+[data-slot="dialog-content"].talk-comments {
+  z-index: 1101; gap: 12px; width: min(560px, calc(100% - 24px)); max-width: 560px; max-height: min(86dvh, 760px);
+  overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--chiziq); border-radius: 22px; background: var(--sahifa);
+}
+.talk-comments:focus { outline: none; }
+.talk-comments [data-slot="dialog-title"] { display: flex; align-items: center; gap: 8px; font: 600 22px/1.2 var(--f-display); color: var(--siyoh); }
+.talk-comments [data-slot="dialog-title"] svg { flex: none; color: var(--tilla); }
+.talk-comments-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.talk-comments-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 10px 12px; border-radius: 14px; background: #fff; box-shadow: inset 0 0 0 1px var(--chiziq); }
+.talk-comments-list .live-avatar-circle { width: 34px; font-size: 14px; outline: 0; }
+.talk-comments-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0; color: var(--siyoh-3); font-size: 12px; font-weight: 650; }
+.talk-comments-meta strong { color: var(--siyoh); font-size: 13.5px; font-weight: 750; }
+.talk-comments-meta span { padding: 1px 7px; border-radius: 999px; background: var(--tilla-och); color: #7a5a14; font-size: 11px; font-weight: 750; }
+.talk-comments-body { margin: 3px 0 0; color: var(--siyoh-2); font-size: 14.5px; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
+.talk-comments-note { display: grid; justify-items: center; gap: 8px; margin: 0; color: var(--siyoh-3); font-size: 13.5px; text-align: center; }
+.talk-comments-note.is-error { color: var(--anor); }
+.talk-comments-note button, .talk-comments-more {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 16px;
+  border: 1.5px solid var(--chiziq); border-radius: 999px; background: #fff; color: var(--lojuvard); font: 750 13.5px var(--f-ui); cursor: pointer;
+}
+.talk-comments-more { justify-self: center; }
+.talk-comments-note button:hover, .talk-comments-more:hover { background: var(--tilla-och); }
+:is(.talk-comments-note button, .talk-comments-more):focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
+
+/* Boshqaruv oynasida: izohlar soni va oynani ochish */
+.tb-comments { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--qogoz); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.tb-comments > svg { flex: none; color: var(--tilla); }
+.tb-comments > span { display: grid; flex: 1; min-width: 0; gap: 2px; }
+.tb-comments strong { color: var(--siyoh); font-size: 14px; }
+.tb-comments small { color: var(--siyoh-3); font-size: 12px; }

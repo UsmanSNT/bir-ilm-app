@@ -12,6 +12,7 @@ import type {
   WsClientMessage,
   WsServerMessage,
 } from "@/shared/contract/live";
+import type { Page } from "@/shared/contract/common";
 import type { UserRole } from "@/shared/contract/roles";
 import { API_PREFIX, absoluteUrl, detectPlatform, resolveBaseUrl } from "./config";
 
@@ -352,6 +353,16 @@ export async function fetchLiveSessionState(id: string): Promise<LiveSession | n
   if (!res.ok) return null;
   const body: { data?: { session: LiveSession } } = await res.json();
   return body.data?.session ? withMediaUrls(body.data.session) : null;
+}
+
+/** Suhbat izohlari (admin/moderator), eskidan yangiga, sahifalab. Xato bo'lsa — xabar matni. */
+export async function fetchLiveMessages(id: string, cursor: string | null): Promise<Page<LiveMessage> | string> {
+  const query = new URLSearchParams({ limit: "100" });
+  if (cursor) query.set("cursor", cursor);
+  const res = await fetch(`${API_PREFIX}/live/${encodeURIComponent(id)}/messages?${query}`, { credentials: "include" });
+  const body = (await res.json().catch(() => ({}))) as { data?: Page<LiveMessage>; error?: { message?: string } };
+  if (!res.ok || !body.data) return body.error?.message ?? "Izohlarni yuklab bo'lmadi.";
+  return body.data;
 }
 
 /** Suhbatni o'chirish (admin). */

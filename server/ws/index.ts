@@ -16,7 +16,7 @@ import { closeMediaRoom, issueMediaToken, mediaEnabled, removeFromMedia, syncMed
 import { ApiException } from "@/server/http/errors";
 import { GameError, type QuizGame } from "@/server/services/quiz-game-engine";
 import { loadQuestions, openGame } from "@/server/services/quiz-game";
-import type { WsClientMessage, WsServerMessage, LiveRole } from "@/shared/contract/live";
+import { LIMITS_LIVE, type WsClientMessage, type WsServerMessage, type LiveRole } from "@/shared/contract/live";
 import type { GameClientMessage, GameServerMessage } from "@/shared/contract/quiz-game";
 import { canModerate } from "@/shared/contract/roles";
 
@@ -61,9 +61,23 @@ function cancelDeparture(sessionId: string, userId: string) {
   pendingDepartures.delete(key);
 }
 
+// Izohlar tezligi: har qatnashchining oxirgi izohlari vaqti (suhbatdan chiqqanda tozalanadi).
+const chatTimes = new Map<string, number[]>();
+
+/** `messageWindowMs` ichida `messageBurst` tadan ortiq izoh rad etiladi. */
+function chatAllowed(sessionId: string, userId: string, now = Date.now()): boolean {
+  const key = departureKey(sessionId, userId);
+  const recent = (chatTimes.get(key) ?? []).filter((at) => now - at < LIMITS_LIVE.messageWindowMs);
+  const allowed = recent.length < LIMITS_LIVE.messageBurst;
+  if (allowed) recent.push(now);
+  chatTimes.set(key, recent);
+  return allowed;
+}
+
 async function depart(db: Database, sessionId: string, userId: string) {
   cancelDeparture(sessionId, userId);
   if (isConnected(sessionId, userId)) return;
+  chatTimes.delete(departureKey(sessionId, userId));
   await live.leaveSession(db, sessionId, userId);
   // Yozayotgan admin chiqib ketsa, yozuv to'xtaydi — boshqalar buni ko'rishi kerak.
   const session = await live.getLiveSession(db, sessionId);
@@ -187,10 +201,10 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         count,
       }, client.ws);
 
-      // O'ziga to'liq ma'lumot
+      // O'ziga to'liq ma'lumot. Izohlar efirda suzib o'tadi: ularning tarixi faqat admin/moderatorga beriladi.
       const [participants, recentMessages] = await Promise.all([
         live.getParticipants(db, msg.sessionId),
-        live.getRecentMessages(db, msg.sessionId),
+        canModerate(globalRole) ? live.getRecentMessages(db, msg.sessionId) : [],
       ]);
       const updatedSession = await live.getLiveSession(db, msg.sessionId);
       const media = updatedSession!.status === "ended"
@@ -217,8 +231,12 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
 
     case "chat": {
       if (!client.sessionId) return;
-      const body = msg.body?.trim();
-      if (!body || body.length > 500) return;
+      const body = typeof msg.body === "string" ? msg.body.trim() : "";
+      if (!body || body.length > LIMITS_LIVE.messageBody) return;
+      if (!chatAllowed(client.sessionId, client.userId)) {
+        send(client.ws, { type: "error", message: "Juda tez yozyapsiz — bir oz kuting." });
+        return;
+      }
       const message = await live.addMessage(db, client.sessionId, client.userId, client.userName, body);
       broadcastToSession(client.sessionId, { type: "chat", message });
       return;
@@ -260,6 +278,7 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
       const sessionId = client.sessionId;
       kickedFrom(sessionId).add(msg.targetUserId);
       cancelDeparture(sessionId, msg.targetUserId);
+      chatTimes.delete(departureKey(sessionId, msg.targetUserId));
       await live.leaveSession(db, sessionId, msg.targetUserId);
       await removeFromMedia(sessionId, msg.targetUserId);
       for (const other of clients.values()) {

@@ -29,9 +29,10 @@ export const GET = defineRoute<undefined, SessionDetail>({
     const session = await getLiveSession(db, params.id, staff);
     // Audiosi joylanmagan tugagan suhbat oddiy foydalanuvchiga yo'q.
     if (!session || (!staff && session.status === "ended" && !session.archive)) throw notFound("Suhbat topilmadi.");
+    // Izohlar tarixi faqat admin/moderatorga: oddiy foydalanuvchi izohlarni faqat efirda (suzib o'tganda) ko'radi.
     const [participants, recentMessages] = await Promise.all([
       getParticipants(db, params.id),
-      getRecentMessages(db, params.id),
+      staff ? getRecentMessages(db, params.id) : [],
     ]);
     return { session, participants, recentMessages };
   },

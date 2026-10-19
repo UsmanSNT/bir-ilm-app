@@ -1,5 +1,6 @@
 /** Jonli suhbat shartnomasi — web, Android va iOS uchun. */
 import { z } from "zod";
+import { CURSOR_MAX_LENGTH } from "./common";
 import type { UserRole } from "./roles";
 
 export const LIVE_SESSION_STATUSES = ["planned", "live", "ended"] as const;
@@ -11,6 +12,12 @@ export type LiveRole = (typeof LIVE_ROLES)[number];
 export const LIMITS_LIVE = {
   title: 200,
   messageBody: 500,
+  /**
+   * Izohlar suzib o'tadi: bitta qatnashchi `messageWindowMs` ichida `messageBurst` tadan ko'p yozsa,
+   * qolganlari rad etiladi — oqim bir kishining xabarlari bilan to'lib ketmasin.
+   */
+  messageBurst: 5,
+  messageWindowMs: 10_000,
   /** Yozuvning bitta bo'lagi (brauzer har 10 soniyada yuboradi). */
   recordingChunkBytes: 8 * 1024 * 1024,
   /** Bitta xom yozuv: 2 GB. */
@@ -34,6 +41,13 @@ export const createLiveSessionSchema = z.object({
 export const liveMessageSchema = z.object({
   body: trimmed(LIMITS_LIVE.messageBody).min(1, "Xabarni yozing."),
 });
+
+/** Suhbat izohlari oynasi (admin/moderator): eskidan yangiga, sahifalab. */
+export const liveMessagesQuerySchema = z.object({
+  cursor: z.string().max(CURSOR_MAX_LENGTH).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+});
+export type LiveMessagesQuery = z.infer<typeof liveMessagesQuerySchema>;
 
 export type CreateLiveSessionInput = z.infer<typeof createLiveSessionSchema>;
 
@@ -62,6 +76,11 @@ export type LiveSession = {
   endedAt: string | null;
   moderatorId: string;
   participantCount: number;
+  /**
+   * Izohlar soni — faqat admin/moderatorga; boshqalarga doim 0. Izohlar efirda suzib o'tadi,
+   * suhbatdan keyin ularni faqat admin va moderator «Suhbat izohlari» oynasida ko'radi.
+   */
+  messageCount: number;
   /** Hozir yozib olinmoqda (hamma ko'radi — qatnashchilar bilishi kerak). */
   recording: boolean;
   /** Ishlov berilgan, hammaga ochiq audio. null — hali joylanmagan (tugagan suhbat faqat adminlarga ko'rinadi). */
@@ -125,6 +144,7 @@ export type WsServerMessage =
       type: "joined";
       session: LiveSession;
       participants: LiveParticipant[];
+      /** Oxirgi izohlar — faqat admin/moderatorga; boshqalarga doim bo'sh (izoh tarixi ko'rsatilmaydi). */
       recentMessages: LiveMessage[];
       /** Ulangan foydalanuvchining o'zi. */
       you: { userId: string; role: UserRole };

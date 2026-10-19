@@ -2,13 +2,14 @@
 
 import DateTimeField from "./datetime-field";
 import { useRef, useState } from "react";
-import { CalendarClock, Download, FileAudio, Megaphone, Trash2, Upload, X } from "lucide-react";
+import { CalendarClock, Download, FileAudio, Megaphone, MessageCircle, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { uploadChunked } from "@/lib/api/books-client";
 import { API_PREFIX } from "@/lib/api/config";
 import { deleteLiveRecording, deleteLiveSession, removeLiveArchive, updateLiveSession, withMediaUrls } from "@/lib/api/live-client";
 import { LIMITS_LIVE, type Book, type LiveSession } from "@/shared/contract";
 import { clock, dayMonth, durationLabel, localInput, notifyTalksChanged, talkRescheduled } from "./talk-format";
+import TalkComments from "./talk-comments";
 
 // Suhbatni boshqarish (admin/moderator): xom yozuvni yuklab olish, ishlov berilgan
 // audioni joylash — shundan keyin suhbat «O'tgan suhbatlar»da hammaga ko'rinadi.
@@ -41,6 +42,7 @@ export default function TalkManage({
   const [when, setWhen] = useState(() => localInput(new Date(session.scheduledAt)));
   const [talkTitle, setTalkTitle] = useState(session.title);
   const [announce, setAnnounce] = useState(true);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const whenChanged = when !== localInput(new Date(session.scheduledAt));
 
   /** Vaqt va sarlavhani saqlaydi (faqat admin). */
@@ -182,6 +184,16 @@ export default function TalkManage({
 
         {session.status === "ended" && (
           <>
+            <h4>Izohlar <span>faqat admin va moderator</span></h4>
+            <div className="tb-comments">
+              <MessageCircle size={18} />
+              <span>
+                <strong>{session.messageCount ? `${session.messageCount} ta izoh` : "Izoh yozilmagan"}</strong>
+                <small>Efirda yozilgan izohlar — boshqalarga suhbatdan keyin ko‘rinmaydi</small>
+              </span>
+              <button type="button" className="tb-sheet-btn" disabled={!session.messageCount} onClick={() => setCommentsOpen(true)}>Ko‘rish</button>
+            </div>
+
             <h4>Xom yozuvlar <span>faqat admin va moderator</span></h4>
             {session.recordings.length === 0 && <p className="tb-sheet-empty">Bu suhbat yozib olinmagan.</p>}
             <ul className="tb-recs">
@@ -234,6 +246,8 @@ export default function TalkManage({
         )}
 
         {isAdmin && session.status === "ended" && deleteButton}
+        {/* Oyna sheet ichida: undagi bosishlar (React daraxti bo'ylab) fondagi «yopish»ga yetib bormaydi. */}
+        {commentsOpen && <TalkComments talk={session} onClose={() => setCommentsOpen(false)} />}
       </div>
     </div>
   );

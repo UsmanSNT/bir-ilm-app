@@ -22,7 +22,6 @@ import {
   UserMinus,
   Users,
   Volume2,
-  X,
 } from "lucide-react";
 import type { Track } from "livekit-client";
 import { useLiveMedia } from "@/lib/api/live-media";
@@ -35,45 +34,54 @@ import { useViewer } from "@/lib/api/roles-client";
 import { RoomRecorder, recordingSupported, saveRecordingFile } from "@/lib/api/live-recorder";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { LoginDialog } from "./login-dialog";
+import { Avatar } from "./live-avatar";
+import TalkComments from "./talk-comments";
 import TalksBoard from "./talks-board";
 import { TALKS_CHANGED } from "./talk-format";
-import type {
-  LiveSession as LiveSessionType,
-  LiveParticipant,
-  LiveMessage,
-  LiveMedia,
+import {
+  LIMITS_LIVE,
+  type LiveSession as LiveSessionType,
+  type LiveParticipant,
+  type LiveMessage,
+  type LiveMedia,
 } from "@/shared/contract/live";
 import { canModerate, type UserRole } from "@/shared/contract/roles";
 
-function timeStr(iso: string) {
-  return new Date(iso).toLocaleTimeString("uz-UZ", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+/** Efirda bir vaqtda ko'rinadigan izohlar: eskilari tepada yo'qoladi, xona to'lib ketmaydi. */
+const FLOAT_MAX = 6;
 
-// Naqsh ranglari: oq harf bilan kontrasti yetarli (WCAG AA), efir foniga mos.
-const AVATAR_COLORS = [
-  "#2c4398", "#0d7a79", "#b83a2f", "#a8741a",
-  "#5b4a8b", "#0b6a68", "#8e3b34", "#3b5bb5",
-  "#7a5a0c", "#2f6f8f", "#7d3c98", "#1e2f6e",
-];
-
-function avatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++)
-    hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-function Avatar({ name, className }: { name: string; className?: string }) {
+/**
+ * Efirdagi izohlar (Instagram/TikTok live kabi): pastdan chiqadi, bir necha soniyada tepaga suzib
+ * yo'qoladi. Har izohning umri CSS animatsiyasi bilan o'lchanadi — tugaganda ro'yxatdan olinadi.
+ * Moderator izoh ustiga borsa oqim to'xtab turadi va izohni o'chira oladi.
+ */
+function FloatingComments({ items, myId, canDelete, onGone, onDelete }: {
+  items: LiveMessage[];
+  myId: string | null;
+  canDelete: boolean;
+  onGone: (id: number) => void;
+  onDelete: (id: number) => void;
+}) {
   return (
-    <span
-      className={`live-avatar-circle ${className ?? ""}`}
-      style={{ background: avatarColor(name) }}
-    >
-      {name.charAt(0).toUpperCase()}
-    </span>
+    <ol className={`live-float${canDelete ? " can-moderate" : ""}`} role="log" aria-live="polite" aria-label="Jonli izohlar">
+      {items.map((msg) => (
+        <li
+          key={msg.id}
+          className={`live-float-item${msg.userId === myId ? " is-mine" : ""}`}
+          onAnimationEnd={(e) => { if (e.animationName.startsWith("live-float-life")) onGone(msg.id); }}
+        >
+          <div className="live-float-bubble">
+            <Avatar name={msg.userName} />
+            <p><strong>{msg.userName}</strong> {msg.body}</p>
+            {canDelete && (
+              <button type="button" aria-label={`${msg.userName} izohini o‘chirish`} title="Izohni o‘chirish" onClick={() => onDelete(msg.id)}>
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -133,10 +141,16 @@ export default function LiveSession({
   const [sessionData, setSessionData] = useState<LiveSessionType | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [participants, setParticipants] = useState<LiveParticipant[]>([]);
-  const [messages, setMessages] = useState<LiveMessage[]>([]);
+  /** Hozir efirda suzib turgan izohlar (tarix saqlanmaydi). */
+  const [floating, setFloating] = useState<LiveMessage[]>([]);
   const [participantCount, setParticipantCount] = useState(0);
   const [handRaised, setHandRaised] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  /** Izohlar oqimi va yozish maydoni ko'rinadimi (foydalanuvchi o'zi yashira oladi). */
+  const [commentsOn, setCommentsOn] = useState(true);
+  /** Admin/moderator: tugagan suhbat izohlari oynasi. */
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  /** O'zim yuborgan izohlar vaqti — server chegarasiga yetmasdan oldin yozilgan matn yo'qolmasin. */
+  const sentAtRef = useRef<number[]>([]);
   const [draft, setDraft] = useState("");
   const [selected, setSelected] = useState<LiveParticipant | null>(null);
   const [notice, setNotice] = useState("");
@@ -160,7 +174,6 @@ export default function LiveSession({
 
   const clientRef = useRef<LiveClient | null>(null);
   const meRef = useRef<Me | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const loadSessions = useCallback(async () => {
     setLoading(true);
@@ -188,10 +201,6 @@ export default function LiveSession({
   }, [loading, viewer, sessions, activeSessionId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
     return () => {
       void recorderRef.current?.stop();
       clientRef.current?.dispose();
@@ -213,9 +222,9 @@ export default function LiveSession({
     rememberActive(sessionId);
     setMinimized(false);
     setListNotice("");
-    setMessages([]);
+    setFloating([]);
+    setArchiveOpen(false);
     setParticipants([]);
-    setCommentsOpen(false);
     endedRef.current = false;
     setSelected(null);
     setHandRaised(false);
@@ -230,18 +239,17 @@ export default function LiveSession({
       setMedia(data.media);
       setSessionData(data.session);
       setParticipants(data.participants);
-      setMessages(data.recentMessages);
       setParticipantCount(data.session.participantCount);
       meRef.current = data.you;
       setMe(data.you);
     });
 
     client.on("chat", (msg) => {
-      setMessages((prev) => [...prev, msg]);
+      setFloating((prev) => [...prev, msg].slice(-FLOAT_MAX));
     });
 
     client.on("message_deleted", ({ messageId }) => {
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      setFloating((prev) => prev.filter((m) => m.id !== messageId));
     });
 
     client.on("participant_joined", ({ participant, count }) => {
@@ -409,6 +417,14 @@ export default function LiveSession({
   function sendComment() {
     const body = draft.trim();
     if (!body) return;
+    // Server ham tekshiradi; bu yerda — rad etiladigan izoh matni yo'qolib ketmasligi uchun.
+    const now = Date.now();
+    const recent = sentAtRef.current.filter((at) => now - at < LIMITS_LIVE.messageWindowMs);
+    if (recent.length >= LIMITS_LIVE.messageBurst) {
+      setNotice("Juda tez yozyapsiz — bir oz kuting.");
+      return;
+    }
+    sentAtRef.current = [...recent, now];
     clientRef.current?.sendChat(body);
     setDraft("");
   }
@@ -472,7 +488,16 @@ export default function LiveSession({
     ...(canMod
       ? []
       : [{ label: "Qo'l ko'tarish", icon: Hand, active: handRaised, disabled: false, pending: false, action: toggleHand }]),
-    { label: "Izohlar", icon: MessageCircle, active: commentsOpen, disabled: false, pending: false, action: () => setCommentsOpen(!commentsOpen) },
+    // Tugagan suhbatda izohlar oqimi yopiladi; admin/moderator bu tugma bilan izohlar oynasini ochadi.
+    {
+      label: "Izohlar",
+      icon: MessageCircle,
+      active: status !== "ended" && commentsOn,
+      disabled: status === "ended" && !canMod,
+      pending: false,
+      action: () => (status === "ended" ? setArchiveOpen(true) : setCommentsOn(!commentsOn)),
+      hint: "Suhbat tugagan — izohlar yopildi",
+    },
     ...(roomAdmin
       ? [{
           label: recording ? "Yozuvni to'xtatish" : "Yozib olish",
@@ -556,7 +581,14 @@ export default function LiveSession({
           </header>
 
           {connState === "joined" && status === "ended" && (
-            <div className="live-status-banner ended">Suhbat tugadi. Izohlarni o&apos;qishingiz mumkin.</div>
+            <div className="live-status-banner ended">
+              {canMod ? "Suhbat tugadi." : "Suhbat tugadi. Qatnashganingiz uchun rahmat!"}
+              {canMod && (
+                <button type="button" className="live-banner-btn" onClick={() => setArchiveOpen(true)}>
+                  <MessageCircle size={14} /> Suhbat izohlari
+                </button>
+              )}
+            </div>
           )}
           <div className="live-main">
             {/* Ulanmoqda / Xatolik */}
@@ -577,7 +609,7 @@ export default function LiveSession({
 
             {/* ── Yagona xona: ovozli asos + kerak bo'lsa video/taqdimot sahnasi ── */}
             {connState === "joined" && (
-              <div className={`live-room${stage ? " has-stage" : ""}`}>
+              <div className={`live-room${stage ? " has-stage" : ""}${status === "live" && commentsOn ? " has-float" : ""}`}>
                 {stage === "screen" && av.screenSharer && (
                   <section className="live-stage live-stage-screen">
                     <div className="live-share-banner">
@@ -651,60 +683,30 @@ export default function LiveSession({
               </div>
             )}
 
-            {/* ── Izohlar paneli ── */}
-            {commentsOpen && (
-              <aside className="live-comments">
-                <div className="live-comments-head">
-                  <strong>Jonli izohlar</strong>
-                  <button className="live-plain-btn" aria-label="Izohlarni yopish" onClick={() => setCommentsOpen(false)}>
-                    <X size={20} />
+            {/* ── Efirdagi izohlar: xona ustida suzib o'tadi, alohida panel yo'q ── */}
+            {connState === "joined" && status === "live" && commentsOn && (
+              <>
+                <FloatingComments
+                  items={floating}
+                  myId={me?.userId ?? null}
+                  canDelete={canMod}
+                  onGone={(id) => setFloating((prev) => prev.filter((m) => m.id !== id))}
+                  onDelete={(id) => clientRef.current?.deleteMessage(id)}
+                />
+                <form className="live-float-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
+                  <input
+                    aria-label="Izoh yozing"
+                    placeholder="Izoh yozing…"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    maxLength={LIMITS_LIVE.messageBody}
+                    enterKeyHint="send"
+                  />
+                  <button aria-label="Izoh yuborish" disabled={!draft.trim()}>
+                    <Send size={17} />
                   </button>
-                </div>
-                <div className="live-comment-list">
-                  {messages.length === 0 && (
-                    <p className="muted" style={{ textAlign: "center", padding: "2rem", fontSize: 13 }}>
-                      Hali izohlar yo&apos;q. Birinchi bo&apos;ling!
-                    </p>
-                  )}
-                  {messages.map((msg) => (
-                    <div className="live-comment" key={msg.id}>
-                      <Avatar name={msg.userName} />
-                      <div>
-                        <strong>{msg.userName}</strong>
-                        <time>{timeStr(msg.createdAt)}</time>
-                        <p>{msg.body}</p>
-                      </div>
-                      {canMod && (
-                        <button
-                          className="live-comment-delete"
-                          aria-label="Izohni o'chirish"
-                          title="Izohni o'chirish"
-                          onClick={() => clientRef.current?.deleteMessage(msg.id)}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
-                {status === "ended" ? (
-                  <p className="live-comments-closed">Suhbat tugagan — izoh yozib bo&apos;lmaydi.</p>
-                ) : (
-                  <form className="live-comment-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
-                    <input
-                      aria-label="Izoh yozing"
-                      placeholder="Izoh yozing..."
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      maxLength={500}
-                    />
-                    <button aria-label="Izoh yuborish" disabled={!draft.trim()}>
-                      <Send size={18} />
-                    </button>
-                  </form>
-                )}
-              </aside>
+                </form>
+              </>
             )}
 
             {/* ── Moderator: qatnashchi bilan amallar ── */}
@@ -822,6 +824,7 @@ export default function LiveSession({
       {overlay}
       {miniBar}
       {recFile && <SaveRecordingDialog file={recFile} onClose={() => setRecFile(null)} />}
+      {archiveOpen && sessionData && canMod && <TalkComments talk={sessionData} onClose={() => setArchiveOpen(false)} />}
     </>
   );
 }

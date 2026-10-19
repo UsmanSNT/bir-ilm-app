@@ -5,17 +5,20 @@
  */
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
-import { eq, and, asc, desc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, gt, inArray, or, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ensureUser } from "./social";
 import { mediaRoot } from "./books";
+import { decodeCursor, encodeCursor } from "./cursor";
 import { badRequest, notFound } from "@/server/http/errors";
+import type { Page } from "@/shared/contract/common";
 import type {
   CreateLiveSessionInput,
   LiveSession,
   LiveParticipant,
   LiveMessage,
+  LiveMessagesQuery,
   LiveRole,
   LiveRecording,
 } from "@/shared/contract/live";
@@ -45,6 +48,7 @@ export async function createLiveSession(
 
 type SessionRow = typeof schema.liveSessions.$inferSelect;
 type RecordingRow = typeof schema.liveRecordings.$inferSelect;
+type MessageRow = typeof schema.liveMessages.$inferSelect;
 
 export const LIVE_ID_PATTERN = /^live_[a-z0-9]{6,32}$/;
 export const LIVE_FILE_PATTERN = /^(archive|rec-[a-z0-9]{6,32})\.[a-z0-9]{2,5}$/;
@@ -72,7 +76,7 @@ function toRecording(row: RecordingRow): LiveRecording {
   };
 }
 
-function toSession(row: SessionRow, participantCount: number, recordings: RecordingRow[] = []): LiveSession {
+function toSession(row: SessionRow, participantCount: number, recordings: RecordingRow[] = [], messageCount = 0): LiveSession {
   return {
     id: row.id,
     bookTitle: row.bookTitle,
@@ -83,6 +87,7 @@ function toSession(row: SessionRow, participantCount: number, recordings: Record
     endedAt: row.endedAt,
     moderatorId: row.moderatorId,
     participantCount,
+    messageCount,
     recording: Boolean(row.recordingBy),
     archive: row.archiveFile
       ? {
@@ -95,7 +100,18 @@ function toSession(row: SessionRow, participantCount: number, recordings: Record
   };
 }
 
-/** `staff` — admin/moderator: xom yozuvlar ham qo'shiladi. */
+/** Har bir suhbatdagi izohlar soni (faqat admin/moderator ko'rinishi uchun). */
+async function messageCounts(db: Database, ids: string[]): Promise<Map<string, number>> {
+  if (!ids.length) return new Map();
+  const rows = await db
+    .select({ sessionId: schema.liveMessages.sessionId, c: sql<number>`count(*)` })
+    .from(schema.liveMessages)
+    .where(inArray(schema.liveMessages.sessionId, ids))
+    .groupBy(schema.liveMessages.sessionId);
+  return new Map(rows.map((r) => [r.sessionId, r.c]));
+}
+
+/** `staff` — admin/moderator: xom yozuvlar va izohlar soni ham qo'shiladi. */
 export async function getLiveSession(
   db: Database,
   id: string,
@@ -109,13 +125,16 @@ export async function getLiveSession(
     .select({ c: sql<number>`count(*)` })
     .from(schema.liveParticipants)
     .where(eq(schema.liveParticipants.sessionId, id));
-  const recordings = staff
-    ? await db.query.liveRecordings.findMany({
-        where: eq(schema.liveRecordings.sessionId, id),
-        orderBy: asc(schema.liveRecordings.createdAt),
-      })
-    : [];
-  return toSession(row, count[0]?.c ?? 0, recordings);
+  const [recordings, messages] = staff
+    ? await Promise.all([
+        db.query.liveRecordings.findMany({
+          where: eq(schema.liveRecordings.sessionId, id),
+          orderBy: asc(schema.liveRecordings.createdAt),
+        }),
+        messageCounts(db, [id]),
+      ])
+    : [[], new Map<string, number>()];
+  return toSession(row, count[0]?.c ?? 0, recordings, messages.get(id) ?? 0);
 }
 
 /**
@@ -139,11 +158,14 @@ export async function listLiveSessions(
     .from(schema.liveParticipants)
     .groupBy(schema.liveParticipants.sessionId);
   const countMap = new Map(counts.map((r) => [r.sessionId, r.c]));
-  const recordings = staff
-    ? await db.query.liveRecordings.findMany({ orderBy: asc(schema.liveRecordings.createdAt) })
-    : [];
+  const [recordings, messages] = staff
+    ? await Promise.all([
+        db.query.liveRecordings.findMany({ orderBy: asc(schema.liveRecordings.createdAt) }),
+        messageCounts(db, visible.map((r) => r.id)),
+      ])
+    : [[], new Map<string, number>()];
   return visible.map((r) =>
-    toSession(r, countMap.get(r.id) ?? 0, recordings.filter((rec) => rec.sessionId === r.id)),
+    toSession(r, countMap.get(r.id) ?? 0, recordings.filter((rec) => rec.sessionId === r.id), messages.get(r.id) ?? 0),
   );
 }
 
@@ -346,20 +368,7 @@ export async function setRole(
 
 // ── Xabarlar ────────────────────────────────────────────────────────
 
-export async function addMessage(
-  db: Database,
-  sessionId: string,
-  userId: string,
-  userName: string,
-  body: string,
-): Promise<LiveMessage> {
-  const result = await db.insert(schema.liveMessages).values({
-    sessionId,
-    userId,
-    userName,
-    body,
-  }).returning();
-  const row = result[0];
+function toMessage(row: MessageRow): LiveMessage {
   return {
     id: row.id,
     userId: row.userId,
@@ -367,6 +376,23 @@ export async function addMessage(
     body: row.body,
     createdAt: sqliteUtcToIso(row.createdAt),
   };
+}
+
+/** Izoh faqat jonli suhbat paytida yoziladi (boshlanmagan yoki tugagan suhbatga emas). */
+export async function addMessage(
+  db: Database,
+  sessionId: string,
+  userId: string,
+  userName: string,
+  body: string,
+): Promise<LiveMessage> {
+  const session = await db.query.liveSessions.findFirst({
+    where: eq(schema.liveSessions.id, sessionId),
+    columns: { status: true },
+  });
+  if (session?.status !== "live") throw badRequest("Izoh faqat jonli suhbat paytida yoziladi.");
+  const [row] = await db.insert(schema.liveMessages).values({ sessionId, userId, userName, body }).returning();
+  return toMessage(row);
 }
 
 export async function deleteMessage(
@@ -391,13 +417,43 @@ export async function getRecentMessages(
     orderBy: desc(schema.liveMessages.id),
     limit,
   });
-  return rows.reverse().map((r) => ({
-    id: r.id,
-    userId: r.userId,
-    userName: r.userName,
-    body: r.body,
-    createdAt: sqliteUtcToIso(r.createdAt),
-  }));
+  return rows.reverse().map(toMessage);
+}
+
+/**
+ * Suhbatning barcha izohlari eskidan yangiga, sahifalab (admin/moderator oynasi uchun).
+ * Tartib `(created_at, id)` — `idx_live_msg_session` indeksi bilan bir xil, saralash qo'shimcha ish talab qilmaydi.
+ */
+export async function listMessages(
+  db: Database,
+  sessionId: string,
+  query: LiveMessagesQuery,
+): Promise<Page<LiveMessage>> {
+  const conditions = [eq(schema.liveMessages.sessionId, sessionId)];
+  if (query.cursor) {
+    const cursor = decodeCursor(query.cursor);
+    const afterId = Number(cursor?.id);
+    if (!cursor || !Number.isSafeInteger(afterId)) throw badRequest("Sahifa kursori noto'g'ri.");
+    // Bir soniyada yozilgan izohlar ham takrorlanmaydi va tushib qolmaydi.
+    const newer = or(
+      gt(schema.liveMessages.createdAt, cursor.createdAt),
+      and(eq(schema.liveMessages.createdAt, cursor.createdAt), gt(schema.liveMessages.id, afterId)),
+    );
+    if (newer) conditions.push(newer);
+  }
+  // Bittasini ortiqcha o'qiymiz: keyingi sahifa bor-yo'qligini shundan bilamiz.
+  const rows = await db.query.liveMessages.findMany({
+    where: and(...conditions),
+    orderBy: [asc(schema.liveMessages.createdAt), asc(schema.liveMessages.id)],
+    limit: query.limit + 1,
+  });
+  const hasMore = rows.length > query.limit;
+  const items = hasMore ? rows.slice(0, query.limit) : rows;
+  const last = items[items.length - 1];
+  return {
+    items: items.map(toMessage),
+    nextCursor: hasMore && last ? encodeCursor({ createdAt: last.createdAt, id: String(last.id) }) : null,
+  };
 }
 
 // SQLite CURRENT_TIMESTAMP is UTC but lacks a zone marker, so browsers would parse it as local time.
