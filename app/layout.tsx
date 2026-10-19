@@ -14,6 +14,7 @@ import "./talks.css";
 import "./store.css";
 import "./naqsh.css";
 import "./quiz.css";
+import "./quiz-game.css";
 import "./profile-v2.css";
 import "./live-room.css";
 

@@ -13,7 +13,11 @@ import { isSignedIn } from "@/server/services/accounts";
 import * as live from "@/server/services/live";
 import { getUserRole } from "@/server/services/roles";
 import { closeMediaRoom, issueMediaToken, mediaEnabled, removeFromMedia, syncMediaRole } from "@/server/services/media";
+import { ApiException } from "@/server/http/errors";
+import { GameError, type QuizGame } from "@/server/services/quiz-game-engine";
+import { loadQuestions, openGame } from "@/server/services/quiz-game";
 import type { WsClientMessage, WsServerMessage, LiveRole } from "@/shared/contract/live";
+import type { GameClientMessage, GameServerMessage } from "@/shared/contract/quiz-game";
 import { canModerate } from "@/shared/contract/roles";
 
 type Client = {
@@ -21,6 +25,8 @@ type Client = {
   userId: string;
   userName: string;
   sessionId: string | null;
+  /** Jonli viktorina xonasi (suhbat xonasidan mustaqil). */
+  quiz: { game: QuizGame; host: boolean } | null;
 };
 
 const clients = new Map<WebSocket, Client>();
@@ -35,7 +41,7 @@ function broadcastToSession(sessionId: string, msg: WsServerMessage, exclude?: W
   }
 }
 
-function send(ws: WebSocket, msg: WsServerMessage) {
+function send(ws: WebSocket, msg: WsServerMessage | GameServerMessage) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
 
@@ -86,13 +92,14 @@ export function startWsServer(db: Database, port = 8788) {
   const wss = new WebSocketServer({ port, host: "0.0.0.0" });
 
   wss.on("connection", (ws) => {
-    const client: Client = { ws, userId: "", userName: "Kitobxon", sessionId: null };
+    const client: Client = { ws, userId: "", userName: "Kitobxon", sessionId: null, quiz: null };
     clients.set(ws, client);
 
     ws.on("message", async (raw) => {
       try {
-        const msg: WsClientMessage = JSON.parse(String(raw));
-        await handleMessage(db, client, msg);
+        const msg: WsClientMessage | GameClientMessage = JSON.parse(String(raw));
+        if (isGameMessage(msg)) await handleQuizMessage(db, client, msg);
+        else await handleMessage(db, client, msg);
       } catch (err) {
         send(ws, { type: "error", message: err instanceof Error ? err.message : "Xato." });
       }
@@ -101,6 +108,7 @@ export function startWsServer(db: Database, port = 8788) {
     ws.on("close", () => {
       clients.delete(ws);
       if (client.sessionId) scheduleDeparture(db, client.sessionId, client.userId);
+      leaveQuiz(client);
     });
   });
 
@@ -313,6 +321,125 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
       broadcastToSession(client.sessionId, { type: "recording", active: on, paused: on && msg.paused === true });
       return;
     }
+  }
+}
+
+// ── Jonli viktorina ─────────────────────────────────────────────────
+
+const isGameMessage = (msg: { type: string }): msg is GameClientMessage => typeof msg?.type === "string" && msg.type.startsWith("qz:");
+
+/** Kutish xonasiga kirish-chiqishlar ketma-ket kelganda ro'yxat bir marta yuboriladi. */
+const ROSTER_DEBOUNCE_MS = 250;
+const rosterTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function quizClients(sessionId: string): Client[] {
+  return [...clients.values()].filter((c) => c.quiz?.game.info.sessionId === sessionId);
+}
+
+/** Har bir ulanuvchiga o'zining holati: to'g'ri javob faqat natija bosqichida chiqadi. */
+function broadcastViews(sessionId: string) {
+  for (const c of quizClients(sessionId)) {
+    if (c.quiz) send(c.ws, { type: "qz:view", view: c.quiz.game.view(c.userId, c.quiz.host) });
+  }
+}
+
+function scheduleRoster(sessionId: string) {
+  if (rosterTimers.has(sessionId)) return;
+  rosterTimers.set(sessionId, setTimeout(() => {
+    rosterTimers.delete(sessionId);
+    broadcastViews(sessionId);
+  }, ROSTER_DEBOUNCE_MS));
+}
+
+function broadcastProgress(sessionId: string) {
+  const list = quizClients(sessionId);
+  const game = list[0]?.quiz?.game;
+  if (!game) return;
+  const data = JSON.stringify({ type: "qz:progress", ...game.progress() } satisfies GameServerMessage);
+  for (const c of list) if (c.ws.readyState === WebSocket.OPEN) c.ws.send(data);
+}
+
+function leaveQuiz(client: Client) {
+  const quiz = client.quiz;
+  if (!quiz) return;
+  client.quiz = null;
+  quiz.game.leave(client.userId, quiz.host);
+}
+
+async function handleQuizMessage(db: Database, client: Client, msg: GameClientMessage) {
+  const fail = (message: string, fatal = false) => send(client.ws, { type: "qz:error", message, fatal });
+  try {
+    switch (msg.type) {
+      case "qz:join": {
+        const userId = await userIdForToken(db, msg.token);
+        if (process.env.LIVE_REQUIRE_LOGIN !== "0" && !(await isSignedIn(db, userId))) {
+          return fail("Viktorinaga qo'shilish uchun avval hisobingizga kiring.", true);
+        }
+        const { schema } = await import("@/server/db/client");
+        const { eq } = await import("drizzle-orm");
+        const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) });
+        const host = canModerate(user?.role ?? "user");
+        const sessionId = String(msg.sessionId);
+        let game: QuizGame;
+        try {
+          game = await openGame(db, sessionId, {
+            onPhase: () => broadcastViews(sessionId),
+            onRoster: () => scheduleRoster(sessionId),
+            onProgress: () => broadcastProgress(sessionId),
+          });
+        } catch (error) {
+          // Vaqti kelmagan yoki o'tib ketgan viktorinaga qayta ulanishning foydasi yo'q.
+          return fail(error instanceof ApiException ? error.message : "Viktorinani ochib bo'lmadi.", true);
+        }
+
+        // Bitta hisob — bitta qurilma: shu hisobning eski ulanishi chiqariladi.
+        for (const [otherWs, other] of [...clients]) {
+          if (otherWs === client.ws || other.userId !== userId || !other.quiz) continue;
+          const old = other.quiz;
+          other.quiz = null;
+          send(otherWs, { type: "qz:kicked", reason: "replaced" });
+          otherWs.close();
+          if (old.game !== game) old.game.leave(userId, old.host);
+        }
+        leaveQuiz(client);
+        client.userId = userId;
+        client.userName = user?.name ?? "Kitobxon";
+        game.join(userId, client.userName, host);
+        client.quiz = { game, host };
+        send(client.ws, { type: "qz:view", view: game.view(userId, host) });
+        return;
+      }
+
+      case "qz:leave":
+        leaveQuiz(client);
+        return;
+
+      case "qz:answer": {
+        const quiz = client.quiz;
+        if (!quiz) return fail("Avval viktorina xonasiga kiring.");
+        if (quiz.game.answer(client.userId, msg.question, msg.choice)) send(client.ws, { type: "qz:ack", question: msg.question, choice: msg.choice });
+        return;
+      }
+
+      case "qz:start":
+      case "qz:reveal":
+      case "qz:next":
+      case "qz:reset": {
+        const quiz = client.quiz;
+        if (!quiz) return fail("Avval viktorina xonasiga kiring.");
+        // Rol har buyruqda bazadan o'qiladi: admin rolni olib qo'ysa darhol kuchga kiradi.
+        const host = canModerate(await getUserRole(db, client.userId));
+        if (msg.type === "qz:start") quiz.game.start(host, await loadQuestions(db, quiz.game.info.quizId));
+        else if (msg.type === "qz:reveal") quiz.game.revealByHost(host);
+        else if (msg.type === "qz:next") quiz.game.next(host);
+        else quiz.game.reset(host);
+        return;
+      }
+    }
+  } catch (error) {
+    if (error instanceof GameError || error instanceof ApiException) return fail(error.message);
+    console.error("[ws] viktorina xatosi", error);
+    fail("Xatolik yuz berdi. Qayta urinib ko'ring.");
   }
 }
 

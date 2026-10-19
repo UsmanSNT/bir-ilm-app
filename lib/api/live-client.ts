@@ -41,7 +41,8 @@ export type LiveEventMap = {
 
 type Listener<K extends keyof LiveEventMap> = (data: LiveEventMap[K]) => void;
 
-function resolveWsUrl(): string {
+/** Suhbat va viktorina o'yini bir xil WebSocket serveriga ulanadi. */
+export function resolveWsUrl(): string {
   const configured = (
     globalThis as { process?: { env?: Record<string, string | undefined> } }
   ).process?.env?.NEXT_PUBLIC_WS_URL;

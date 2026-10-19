@@ -3,7 +3,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ApiException, badRequest, notFound } from "@/server/http/errors";
-import { quizMinutes, quizScore, quizSessionStatus, type Quiz, type QuizInput, type QuizJoin, type QuizResultInput, type QuizSession } from "@/shared/contract";
+import { quizMinutes, quizScoreBounds, quizSessionStatus, type Quiz, type QuizInput, type QuizJoin, type QuizResultInput, type QuizSession } from "@/shared/contract";
 import { removeQuizImage } from "./quiz-media";
 
 const { quizzes, quizQuestions, quizSessions, quizResults, books } = schema;
@@ -146,7 +146,11 @@ export async function joinByCode(db: Database, code: string): Promise<QuizJoin> 
   return { quizId: row.quizId, sessionId: row.id, startsAt: row.startsAt, status: quizSessionStatus(row.startsAt) };
 }
 
-/** Natijani saqlaydi (faqat kirgan foydalanuvchi). Bir foydalanuvchi bir vaqtda bir necha marta yechsa ham alohida yoziladi. */
+/**
+ * Mustaqil rejim natijasini saqlaydi (faqat kirgan foydalanuvchi). Bir foydalanuvchi bir vaqtda bir necha marta
+ * yechsa ham alohida yoziladi. Javob tezligini server bilmaydi, shuning uchun mijoz ballini «shuncha to'g'ri javob
+ * bilan olish mumkin bo'lgan oraliq»ga keltiradi; ball yuborilmasa (eski ilova) eng kami yoziladi.
+ */
 export async function recordResult(db: Database, userId: string, input: QuizResultInput): Promise<{ score: number }> {
   const quiz = await db.query.quizzes.findFirst({ where: eq(quizzes.id, input.quizId), columns: { id: true } });
   if (!quiz) throw notFound("Viktorina topilmadi.");
@@ -154,7 +158,8 @@ export async function recordResult(db: Database, userId: string, input: QuizResu
     const session = await db.query.quizSessions.findFirst({ where: and(eq(quizSessions.id, input.sessionId), eq(quizSessions.quizId, input.quizId)), columns: { id: true } });
     if (!session) throw notFound("Viktorina vaqti topilmadi.");
   }
-  const score = quizScore(input.correct, input.total);
+  const bounds = quizScoreBounds(input.correct);
+  const score = Math.min(bounds.max, Math.max(bounds.min, input.score ?? bounds.min));
   await db.insert(quizResults).values({ id: newId("qr"), quizId: input.quizId, sessionId: input.sessionId, userId, correct: input.correct, total: input.total, score });
   return { score };
 }

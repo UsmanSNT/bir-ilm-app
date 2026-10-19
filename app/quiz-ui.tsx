@@ -5,37 +5,32 @@
  * ravoq tokcha va koshin chizig'i. Bu fayldagi komponentlar faqat ko'rinish: holat va amallar
  * `mobile-screens.tsx` da qoladi, bu yerga tayyor qiymatlar va callback'lar uzatiladi.
  */
-import { useEffect, useRef, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { OTPInput, REGEXP_ONLY_DIGITS } from "input-otp";
 import {
   ArrowRight,
-  BookOpen,
   CalendarClock,
-  Check,
   ChevronLeft,
   Clock,
+  Flame,
   KeyRound,
   ListChecks,
   Pencil,
   Play,
   Plus,
   Radio,
-  RotateCcw,
   Shuffle,
-  Sparkles,
   Star,
   Trophy,
   UserRound,
   Users,
+  Zap,
 } from "lucide-react";
 import { QUIZ_SESSION_OPENS_BEFORE_MIN } from "@/shared/contract";
 
 export type QuizMode = "live" | "solo";
 
 const CODE_LENGTH = 6;
-/** Variant harflari: test varaqlaridagidek A, B, C, D… (eng ko'pi 6 ta variant). */
-const LETTERS = ["A", "B", "C", "D", "E", "F"];
-
 /** Sakkiz qirrali yulduz medalyoni (rub el-hizb): tashqi qatlam tilla, ichkisi lojuvard. */
 function StarMedal({ children, size = "md" }: { children: ReactNode; size?: "sm" | "md" }) {
   return (
@@ -170,6 +165,7 @@ export function QuizLiveCard({
   open,
   countdown,
   code,
+  staff,
   onJoin,
 }: {
   cover: ReactNode;
@@ -181,6 +177,8 @@ export function QuizLiveCard({
   countdown: string;
   /** Xona kodi — faqat admin/moderatorga keladi. */
   code: string | null;
+  /** Admin/moderator: xonaga boshlovchi sifatida kiradi. */
+  staff: boolean;
   onJoin: () => void;
 }) {
   return (
@@ -211,7 +209,7 @@ export function QuizLiveCard({
         </p>
       )}
       <button className="qz-gold" type="button" disabled={!open} onClick={onJoin}>
-        {open ? <>Qo‘shilish <ArrowRight size={18} /></> : <><CalendarClock size={18} /> Kirish {QUIZ_SESSION_OPENS_BEFORE_MIN} daqiqa oldin ochiladi</>}
+        {open ? <>{staff ? "Boshlovchi sifatida kirish" : "Qo‘shilish"} <ArrowRight size={18} /></> : <><CalendarClock size={18} /> Kirish {QUIZ_SESSION_OPENS_BEFORE_MIN} daqiqa oldin ochiladi</>}
       </button>
     </article>
   );
@@ -419,146 +417,12 @@ export function QuizIntro({
         <li><Trophy size={18} /><b>{best ?? "—"}</b><span>eng yaxshi</span></li>
       </ul>
       <ul className="qz-rules">
-        <li><Check size={15} /> Har savolda bitta to‘g‘ri javob bor</li>
+        <li><Zap size={15} /> To‘g‘ri javob 500–1000 ball: qanchalik tez, shuncha ko‘p</li>
+        <li><Flame size={15} /> Ketma-ket to‘g‘ri javoblar bonus beradi (+50 … +250)</li>
         <li><Shuffle size={15} /> Savollar tartibi har safar aralashadi</li>
-        <li><Sparkles size={15} /> To‘g‘ri javoblar soniga qarab ball olasiz</li>
       </ul>
       <button type="button" className="qz-gold qz-start" onClick={onStart}>
         <Play size={18} /> Boshlash
-      </button>
-    </section>
-  );
-}
-
-/** Savol oynasi: koshin progress chizig'i, savol va harfli variantlar (tabiiy radio tugmalar). */
-export function QuizQuestion({
-  step,
-  total,
-  live,
-  prompt,
-  choices,
-  picked,
-  onPick,
-  onNext,
-}: {
-  step: number;
-  total: number;
-  live: boolean;
-  prompt: string;
-  choices: { id: string; text: string }[];
-  picked: string;
-  onPick: (id: string) => void;
-  onNext: () => void;
-}) {
-  const form = useRef<HTMLFormElement>(null);
-  const last = step + 1 === total;
-
-  // Keyingi savolga o'tilganda savol matni ekrandan (navbar ortidan) chiqib qolgan bo'lsa — kartani ko'rsatamiz.
-  useEffect(() => {
-    const node = form.current;
-    if (!node || step === 0) return;
-    const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--app-header-h")) || 0;
-    if (node.getBoundingClientRect().top >= header) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    node.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
-  }, [step]);
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (picked) onNext();
-  }
-
-  return (
-    <form ref={form} className="qz-play" onSubmit={submit}>
-      <div className="qz-play-head">
-        <span className="qz-step" aria-hidden="true">{step + 1}</span>
-        <p aria-live="polite">
-          <b>Savol {step + 1}</b> / {total}
-        </p>
-        {live && <span className="qz-badge is-live"><i aria-hidden="true" />Jonli</span>}
-      </div>
-      <div
-        className="qz-track"
-        role="progressbar"
-        aria-label="Viktorina jarayoni"
-        aria-valuemin={1}
-        aria-valuemax={total}
-        aria-valuenow={step + 1}
-        aria-valuetext={`${total} savoldan ${step + 1}-savol`}
-      >
-        <span style={{ width: `${((step + 1) / total) * 100}%` }} />
-      </div>
-      <div key={step} className="qz-question">
-        <h2 id="qz-question-text">{prompt}</h2>
-        <div className="qz-options" role="radiogroup" aria-labelledby="qz-question-text">
-          {choices.map((choice, index) => (
-            <label key={choice.id} className={`qz-option${picked === choice.id ? " is-picked" : ""}`}>
-              <input type="radio" name="qz-answer" value={choice.id} checked={picked === choice.id} onChange={() => onPick(choice.id)} />
-              <span className="qz-letter" aria-hidden="true">{LETTERS[index] ?? index + 1}</span>
-              <span className="qz-option-text">{choice.text}</span>
-              <span className="qz-option-check" aria-hidden="true"><Check size={14} strokeWidth={3} /></span>
-            </label>
-          ))}
-        </div>
-      </div>
-      <button type="submit" className="qz-gold" disabled={!picked}>
-        {last ? "Yakunlash" : "Keyingisi"} <ArrowRight size={18} />
-      </button>
-    </form>
-  );
-}
-
-function verdict(percent: number): { tone: "great" | "good" | "fair" | "low"; title: string } {
-  if (percent >= 90) return { tone: "great", title: "Barakalla! A’lo natija" };
-  if (percent >= 70) return { tone: "good", title: "Juda yaxshi!" };
-  if (percent >= 50) return { tone: "fair", title: "Yaxshi natija" };
-  return { tone: "low", title: "Yana bir bor urinib ko‘ring" };
-}
-
-/** Natija oynasi: aniqlik halqasi, baho, ball/aniqlik/rekord va keyingi qadamlar. */
-export function QuizResult({
-  correct,
-  total,
-  score,
-  best,
-  record,
-  onRetry,
-  onBack,
-}: {
-  correct: number;
-  total: number;
-  score: number;
-  best: number;
-  /** Avvalgi eng yaxshi natijadan oshdi. */
-  record: boolean;
-  onRetry: () => void;
-  onBack: () => void;
-}) {
-  const percent = Math.round((correct / total) * 100);
-  const { tone, title } = verdict(percent);
-  return (
-    <section className={`qz-stage qz-result is-${tone}`} aria-labelledby="qz-result-title">
-      <div className="qz-ring-wrap">
-        {(tone === "great" || tone === "good") && (
-          <span className="qz-sparks" aria-hidden="true"><i /><i /><i /><i /></span>
-        )}
-        <div className="qz-ring" style={{ "--qz-pct": `${percent}%` } as CSSProperties} role="img" aria-label={`${total} savoldan ${correct} tasi to‘g‘ri`}>
-          <span><b>{correct}</b><small>/{total}</small></span>
-        </div>
-      </div>
-      {record && <span className="qz-record"><Sparkles size={13} /> Yangi rekord</span>}
-      <h2 id="qz-result-title">{title}</h2>
-      <p className="qz-stage-sub">To‘g‘ri javoblar shu haftalik ballingizga qo‘shildi.</p>
-      <dl className="qz-facts">
-        <div><dt>Ball</dt><dd>{score}</dd></div>
-        <div><dt>Aniqlik</dt><dd>{percent}%</dd></div>
-        <div><dt>Eng yaxshi</dt><dd>{best}</dd></div>
-      </dl>
-      <button className="qz-gold" type="button" onClick={onRetry}>
-        <RotateCcw size={18} /> Qayta urinish
-      </button>
-      <button className="qz-ghost" type="button" onClick={onBack}>
-        <BookOpen size={17} /> Viktorinalarga qaytish
       </button>
     </section>
   );

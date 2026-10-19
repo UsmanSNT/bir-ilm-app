@@ -186,7 +186,14 @@ try {
   await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: g0.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 2, total: 3 }, expect: 401 });
   await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: user.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 4, total: 3 }, expect: 422 });
   const saved = (await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: user.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 2, total: 3 }, expect: 201 })).payload.data;
-  assert.equal(saved.score, 67 * 3 + 8);
+  assert.equal(saved.score, 1000, "Ball yuborilmasa (eski ilova) 2 ta to'g'ri javobning eng kami: 2 × 500");
+  const post = (b, expect = 201) => call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: user.cookie, body: { quizId: made.id, sessionId: s1.id, total: 3, ...b }, expect });
+  assert.equal((await post({ correct: 2, score: 1700 })).payload.data.score, 1700, "Mijoz balli imkoniyat oralig'ida bo'lsa, o'zgarmaydi");
+  assert.equal((await post({ correct: 2, score: 60000 })).payload.data.score, 2050, "Oralig'idan oshgan ball eng ko'p mumkin bo'lganiga tushiriladi (1000 + 1050)");
+  assert.equal((await post({ correct: 2, score: 10 })).payload.data.score, 1000, "Juda kam ball ham eng kamiga ko'tariladi");
+  assert.equal((await post({ correct: 0, score: 900 })).payload.data.score, 0, "To'g'ri javobsiz ball 0");
+  await post({ correct: 2, score: -5 }, 422);
+  await post({ correct: 2, score: 1.5 }, 422);
   await call(resultsRoute.POST, "/api/v1/quizzes/results", { method: "POST", cookie: user.cookie, body: { quizId: made.id, sessionId: s1.id, correct: 3, total: 3 }, expect: 201 }); // qayta o'ynadi
   const counted = (await call(quizzes.GET, "/api/v1/quizzes", { cookie: admin.cookie })).payload.data.items.find((x) => x.id === made.id);
   assert.equal(counted.sessions[0].participants, 1, "Bir foydalanuvchi ikki marta o'ynasa ham bitta ishtirokchi");

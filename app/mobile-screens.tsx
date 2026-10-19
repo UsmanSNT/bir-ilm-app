@@ -24,7 +24,7 @@ import {
 import { toast } from "sonner";
 import { wisdom, type Quiz } from "./quiz-data";
 import { joinQuizByCode, saveQuizResult, useQuizzes } from "@/lib/api/quiz-client";
-import { QUIZ_SESSION_OPENS_BEFORE_MIN, quizScore, quizSessionStatus, type Quiz as ServerQuiz, type QuizSession } from "@/shared/contract";
+import { QUIZ_SESSION_OPENS_BEFORE_MIN, quizSessionStatus, type Quiz as ServerQuiz, type QuizSession } from "@/shared/contract";
 import QuizEditor from "./quiz-editor";
 import {
   QuizAddButton,
@@ -34,14 +34,13 @@ import {
   QuizEmpty,
   QuizEntry,
   QuizHero,
-  QuizIntro,
   QuizLeaders,
   QuizLiveCard,
-  QuizQuestion,
-  QuizResult,
   type QuizLeader,
   type QuizMode,
 } from "./quiz-ui";
+import QuizPlay, { type SoloResult } from "./quiz-play";
+import QuizLive from "./quiz-live";
 import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { canModerate } from "@/shared/contract/roles";
@@ -60,7 +59,7 @@ type Save = {
   scores: Record<string, number>;
 };
 
-type Screen = "home" | "news" | "quizzes" | "play";
+type Screen = "home" | "news" | "quizzes" | "play" | "live";
 
 /** "Bugun, 20:00" / "Ertaga, 20:00" / "12-okt, 20:00" (24 soatlik). */
 function whenText(iso: string): string {
@@ -71,7 +70,8 @@ function whenText(iso: string): string {
   return `${day === 0 ? "Bugun" : day === 1 ? "Ertaga" : `${d.getDate()}-${MONTHS[d.getMonth()]}`}, ${hm}`;
 }
 
-const SAVE_KEY = "bir-ilm-quiz-v1";
+// v2: ball tizimi o'zgardi (tezlikka qarab 500–1000), eski ballar yangisi bilan solishtirilmasin.
+const SAVE_KEY = "bir-ilm-quiz-v2";
 const emptySave: Save = { joined: false, scores: {} };
 
 function parseSave(raw: string): Save {
@@ -209,13 +209,8 @@ export default function MobileScreens({
   const [showQuizzes, setShowQuizzes] = useState(false);
   const [showLeaders, setShowLeaders] = useState(false);
   const [active, setActive] = useState<Quiz | null>(null);
-  const [step, setStep] = useState(0);
-  const [picked, setPicked] = useState("");
-  const [correct, setCorrect] = useState(0);
-  const [finished, setFinished] = useState(false);
-  // Viktorina oynasi: avval boshlash oynasi (intro), keyin savollar, oxirida natija.
-  const [intro, setIntro] = useState(true);
-  const [outcome, setOutcome] = useState({ score: 0, record: false });
+  // Jonli xona: boshlovchi boshqaradigan o'yin (Kahoot uslubida).
+  const [room, setRoom] = useState<{ quiz: Quiz; sessionId: string } | null>(null);
   const [joining, setJoining] = useState(false);
   const announcements = useAnnouncements();
   const unread = useUnreadCount(announcements);
@@ -334,49 +329,26 @@ export default function MobileScreens({
     window.scrollTo({ top: 0 });
   }
 
-  /** `withIntro` — avval boshlash oynasi ko'rsatiladi («Qayta urinish»da to'g'ridan-to'g'ri savollar). */
-  function startQuiz(quiz: Quiz, sessionId: string | null = null, withIntro = true) {
-    // Har safar savollar tartibi aralashtiriladi (Fisher–Yates).
-    const questions = [...quiz.questions];
-    for (let i = questions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [questions[i], questions[j]] = [questions[j], questions[i]];
-    }
-    setActive({ ...quiz, questions });
+  /** Mustaqil rejim (yoki jonli vaqt oynasida, lekin boshlovchisiz — `sessionId` bilan). */
+  function startQuiz(quiz: Quiz, sessionId: string | null = null) {
+    setActive(quiz);
     setActiveSession(sessionId);
-    setStep(0);
-    setPicked("");
-    setCorrect(0);
-    setFinished(false);
-    setIntro(withIntro);
     setScreen("play");
     window.scrollTo({ top: 0 });
   }
 
-  function submitAnswer() {
-    if (!active || !picked) return;
-    const question = active.questions[step];
-    const nextCorrect = correct + (picked === question.answer ? 1 : 0);
-    if (step + 1 >= active.questions.length) {
-      setCorrect(nextCorrect);
-      setFinished(true);
-      const score = quizScore(nextCorrect, active.questions.length);
-      const previous = save.scores[active.id];
-      setOutcome({ score, record: previous != null && score > previous });
-      // Kirgan foydalanuvchining natijasi serverga ham yoziladi (jonli viktorinada ishtirokchilar soni shundan).
-      if (viewer?.signedIn) void saveQuizResult({ quizId: active.id, sessionId: activeSession, correct: nextCorrect, total: active.questions.length }).catch(() => {});
-      writeSave({
-        ...save,
-        scores: {
-          ...save.scores,
-          [active.id]: Math.max(save.scores[active.id] ?? 0, score),
-        },
-      });
-      return;
-    }
-    setCorrect(nextCorrect);
-    setStep((value) => value + 1);
-    setPicked("");
+  /** Jonli xona: boshlovchi boshqaradi, hamma bir vaqtda javob beradi. */
+  function openRoom(quiz: Quiz, sessionId: string) {
+    setRoom({ quiz, sessionId });
+    setScreen("live");
+    window.scrollTo({ top: 0 });
+  }
+
+  function finishSolo(result: SoloResult) {
+    if (!active) return;
+    // Kirgan foydalanuvchining natijasi serverga ham yoziladi (jonli viktorinada ishtirokchilar soni shundan).
+    if (viewer?.signedIn) void saveQuizResult({ quizId: active.id, sessionId: activeSession, correct: result.correct, total: result.total, score: result.score }).catch(() => {});
+    writeSave({ ...save, scores: { ...save.scores, [active.id]: Math.max(save.scores[active.id] ?? 0, result.score) } });
   }
 
   async function joinRoom(event: FormEvent) {
@@ -395,7 +367,7 @@ export default function MobileScreens({
       if (joined.status === "upcoming") return void toast.error(`Hali boshlanmadi: ${whenText(joined.startsAt)}. Kirish ${QUIZ_SESSION_OPENS_BEFORE_MIN} daqiqa oldin ochiladi.`);
       if (joined.status === "closed") return void toast.error("Bu viktorinaning vaqti o‘tib ketgan");
       setCode("");
-      startQuiz(found, joined.sessionId);
+      openRoom(found, joined.sessionId);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Bunday xona topilmadi");
     } finally {
@@ -633,7 +605,8 @@ export default function MobileScreens({
                     open={nextLive.status === "open"}
                     countdown={countdown(nextLive.session.startsAt, now)}
                     code={editor ? nextLive.session.code : null}
-                    onJoin={() => startQuiz(nextLive.quiz, nextLive.session.id)}
+                    staff={editor}
+                    onJoin={() => openRoom(nextLive.quiz, nextLive.session.id)}
                   />
                 ) : (
                   <QuizEmpty
@@ -705,39 +678,26 @@ export default function MobileScreens({
       {screen === "play" && active && (
         <div className="m-screen m-solid-head qz-play-screen">
           <Subhead title={active.title} onBack={() => { setScreen("quizzes"); setActive(null); }} />
-          {finished ? (
-            <QuizResult
-              correct={correct}
-              total={active.questions.length}
-              score={outcome.score}
-              best={Math.max(save.scores[active.id] ?? 0, outcome.score)}
-              record={outcome.record}
-              onRetry={() => startQuiz(active, null, false)}
-              onBack={() => setScreen("quizzes")}
-            />
-          ) : intro ? (
-            <QuizIntro
-              cover={<BookCover title={active.title} author={active.author} tone={active.tone} image={active.image} color={active.color} />}
-              title={active.title}
-              author={active.author}
-              questions={active.questions.length}
-              minutes={active.minutes}
-              best={save.scores[active.id] ?? null}
-              live={activeSession != null}
-              onStart={() => setIntro(false)}
-            />
-          ) : (
-            <QuizQuestion
-              step={step}
-              total={active.questions.length}
-              live={activeSession != null}
-              prompt={active.questions[step].prompt}
-              choices={active.questions[step].choices}
-              picked={picked}
-              onPick={setPicked}
-              onNext={submitAnswer}
-            />
-          )}
+          <QuizPlay
+            key={active.id}
+            quiz={active}
+            cover={<BookCover title={active.title} author={active.author} tone={active.tone} image={active.image} color={active.color} />}
+            best={save.scores[active.id] ?? null}
+            live={activeSession != null}
+            onFinish={finishSolo}
+            onBack={() => { setScreen("quizzes"); setActive(null); }}
+          />
+        </div>
+      )}
+
+      {screen === "live" && room && (
+        <div className="m-screen m-solid-head qz-play-screen">
+          <Subhead title={room.quiz.title} onBack={() => { setScreen("quizzes"); setRoom(null); }} />
+          <QuizLive
+            sessionId={room.sessionId}
+            onBack={() => { setScreen("quizzes"); setRoom(null); }}
+            onSolo={() => { const { quiz, sessionId } = room; setRoom(null); startQuiz(quiz, sessionId); }}
+          />
         </div>
       )}
 

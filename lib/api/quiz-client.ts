@@ -50,7 +50,7 @@ export const removeQuizSession = (quizId: string, sessionId: string) =>
   call<Quiz>(`/quizzes/${encodeURIComponent(quizId)}/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
 export const joinQuizByCode = (code: string) =>
   call<QuizJoin>("/quizzes/join", { method: "POST", body: JSON.stringify({ code }) });
-export const saveQuizResult = (input: { quizId: string; sessionId: string | null; correct: number; total: number }) =>
+export const saveQuizResult = (input: { quizId: string; sessionId: string | null; correct: number; total: number; score?: number }) =>
   call<{ score: number }>("/quizzes/results", { method: "POST", body: JSON.stringify(input) });
 
 /** Viktorina muqovasini yuklaydi; qaytgan yo'l viktorina saqlanganda yuboriladi. */

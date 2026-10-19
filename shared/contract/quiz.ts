@@ -10,6 +10,40 @@ export const QUIZ_LIMITS = {
   maxQuestions: 50,
 } as const;
 
+/**
+ * Ball tizimi — mustaqil va jonli rejimda bir xil:
+ *  - noto'g'ri yoki javobsiz savol — 0 ball;
+ *  - to'g'ri javob — 500…1000 ball: savol ochilgan zahoti javob bersangiz 1000, vaqt tugashiga yaqin 500;
+ *  - ketma-ket to'g'ri javoblar bonusi: ikkinchisidan boshlab har biriga +50, eng ko'pi +250.
+ * Umumiy ball — savollar ballarining yig'indisi.
+ */
+export const QUIZ_POINTS = {
+  /** Bitta savolga javob berish vaqti (millisekund). */
+  limitMs: 20_000,
+  min: 500,
+  max: 1000,
+  streakStep: 50,
+  streakMax: 5,
+} as const;
+
+export type QuestionPoints = { base: number; bonus: number; total: number };
+
+/** `streak` — shu javobni qo'shib hisoblaganda ketma-ket to'g'ri javoblar soni (birinchisi uchun 1). */
+export function questionPoints(correct: boolean, elapsedMs: number, streak: number, limitMs: number = QUIZ_POINTS.limitMs): QuestionPoints {
+  if (!correct) return { base: 0, bonus: 0, total: 0 };
+  const ratio = Number.isFinite(elapsedMs) ? Math.min(1, Math.max(0, elapsedMs / limitMs)) : 1;
+  const base = Math.round(QUIZ_POINTS.max - (QUIZ_POINTS.max - QUIZ_POINTS.min) * ratio);
+  const bonus = Math.min(Math.max(streak - 1, 0), QUIZ_POINTS.streakMax) * QUIZ_POINTS.streakStep;
+  return { base, bonus, total: base + bonus };
+}
+
+/** `correct` ta to'g'ri javob bilan olish mumkin bo'lgan eng kam va eng ko'p ball. */
+export function quizScoreBounds(correct: number): { min: number; max: number } {
+  let max = 0;
+  for (let k = 1; k <= correct; k++) max += QUIZ_POINTS.max + Math.min(k - 1, QUIZ_POINTS.streakMax) * QUIZ_POINTS.streakStep;
+  return { min: correct * QUIZ_POINTS.min, max };
+}
+
 const choiceText = z.string().trim().min(1, "Variant matnini yozing.").max(QUIZ_LIMITS.choice, `Variant ${QUIZ_LIMITS.choice} belgidan oshmasin.`);
 
 export const quizQuestionSchema = z
@@ -53,6 +87,8 @@ export const quizResultSchema = z.object({
   sessionId: z.string().min(1).max(40).nullable().default(null),
   correct: z.number().int().min(0).max(QUIZ_LIMITS.maxQuestions),
   total: z.number().int().min(1).max(QUIZ_LIMITS.maxQuestions),
+  /** Mustaqil rejimda mijoz hisoblagan ball (server uni imkoniyat oralig'iga keltiradi). Eski ilovalar yubormaydi. */
+  score: z.number().int().min(0).max(QUIZ_LIMITS.maxQuestions * (QUIZ_POINTS.max + QUIZ_POINTS.streakStep * QUIZ_POINTS.streakMax)).optional(),
 }).refine((r) => r.correct <= r.total, { message: "Natija noto'g'ri.", path: ["correct"] });
 export type QuizResultInput = z.infer<typeof quizResultSchema>;
 
@@ -90,5 +126,3 @@ export type Quiz = {
 
 export const quizMinutes = (questionCount: number) => Math.max(1, Math.round(questionCount / 2));
 
-/** Ball: aniqlik foizi × 3 + har to'g'ri javobga 4. Server ham, mijoz ham shu bitta formuladan foydalanadi. */
-export const quizScore = (correct: number, total: number) => Math.round((correct / total) * 100) * 3 + correct * 4;

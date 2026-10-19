@@ -385,23 +385,6 @@
 }
 .qz-question { display: grid; gap: 16px; animation: qz-in .32s ease both; }
 .mobile-home .qz-question h2 { color: var(--siyoh); font: 600 clamp(19px, 5.4vw, 23px)/1.35 var(--f-display); letter-spacing: -.01em; overflow-wrap: anywhere; }
-.qz-options { display: grid; gap: 10px; }
-.qz-option {
-  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
-  min-height: 58px; padding: 10px 12px; border-radius: 16px; background: #fff;
-  box-shadow: inset 0 0 0 1.5px var(--chiziq); color: var(--siyoh); font-size: 15px; font-weight: 650; line-height: 1.35; cursor: pointer;
-  transition: box-shadow .15s, background .15s, transform .12s;
-}
-.qz-option input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
-.qz-option:hover { box-shadow: inset 0 0 0 1.5px var(--tilla-2); }
-.qz-option:active { transform: scale(.99); }
-.qz-option:has(input:focus-visible) { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
-.qz-option-text { min-width: 0; overflow-wrap: anywhere; }
-.qz-letter { display: grid; place-items: center; width: 36px; height: 36px; background: var(--qogoz-2); color: var(--lojuvard); clip-path: var(--star); font: 800 13px/1 var(--f-ui); transition: background .15s, color .15s; }
-.qz-option-check { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--chiziq); color: transparent; transition: background .15s, color .15s; }
-.qz-option.is-picked { background: linear-gradient(90deg, #eef1fb, #fff 75%); box-shadow: inset 0 0 0 2px var(--lojuvard), 0 10px 20px -14px var(--lojuvard); }
-.qz-option.is-picked .qz-letter { background: var(--lojuvard); color: var(--tilla-2); }
-.qz-option.is-picked .qz-option-check { background: var(--lojuvard); color: #fff; box-shadow: none; }
 
 /* Natija: aniqlik halqasi (to'lishi animatsiyali), baho va kataklar. */
 @property --qz-pct { syntax: "<percentage>"; inherits: true; initial-value: 0%; }

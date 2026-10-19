@@ -9,4 +9,5 @@ export * from "./notifications";
 export * from "./store";
 export * from "./site";
 export * from "./quiz";
+export * from "./quiz-game";
 export * from "./audio-link";
