@@ -14,6 +14,13 @@ import { clock, dayMonth, durationLabel, localInput, nextTalk, notifyTalksChange
 
 const COLORS = ["#0f4f45", "#294256", "#7a3b2e", "#5b4a8b", "#8a6511", "#2f6f8f", "#374151"];
 
+/** Muqovasi yo'q kitobning foni: yangi kitobda nomidan tanlanadi (javonda kitoblar har xil rangda tursin). */
+function colorFor(title: string) {
+  let hash = 0;
+  for (const ch of title) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  return COLORS[Math.abs(hash) % COLORS.length];
+}
+
 function mb(bytes: number) {
   return bytes >= 1024 * 1024 * 1024 ? `${(bytes / 1024 ** 3).toFixed(2)} GB` : `${Math.max(0.1, bytes / 1024 ** 2).toFixed(1)} MB`;
 }
@@ -47,9 +54,9 @@ export default function BookEditor({
 function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; onClose: () => void; asWeekBook: boolean; kind: "library" | "store" }) {
   const store = kind === "store";
   const [title, setTitle] = useState(book?.title ?? "");
+  const color = book?.color ?? colorFor(title.trim());
   const [author, setAuthor] = useState(book?.author ?? "");
   const [summary, setSummary] = useState(book?.summary ?? "");
-  const [color, setColor] = useState(book?.color ?? COLORS[0]);
   const [price, setPrice] = useState(book?.price ? String(book.price) : "");
   // Bo'sh qoldirilsa 0 saqlanadi va hech qayerda ko'rsatilmaydi.
   const [pages, setPages] = useState(book?.pages ? String(book.pages) : "");
@@ -237,11 +244,6 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
             <div className="book-editor-fields">
               <input aria-label="Kitob nomi" placeholder="Kitob nomi" required maxLength={BOOK_LIMITS.title} value={title} onChange={(e) => setTitle(e.target.value)} />
               <input aria-label="Muallif" placeholder="Muallif" required maxLength={BOOK_LIMITS.author} value={author} onChange={(e) => setAuthor(e.target.value)} />
-              {!store && <div className="book-editor-colors" role="radiogroup" aria-label="Muqova rangi">
-                {COLORS.map((c) => (
-                  <button key={c} type="button" role="radio" aria-checked={color === c} style={{ backgroundColor: c }} onClick={() => setColor(c)} aria-label={c} />
-                ))}
-              </div>}
             </div>
           </div>
           <textarea
