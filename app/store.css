@@ -24,9 +24,14 @@
 .zb-ai-banner > svg { flex: none; width: 54px; height: 54px; padding: 13px; clip-path: var(--star); background: linear-gradient(135deg, #f3d48d, var(--tilla-2)); color: var(--lojuvard-3); }
 .zb-ai-banner strong { display: block; font: 600 20px/1.2 var(--f-display); }
 .zb-ai-banner small { display: block; margin-top: 4px; color: #cfcde3; font-size: 13.5px; }
-.zb-chips { display: flex; gap: 8px; margin: 18px calc(-1 * clamp(16px, 3vw, 40px)) 0; padding: 2px clamp(16px, 3vw, 40px) 4px; overflow-x: auto; scrollbar-width: none; }
-.zb-chips button { flex: none; height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--qogoz-2); font-size: 14px; font-weight: 750; color: var(--siyoh-2); }
-.zb-chips button[aria-pressed="true"] { background: var(--firuza); color: #fff; }
+/* Janr tugmalari: qidiruv ostida yonga suriladi, har birida kitoblar soni. */
+.zb-chips { display: flex; gap: 8px; margin: 12px calc(-1 * clamp(16px, 3vw, 40px)) 0; padding: 2px clamp(16px, 3vw, 40px) 6px; overflow-x: auto; scrollbar-width: none; }
+.zb-chips::-webkit-scrollbar { display: none; }
+.zb-chips button { display: inline-flex; flex: none; align-items: center; gap: 7px; height: 38px; padding: 0 8px 0 15px; border: 0; border-radius: 999px; background: var(--sahifa); color: var(--siyoh-2); font-size: 13.5px; font-weight: 750; box-shadow: inset 0 0 0 1.5px var(--chiziq); cursor: pointer; transition: background .15s, color .15s; }
+.zb-chips button small { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--qogoz-2); color: var(--siyoh-3); font-size: 11px; font-weight: 800; }
+.zb-chips button[aria-pressed="true"] { background: var(--lojuvard); color: #fff; box-shadow: none; }
+.zb-chips button[aria-pressed="true"] small { background: #ffffff1f; color: var(--tilla-2); }
+.zb-chips button:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
 
 .zb-section { margin-top: 34px; }
 .zb-section h2, .zb-panel h3 { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
@@ -373,9 +378,6 @@
 .zb-icon-btn { display: grid; place-items: center; flex: none; width: 46px; height: 46px; padding: 0; border: 0; border-radius: 50%; background: var(--sahifa); color: var(--lojuvard); box-shadow: inset 0 0 0 1.5px var(--chiziq); cursor: pointer; }
 .zb-icon-btn.is-on { background: var(--firuza); color: #fff; box-shadow: none; }
 .zb-icon-add { width: 40px; height: 40px; background: var(--lojuvard); color: #fff; box-shadow: 0 6px 14px -8px #000a; }
-.zb-filter-pop { position: absolute; z-index: 20; top: calc(100% + 8px); left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border-radius: 18px; background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq), 0 18px 34px -16px rgba(22, 34, 80, .5); }
-.zb-filter-pop button { height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--qogoz-2); color: var(--siyoh-2); font-size: 13.5px; font-weight: 750; cursor: pointer; }
-.zb-filter-pop button[aria-pressed="true"] { background: var(--firuza); color: #fff; }
 .zb-section { margin-top: 22px; }
 .zb-section h2 { margin-bottom: 12px; font-size: clamp(20px, 5.4vw, 26px); }
 .zb-section h2::before { width: 9px; height: 9px; }
@@ -598,3 +600,71 @@
 .ss-field textarea { resize: vertical; }
 .ss-save { justify-self: start; }
 .sa-back-link { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px 0 8px; border: 1px solid #e3d9c2; border-radius: 999px; background: #fff; color: #172351; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+/* ───────── Do'kon vitrinasi (katalog) ─────────
+ * Lojuvard banner (girih, koshin hoshiya) va muqovalar yelpig'ichi; qidiruv banner ostiga qo'nadi.
+ * Kartalarda muqova Javondagidek ravoqli lojuvard tokchada, tilla polkada turadi.
+ */
+.zb-hero {
+  position: relative; isolation: isolate; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  min-height: 196px; padding: 24px 18px 46px 22px; border-radius: 26px; color: #f3eedf;
+  background: radial-gradient(90% 120% at 88% 10%, #3b5bb5 0, transparent 60%), linear-gradient(140deg, var(--lojuvard-3), var(--lojuvard) 58%, #22397f);
+  box-shadow: 0 26px 44px -28px #131f4ccc, inset 0 0 0 1px #e2b65c4d;
+}
+.zb-hero::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--girih) center / 56px; opacity: .14; }
+.zb-hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: var(--koshin) repeat-x; background-size: 28px 8px; opacity: .9; }
+.zb-hero .zb-eyebrow { color: var(--tilla-2); }
+.zb-hero h1 { margin: 10px 0 8px; color: #fff; font: 600 clamp(30px, 8vw, 46px)/1.02 var(--f-display); letter-spacing: -.01em; }
+.zb-hero h1 em { display: block; color: var(--tilla-2); font-style: italic; }
+.zb-hero p { margin: 0; color: #cfd5f5; font-size: 13.5px; font-weight: 650; }
+.zb-hero p span { white-space: nowrap; }
+.zb-hero-fan { position: relative; width: 156px; height: 150px; margin-right: 6px; }
+.zb-hero-fan button {
+  position: absolute; bottom: 0; left: 50%; width: 80px; padding: 0; border: 0; background: none; cursor: pointer;
+  transform-origin: 50% 110%; transform: translateX(-50%) translateX(calc(var(--fan) * 34px)) rotate(calc(var(--fan) * 11deg));
+  z-index: calc(10 - var(--fan) * var(--fan)); transition: transform .25s ease;
+}
+.zb-hero-fan button:hover { transform: translateX(-50%) translateX(calc(var(--fan) * 34px)) rotate(calc(var(--fan) * 11deg)) translateY(-6px); }
+.zb-hero-fan button:focus-visible { outline: 3px solid var(--tilla-2); outline-offset: 3px; border-radius: 6px; }
+.zb-hero-fan .zb-cover { box-shadow: 0 16px 26px -12px #000c, 0 0 0 1px #ffffff26; }
+/* Qidiruv banner ostiga qo'nadi. */
+.zb-hero + .zb-searchrow { position: relative; z-index: 2; margin: -28px 14px 0; }
+.zb-hero + .zb-searchrow .zb-search { height: 52px; box-shadow: inset 0 0 0 1.5px #e2b65c66, 0 16px 30px -18px #131f4c99; }
+
+/* Ko'p baholanganlar: o'rin belgisi va baho */
+.zb-rail-item { position: relative; }
+.zb-rail-item .zb-rating { margin-top: -2px; }
+.zb-rank {
+  position: absolute; z-index: 1; top: -8px; left: -8px; display: grid; place-items: center; width: 32px; height: 32px;
+  clip-path: var(--star); background: linear-gradient(135deg, #f6dc9a, var(--tilla)); color: var(--lojuvard-3); font: 800 13px/1 var(--f-ui);
+}
+.zb-rail { padding-top: 10px; }
+
+/* Kartalar: lojuvard ravoqli tokcha, tilla polka, tilla narx yorlig'i */
+/* Ravoq tepasi yarim doira: yon chekinish 14% bo'lganda egri chiziq muqova burchagida ~15% balandlikda —
+ * yuqoridan 18% chekinish muqovani (hover'da ko'tarilganda ham) kesilishdan saqlaydi. Foizlar kenglikka nisbatan. */
+.zb .zb-card-cover {
+  position: relative; isolation: isolate; overflow: hidden; padding: 18% 14% 7px;
+  background: radial-gradient(70% 45% at 50% 0%, #f6c45340, transparent 75%), linear-gradient(180deg, #22397f, var(--lojuvard-3));
+  box-shadow: inset 0 0 0 1px #e2b65c59;
+}
+.zb .zb-card-cover::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--girih) center / 44px; opacity: .16; }
+.zb .zb-card-cover::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 7px; background: linear-gradient(180deg, #f0cf83, var(--tilla) 60%, #8a6511); box-shadow: 0 -2px 6px #0006; }
+.zb .zb-card-cover .zb-cover { box-shadow: 0 14px 22px -10px #000d, 0 0 0 1px #ffffff1f; transition: transform .25s ease; }
+.zb .zb-card:hover .zb-card-cover .zb-cover { transform: translateY(-4px); }
+.zb-card-body .zb-rating { margin-top: 2px; }
+.zb .zb-price-tag { padding: 6px 11px; border-radius: 999px; background: var(--tilla-och); color: #6b4a12; font-size: 14.5px; font-weight: 800; box-shadow: inset 0 0 0 1px #e2c98b; }
+
+@media (min-width: 701px) {
+  .zb-hero { min-height: 230px; padding: 34px 40px 52px; }
+  .zb-hero-fan { width: 250px; height: 200px; margin-right: 16px; }
+  .zb-hero-fan button { width: 112px; transform: translateX(-50%) translateX(calc(var(--fan) * 56px)) rotate(calc(var(--fan) * 10deg)); }
+  .zb-hero-fan button:hover { transform: translateX(-50%) translateX(calc(var(--fan) * 56px)) rotate(calc(var(--fan) * 10deg)) translateY(-8px); }
+  .zb-hero + .zb-searchrow { margin: -28px auto 0; max-width: 640px; }
+}
+@media (max-width: 360px) {
+  .zb-hero-fan { width: 120px; }
+  .zb-hero-fan button { width: 66px; transform: translateX(-50%) translateX(calc(var(--fan) * 26px)) rotate(calc(var(--fan) * 11deg)); }
+}
+@media (prefers-reduced-motion: reduce) { .zb-hero-fan button, .zb .zb-card-cover .zb-cover { transition: none; } }

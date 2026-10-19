@@ -217,8 +217,11 @@ body .app-shell .page-heading h1 { font-size: clamp(30px, 4.2vw, 46px); line-hei
 }
 .dock-star-inner { display: grid; place-items: center; width: 50px; height: 50px; clip-path: var(--star); background: linear-gradient(160deg, var(--firuza-2), var(--firuza)); color: #fff; }
 .dock[data-mode="store"] .dock-star-inner { background: linear-gradient(160deg, var(--lojuvard-2), var(--lojuvard)); }
+/* Do'kondan qaytish: Bir Ilm daraxti — to'q tanasi ko'rinishi uchun qog'oz rang fonda. */
+.dock[data-mode] .dock-star-inner.is-brand { background: radial-gradient(circle at 50% 40%, #fffdf7, #f3e6c8); }
+.dock-star-inner.is-brand img { width: 34px; height: 34px; object-fit: contain; transition: transform .25s; }
 .dock-star:hover .dock-star-shape { transform: rotate(22.5deg); }
-.dock-star:hover .dock-star-inner svg { transform: rotate(-22.5deg); }
+.dock-star:hover .dock-star-inner :is(svg, img) { transform: rotate(-22.5deg); }
 .dock-star .dock-label { color: var(--tilla-2); opacity: 1; }
 
 /* ───────────── Kartalar va dialoglar ───────────── */
@@ -253,6 +256,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--firuza-2); }
   .dock-star-shape { width: 60px; height: 60px; }
   .dock-star-inner { width: 46px; height: 46px; }
   .dock-star-inner svg { width: 21px; height: 21px; }
+  .dock-star-inner.is-brand img { width: 30px; height: 30px; }
   body .app-shell .workspace { padding: 22px 16px calc(96px + env(safe-area-inset-bottom)); }
   .desktop-footer { display: none; }
 }

@@ -11,7 +11,8 @@ export type DockItem = { id: string; label: string; icon: LucideIcon; active?: b
  */
 export default function Dock({ mode, label, left, right, center }: {
   mode: "main" | "store"; label: string; left: DockItem[]; right: DockItem[];
-  center: { label: string; ariaLabel: string; icon: LucideIcon; onClick: () => void };
+  /** `icon: "brand"` — lucide belgisi o'rniga Bir Ilm daraxti (Do'kondan Bir Ilm'ga qaytish). */
+  center: { label: string; ariaLabel: string; icon: LucideIcon | "brand"; onClick: () => void };
 }) {
   const Star = center.icon;
   const item = ({ id, label: text, icon: Icon, active, badge, onClick }: DockItem) => (
@@ -25,7 +26,11 @@ export default function Dock({ mode, label, left, right, center }: {
     <div className="dock-items">
       {left.map(item)}
       <button type="button" className="dock-star" onClick={center.onClick} aria-label={center.ariaLabel}>
-        <span className="dock-star-shape"><span className="dock-star-inner"><Star size={24} strokeWidth={1.8} /></span></span>
+        <span className="dock-star-shape">
+          {Star === "brand"
+            ? <span className="dock-star-inner is-brand"><Image src="/assets/bir-ilm-mark.webp" alt="" width={34} height={34} /></span>
+            : <span className="dock-star-inner"><Star size={24} strokeWidth={1.8} /></span>}
+        </span>
         <span className="dock-label">{center.label}</span>
       </button>
       {right.map(item)}

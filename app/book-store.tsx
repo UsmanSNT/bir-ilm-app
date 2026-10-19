@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BookOpen, Check, MessageCircle, Pencil, Plus, Search, ShoppingCart, SlidersHorizontal, Store, UserRound, X } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { ArrowLeft, Check, MessageCircle, Pencil, Plus, Search, ShoppingCart, Store, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { useViewer } from "@/lib/api/roles-client";
 import { fetchStoreProfile, newOrderId, placeOrder, StoreError, useCart, useStoreBooks, useStoreInbox } from "@/lib/api/store-client";
@@ -23,7 +23,7 @@ import StoreAccount, { type AccountTab, type AdminArea, type Cart, type Purchase
 import StoreFabs from "./store-fabs";
 import BookEditor from "./book-editor";
 import { notifyCatalogChanged, useStoreCatalog } from "@/lib/api/books-client";
-import { BookCover } from "./store-ui";
+import { BookCover, RatingLine } from "./store-ui";
 
 type Section = "catalog" | "account" | "checkout";
 
@@ -83,7 +83,7 @@ export default function BookStore({ shelf, route, onBack, onToggle }: { shelf: s
         label="Book Store bo'limlari"
         left={[catalogItem]}
         right={[accountItem]}
-        center={{ label: "Bir Ilm", ariaLabel: "Bir Ilm bosh sahifasiga qaytish", icon: BookOpen, onClick: onBack }}
+        center={{ label: "Bir Ilm", ariaLabel: "Bir Ilm bosh sahifasiga qaytish", icon: "brand", onClick: onBack }}
       />
       <StoreFabs showChat={!(section === "account" && accountTab === "messages")} unread={unread} onChat={() => askAdmin(null)} />
       <div className="zb-page">
@@ -153,53 +153,78 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, isAdmin, onC
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(ALL);
-  const [filterOpen, setFilterOpen] = useState(false);
-  // Filtr oynasi Esc yoki tashqariga bosilganda yopiladi.
-  useEffect(() => {
-    if (!filterOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFilterOpen(false); };
-    const onDown = (e: PointerEvent) => { if (!(e.target as Element).closest("#zb-filter, .zb-icon-btn")) setFilterOpen(false); };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("pointerdown", onDown);
-    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("pointerdown", onDown); };
-  }, [filterOpen]);
   const q = query.trim().toLocaleLowerCase();
-  const categories = useMemo(() => [ALL, ...new Set(books.map((b) => b.category).filter(Boolean))], [books]);
+  // Janrlar va har biridagi kitoblar soni (tugmalarda ko'rsatiladi).
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of books) if (b.category) map.set(b.category, (map.get(b.category) ?? 0) + 1);
+    return map;
+  }, [books]);
+  const categories = useMemo(() => [ALL, ...counts.keys()], [counts]);
   const list = useMemo(
     () => books.filter((b) => (category === ALL || b.category === category) && `${b.title} ${b.author}`.toLocaleLowerCase().includes(q)),
     [books, category, q],
   );
   // Trend: eng ko'p baholangan kitoblar.
   const trending = useMemo(() => [...books].filter((b) => b.reviews > 0).sort((a, b) => b.reviews - a.reviews || b.rating - a.rating).slice(0, 8), [books]);
+  // Vitrinadagi uchta muqova: avval ko'p baholanganlar, keyin qolganlari (faqat rasmli muqovalar).
+  const showcase = useMemo(
+    () => [...trending, ...books.filter((b) => !trending.includes(b))].filter((b) => b.coverUrl).slice(0, 3),
+    [books, trending],
+  );
 
   return (
     <>
+      <section className="zb-hero" aria-labelledby="zb-hero-title">
+        <div className="zb-hero-text">
+          <span className="zb-eyebrow">Bir Ilm</span>
+          <h1 id="zb-hero-title">Kitob <em>do‘koni</em></h1>
+          <p>{loading ? "Kitoblar yuklanmoqda…" : <><span>{books.length} ta kitob</span>{counts.size > 0 && <> · <span>{counts.size} janr</span></>}</>}</p>
+        </div>
+        {showcase.length > 0 && (
+          <div className="zb-hero-fan">
+            {showcase.map((b, i) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => onOpen(b)}
+                aria-label={`${b.title} haqida`}
+                style={{ "--fan": i - (showcase.length - 1) / 2 } as CSSProperties}
+              >
+                <BookCover book={b} />
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
       <div className="zb-searchrow">
         <label className="zb-search">
           <Search size={20} />
           <input aria-label="Kitob yoki muallifni izlash" placeholder="Kitob yoki muallif..." value={query} onChange={(e) => setQuery(e.target.value)} />
           {query && <button type="button" aria-label="Tozalash" onClick={() => setQuery("")}><X size={16} /></button>}
         </label>
-        {categories.length > 1 && (
-          <button type="button" className={`zb-icon-btn${category !== ALL ? " is-on" : ""}`} onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen} aria-controls="zb-filter" aria-label={category === ALL ? "Janr bo‘yicha saralash" : `Janr: ${category}`} title="Janr bo‘yicha saralash">
-            <SlidersHorizontal size={20} />
-          </button>
-        )}
         {isAdmin && <button type="button" className="zb-icon-btn zb-icon-add" onClick={onCreate} aria-label="Kitob qo‘shish" title="Kitob qo‘shish"><Plus size={22} /></button>}
-        {filterOpen && categories.length > 1 && (
-          <div id="zb-filter" className="zb-filter-pop" role="group" aria-label="Janrlar">
-            {categories.map((c) => <button key={c} type="button" aria-pressed={category === c} onClick={() => { setCategory(c); setFilterOpen(false); }}>{c}</button>)}
-          </div>
-        )}
       </div>
+      {categories.length > 1 && (
+        <div className="zb-chips" role="group" aria-label="Janrlar">
+          {categories.map((c) => (
+            <button key={c} type="button" aria-pressed={category === c} onClick={() => setCategory(c)}>
+              {c}<small>{c === ALL ? books.length : counts.get(c)}</small>
+            </button>
+          ))}
+        </div>
+      )}
       {!q && category === ALL && trending.length > 0 && (
         <section className="zb-section">
           <h2>Ko‘p baholangan</h2>
           <div className="zb-rail">
-            {trending.map((b) => (
+            {trending.map((b, i) => (
               <button key={b.id} className="zb-rail-item" onClick={() => onOpen(b)}>
+                <span className="zb-rank" aria-label={`${i + 1}-o‘rin`}>{i + 1}</span>
                 <BookCover book={b} size="md" />
                 <strong>{b.title}</strong>
+                <RatingLine rating={b.rating} count={b.reviews} />
               </button>
             ))}
           </div>
@@ -220,8 +245,9 @@ function StoreHome({ books, loading, error, onRetry, onOpen, onAdd, isAdmin, onC
                 <div className="zb-card-body">
                   <button className="zb-card-title" onClick={() => onOpen(b)}>{b.title}</button>
                   <span className="zb-muted">{b.author}</span>
+                  <RatingLine rating={b.rating} count={b.reviews} />
                   <div className="zb-card-foot">
-                    <strong>{formatPrice(b.price)}</strong>
+                    <strong className="zb-price-tag">{formatPrice(b.price)}</strong>
                     <button className="zb-add" aria-label={`${b.title}ni savatga qo‘shish`} onClick={() => onAdd(b)}><Plus size={15} strokeWidth={2.4} /></button>
                   </div>
                 </div>
