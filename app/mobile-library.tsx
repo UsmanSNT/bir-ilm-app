@@ -1,7 +1,7 @@
 "use client";
 
 import ListenLink, { audioLinkOf } from "./listen-link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { BookPlus, Bookmark, ChevronLeft, Headphones, Library, Moon, Pause, Pencil, Play, Plus, Search, SkipBack, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
@@ -31,12 +31,6 @@ export function clock(seconds: number) {
   const m = Math.floor((safe % 3600) / 60);
   const s = String(safe % 60).padStart(2, "0");
   return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
-}
-
-function lengthLabel(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const mins = Math.round((seconds % 3600) / 60);
-  return hours <= 0 ? `${Math.max(1, mins)} daq` : `${hours}s ${mins} daq`;
 }
 
 type Live = { id: string; playing: boolean; at: number; duration: number; part: number; speed: number; sleepUntil: number | null; sleepMinutes: number | null };
@@ -409,7 +403,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
               {catalog.loading ? (
                 <p className="lib-empty">Kitoblar yuklanmoqda…</p>
               ) : (
-                <BookShelf items={found} onOpen={(id) => openBook(id)} onPlay={(id) => { play(id); openBook(id); }} />
+                <BookShelf items={found} onOpen={(id) => openBook(id)} />
               )}
               {!catalog.loading && !catalog.items.length && (
                 <div className="lib-empty">
@@ -513,51 +507,97 @@ function chunkRows<T>(items: T[], size: number) {
   return rows;
 }
 
-function BookShelf({ items, onOpen, onPlay }: { items: Book[]; onOpen: (id: string) => void; onPlay: (id: string) => void }) {
+/** Tokcha shakli (viewBox 0 0 100 170): pastdan ko'tarilgan devorlar va o'tkir ravoq. */
+const NICHE_ARCH = "M0 170V40C0 22 30 14 50 3C70 14 100 22 100 40V170";
+/** Ravoq ichki hoshiyasi — chiroq nuri shu chiziq bo'ylab. */
+const NICHE_EDGE = "M3.2 170V41C3.2 24.5 31 16.8 50 7C69 16.8 96.8 24.5 96.8 41V170";
+
+/** Barcha tokchalar uchun umumiy SVG ta'riflari (koshin devor, soya, chiroq nuri, yorug'lik filtri). */
+function ShelfDefs({ id }: { id: string }) {
+  return (
+    <svg className="lib-shelf-defs" width="0" height="0" aria-hidden="true" focusable="false">
+      <defs>
+        <clipPath id={`${id}-arch`} clipPathUnits="userSpaceOnUse">
+          <path d={`${NICHE_ARCH}Z`} />
+        </clipPath>
+        {/* Koshin plitkasining rozetkasi har bir tokchaning o'rtasida, kitob tepasida turadi. */}
+        <pattern id={`${id}-wall`} patternUnits="userSpaceOnUse" width="100" height="100.7" x="0" y="2">
+          <image href="/assets/girih-koshin.webp" width="100" height="100.7" preserveAspectRatio="none" />
+        </pattern>
+        <linearGradient id={`${id}-shade`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#0b1231" stopOpacity=".5" />
+          <stop offset=".4" stopColor="#1e2f6e" stopOpacity=".6" />
+          <stop offset="1" stopColor="#0b1231" stopOpacity=".88" />
+        </linearGradient>
+        <radialGradient id={`${id}-depth`} cx=".5" cy=".42" r=".72">
+          <stop offset=".55" stopColor="#0b1231" stopOpacity="0" />
+          <stop offset="1" stopColor="#0b1231" stopOpacity=".6" />
+        </radialGradient>
+        <radialGradient id={`${id}-lamp`} cx=".5" cy=".05" fx=".5" fy=".05" r=".6">
+          <stop offset="0" stopColor="#ffe6a6" stopOpacity=".8" />
+          <stop offset=".32" stopColor="#f6c453" stopOpacity=".3" />
+          <stop offset="1" stopColor="#f6c453" stopOpacity="0" />
+        </radialGradient>
+        <filter id={`${id}-glow`} x="-40%" y="-20%" width="180%" height="140%">
+          <feGaussianBlur stdDeviation="2.2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+    </svg>
+  );
+}
+
+/** Bitta tokcha: koshin devor, tepadagi chiroq, ravoq bo'ylab nur va tilla qadama. */
+function NicheArt({ id }: { id: string }) {
+  return (
+    <svg className="lib-niche-art" viewBox="0 0 100 170" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <g clipPath={`url(#${id}-arch)`}>
+        <rect width="100" height="170" fill="#131f4c" />
+        <rect width="100" height="170" fill={`url(#${id}-wall)`} />
+        <rect width="100" height="170" fill={`url(#${id}-shade)`} />
+        <rect width="100" height="170" fill={`url(#${id}-depth)`} />
+        <rect className="lib-niche-lamp" width="100" height="170" fill={`url(#${id}-lamp)`} />
+      </g>
+      <path d={NICHE_ARCH} fill="none" stroke="#c08a2e" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+      <path className="lib-niche-light" d={NICHE_EDGE} fill="none" stroke="#ffc864" strokeWidth="2.6" vectorEffect="non-scaling-stroke" filter={`url(#${id}-glow)`} />
+      <path d={NICHE_EDGE} fill="none" stroke="#fff1c8" strokeWidth=".9" vectorEffect="non-scaling-stroke" />
+      <circle cx="50" cy="13" r="2.2" fill="#fff3c4" filter={`url(#${id}-glow)`} />
+    </svg>
+  );
+}
+
+/**
+ * Javon: o'ymakor yog'och tokcha, har kitob o'z ravoqli tokchasida (koshin devor, tepada chiroq).
+ * Javonda faqat muqovalar turadi; kitob nomi, muallif va tinglash — kitob bosilganda ochiladigan sahifada.
+ */
+function BookShelf({ items, onOpen }: { items: Book[]; onOpen: (id: string) => void }) {
+  const id = `shelf${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   if (!items.length) return null;
   return (
     <div className="lib-shelves">
+      <ShelfDefs id={id} />
       {chunkRows(items, 3).map((row) => (
         <section className="lib-shelf" key={row.map((book) => book.id).join("-")}>
+          <div className="lib-cornice" aria-hidden="true" />
           <div className="lib-shelf-books">
             {[0, 1, 2].map((slot) => {
               const book = row[slot];
-              if (!book) return <span key={slot} />;
               return (
-                <button key={book.id} type="button" className="lib-stood" aria-label={`${book.title} haqida`} onClick={() => onOpen(book.id)}>
-                  <Cover book={book} />
-                </button>
-              );
-            })}
-          </div>
-          <div className="lib-plank" aria-hidden="true" />
-          <div className="lib-shelf-captions">
-            {[0, 1, 2].map((slot) => {
-              const book = row[slot];
-              if (!book) return <span key={slot} />;
-              return (
-                <div key={book.id}>
-                  <button type="button" className="lib-card-title" onClick={() => onOpen(book.id)}>{book.title}</button>
-                  <p>{book.author}</p>
-                  <div className="lib-formats" aria-label={`${book.title} formatlari`}>
-                    {book.audioUrl && (
-                      <button type="button" className="lib-format lib-format-audio" aria-label={`${book.title} audiokitobi, ${lengthLabel(book.audioSeconds)}`} onClick={() => onPlay(book.id)}>
-                        <Headphones size={14} />
-                        <span>{book.audioSeconds ? lengthLabel(book.audioSeconds) : "Audio"}</span>
-                      </button>
-                    )}
-                    {!book.audioUrl && audioLinkOf(book) && (
-                      <a className="lib-format lib-format-audio" href={audioLinkOf(book)!.href} target="_blank" rel="noopener noreferrer" aria-label={`${book.title}: ${audioLinkOf(book)!.label} havolasida eshitish`}>
-                        <Headphones size={14} />
-                        <span>Eshitish</span>
-                      </a>
-                    )}
-                    {book.active && <span className="lib-week">Hafta kitobi</span>}
-                  </div>
+                <div className="lib-niche" key={book?.id ?? `empty-${slot}`}>
+                  <NicheArt id={id} />
+                  {book && (
+                    <button type="button" className="lib-stood" aria-label={`${book.title}, ${book.author} — batafsil`} onClick={() => onOpen(book.id)}>
+                      <Cover book={book} />
+                    </button>
+                  )}
                 </div>
               );
             })}
           </div>
+          <div className="lib-plank" aria-hidden="true" />
         </section>
       ))}
     </div>
