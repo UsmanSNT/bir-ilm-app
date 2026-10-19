@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
@@ -53,9 +53,10 @@ import { canModerate, type UserRole } from "@/shared/contract/roles";
 const FLOAT_MAX = 6;
 
 /**
- * Efirdagi izohlar (Instagram/TikTok live kabi): pastdan chiqadi, bir necha soniyada tepaga suzib
- * yo'qoladi. Har izohning umri CSS animatsiyasi bilan o'lchanadi — tugaganda ro'yxatdan olinadi.
- * Moderator izoh ustiga borsa oqim to'xtab turadi va izohni o'chira oladi.
+ * Efirdagi izohlar (Instagram/TikTok live kabi): pastdan chiqadi, eskilari tepaga suriladi. Izohlar uchun
+ * ko'rinmas, balandligi belgilangan joy ajratilgan: unga sig'magan eng eski izoh chegaradan chiqishi bilan
+ * yo'qoladi (yarim kesilgan izoh ko'rinmaydi). Har izohning umri ham cheklangan — CSS animatsiyasi tugaganda
+ * ro'yxatdan olinadi. Moderator izoh ustiga borsa oqim to'xtab turadi va izohni o'chira oladi.
  */
 function FloatingComments({ items, myId, canDelete, onGone, onDelete }: {
   items: LiveMessage[];
@@ -64,26 +65,57 @@ function FloatingComments({ items, myId, canDelete, onGone, onDelete }: {
   onGone: (id: number) => void;
   onDelete: (id: number) => void;
 }) {
+  const areaRef = useRef<HTMLDivElement>(null);
+  const stackRef = useRef<HTMLOListElement>(null);
+  const onGoneRef = useRef(onGone);
+  useLayoutEffect(() => {
+    onGoneRef.current = onGone;
+  });
+
+  useEffect(() => {
+    const area = areaRef.current;
+    const stack = stackRef.current;
+    if (!area || !stack) return;
+    // ResizeObserver chizishdan oldin chaqiriladi: chegaradan chiqqan izoh shu kadrning o'zida yashiriladi.
+    const trim = () => {
+      const edge = area.getBoundingClientRect().top;
+      for (const item of stack.children) {
+        if (!(item instanceof HTMLElement)) continue;
+        if (item.getBoundingClientRect().top >= edge - 0.5) break;
+        if (item.dataset.gone) continue;
+        item.dataset.gone = "1";
+        onGoneRef.current(Number(item.dataset.id));
+      }
+    };
+    const observer = new ResizeObserver(trim);
+    observer.observe(area);
+    observer.observe(stack);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <ol className={`live-float${canDelete ? " can-moderate" : ""}`} role="log" aria-live="polite" aria-label="Jonli izohlar">
-      {items.map((msg) => (
-        <li
-          key={msg.id}
-          className={`live-float-item${msg.userId === myId ? " is-mine" : ""}`}
-          onAnimationEnd={(e) => { if (e.animationName.startsWith("live-float-life")) onGone(msg.id); }}
-        >
-          <div className="live-float-bubble">
-            <Avatar name={msg.userName} />
-            <p><strong>{msg.userName}</strong> {msg.body}</p>
-            {canDelete && (
-              <button type="button" aria-label={`${msg.userName} izohini o‘chirish`} title="Izohni o‘chirish" onClick={() => onDelete(msg.id)}>
-                <Trash2 size={14} />
-              </button>
-            )}
-          </div>
-        </li>
-      ))}
-    </ol>
+    <div ref={areaRef} className={`live-float${canDelete ? " can-moderate" : ""}`}>
+      <ol ref={stackRef} className="live-float-stack" role="log" aria-live="polite" aria-label="Jonli izohlar">
+        {items.map((msg) => (
+          <li
+            key={msg.id}
+            data-id={msg.id}
+            className={`live-float-item${msg.userId === myId ? " is-mine" : ""}`}
+            onAnimationEnd={(e) => { if (e.animationName.startsWith("live-float-life")) onGone(msg.id); }}
+          >
+            <div className="live-float-bubble">
+              <Avatar name={msg.userName} />
+              <p><strong>{msg.userName}</strong> {msg.body}</p>
+              {canDelete && (
+                <button type="button" aria-label={`${msg.userName} izohini o‘chirish`} title="Izohni o‘chirish" onClick={() => onDelete(msg.id)}>
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -544,7 +576,7 @@ export default function LiveSession({
   const publishLocked = av.status !== "connected" || !av.canPublish;
   const lockedHint = av.status !== "connected" ? "Ovoz/video serveriga ulanilmagan" : "So'z berilganda yoqiladi";
   const recording = Boolean(sessionData?.recording);
-  const controls: Array<{ label: string; icon: typeof Mic; active: boolean; disabled: boolean; pending: boolean; action: () => unknown; hint?: string; tool?: boolean }> = [
+  const controls: Array<{ label: string; icon: typeof Mic; active: boolean; disabled: boolean; pending: boolean; action: () => unknown; hint?: string }> = [
     { label: "Mikrofon", icon: av.micOn ? Mic : MicOff, active: av.micOn, disabled: publishLocked, pending: av.busy === "mic", action: av.toggleMic },
     { label: "Kamera", icon: av.cameraOn ? Camera : CameraOff, active: av.cameraOn, disabled: publishLocked, pending: av.busy === "camera", action: av.toggleCamera },
     { label: "Ekran ulashish", icon: MonitorUp, active: av.screenOn, disabled: publishLocked, pending: av.busy === "screen", action: av.toggleScreen },
@@ -561,30 +593,11 @@ export default function LiveSession({
       action: () => (status === "ended" ? setArchiveOpen(true) : setCommentsOn(!commentsOn)),
       hint: "Suhbat tugagan — izohlar yopildi",
     },
-    ...(roomAdmin
-      ? [{
-          label: recording ? "Yozuvni to'xtatish" : "Yozib olish",
-          icon: CircleDot,
-          active: recording,
-          disabled: status === "planned" || av.status !== "connected",
-          pending: recBusy,
-          action: () => (recording ? finishRecording() : startRecording()),
-          hint: status === "planned" ? "Suhbat boshlangach yozib olinadi" : "Ovoz serveriga ulanilmagan",
-          tool: true,
-        }]
-      : []),
-    ...(roomAdmin && recording && ownRecording
-      ? [{
-          label: recPaused ? "Davom ettirish" : "Pauza",
-          icon: recPaused ? Play : Pause,
-          active: recPaused,
-          disabled: recBusy,
-          pending: false,
-          action: toggleRecordingPause,
-          tool: true,
-        }]
-      : []),
   ];
+
+  // Yozib olish (faqat admin) — sarlavha qatorida, «Tugatish» yonida.
+  const recLocked = status === "planned" || av.status !== "connected";
+  const recHint = status === "planned" ? "Suhbat boshlangach yozib olinadi" : "Ovoz serveriga ulanilmagan";
 
   // Admin ekranida yozuv vaqti (pauzalarsiz).
   useEffect(() => {
@@ -615,26 +628,46 @@ export default function LiveSession({
               </div>
               <span className="live-count" title="Qatnashchilar soni"><Users size={15} /> {participantCount}</span>
             </div>
-            <div className="live-status-row">
+            <div className={`live-status-row${roomAdmin && status === "live" ? " has-admin-tools" : ""}`}>
               {status === "live" && (
                 <span className="live-indicator"><i /> LIVE</span>
               )}
               {status === "ended" && <span className="live-ended-chip">Tugagan</span>}
-              {recording && (
+              {recording && !roomAdmin && (
                 <span className={`live-rec${recPaused ? " paused" : ""}`} title={recPaused ? "Yozuv pauzada" : "Suhbat yozib olinmoqda"}>
-                  <i /> {recPaused ? "PAUZA" : "REC"}{ownRecording ? ` ${clockOf(recElapsed)}` : ""}
+                  <i /> {recPaused ? "PAUZA" : "REC"}
                 </span>
-              )}
-              {handQueue.length > 0 && (
-                <span className="live-hand-chip" title="Qo'l ko'targanlar"><Hand size={13} /> {handQueue.length}</span>
               )}
               <span
                 className={`live-media-pill media-${media ? av.status : "none"}`}
                 title={!media ? "Ovoz va video serveri sozlanmagan — faqat izohlar ishlaydi." : av.status === "connected" ? (av.canPublish ? "Ovoz/video ulangan." : "Ovoz/video ulangan. Gapirish uchun qo'l ko'taring.") : av.status === "error" ? "Ovoz/video serveriga ulanib bo'lmadi." : "Ovoz/video ulanmoqda…"}
               >
-                <i />{!media ? "Faqat izohlar" : av.status === "connected" ? "Ovoz ulangan" : av.status === "error" ? "Ovoz uzildi" : "Ulanmoqda…"}
+                <i /><span className="live-media-label">{!media ? "Faqat izohlar" : av.status === "connected" ? "Ovoz ulangan" : av.status === "error" ? "Ovoz uzildi" : "Ulanmoqda…"}</span>
               </span>
               <span className="live-status-spacer" />
+              {roomAdmin && (status === "live" || recording) && (
+                <span className={`live-rec-ctl${recording ? " on" : ""}${recPaused ? " paused" : ""}`} role="group" aria-label="Yozib olish">
+                  {recording ? (
+                    <>
+                      <span className="live-rec-time" title={recPaused ? "Yozuv pauzada" : "Suhbat yozib olinmoqda"}>
+                        <i /> {ownRecording ? clockOf(recElapsed) : "REC"}
+                      </span>
+                      {ownRecording && (
+                        <button type="button" disabled={recBusy} onClick={toggleRecordingPause} aria-label={recPaused ? "Yozuvni davom ettirish" : "Yozuvni pauza qilish"} title={recPaused ? "Davom ettirish" : "Pauza"}>
+                          {recPaused ? <Play size={13} /> : <Pause size={13} />}
+                        </button>
+                      )}
+                      <button type="button" disabled={recBusy} onClick={() => void finishRecording()} aria-label="Yozuvni to‘xtatish" title="Yozuvni to‘xtatish">
+                        <Square size={11} />
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="live-rec-start" disabled={recLocked || recBusy} aria-busy={recBusy} onClick={() => void startRecording()} title={recLocked ? recHint : "Yozib olish"}>
+                      <CircleDot size={13} /> Yozib olish
+                    </button>
+                  )}
+                </span>
+              )}
               {roomAdmin && status === "live" && (
                 <button className="live-admin-btn end" onClick={() => void endTalk()}>
                   <Square size={12} /> Tugatish
@@ -672,7 +705,7 @@ export default function LiveSession({
 
             {/* ── Yagona xona: ovozli asos + kerak bo'lsa video/taqdimot sahnasi ── */}
             {connState === "joined" && (
-              <div className={`live-room${stage ? " has-stage" : ""}${status === "live" && commentsOn ? " has-float" : ""}`}>
+              <div className={`live-room${stage ? " has-stage" : ""}`}>
                 {stage === "screen" && av.screenSharer && (
                   <section className="live-stage live-stage-screen">
                     <div className="live-share-banner">
@@ -700,16 +733,16 @@ export default function LiveSession({
                 {/* Faqat ovoz: ikki qator. Video/taqdimot yoqilganda ro'yxat yon panelga o'tadi (pastda). */}
                 {!stage && (<>
                 <section className="live-tier live-tier-speak" aria-label="So'z berilganlar">
-                  <h3><Mic size={13} /> So&apos;z berilganlar <b>{speakers.length}</b></h3>
+                  <h3 title="So‘z berilganlar"><Mic size={14} aria-hidden="true" /><span className="sr-only">So‘z berilganlar:</span> <b>{speakers.length}</b></h3>
                   <div className="live-strip" role="list">
                     {speakers.map((p) => chip(p))}
                   </div>
                 </section>
 
                 <section className="live-tier live-tier-hall" aria-label="Tinglovchilar">
-                  <h3>
-                    <Users size={13} /> Tinglovchilar <b>{listenersList.length}</b>
-                    {handQueue.length > 0 && <em><Hand size={12} /> {handQueue.length} navbatda</em>}
+                  <h3 title="Tinglovchilar">
+                    <Users size={14} aria-hidden="true" /><span className="sr-only">Tinglovchilar:</span> <b>{listenersList.length}</b>
+                    {handQueue.length > 0 && <em title="Qo‘l ko‘targanlar"><Hand size={13} aria-hidden="true" /><span className="sr-only">Qo‘l ko‘targanlar:</span> {handQueue.length}</em>}
                   </h3>
                   {hall.length === 0 ? (
                     <p className="live-empty">Hozircha tinglovchi yo&apos;q</p>
@@ -750,17 +783,17 @@ export default function LiveSession({
                   </button>
                   <aside id="live-people" className="live-people" aria-label="Qatnashchilar" inert={!peopleOpen}>
                     <section>
-                      <h3><Mic size={13} /> So&apos;z berilganlar <b>{speakers.length}</b></h3>
+                      <h3 title="So‘z berilganlar"><Mic size={14} aria-hidden="true" /><span className="sr-only">So‘z berilganlar:</span> <b>{speakers.length}</b></h3>
                       <div role="list">{micFirst.map((p) => chip(p))}</div>
                     </section>
                     {handQueue.length > 0 && (
                       <section className="is-hands">
-                        <h3><Hand size={13} /> Qo&apos;l ko&apos;targanlar <b>{handQueue.length}</b></h3>
+                        <h3 title="Qo‘l ko‘targanlar"><Hand size={14} aria-hidden="true" /><span className="sr-only">Qo‘l ko‘targanlar:</span> <b>{handQueue.length}</b></h3>
                         <div role="list">{handQueue.map((p, index) => chip(p, index + 1))}</div>
                       </section>
                     )}
                     <section>
-                      <h3><Users size={13} /> Tinglovchilar <b>{quietListeners.length}</b></h3>
+                      <h3 title="Tinglovchilar"><Users size={14} aria-hidden="true" /><span className="sr-only">Tinglovchilar:</span> <b>{quietListeners.length}</b></h3>
                       {quietListeners.length
                         ? <div role="list">{quietListeners.map((p) => chip(p))}</div>
                         : <p className="live-empty">Boshqa tinglovchi yo&apos;q</p>}
@@ -833,26 +866,9 @@ export default function LiveSession({
           </div>
 
           {/* ── Boshqaruv paneli ── */}
-          {controls.some((c) => c.tool) && (
-            <div className="live-tools" role="toolbar" aria-label="Qo'shimcha amallar">
-              {controls.filter((c) => c.tool).map(({ label, icon: Icon, active, disabled, pending, action, hint }) => (
-                <button
-                  key={label}
-                  type="button"
-                  className={`${active ? "active" : ""}${pending ? " pending" : ""}`}
-                  onClick={action}
-                  disabled={disabled || pending}
-                  aria-busy={pending}
-                  title={disabled ? hint ?? lockedHint : label}
-                >
-                  <Icon size={16} />{label}
-                </button>
-              ))}
-            </div>
-          )}
           <footer className="live-controls">
             <div className="live-control-actions">
-              {controls.filter((c) => !c.tool).map(({ label, icon: Icon, active, disabled, pending, action, hint }) => (
+              {controls.map(({ label, icon: Icon, active, disabled, pending, action, hint }) => (
                 <button
                   className={`${active ? "active" : ""}${pending ? " pending" : ""}`}
                   key={label}

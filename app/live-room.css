@@ -46,6 +46,27 @@
 .live-overlay .live-admin-btn.start { background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 40%, var(--tilla)); color: var(--lojuvard-3); box-shadow: 0 1px 0 #fff8 inset, 0 8px 18px -10px #000; }
 .live-overlay .live-admin-btn.end { background: #e0303e1f; color: #ffb3bb; box-shadow: inset 0 0 0 1.5px #e0303e88; }
 .live-overlay .live-admin-btn.end:hover { background: #e0303e; color: #fff; }
+/* Yozib olish (admin): «Tugatish» yonida ixcham boshqaruv — boshlash, vaqt, pauza, to'xtatish. */
+.live-rec-ctl { display: inline-flex; align-items: center; height: 28px; border-radius: 999px; background: #ffffff12; box-shadow: inset 0 0 0 1px #ffffff26; overflow: hidden; }
+.live-rec-ctl button { display: inline-grid; place-items: center; height: 100%; min-width: 28px; padding: 0 8px; border: 0; background: none; color: #ffd6da; cursor: pointer; }
+.live-rec-ctl button:hover:not(:disabled) { background: #ffffff1f; }
+.live-rec-ctl button:disabled { cursor: not-allowed; opacity: .45; }
+.live-rec-ctl button:focus-visible { outline: 2px solid var(--firuza-2); outline-offset: -2px; }
+.live-rec-ctl .live-rec-start { display: inline-flex; align-items: center; gap: 5px; padding: 0 11px; color: #ffd6da; font: 800 11.5px var(--f-ui); }
+.live-rec-ctl .live-rec-start svg { color: #ff4d5e; }
+.live-rec-ctl.on { background: #e5213626; box-shadow: inset 0 0 0 1px #e5213666; }
+.live-rec-time { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px 0 10px; color: #ffd6da; font: 800 11px var(--f-ui); font-variant-numeric: tabular-nums; }
+.live-rec-time i { width: 8px; height: 8px; border-radius: 50%; background: #ff4d5e; animation: live-rec-blink 1.2s ease-in-out infinite; }
+.live-rec-ctl.paused { background: #e2b65c26; box-shadow: inset 0 0 0 1px #e2b65c66; }
+.live-rec-ctl.paused .live-rec-time { color: var(--tilla-2); }
+.live-rec-ctl.paused .live-rec-time i { background: var(--tilla-2); animation: none; }
+@keyframes live-rec-blink { 50% { opacity: .35; } }
+/* Tor ekranda admin qatori (yozib olish + «Tugatish») bitta qatorga sig'sin: ulanish holati faqat rangli nuqta. */
+@media (max-width: 430px) {
+  .live-status-row.has-admin-tools .live-media-pill { width: 24px; padding: 0; justify-content: center; }
+  .live-status-row.has-admin-tools .live-media-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) { .live-rec-time i { animation: none; } }
 
 .live-overlay .live-status-banner.ended { margin: 6px 14px 0; padding: 10px 14px; border: 0; border-radius: 14px; background: #ffffff12; color: #cfd5f5; font-size: 12.5px; }
 .live-overlay .live-mod-hint { margin: 4px 14px 0; padding: 7px 12px; border: 0; border-radius: 12px; background: #ffffff0d; color: #b9c2ee; font-size: 11.5px; }
@@ -89,12 +110,6 @@
 .live-overlay .live-share-banner { background: #0f1842; border-bottom: 1px solid #e2b65c33; }
 
 /* ───────── Pastki boshqaruv ───────── */
-.live-tools { display: flex; flex: none; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 6px 14px 0; }
-.live-tools button { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: #ffffff12; color: #e6e9ff; font-size: 12.5px; font-weight: 700; box-shadow: inset 0 0 0 1px #ffffff1f; transition: background .15s; }
-.live-tools button:hover:not(:disabled) { background: #ffffff22; }
-.live-tools button.active { background: #e5213633; color: #ffd0d5; box-shadow: inset 0 0 0 1px #e5213677; }
-.live-tools button.pending { opacity: .6; }
-.live-tools button:disabled { cursor: not-allowed; opacity: .38; }
 
 .live-overlay .live-controls { border-top: 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); }
 .live-overlay .live-control-actions { align-items: flex-end; justify-content: space-between; gap: 2px; padding: 10px 8px 9px; border-radius: 30px; background: #ffffff14; box-shadow: inset 0 0 0 1px #e2b65c3d, 0 14px 30px -16px #000; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
@@ -167,15 +182,13 @@
  */
 .live-overlay .live-main { flex-direction: column; }
 .live-overlay .live-main > .live-room { flex: 1 1 auto; min-height: 0; padding-bottom: 6px; }
-/* Izohlar yoqiq: xona o'z balandligida, qolgan joy izohlarniki; sig'masa xona suriladi. */
-.live-overlay .live-main > .live-room.has-float { flex: 0 1 auto; }
 
 .live-tier { flex: none; margin: 8px 12px 0; padding: 9px 10px 2px; border-radius: 18px; background: #ffffff0a; box-shadow: inset 0 0 0 1px #ffffff14; }
 .live-tier-speak { background: linear-gradient(180deg, #e2b65c21, #e2b65c08); box-shadow: inset 0 0 0 1px #e2b65c4d; }
-.live-tier > h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--tilla-2); font: 800 10.5px/1 var(--f-ui); letter-spacing: .14em; text-transform: uppercase; }
+.live-tier > h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--tilla-2); font: 800 11px/1 var(--f-ui); }
 .live-tier-hall > h3 { color: #aab4e6; }
-.live-tier > h3 b { padding: 2px 7px; border-radius: 999px; background: #ffffff14; color: #eceaff; font-size: 10px; letter-spacing: .02em; }
-.live-tier > h3 em { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: #ffd166; font-style: normal; letter-spacing: .02em; text-transform: none; }
+.live-tier > h3 b { padding: 3px 8px; border-radius: 999px; background: #ffffff14; color: #eceaff; font-size: 11.5px; }
+.live-tier > h3 em { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 3px 8px; border-radius: 999px; background: #ffd16624; color: #ffd166; font-style: normal; }
 .live-tier-note { margin: -2px 0 8px; color: #8f9ac9; font-size: 11.5px; font-weight: 600; }
 .live-tier-note.is-queued { color: #ffd166; }
 
@@ -203,7 +216,6 @@
 .live-mic-badge { right: -5px; bottom: -3px; width: 16px; height: 16px; background: #0b1230; color: #aab4e6; box-shadow: 0 0 0 1.5px #ffffff2a; }
 .live-cam-badge { top: -4px; left: -5px; width: 16px; height: 16px; background: #0d7a79; color: #fff; box-shadow: 0 0 0 1.5px #0b1230; }
 @keyframes live-hand-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
-.live-overlay .live-hand-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; background: #e2b65c33; color: var(--tilla-2); font-size: 11px; font-weight: 800; box-shadow: inset 0 0 0 1px #e2b65c77; }
 .live-overlay .live-empty { margin: 4px 0 8px; padding: 8px; font-size: 12px; }
 
 /* Sahna: taqdimot (ekran) yoki kameralar. Balandligi — pastdagi «yon panel» bo'limida. */
@@ -255,7 +267,7 @@
   border-radius: 18px 0 0 18px; background: #0b1230f5; box-shadow: -18px 0 36px -18px #000, inset 1px 0 0 #e2b65c4d;
 }
 .live-people > section + section { margin-top: 14px; }
-.live-people h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; padding: 0 4px; color: var(--tilla-2); font: 800 10.5px/1 var(--f-ui); letter-spacing: .12em; text-transform: uppercase; }
+.live-people h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; padding: 0 4px; color: var(--tilla-2); font: 800 11px/1 var(--f-ui); }
 .live-people section:last-child h3 { color: #aab4e6; }
 .live-people .is-hands h3 { color: #ffd166; }
 .live-people h3 b { padding: 2px 7px; border-radius: 999px; background: #ffffff14; color: #eceaff; font-size: 10px; letter-spacing: .02em; }
@@ -277,14 +289,14 @@
  * Pastdan chiqadi, ~9 soniyada tepaga suzib yo'qoladi (umri `live-float-life` animatsiyasi; tugagach ro'yxatdan olinadi).
  * Oqim qatnashchilar qatorlaridan keyingi bo'sh joyda, tepasi xiralashib ketadi — sahna va qatorlarni to'smaydi.
  */
+/* Izohlar joyi: ko'rinmas, balandligi belgilangan (ovozda ham, videoda ham bir xil). Sig'magan eng eski izoh
+ * chegaradan chiqishi bilan yashiriladi (`data-gone`, FloatingComments) — yarim kesilgan izoh ko'rinmaydi. */
 .live-float {
-  position: relative; flex: 1 1 0; z-index: 3;
-  display: flex; flex-direction: column; justify-content: flex-end; gap: 6px;
-  min-height: 72px; margin: 0 20% 0 12px; padding: 16px 0 6px; overflow: hidden; list-style: none;
-  pointer-events: none;
-  -webkit-mask-image: linear-gradient(to top, #000 70%, transparent);
-  mask-image: linear-gradient(to top, #000 70%, transparent);
+  position: relative; flex: none; z-index: 3; display: flex; flex-direction: column; justify-content: flex-end;
+  height: clamp(120px, 22vh, 190px); margin: 0 20% 0 12px; overflow: hidden; pointer-events: none;
 }
+.live-float-stack { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0 0 6px; list-style: none; }
+.live-float-item[data-gone] { visibility: hidden; }
 /*
  * Ikki animatsiya ikki elementda: qator (li) faqat o'sadi va kesadi, ichidagi pufak suzib yo'qoladi.
  * Bittasida bo'lsa Chromium qatlamni balandligi 0 paytida chizib qo'yadi va matn umuman ko'rinmaydi.
