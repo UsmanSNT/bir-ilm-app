@@ -2435,7 +2435,7 @@ input {
 .book-editor-actions .danger{margin-right:auto;background:#fdeeee;color:#b4232f}
 .book-editor-actions .ghost{background:none;color:#625f72}
 .m-week-cover{border:0;background:none;padding:0;cursor:pointer}
-.m-cover.has-image>span,.m-cover.has-image>strong,.m-cover.has-image>em{display:none}.m-cover.has-image>.m-live{display:inline-block;position:absolute;top:6px;left:6px;z-index:1}
+.m-cover.has-image>span,.m-cover.has-image>strong,.m-cover.has-image>em{display:none}
 
 /* Jonli suhbat: boshqa bo'limga o'tganda ham ulanish saqlanadi; kichraytirilgan xona paneli. */
 .talks-tab[data-state="inactive"]{display:none}

@@ -3,7 +3,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ApiException, badRequest, notFound } from "@/server/http/errors";
-import { quizMinutes, quizSessionStatus, type Quiz, type QuizInput, type QuizJoin, type QuizResultInput, type QuizSession } from "@/shared/contract";
+import { quizMinutes, quizScore, quizSessionStatus, type Quiz, type QuizInput, type QuizJoin, type QuizResultInput, type QuizSession } from "@/shared/contract";
 import { removeQuizImage } from "./quiz-media";
 
 const { quizzes, quizQuestions, quizSessions, quizResults, books } = schema;
@@ -154,7 +154,7 @@ export async function recordResult(db: Database, userId: string, input: QuizResu
     const session = await db.query.quizSessions.findFirst({ where: and(eq(quizSessions.id, input.sessionId), eq(quizSessions.quizId, input.quizId)), columns: { id: true } });
     if (!session) throw notFound("Viktorina vaqti topilmadi.");
   }
-  const score = Math.round((input.correct / input.total) * 100) * 3 + input.correct * 4;
+  const score = quizScore(input.correct, input.total);
   await db.insert(quizResults).values({ id: newId("qr"), quizId: input.quizId, sessionId: input.sessionId, userId, correct: input.correct, total: input.total, score });
   return { score };
 }

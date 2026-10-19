@@ -13,6 +13,7 @@ import "./community/community.css";
 import "./talks.css";
 import "./store.css";
 import "./naqsh.css";
+import "./quiz.css";
 import "./profile-v2.css";
 import "./live-room.css";
 

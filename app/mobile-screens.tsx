@@ -9,7 +9,7 @@ import {
   BellRing,
   BookOpen,
   Calendar,
-  Check,
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -18,15 +18,30 @@ import {
   Leaf,
   Pencil,
   Plus,
-  Trophy,
-  Users,
+  UserRound,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { wisdom, type Quiz } from "./quiz-data";
 import { joinQuizByCode, saveQuizResult, useQuizzes } from "@/lib/api/quiz-client";
-import { quizSessionStatus, type Quiz as ServerQuiz, type QuizSession } from "@/shared/contract";
+import { QUIZ_SESSION_OPENS_BEFORE_MIN, quizScore, quizSessionStatus, type Quiz as ServerQuiz, type QuizSession } from "@/shared/contract";
 import QuizEditor from "./quiz-editor";
+import {
+  QuizAddButton,
+  QuizCard,
+  QuizCardSkeleton,
+  QuizCodeForm,
+  QuizEmpty,
+  QuizEntry,
+  QuizHero,
+  QuizIntro,
+  QuizLeaders,
+  QuizLiveCard,
+  QuizQuestion,
+  QuizResult,
+  type QuizLeader,
+  type QuizMode,
+} from "./quiz-ui";
 import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { canModerate } from "@/shared/contract/roles";
@@ -102,7 +117,6 @@ function BookCover({
   author,
   tone,
   size = "md",
-  live = false,
   image = null,
   color,
 }: {
@@ -110,14 +124,12 @@ function BookCover({
   author: string;
   tone: "cream" | "rose" | "ink";
   size?: "sm" | "md" | "lg";
-  live?: boolean;
   image?: string | null;
   color?: string;
 }) {
   return (
     <div className={`m-cover m-cover-${tone} m-cover-${size}${image ? " has-image" : ""}`} style={color && !image ? { background: color, color: "#fff" } : undefined}>
       {image && <img src={image} alt="" />}
-      {live && <span className="m-live">LIVE</span>}
       <span>BIR ILM</span>
       <strong>{title}</strong>
       <em>{author}</em>
@@ -192,7 +204,7 @@ export default function MobileScreens({
   const [reminder, setReminder] = useState(false);
   const saveRaw = useSyncExternalStore(subscribeSave, readSaveSnapshot, () => "");
   const save = useMemo(() => parseSave(saveRaw), [saveRaw]);
-  const [mode, setMode] = useState<"live" | "solo">("live");
+  const [mode, setMode] = useState<QuizMode>("live");
   const [code, setCode] = useState("");
   const [showQuizzes, setShowQuizzes] = useState(false);
   const [showLeaders, setShowLeaders] = useState(false);
@@ -201,6 +213,10 @@ export default function MobileScreens({
   const [picked, setPicked] = useState("");
   const [correct, setCorrect] = useState(0);
   const [finished, setFinished] = useState(false);
+  // Viktorina oynasi: avval boshlash oynasi (intro), keyin savollar, oxirida natija.
+  const [intro, setIntro] = useState(true);
+  const [outcome, setOutcome] = useState({ score: 0, record: false });
+  const [joining, setJoining] = useState(false);
   const announcements = useAnnouncements();
   const unread = useUnreadCount(announcements);
   // Yangiliklar ekrani e'lonlarni to'liq ko'rsatadi — ochilgach ular o'qilgan hisoblanadi.
@@ -282,14 +298,19 @@ export default function MobileScreens({
     return row && quiz ? { quiz, session: row.session as QuizSession, status: row.status } : null;
   }, [serverQuizzes.items, quizzes, now]);
 
-  const leaders = useMemo(() => {
+  const leaderRows = useMemo<QuizLeader[]>(() => {
     const mine = Object.values(save.scores);
     const mineScore = mine.length ? Math.max(...mine) : 0;
-    const rows = [
-      ...(mineScore ? [{ id: "me", name: name || "Siz", score: mineScore }] : []),
+    return [
+      ...(mineScore ? [{ id: "me", name: name || "Siz", score: mineScore, me: true }] : []),
     ].sort((a, b) => b.score - a.score);
-    return showLeaders ? rows : rows.slice(0, 3);
-  }, [name, save.scores, showLeaders]);
+  }, [name, save.scores]);
+  const leaders = showLeaders ? leaderRows : leaderRows.slice(0, 3);
+  // Sahifa boshidagi qisqa statistika: shu qurilmada yechilgan viktorinalar va eng yaxshi ball.
+  const quizStats = useMemo(() => {
+    const solved = quizzes.map((quiz) => save.scores[quiz.id]).filter((score): score is number => score != null);
+    return { count: quizzes.length, solved: solved.length, best: solved.length ? Math.max(...solved) : null };
+  }, [quizzes, save.scores]);
 
   useEffect(() => {
     if (!reminder) return;
@@ -313,7 +334,8 @@ export default function MobileScreens({
     window.scrollTo({ top: 0 });
   }
 
-  function startQuiz(quiz: Quiz, sessionId: string | null = null) {
+  /** `withIntro` — avval boshlash oynasi ko'rsatiladi («Qayta urinish»da to'g'ridan-to'g'ri savollar). */
+  function startQuiz(quiz: Quiz, sessionId: string | null = null, withIntro = true) {
     // Har safar savollar tartibi aralashtiriladi (Fisher–Yates).
     const questions = [...quiz.questions];
     for (let i = questions.length - 1; i > 0; i--) {
@@ -326,6 +348,7 @@ export default function MobileScreens({
     setPicked("");
     setCorrect(0);
     setFinished(false);
+    setIntro(withIntro);
     setScreen("play");
     window.scrollTo({ top: 0 });
   }
@@ -337,7 +360,9 @@ export default function MobileScreens({
     if (step + 1 >= active.questions.length) {
       setCorrect(nextCorrect);
       setFinished(true);
-      const score = Math.round((nextCorrect / active.questions.length) * 100) * 3 + nextCorrect * 4;
+      const score = quizScore(nextCorrect, active.questions.length);
+      const previous = save.scores[active.id];
+      setOutcome({ score, record: previous != null && score > previous });
       // Kirgan foydalanuvchining natijasi serverga ham yoziladi (jonli viktorinada ishtirokchilar soni shundan).
       if (viewer?.signedIn) void saveQuizResult({ quizId: active.id, sessionId: activeSession, correct: nextCorrect, total: active.questions.length }).catch(() => {});
       writeSave({
@@ -361,16 +386,20 @@ export default function MobileScreens({
       toast.error("Xona kodi 6 ta raqamdan iborat bo‘lsin");
       return;
     }
+    if (joining) return;
+    setJoining(true);
     try {
       const joined = await joinQuizByCode(value);
       const found = quizzes.find((q) => q.id === joined.quizId);
       if (!found) return void toast.error("Viktorina topilmadi");
-      if (joined.status === "upcoming") return void toast.error(`Hali boshlanmadi: ${whenText(joined.startsAt)}. Kirish 10 daqiqa oldin ochiladi.`);
+      if (joined.status === "upcoming") return void toast.error(`Hali boshlanmadi: ${whenText(joined.startsAt)}. Kirish ${QUIZ_SESSION_OPENS_BEFORE_MIN} daqiqa oldin ochiladi.`);
       if (joined.status === "closed") return void toast.error("Bu viktorinaning vaqti o‘tib ketgan");
       setCode("");
       startQuiz(found, joined.sessionId);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Bunday xona topilmadi");
+    } finally {
+      setJoining(false);
     }
   }
 
@@ -550,11 +579,11 @@ export default function MobileScreens({
           </figure>
 
           <div className="m-shortcuts">
-            <button className="m-card m-shortcut" type="button" onClick={openQuizzes}>
-              <Trophy size={22} />
-              <strong>Viktorinalar</strong>
-              <small>Bilimingizni sinang</small>
-            </button>
+            <QuizEntry
+              count={serverQuizzes.loading ? null : quizzes.length}
+              live={nextLive ? { open: nextLive.status === "open", when: whenText(nextLive.session.startsAt) } : null}
+              onOpen={openQuizzes}
+            />
           </div>
 
           <div className="m-section-head">
@@ -571,7 +600,7 @@ export default function MobileScreens({
       )}
 
       {screen === "news" && (
-        <div className="m-screen">
+        <div className="m-screen m-solid-head">
           <Subhead title="Yangiliklar" onBack={goHome} />
           <div className="m-stack">
             {!news.length && <p className="m-news-empty">Hozircha e‘lonlar yo‘q. Admin e‘lon joylaganda shu yerda ko‘rinadi.</p>}
@@ -582,64 +611,46 @@ export default function MobileScreens({
         </div>
       )}
 
-      {screen === "quizzes" && quizEditing && <QuizEditor key={quizEditing.quiz?.id ?? "new"} quiz={quizEditing.quiz} onClose={() => setQuizEditing(null)} />}
+      {screen === "quizzes" && quizEditing && (
+        <div className="m-contents m-solid-head">
+          <QuizEditor key={quizEditing.quiz?.id ?? "new"} quiz={quizEditing.quiz} onClose={() => setQuizEditing(null)} />
+        </div>
+      )}
       {screen === "quizzes" && !quizEditing && (
-        <div className="m-screen">
-          <Subhead title="Viktorinalar" onBack={goHome} />
-          <div className="m-seg" role="tablist" aria-label="Viktorina turlari">
-            <button type="button" role="tab" aria-selected={mode === "live"} className={mode === "live" ? "is-on" : ""} onClick={() => setMode("live")}>
-              Jonli
-            </button>
-            <button type="button" role="tab" aria-selected={mode === "solo"} className={mode === "solo" ? "is-on" : ""} onClick={() => setMode("solo")}>
-              Mustaqil
-            </button>
-          </div>
+        <div className="m-screen qz-screen">
+          <QuizHero mode={mode} onMode={setMode} onBack={goHome} stats={quizStats} />
 
-          {mode === "live" ? (
-            <>
-              {nextLive ? (
-                <article className="m-card m-live-card">
-                  <BookCover title={nextLive.quiz.title} author={nextLive.quiz.author} tone="cream" image={nextLive.quiz.image} color={nextLive.quiz.color} live={nextLive.status === "open"} />
-                  <div>
-                    <h2>{nextLive.quiz.title}</h2>
-                    <p className="m-author">{nextLive.quiz.author || "Viktorina"}</p>
-                    <p className="m-meta">
-                      <span><Clock size={14} /> {whenText(nextLive.session.startsAt)}</span>
-                      <span><Users size={14} /> {nextLive.session.participants} ishtirokchi</span>
-                    </p>
-                    {editor && nextLive.session.code && <p className="m-room-code">Xona kodi: <b>{nextLive.session.code}</b></p>}
-                    {nextLive.status === "open" ? (
-                      <button className="m-join" type="button" onClick={() => startQuiz(nextLive.quiz, nextLive.session.id)}>Qo‘shilish</button>
-                    ) : (
-                      <button className="m-join" type="button" disabled>Kirish 10 daqiqa oldin ochiladi</button>
-                    )}
-                  </div>
-                </article>
-              ) : (
-                <p className="m-note">Hozircha jonli viktorina belgilanmagan.{editor ? " Viktorinani tahrirlab, unga vaqt va kirish kodini qo‘shing." : ""}</p>
-              )}
-
-              <form className="m-code-block" onSubmit={joinRoom}>
-                <label htmlFor="room-code">Xona kodi bilan qo‘shilish</label>
-                <div className="m-code">
-                  <input
-                    id="room-code"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    maxLength={6}
-                    placeholder="Xona kodini kiriting (masalan, 123456)"
-                    value={code}
-                    onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+          <div className="qz-panel" role="tabpanel" id="qz-panel" aria-labelledby={`qz-tab-${mode}`}>
+            {mode === "live" ? (
+              <>
+                {nextLive ? (
+                  <QuizLiveCard
+                    cover={<BookCover title={nextLive.quiz.title} author={nextLive.quiz.author} tone="cream" image={nextLive.quiz.image} color={nextLive.quiz.color} />}
+                    title={nextLive.quiz.title}
+                    author={nextLive.quiz.author}
+                    when={whenText(nextLive.session.startsAt)}
+                    participants={nextLive.session.participants}
+                    open={nextLive.status === "open"}
+                    countdown={countdown(nextLive.session.startsAt, now)}
+                    code={editor ? nextLive.session.code : null}
+                    onJoin={() => startQuiz(nextLive.quiz, nextLive.session.id)}
                   />
-                  <button type="submit" aria-label="Xonaga qo‘shilish">
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
-              </form>
-            </>
-          ) : (
-            <p className="m-note">Mustaqil rejimda savollarni o‘z tezligingizda yechasiz. Natija shu qurilmada saqlanadi.</p>
-          )}
+                ) : (
+                  <QuizEmpty
+                    icon={<CalendarClock size={18} />}
+                    title="Hozircha jonli viktorina belgilanmagan"
+                    text={editor ? "Viktorinani tahrirlab, unga vaqt va kirish kodini qo‘shing." : "Jonli viktorina vaqti e’lon qilinganda shu yerda ko‘rinadi."}
+                  />
+                )}
+                <QuizCodeForm code={code} busy={joining} onCode={setCode} onSubmit={joinRoom} />
+              </>
+            ) : (
+              <p className="qz-solo">
+                <UserRound size={18} aria-hidden="true" />
+                <span>Mustaqil rejimda savollarni o‘z tezligingizda yechasiz. Natija shu qurilmada saqlanadi.</span>
+              </p>
+            )}
+          </div>
 
           <div className="m-section-head">
             <h2>O‘zingizni sinang</h2>
@@ -649,80 +660,83 @@ export default function MobileScreens({
               </button>
             )}
           </div>
-          {editor && <button className="m-quiz-add" type="button" onClick={() => setQuizEditing({ quiz: null })}><Plus size={16} /> Viktorina qo‘shish</button>}
-          {!serverQuizzes.loading && quizzes.length === 0 && <p className="m-note">Hozircha viktorina yo‘q.{editor ? " «Viktorina qo‘shish» tugmasi bilan kitob bo‘yicha savollar qo‘shing." : ""}</p>}
-          <div className="m-stack">
+          {editor && <QuizAddButton onClick={() => setQuizEditing({ quiz: null })} />}
+          {!serverQuizzes.loading && quizzes.length === 0 && (
+            <QuizEmpty
+              icon={<BookOpen size={18} />}
+              title="Hozircha viktorina yo‘q"
+              text={editor ? "«Viktorina qo‘shish» tugmasi bilan kitob bo‘yicha savollar qo‘shing." : "Yangi viktorinalar tez orada qo‘shiladi."}
+            />
+          )}
+          <div className="qz-list">
+            {serverQuizzes.loading && quizzes.length === 0 && (
+              <>
+                <QuizCardSkeleton />
+                <QuizCardSkeleton />
+              </>
+            )}
             {visibleQuizzes.map((quiz) => (
-              <div className="m-quiz-wrap" key={quiz.id}>
-              <button className="m-card m-quiz-row" type="button" onClick={() => startQuiz(quiz)}>
-                <BookCover title={quiz.title} author={quiz.author} tone={quiz.tone} size="sm" image={quiz.image} color={quiz.color} />
-                <span>
-                  <strong>{quiz.title}</strong>
-                  <small>
-                    <BookOpen size={13} /> {quiz.questions.length} savol
-                    <Clock size={13} /> {quiz.minutes} daqiqa
-                  </small>
-                  {save.scores[quiz.id] != null && <em>Eng yaxshi: {save.scores[quiz.id]} ball</em>}
-                </span>
-                <ChevronRight size={18} />
-              </button>
-              {editor && <button className="m-quiz-edit" type="button" aria-label={`${quiz.title} viktorinasini tahrirlash`} onClick={() => setQuizEditing({ quiz: serverQuizzes.items.find((x) => x.id === quiz.id) ?? null })}><Pencil size={15} /></button>}
-              </div>
+              <QuizCard
+                key={quiz.id}
+                cover={<BookCover title={quiz.title} author={quiz.author} tone={quiz.tone} size="sm" image={quiz.image} color={quiz.color} />}
+                title={quiz.title}
+                author={quiz.author}
+                questions={quiz.questions.length}
+                minutes={quiz.minutes}
+                best={save.scores[quiz.id] ?? null}
+                onStart={() => startQuiz(quiz)}
+                onEdit={editor ? () => setQuizEditing({ quiz: serverQuizzes.items.find((x) => x.id === quiz.id) ?? null }) : undefined}
+              />
             ))}
           </div>
 
           <div className="m-section-head">
             <h2>Haftaning bilimdonlari</h2>
-            <button type="button" onClick={() => setShowLeaders((value) => !value)}>
-              {showLeaders ? "Yig‘ish" : "Barchasi"} <ChevronRight size={16} />
-            </button>
+            {leaderRows.length > 3 && (
+              <button type="button" onClick={() => setShowLeaders((value) => !value)}>
+                {showLeaders ? "Yig‘ish" : "Barchasi"} <ChevronRight size={16} />
+              </button>
+            )}
           </div>
-          <ol className="m-card m-leaders">
-            {leaders.map((leader, index) => (
-              <li key={leader.id}>
-                <span className={`m-rank m-rank-${index + 1}`}>{index + 1}</span>
-                <span className="m-avatar" aria-hidden="true">{leader.name.slice(0, 1)}</span>
-                <strong>{leader.name}</strong>
-                <em>{leader.score} ball</em>
-              </li>
-            ))}
-          </ol>
+          <QuizLeaders rows={leaders} />
         </div>
       )}
 
       {screen === "play" && active && (
-        <div className="m-screen">
+        <div className="m-screen m-solid-head qz-play-screen">
           <Subhead title={active.title} onBack={() => { setScreen("quizzes"); setActive(null); }} />
           {finished ? (
-            <section className="m-card m-result">
-              <Trophy size={28} />
-              <h2>{correct} / {active.questions.length}</h2>
-              <p>To‘g‘ri javoblar shu haftalik ballingizga qo‘shildi.</p>
-              <button className="m-primary" type="button" onClick={() => startQuiz(active)}>Qayta urinish</button>
-              <button className="m-text" type="button" onClick={() => setScreen("quizzes")}>Viktorinalarga qaytish</button>
-            </section>
+            <QuizResult
+              correct={correct}
+              total={active.questions.length}
+              score={outcome.score}
+              best={Math.max(save.scores[active.id] ?? 0, outcome.score)}
+              record={outcome.record}
+              onRetry={() => startQuiz(active, null, false)}
+              onBack={() => setScreen("quizzes")}
+            />
+          ) : intro ? (
+            <QuizIntro
+              cover={<BookCover title={active.title} author={active.author} tone={active.tone} image={active.image} color={active.color} />}
+              title={active.title}
+              author={active.author}
+              questions={active.questions.length}
+              minutes={active.minutes}
+              best={save.scores[active.id] ?? null}
+              live={activeSession != null}
+              onStart={() => setIntro(false)}
+            />
           ) : (
-            <section className="m-card m-play">
-              <p className="m-kicker">{step + 1} / {active.questions.length} savol</p>
-              <h2>{active.questions[step].prompt}</h2>
-              <div className="m-options">
-                {active.questions[step].choices.map((choice) => (
-                  <button
-                    key={choice.id}
-                    type="button"
-                    className={picked === choice.id ? "is-picked" : ""}
-                    aria-pressed={picked === choice.id}
-                    onClick={() => setPicked(choice.id)}
-                  >
-                    {choice.text}
-                    {picked === choice.id && <Check size={16} />}
-                  </button>
-                ))}
-              </div>
-              <button className="m-primary" type="button" disabled={!picked} onClick={submitAnswer}>
-                {step + 1 === active.questions.length ? "Yakunlash" : "Keyingisi"}
-              </button>
-            </section>
+            <QuizQuestion
+              step={step}
+              total={active.questions.length}
+              live={activeSession != null}
+              prompt={active.questions[step].prompt}
+              choices={active.questions[step].choices}
+              picked={picked}
+              onPick={setPicked}
+              onNext={submitAnswer}
+            />
           )}
         </div>
       )}

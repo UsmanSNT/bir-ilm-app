@@ -89,3 +89,6 @@ export type Quiz = {
 };
 
 export const quizMinutes = (questionCount: number) => Math.max(1, Math.round(questionCount / 2));
+
+/** Ball: aniqlik foizi × 3 + har to'g'ri javobga 4. Server ham, mijoz ham shu bitta formuladan foydalanadi. */
+export const quizScore = (correct: number, total: number) => Math.round((correct / total) * 100) * 3 + correct * 4;

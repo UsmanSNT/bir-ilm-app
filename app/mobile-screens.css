@@ -135,8 +135,7 @@
 
 .m-sub,
 .m-quiet,
-.m-blurb,
-.m-note {
+.m-blurb {
   color: #7b788e;
 }
 
@@ -153,10 +152,7 @@
 }
 
 .m-week,
-.m-wisdom,
-.m-live-card,
-.m-play,
-.m-result {
+.m-wisdom {
   padding: 16px;
 }
 
@@ -221,8 +217,6 @@
 }
 
 .m-week-row,
-.m-live-card,
-.m-quiz-row,
 .m-news,
 .m-wisdom {
   display: grid;
@@ -232,8 +226,6 @@
 }
 
 .m-week h2,
-.m-live-card h2,
-.m-quiz-row strong,
 .m-news strong {
   color: #161b3b;
 }
@@ -366,15 +358,9 @@
 }
 
 .m-primary,
-.m-join,
 .m-text,
-.m-shortcut,
-.m-quiz-row,
 .m-news,
-.m-section-head button,
-.m-seg button,
-.m-options button,
-.m-code button {
+.m-section-head button {
   font: inherit;
 }
 
@@ -510,25 +496,6 @@
   margin-top: 12px;
 }
 
-.m-shortcut {
-  display: grid;
-  justify-items: start;
-  gap: 4px;
-  padding: 14px;
-  color: #192558;
-  text-align: left;
-}
-
-.m-shortcut strong {
-  color: #161b3b;
-  font-size: 14px;
-}
-
-.m-shortcut small {
-  color: #7b788e;
-  font-size: 12px;
-}
-
 .m-section-head {
   display: flex;
   align-items: center;
@@ -607,17 +574,14 @@
   font-weight: 750;
 }
 
-.m-news strong,
-.m-quiz-row strong {
+.m-news strong {
   display: block;
   margin-top: 4px;
   font-size: 14px;
   line-height: 1.3;
 }
 
-.m-news small,
-.m-quiz-row small,
-.m-quiz-row em {
+.m-news small {
   display: block;
   margin-top: 4px;
   color: #6e6b81;
@@ -646,271 +610,6 @@
   font-size: 18px !important;
   text-align: center;
   letter-spacing: 0;
-}
-
-.m-seg {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.m-seg button {
-  min-height: 42px;
-  border: 1.5px solid #192558;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #192558;
-  font-weight: 740;
-}
-
-.m-seg button.is-on {
-  background: #192558;
-  color: #ffffff;
-}
-
-.m-live-card {
-  align-items: start;
-  margin-bottom: 16px;
-}
-
-.m-live {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 1;
-  padding: 2px 5px;
-  border-radius: 4px;
-  background: #e23d3d;
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
-.m-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-top: 8px !important;
-  color: #626072;
-  font-size: 12px;
-}
-
-.m-meta span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.m-join {
-  width: 100%;
-  min-height: 40px;
-  margin-top: 10px;
-  border: 1.5px solid #192558;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #192558;
-  font-weight: 740;
-}
-
-.m-join:disabled {
-  background: #f9f2e4;
-  opacity: 1;
-}
-
-.m-code-block label,
-.m-note {
-  display: block;
-  margin-bottom: 8px;
-  color: #191e41;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.m-note {
-  margin-bottom: 4px;
-  color: #626072;
-  font-weight: 500;
-  line-height: 1.45;
-}
-
-.m-code {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 6px 6px 14px;
-  border: 1px solid #def0ef;
-  border-radius: 14px;
-  background: #ffffff;
-}
-
-.m-code input {
-  min-width: 0;
-  flex: 1;
-  border: 0;
-  background: transparent;
-  color: #161b3b;
-  font: inherit;
-  font-size: 14px;
-}
-
-.m-code input:focus {
-  outline: none;
-}
-
-.m-code button {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  flex: none;
-  place-items: center;
-  border: 0;
-  border-radius: 12px;
-  background: #192558;
-  color: #ffffff;
-}
-
-.m-quiz-row {
-  width: 100%;
-  padding: 10px 12px;
-  text-align: left;
-}
-
-.m-quiz-row > span {
-  min-width: 0;
-}
-
-.m-quiz-row small {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.m-quiz-row small svg {
-  margin-left: 6px;
-}
-
-.m-quiz-row small svg:first-child {
-  margin-left: 0;
-}
-
-.m-quiz-row > svg {
-  color: #8e8b9f;
-}
-
-.m-leaders {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 8px;
-  list-style: none;
-}
-
-.m-leaders li {
-  display: grid;
-  grid-template-columns: 28px 36px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 6px;
-}
-
-.m-rank,
-.m-avatar {
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 750;
-}
-
-.m-rank {
-  width: 26px;
-  height: 26px;
-  background: #f8f1e3;
-  color: #575565;
-}
-
-.m-rank-1 {
-  background: #f6d56a;
-  color: #6a4b05;
-}
-
-.m-rank-2 {
-  background: #e5dbc9;
-  color: #333155;
-}
-
-.m-rank-3 {
-  background: #e7b089;
-  color: #6a3d22;
-}
-
-.m-avatar {
-  width: 36px;
-  height: 36px;
-  background: #f9f2e4;
-  color: #192558;
-}
-
-.m-leaders strong {
-  font-size: 15px;
-}
-
-.m-leaders em {
-  color: #192558;
-  font-size: 13px;
-  font-style: normal;
-  font-weight: 740;
-}
-
-.m-play h2,
-.m-result h2 {
-  margin: 8px 0 14px !important;
-  font-size: 20px;
-}
-
-.m-options {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.m-options button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 48px;
-  padding: 10px 12px;
-  border: 1px solid #def0ef;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #161b3b;
-  text-align: left;
-}
-
-.m-options button.is-picked {
-  border-color: #192558;
-  background: #fcf9f2;
-  color: #202755;
-}
-
-.m-result {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  color: #192558;
-  text-align: center;
-}
-
-.m-result p {
-  color: #626072;
-}
-
-.m-result .m-primary {
-  margin-top: 8px;
 }
 
 .m-cover {
@@ -1213,12 +912,6 @@ body:has(.show-mobile-home) { background: #fbf7f0; }
     font-size: 26px !important;
   }
 }
-
-/* Viktorina: qo'shish va tahrirlash tugmalari */
-.m-quiz-wrap { position: relative; }
-.m-quiz-edit { position: absolute; top: 8px; right: 38px; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid #d9cfb4; border-radius: 50%; background: #fff; color: #172351; cursor: pointer; }
-.m-quiz-add { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 44px; margin-bottom: 10px; border: 1.5px dashed #c9bd9b; border-radius: 14px; background: transparent; color: #172351; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
-.m-quiz-row { grid-template-columns: auto minmax(0, 1fr) auto; padding-right: 44px; }
 
 /* Hafta kitobi kartasi: uzun kitob nomi (tanlash ro'yxati) kartani kengaytirib yubormasin */
 .m-week { grid-template-columns: minmax(0, 1fr); }
