@@ -609,8 +609,20 @@ export default function LiveSession({
   // ── Active session overlay ─────────────────────────────────────────
 
   const roomOpen = Boolean(activeSessionId && connState !== "idle");
+  // Xona ochiq turganda orqadagi sahifa aylanmaydi: aks holda g'ildirak/barmoq harakati xona ostidagi
+  // sahifaga o'tadi va o'ng chetda uning aylantirish chizig'i bir lahza ko'rinib qoladi.
+  const overlayShown = roomOpen && !minimized;
+  useEffect(() => {
+    if (!overlayShown) return;
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = previous;
+    };
+  }, [overlayShown]);
   let overlay: React.ReactNode = null;
-  if (roomOpen && !minimized) {
+  if (overlayShown) {
     const bookTitle = sessionData?.bookTitle ?? "Yuklanmoqda...";
     const sessionTitle = sessionData?.title ?? "";
 

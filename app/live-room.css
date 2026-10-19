@@ -181,7 +181,8 @@
  * Ikkala qator gorizontal suriladi. Qolgan joyda efir izohlari suzadi, eng pastda — izoh yozish maydoni.
  */
 .live-overlay .live-main { flex-direction: column; }
-.live-overlay .live-main > .live-room { flex: 1 1 auto; min-height: 0; padding-bottom: 6px; }
+.live-overlay .live-main > .live-room { flex: 1 1 auto; min-height: 0; scrollbar-width: none; overscroll-behavior: contain; }
+.live-overlay .live-main > .live-room::-webkit-scrollbar { display: none; }
 
 .live-tier { flex: none; margin: 8px 12px 0; padding: 9px 10px 2px; border-radius: 18px; background: #ffffff0a; box-shadow: inset 0 0 0 1px #ffffff14; }
 .live-tier-speak { background: linear-gradient(180deg, #e2b65c21, #e2b65c08); box-shadow: inset 0 0 0 1px #e2b65c4d; }
@@ -237,14 +238,11 @@
  * Yopiq panel butunlay yashirin (inert), faqat tugmasi chiqib turadi. Tartib: so'z berilganlar (mikrofoni
  * yoqiqlar birinchi), qo'l ko'targanlar navbat tartibida, keyin tinglovchilar.
  */
-.live-overlay .live-room.has-stage .live-stage-screen .live-shared-screen { height: clamp(180px, 40vh, 460px); }
-.live-overlay .live-room.has-stage .live-cams .live-video-tile { height: clamp(180px, 40vh, 460px); }
-.live-overlay .live-room.has-stage .live-cams.n2 .live-video-tile { height: clamp(150px, 30vh, 340px); }
-.live-overlay .live-room.has-stage .live-cams.n3 .live-video-tile { height: clamp(150px, 32vh, 340px); }
-@media (max-height: 700px) {
-  .live-overlay .live-room.has-stage .live-stage-screen .live-shared-screen, .live-overlay .live-room.has-stage .live-cams .live-video-tile { height: clamp(150px, 34vh, 300px); }
-  .live-overlay .live-room.has-stage .live-cams:is(.n2, .n3) .live-video-tile { height: clamp(130px, 26vh, 240px); }
-}
+/* Sahna xonadagi bo'sh joyni aynan to'ldiradi (vh emas) — hech qanday oyna balandligida aylantirish chizig'i chiqmaydi. */
+.live-overlay .live-room.has-stage { overflow: hidden; }
+.live-overlay .live-room.has-stage > .live-stage { flex: 1 1 0; min-height: 0; max-height: 560px; }
+.live-overlay .live-stage.live-cams { grid-template-rows: minmax(0, 1fr); }
+.live-overlay .live-stage-screen .live-shared-screen { flex: 1 1 0; min-height: 0; }
 .live-people-scrim { position: absolute; inset: 0; z-index: 4; background: #070b2266; }
 .live-people-dock {
   position: absolute; top: 0; right: 0; bottom: 0; z-index: 4; width: min(300px, 80%);
@@ -263,7 +261,7 @@
 }
 .live-people-tab:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
 .live-people {
-  height: 100%; overflow-y: auto; overscroll-behavior: contain; padding: 12px 8px 16px 10px;
+  height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #ffffff33 transparent; padding: 12px 8px 16px 10px;
   border-radius: 18px 0 0 18px; background: #0b1230f5; box-shadow: -18px 0 36px -18px #000, inset 1px 0 0 #e2b65c4d;
 }
 .live-people > section + section { margin-top: 14px; }
@@ -289,11 +287,13 @@
  * Pastdan chiqadi, ~9 soniyada tepaga suzib yo'qoladi (umri `live-float-life` animatsiyasi; tugagach ro'yxatdan olinadi).
  * Oqim qatnashchilar qatorlaridan keyingi bo'sh joyda, tepasi xiralashib ketadi — sahna va qatorlarni to'smaydi.
  */
-/* Izohlar joyi: ko'rinmas, balandligi belgilangan (ovozda ham, videoda ham bir xil). Sig'magan eng eski izoh
- * chegaradan chiqishi bilan yashiriladi (`data-gone`, FloatingComments) — yarim kesilgan izoh ko'rinmaydi. */
+/* Izohlar joyi: ko'rinmas, balandligi belgilangan (ovozda ham, videoda ham bir xil). Past oynada joy yetmasa,
+ * avval shu joy qisqaradi (eng kami ~2 izoh), keyin xona. Sig'magan eng eski izoh chegaradan chiqishi bilan
+ * yashiriladi (`data-gone`, FloatingComments) — yarim kesilgan izoh ko'rinmaydi. */
 .live-float {
-  position: relative; flex: none; z-index: 3; display: flex; flex-direction: column; justify-content: flex-end;
-  height: clamp(120px, 22vh, 190px); margin: 0 20% 0 12px; overflow: hidden; pointer-events: none;
+  /* flex-shrink juda katta: joy yetmasa kamomadni amalda butunlay shu joy oladi (xona o'z balandligida qoladi). */
+  position: relative; flex: 0 10000 clamp(120px, 22vh, 190px); min-height: 76px; z-index: 3; display: flex; flex-direction: column; justify-content: flex-end;
+  margin: 0 20% 0 12px; overflow: hidden; pointer-events: none;
 }
 .live-float-stack { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0 0 6px; list-style: none; }
 .live-float-item[data-gone] { visibility: hidden; }
