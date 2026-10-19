@@ -77,7 +77,6 @@
 .live-overlay .live-listeners svg.lucide-hand { color: var(--tilla-2); }
 .live-overlay .live-listeners > div.selectable:hover .live-avatar-circle { outline: 2px solid #ffffff55; outline-offset: 2px; }
 
-.live-overlay .live-queue { margin: 22px auto 4px; padding: 9px 14px; border-radius: 999px; background: #e2b65c24; color: var(--tilla-2); font-size: 12.5px; font-weight: 700; box-shadow: inset 0 0 0 1px #e2b65c55; }
 .live-overlay .live-hand-queue { margin: 0 0 20px; padding: 14px; border: 0; border-radius: 18px; background: #e2b65c1f; box-shadow: inset 0 0 0 1px #e2b65c55; }
 .live-overlay .live-hand-queue h3 { margin-bottom: 8px !important; }
 .live-overlay .live-hand-queue > div { padding: 6px 0; color: #fff; }
@@ -160,131 +159,139 @@
   .live-minibar-open { flex: 1; }
 }
 
-/* ───────── Xona maketi: gorizontal qatnashchilar, kichik chat past qismda ───────── */
-.live-overlay .live-main { flex-direction: column; }
-.live-overlay .live-main > .live-room { flex: 1 1 auto; min-height: 0; }
-.live-roster { flex: none; padding: 8px 12px 6px; }
-.live-roster > h3, .live-hands > h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; color: var(--tilla-2); font: 800 10.5px/1 var(--f-ui); letter-spacing: .14em; text-transform: uppercase; }
-.live-strip { display: flex; gap: 10px; padding: 6px 2px 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: #ffffff33 transparent; }
-.live-chip { flex: 0 0 auto; display: grid; justify-items: center; gap: 3px; width: 60px; scroll-snap-align: start; }
-.live-chip.selectable { cursor: pointer; }
-.live-chip-avatar { position: relative; display: block; }
-.live-chip .live-avatar-circle { width: 36px; font-size: 14px; box-shadow: 0 4px 10px -6px #000a; }
-.live-chip strong { max-width: 60px; overflow: hidden; color: #dfe3fa; font-size: 10.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.live-chip small { color: var(--tilla-2); font-size: 9px; font-weight: 800; }
-.live-chip.is-speaker .live-avatar-circle { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
-.live-chip.speaking .live-avatar-circle { outline-color: #3ddc97; box-shadow: 0 0 0 5px #3ddc9733; animation: live-speak 1.4s ease-in-out infinite; }
-.live-chip.has-hand .live-avatar-circle { outline: 2px solid #ffd166; outline-offset: 2px; }
-.live-hand-badge, .live-mic-badge { position: absolute; display: grid; place-items: center; border-radius: 50%; font-style: normal; }
-.live-hand-badge { top: -6px; right: -7px; width: 19px; height: 19px; background: linear-gradient(180deg, #f6dc9a, var(--tilla-2)); color: var(--lojuvard-3); box-shadow: 0 2px 6px #0008; animation: live-hand-wave 1.5s ease-in-out infinite; }
-.live-mic-badge { right: -5px; bottom: -3px; width: 16px; height: 16px; background: #0b1230; color: #aab4e6; box-shadow: 0 0 0 1.5px #ffffff2a; }
-@keyframes live-hand-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
-
-.live-hands { margin: 0 0 6px; padding: 8px 10px 2px; border-radius: 14px; background: #e2b65c24; box-shadow: inset 0 0 0 1px #e2b65c66; }
-.live-chip.is-hand { display: flex; align-items: center; gap: 7px; width: auto; padding: 4px 6px 4px 4px; border-radius: 999px; background: #ffffff14; }
-.live-chip.is-hand .live-avatar-circle { width: 28px; font-size: 12px; }
-.live-chip.is-hand strong { max-width: 90px; font-size: 11.5px; }
-.live-chip.is-hand button { height: 26px; padding: 0 11px; border: 0; border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2)); color: var(--lojuvard-3); font: 800 11px var(--f-ui); cursor: pointer; }
-.live-overlay .live-hand-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; background: #e2b65c33; color: var(--tilla-2); font-size: 11px; font-weight: 800; box-shadow: inset 0 0 0 1px #e2b65c77; }
-.live-overlay .live-queue { margin: 4px 0 0; padding: 6px 12px; font-size: 11.5px; }
-.live-overlay .live-empty { margin: 0 0 6px; padding: 8px; font-size: 12px; }
-
-/* Video yoqqanlar: kichik gorizontal qator (yoqmaganlar yuqoridagi qatnashchilar qatorida) */
-.live-overlay .live-camera-row { display: flex; gap: 8px; height: 96px; padding: 6px 12px 0; overflow-x: auto; background: none; }
-.live-overlay .live-camera-row .live-video-tile { flex: 0 0 124px; height: 84px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 0 0 1px #ffffff1f; }
-
-.live-overlay .live-sheet-backdrop { background: #070b2299; }
-.live-overlay .live-sheet { padding: 18px 16px 14px; border-radius: 26px 26px 0 0; background: var(--sahifa); color: var(--siyoh); }
-.live-overlay .live-sheet-head { border-bottom-color: var(--chiziq); }
-.live-overlay .live-sheet-head small { color: var(--siyoh-3); }
-.live-overlay .live-sheet button { border-radius: 14px; background: var(--qogoz); color: var(--siyoh); font-weight: 700; }
-.live-overlay .live-sheet button.danger { background: var(--anor-och); color: var(--anor); }
-.live-overlay .live-sheet button.ghost { background: none; color: var(--siyoh-3); }
-.live-overlay .live-devices button.on { background: var(--lojuvard); color: #fff; }
-
-/* ───────── Animatsiya va moslashuv ───────── */
-@keyframes live-speak { 50% { box-shadow: 0 0 0 11px #3ddc9722; } }
-@media (prefers-reduced-motion: reduce) {
-  .live-overlay .live-speakers > div.speaking .live-avatar-circle { animation: none; }
-}
-@media (max-width: 500px) {
-  .live-overlay { padding: 0; }
-  .live-overlay .live-window { width: 100%; border: 0; border-radius: 0; }
-  .live-overlay .live-room-title strong { font-size: 19px; }
-  .live-overlay .live-speakers { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 360px) {
-  .live-overlay .live-control-actions button span { width: 42px; height: 42px; }
-  .live-overlay .live-control-actions button:first-child span { width: 50px; height: 50px; }
-  .live-overlay .live-control-actions small { font-size: 9.5px; max-width: 54px; }
-}
-
-
-/* ───────── Boshlanmagan suhbat: oldingi modal oyna (timer, Orqaga, admin uchun Boshlash) ───────── */
-.talk-gate { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px; background: #070b22b8; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: talk-gate-in .18s ease-out; }
-.talk-gate-card { display: grid; gap: 12px; width: min(100%, 420px); padding: 14px; border-radius: 28px; background: linear-gradient(180deg, #17235c, #0f1842); border: 1px solid #e2b65c3d; box-shadow: 0 30px 80px -24px #000c; }
-.talk-gate-card .live-waiting { margin: 0; }
-.talk-gate-back { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 0; border-radius: 999px; background: #ffffff14; color: #eceaff; font: 700 14px var(--f-ui); box-shadow: inset 0 0 0 1px #ffffff1f; cursor: pointer; }
-.talk-gate-back:hover { background: #ffffff26; }
-.talk-gate-error { margin: 0; padding: 9px 14px; border-radius: 12px; background: #e0303e22; color: #ffc2c8; font-size: 13px; font-weight: 600; }
-.live-waiting-start:disabled { opacity: .6; cursor: progress; }
-@keyframes talk-gate-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .talk-gate { animation: none; } }
-
-/* Kichraytirilgan suhbat paneli telefonda pastki dock'ning (va markaziy yulduzning) ustida turadi */
-@media (max-width: 980px) {
-  .live-minibar { left: 12px; right: 12px; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 62px + 46px); max-width: none; justify-content: space-between; }
-  .live-minibar-open { flex: 1; }
-}
-
-/* ───────── Xona maketi: gorizontal qatnashchilar, kichik chat past qismda ───────── */
-.live-overlay .live-main { flex-direction: column; }
-.live-overlay .live-main > .live-room { flex: 1 1 auto; min-height: 0; }
-.live-roster { flex: none; padding: 8px 12px 6px; }
-.live-roster > h3, .live-hands > h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; color: var(--tilla-2); font: 800 10.5px/1 var(--f-ui); letter-spacing: .14em; text-transform: uppercase; }
-.live-strip { display: flex; gap: 10px; padding: 6px 2px 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: #ffffff33 transparent; }
-.live-chip { flex: 0 0 auto; display: grid; justify-items: center; gap: 3px; width: 60px; scroll-snap-align: start; }
-.live-chip.selectable { cursor: pointer; }
-.live-chip-avatar { position: relative; display: block; }
-.live-chip .live-avatar-circle { width: 36px; font-size: 14px; box-shadow: 0 4px 10px -6px #000a; }
-.live-chip strong { max-width: 60px; overflow: hidden; color: #dfe3fa; font-size: 10.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.live-chip small { color: var(--tilla-2); font-size: 9px; font-weight: 800; }
-.live-chip.is-speaker .live-avatar-circle { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
-.live-chip.speaking .live-avatar-circle { outline-color: #3ddc97; box-shadow: 0 0 0 5px #3ddc9733; animation: live-speak 1.4s ease-in-out infinite; }
-.live-chip.has-hand .live-avatar-circle { outline: 2px solid #ffd166; outline-offset: 2px; }
-.live-hand-badge, .live-mic-badge { position: absolute; display: grid; place-items: center; border-radius: 50%; font-style: normal; }
-.live-hand-badge { top: -6px; right: -7px; width: 19px; height: 19px; background: linear-gradient(180deg, #f6dc9a, var(--tilla-2)); color: var(--lojuvard-3); box-shadow: 0 2px 6px #0008; animation: live-hand-wave 1.5s ease-in-out infinite; }
-.live-mic-badge { right: -5px; bottom: -3px; width: 16px; height: 16px; background: #0b1230; color: #aab4e6; box-shadow: 0 0 0 1.5px #ffffff2a; }
-@keyframes live-hand-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
-
-.live-hands { margin: 0 0 6px; padding: 8px 10px 2px; border-radius: 14px; background: #e2b65c24; box-shadow: inset 0 0 0 1px #e2b65c66; }
-.live-chip.is-hand { display: flex; align-items: center; gap: 7px; width: auto; padding: 4px 6px 4px 4px; border-radius: 999px; background: #ffffff14; }
-.live-chip.is-hand .live-avatar-circle { width: 28px; font-size: 12px; }
-.live-chip.is-hand strong { max-width: 90px; font-size: 11.5px; }
-.live-chip.is-hand button { height: 26px; padding: 0 11px; border: 0; border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2)); color: var(--lojuvard-3); font: 800 11px var(--f-ui); cursor: pointer; }
-.live-overlay .live-hand-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; background: #e2b65c33; color: var(--tilla-2); font-size: 11px; font-weight: 800; box-shadow: inset 0 0 0 1px #e2b65c77; }
-.live-overlay .live-queue { margin: 4px 0 0; padding: 6px 12px; font-size: 11.5px; }
-.live-overlay .live-empty { margin: 0 0 6px; padding: 8px; font-size: 12px; }
-
-/* Video yoqqanlar: kichik gorizontal qator (yoqmaganlar yuqoridagi qatnashchilar qatorida) */
-.live-overlay .live-camera-row { display: flex; gap: 8px; height: 96px; padding: 6px 12px 0; overflow-x: auto; background: none; }
-.live-overlay .live-camera-row .live-video-tile { flex: 0 0 124px; height: 84px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 0 0 1px #ffffff1f; }
-
-/* ───────── Efirdagi izohlar: xona ustida suzib o'tadi (Instagram/TikTok live kabi) ─────────
- * Pastdan chiqadi, ~9 soniyada tepaga suzib yo'qoladi (umri `live-float-life` animatsiyasi; tugagach ro'yxatdan olinadi).
- * Oqim xonaning pastki chap qismida, tepasi xiralashib ketadi — qatnashchilar va sahnani to'sib qo'ymaydi.
+/* ───────── Xona maketi (yuqoridan pastga) ─────────
+ * 1) Sahna — video yoki taqdimot yoqilganda birinchi o'rinda.
+ * 2) «So'z berilganlar» qatori — boshlovchi va so'zlovchilar.
+ * 3) «Tinglovchilar» qatori — qo'l ko'targanlar navbat tartibida boshida, qolganlar keyin.
+ * Ikkala qator gorizontal suriladi. Qolgan joyda efir izohlari suzadi, eng pastda — izoh yozish maydoni.
  */
-.live-overlay .live-room.has-float { padding-bottom: 60px; }
+.live-overlay .live-main { flex-direction: column; }
+.live-overlay .live-main > .live-room { flex: 1 1 auto; min-height: 0; padding-bottom: 6px; }
+/* Izohlar yoqiq: xona o'z balandligida, qolgan joy izohlarniki; sig'masa xona suriladi. */
+.live-overlay .live-main > .live-room.has-float { flex: 0 1 auto; }
+
+.live-tier { flex: none; margin: 8px 12px 0; padding: 9px 10px 2px; border-radius: 18px; background: #ffffff0a; box-shadow: inset 0 0 0 1px #ffffff14; }
+.live-tier-speak { background: linear-gradient(180deg, #e2b65c21, #e2b65c08); box-shadow: inset 0 0 0 1px #e2b65c4d; }
+.live-tier > h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--tilla-2); font: 800 10.5px/1 var(--f-ui); letter-spacing: .14em; text-transform: uppercase; }
+.live-tier-hall > h3 { color: #aab4e6; }
+.live-tier > h3 b { padding: 2px 7px; border-radius: 999px; background: #ffffff14; color: #eceaff; font-size: 10px; letter-spacing: .02em; }
+.live-tier > h3 em { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: #ffd166; font-style: normal; letter-spacing: .02em; text-transform: none; }
+.live-tier-note { margin: -2px 0 8px; color: #8f9ac9; font-size: 11.5px; font-weight: 600; }
+.live-tier-note.is-queued { color: #ffd166; }
+
+.live-strip { display: flex; gap: 8px; margin: 0 -10px; padding: 8px 10px; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 10px; scrollbar-width: none; }
+.live-strip::-webkit-scrollbar { display: none; }
+.live-chip { position: relative; flex: 0 0 auto; display: grid; justify-items: center; align-content: start; gap: 3px; width: 62px; scroll-snap-align: start; }
+.live-chip.selectable { cursor: pointer; }
+.live-chip-avatar { position: relative; display: block; }
+.live-chip .live-avatar-circle { width: 40px; font-size: 15px; box-shadow: 0 4px 10px -6px #000a; }
+.live-tier-speak .live-chip { width: 70px; }
+.live-tier-speak .live-chip .live-avatar-circle { width: 46px; font-size: 18px; }
+.live-chip strong { max-width: 100%; overflow: hidden; color: #dfe3fa; font-size: 10.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.live-chip small { color: var(--tilla-2); font-size: 9px; font-weight: 800; white-space: nowrap; }
+.live-chip.is-speaker .live-avatar-circle { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
+.live-chip.speaking .live-avatar-circle { outline-color: #3ddc97; box-shadow: 0 0 0 5px #3ddc9733; animation: live-speak 1.4s ease-in-out infinite; }
+.live-chip.has-hand .live-avatar-circle { outline: 2px solid #ffd166; outline-offset: 2px; }
+.live-chip.has-hand small { color: #ffd166; }
+.live-chip-grant {
+  height: 20px; padding: 0 9px; white-space: nowrap; border: 0; border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2));
+  color: var(--lojuvard-3); font: 800 10px/1 var(--f-ui); cursor: pointer; box-shadow: 0 4px 10px -6px #000;
+}
+.live-chip-grant:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.live-hand-badge, .live-mic-badge, .live-cam-badge { position: absolute; display: grid; place-items: center; border-radius: 50%; font-style: normal; }
+.live-hand-badge { top: -6px; right: -7px; width: 19px; height: 19px; background: linear-gradient(180deg, #f6dc9a, var(--tilla-2)); color: var(--lojuvard-3); box-shadow: 0 2px 6px #0008; animation: live-hand-wave 1.5s ease-in-out infinite; }
+.live-mic-badge { right: -5px; bottom: -3px; width: 16px; height: 16px; background: #0b1230; color: #aab4e6; box-shadow: 0 0 0 1.5px #ffffff2a; }
+.live-cam-badge { top: -4px; left: -5px; width: 16px; height: 16px; background: #0d7a79; color: #fff; box-shadow: 0 0 0 1.5px #0b1230; }
+@keyframes live-hand-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
+.live-overlay .live-hand-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; background: #e2b65c33; color: var(--tilla-2); font-size: 11px; font-weight: 800; box-shadow: inset 0 0 0 1px #e2b65c77; }
+.live-overlay .live-empty { margin: 4px 0 8px; padding: 8px; font-size: 12px; }
+
+/* Sahna: taqdimot (ekran) yoki kameralar. Balandligi — pastdagi «yon panel» bo'limida. */
+.live-overlay .live-stage { flex: none; margin: 8px 12px 0; overflow: hidden; border-radius: 18px; background: #070b22; box-shadow: inset 0 0 0 1px #e2b65c33; }
+.live-overlay .live-stage-screen { display: flex; flex-direction: column; height: auto; }
+.live-overlay .live-stage-screen .live-share-banner { height: 36px; gap: 7px; padding: 0 12px; background: #0f1842; font-size: 12px; font-weight: 700; }
+.live-overlay .live-stage-screen .live-share-banner .live-avatar-circle { width: 22px; font-size: 10px; outline: 0; }
+.live-overlay .live-stage-screen .live-shared-screen { flex: none; }
+.live-overlay .live-stage-screen .live-camera-strip { height: 76px; padding: 4px; gap: 4px; background: #070b22; }
+.live-overlay .live-stage-screen .live-camera-strip .live-video-tile { flex: 0 0 104px; border-radius: 10px; }
+.live-cams { display: grid; gap: 4px; padding: 4px; }
+.live-cams.n2 { grid-template-columns: 1fr 1fr; }
+.live-cams.n3 { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.live-cams .live-video-tile { border-radius: 14px; }
+.live-cams.n3 .live-video-tile { flex: 0 0 42%; scroll-snap-align: start; }
+
+/* ───────── Video/taqdimot yoqilganda: qatnashchilar yon panelda ─────────
+ * Sahna butun joyni oladi; ro'yxat o'ng chetdagi tugma bilan ochiladi, xonani surmaydi — ustidan yopadi.
+ * Yopiq panel butunlay yashirin (inert), faqat tugmasi chiqib turadi. Tartib: so'z berilganlar (mikrofoni
+ * yoqiqlar birinchi), qo'l ko'targanlar navbat tartibida, keyin tinglovchilar.
+ */
+.live-overlay .live-room.has-stage .live-stage-screen .live-shared-screen { height: clamp(180px, 40vh, 460px); }
+.live-overlay .live-room.has-stage .live-cams .live-video-tile { height: clamp(180px, 40vh, 460px); }
+.live-overlay .live-room.has-stage .live-cams.n2 .live-video-tile { height: clamp(150px, 30vh, 340px); }
+.live-overlay .live-room.has-stage .live-cams.n3 .live-video-tile { height: clamp(150px, 32vh, 340px); }
+@media (max-height: 700px) {
+  .live-overlay .live-room.has-stage .live-stage-screen .live-shared-screen, .live-overlay .live-room.has-stage .live-cams .live-video-tile { height: clamp(150px, 34vh, 300px); }
+  .live-overlay .live-room.has-stage .live-cams:is(.n2, .n3) .live-video-tile { height: clamp(130px, 26vh, 240px); }
+}
+.live-people-scrim { position: absolute; inset: 0; z-index: 4; background: #070b2266; }
+.live-people-dock {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 4; width: min(300px, 80%);
+  transform: translateX(100%); transition: transform .25s ease;
+}
+.live-people-dock.is-open { transform: none; }
+.live-people-tab {
+  position: absolute; top: 72px; right: 100%; display: grid; justify-items: center; gap: 5px; width: 40px; padding: 9px 0;
+  border: 0; border-radius: 14px 0 0 14px; background: #0f1842eb; color: #eceaff; font: 800 11px/1 var(--f-ui); cursor: pointer;
+  box-shadow: inset 0 0 0 1px #e2b65c55, -8px 10px 22px -12px #000; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.live-people-tab > svg:first-child { color: var(--tilla-2); }
+.live-people-tab b {
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px 5px; border-radius: 999px;
+  background: linear-gradient(180deg, #f6dc9a, var(--tilla-2)); color: var(--lojuvard-3); font-size: 10px;
+}
+.live-people-tab:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
+.live-people {
+  height: 100%; overflow-y: auto; overscroll-behavior: contain; padding: 12px 8px 16px 10px;
+  border-radius: 18px 0 0 18px; background: #0b1230f5; box-shadow: -18px 0 36px -18px #000, inset 1px 0 0 #e2b65c4d;
+}
+.live-people > section + section { margin-top: 14px; }
+.live-people h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; padding: 0 4px; color: var(--tilla-2); font: 800 10.5px/1 var(--f-ui); letter-spacing: .12em; text-transform: uppercase; }
+.live-people section:last-child h3 { color: #aab4e6; }
+.live-people .is-hands h3 { color: #ffd166; }
+.live-people h3 b { padding: 2px 7px; border-radius: 999px; background: #ffffff14; color: #eceaff; font-size: 10px; letter-spacing: .02em; }
+.live-people [role="list"] { display: grid; gap: 2px; }
+.live-people .live-chip {
+  width: auto; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "av name act" "av meta act";
+  justify-items: start; align-items: center; column-gap: 10px; row-gap: 1px; padding: 6px 8px; border-radius: 12px;
+}
+.live-people .live-chip.selectable:hover { background: #ffffff0f; }
+.live-people .live-chip-avatar { grid-area: av; }
+.live-people .live-chip .live-avatar-circle { width: 36px; font-size: 14px; }
+.live-people .live-chip strong { grid-area: name; align-self: end; font-size: 13px; }
+.live-people .live-chip > strong:not(:has(+ small)) { grid-row: 1 / span 2; align-self: center; }
+.live-people .live-chip small { grid-area: meta; align-self: start; font-size: 10.5px; }
+.live-people .live-chip-grant { grid-area: act; height: 26px; padding: 0 12px; font-size: 11px; }
+@media (prefers-reduced-motion: reduce) { .live-people-dock { transition: none; } }
+
+/* ───────── Efirdagi izohlar: suzib o'tadi (Instagram/TikTok live kabi) ─────────
+ * Pastdan chiqadi, ~9 soniyada tepaga suzib yo'qoladi (umri `live-float-life` animatsiyasi; tugagach ro'yxatdan olinadi).
+ * Oqim qatnashchilar qatorlaridan keyingi bo'sh joyda, tepasi xiralashib ketadi — sahna va qatorlarni to'smaydi.
+ */
 .live-float {
-  position: absolute; left: 12px; right: 20%; bottom: 62px; z-index: 3;
+  position: relative; flex: 1 1 0; z-index: 3;
   display: flex; flex-direction: column; justify-content: flex-end; gap: 6px;
-  max-height: min(42%, 300px); margin: 0; padding: 16px 0 0; overflow: hidden; list-style: none;
+  min-height: 72px; margin: 0 20% 0 12px; padding: 16px 0 6px; overflow: hidden; list-style: none;
   pointer-events: none;
   -webkit-mask-image: linear-gradient(to top, #000 70%, transparent);
   mask-image: linear-gradient(to top, #000 70%, transparent);
 }
-.live-float-item { flex: none; overflow: hidden; transform-origin: 0 100%; animation: live-float-grow .3s ease-out, live-float-life 9s linear forwards; }
+/*
+ * Ikki animatsiya ikki elementda: qator (li) faqat o'sadi va kesadi, ichidagi pufak suzib yo'qoladi.
+ * Bittasida bo'lsa Chromium qatlamni balandligi 0 paytida chizib qo'yadi va matn umuman ko'rinmaydi.
+ */
+.live-float-item { flex: none; overflow: hidden; animation: live-float-grow .3s ease-out; }
 .live-float-bubble {
+  transform-origin: 0 100%; animation: live-float-life 9s linear forwards;
   display: flex; align-items: flex-start; gap: 8px; width: fit-content; max-width: 100%;
   padding: 5px 12px 6px 5px; border-radius: 18px; background: #070b22b0; color: #fff;
   box-shadow: inset 0 0 0 1px #ffffff17; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
@@ -303,10 +310,10 @@
 .live-float-bubble button:hover, .live-float-bubble button:focus-visible { background: #e0303e; color: #fff; outline: 0; }
 /* Moderator izoh ustiga borsa oqim to'xtab turadi — o'chirishga ulguradi. */
 .live-float.can-moderate { pointer-events: auto; }
-.live-float.can-moderate:hover .live-float-item, .live-float.can-moderate:focus-within .live-float-item { animation-play-state: paused; }
+.live-float.can-moderate:is(:hover, :focus-within) :is(.live-float-item, .live-float-bubble) { animation-play-state: paused; }
 
 .live-float-form {
-  position: absolute; left: 12px; right: 12px; bottom: 10px; z-index: 3;
+  position: relative; flex: none; z-index: 3; margin: 0 12px 10px;
   display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 4px 0 16px;
   border-radius: 999px; background: #070b22bf; box-shadow: inset 0 0 0 1px #ffffff26;
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
@@ -338,6 +345,7 @@
   100% { opacity: 0; transform: translateY(-18px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .live-float-item { animation: live-float-life-still 9s linear forwards; }
+  .live-float-item { animation: none; }
+  .live-float-bubble { animation: live-float-life-still 9s linear forwards; }
 }
 @keyframes live-float-life-still { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }

@@ -6,6 +6,8 @@ import {
   ArrowLeft,
   Camera,
   CameraOff,
+  ChevronLeft,
+  ChevronRight,
   CircleDot,
   Hand,
   LogOut,
@@ -145,10 +147,14 @@ export default function LiveSession({
   const [floating, setFloating] = useState<LiveMessage[]>([]);
   const [participantCount, setParticipantCount] = useState(0);
   const [handRaised, setHandRaised] = useState(false);
+  /** Qo'l ko'targanlar navbati — ko'tarilgan tartibda (shu qurilma ko'rgan tartib; kirishdan oldingilar boshida). */
+  const [handOrder, setHandOrder] = useState<string[]>([]);
   /** Izohlar oqimi va yozish maydoni ko'rinadimi (foydalanuvchi o'zi yashira oladi). */
   const [commentsOn, setCommentsOn] = useState(true);
   /** Admin/moderator: tugagan suhbat izohlari oynasi. */
   const [archiveOpen, setArchiveOpen] = useState(false);
+  /** Video yoki taqdimot yoqilganda qatnashchilar yon panelda: ochiq/yopiq. */
+  const [peopleOpen, setPeopleOpen] = useState(false);
   /** O'zim yuborgan izohlar vaqti — server chegarasiga yetmasdan oldin yozilgan matn yo'qolmasin. */
   const sentAtRef = useRef<number[]>([]);
   const [draft, setDraft] = useState("");
@@ -207,6 +213,14 @@ export default function LiveSession({
     };
   }, []);
 
+  // Yon panel Escape bilan yopiladi.
+  useEffect(() => {
+    if (!peopleOpen) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setPeopleOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [peopleOpen]);
+
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(""), 3500);
@@ -224,7 +238,9 @@ export default function LiveSession({
     setListNotice("");
     setFloating([]);
     setArchiveOpen(false);
+    setPeopleOpen(false);
     setParticipants([]);
+    setHandOrder([]);
     endedRef.current = false;
     setSelected(null);
     setHandRaised(false);
@@ -239,6 +255,7 @@ export default function LiveSession({
       setMedia(data.media);
       setSessionData(data.session);
       setParticipants(data.participants);
+      setHandOrder(data.participants.filter((p) => p.handRaised).map((p) => p.userId));
       setParticipantCount(data.session.participantCount);
       meRef.current = data.you;
       setMe(data.you);
@@ -262,11 +279,16 @@ export default function LiveSession({
 
     client.on("participant_left", ({ userId, count }) => {
       setParticipants((prev) => prev.filter((p) => p.userId !== userId));
+      setHandOrder((prev) => prev.filter((id) => id !== userId));
       setSelected((prev) => (prev?.userId === userId ? null : prev));
       setParticipantCount(count);
     });
 
     client.on("hand_update", ({ userId, raised }) => {
+      setHandOrder((prev) => {
+        const rest = prev.filter((id) => id !== userId);
+        return raised ? [...rest, userId] : rest;
+      });
       setParticipants((prev) =>
         prev.map((p) =>
           p.userId === userId ? { ...p, handRaised: raised } : p,
@@ -275,6 +297,7 @@ export default function LiveSession({
     });
 
     client.on("role_update", ({ userId, role }) => {
+      setHandOrder((prev) => prev.filter((id) => id !== userId));
       setParticipants((prev) =>
         prev.map((p) =>
           p.userId === userId
@@ -469,9 +492,49 @@ export default function LiveSession({
       </div>
     );
   };
-  const speakers = allParticipants.filter((p) => p.role !== "listener");
+  // Yuqori qator: boshlovchilar, keyin so'zlovchilar. Pastki qator: qo'l ko'targanlar navbat tartibida, keyin qolganlar.
+  const speakers = [
+    ...allParticipants.filter((p) => p.role === "moderator"),
+    ...allParticipants.filter((p) => p.role === "speaker"),
+  ];
   const listenersList = allParticipants.filter((p) => p.role === "listener");
-  const handQueue = listenersList.filter((p) => p.handRaised);
+  const handRank = new Map(handOrder.map((id, index) => [id, index]));
+  const handQueue = listenersList
+    .filter((p) => p.handRaised)
+    .sort((a, b) => (handRank.get(a.userId) ?? -1) - (handRank.get(b.userId) ?? -1));
+  const quietListeners = listenersList.filter((p) => !p.handRaised);
+  const hall = [...handQueue, ...quietListeners];
+  // Yon panelda mikrofoni yoqiqlar birinchi (tartib barqaror: qolganlari o'z o'rnida).
+  const micFirst = [...speakers].sort((a, b) => Number(av.byUser(b.userId).micOn) - Number(av.byUser(a.userId).micOn));
+  const myRole = participants.find((p) => p.userId === me?.userId)?.role;
+  const myQueuePlace = handQueue.findIndex((p) => p.userId === me?.userId) + 1;
+
+  /** Qatnashchi belgisi; `place` — qo'l ko'targanning navbatdagi o'rni. */
+  const chip = (p: LiveParticipant, place = 0) => {
+    const m = av.byUser(p.userId);
+    const host = p.role === "moderator";
+    return (
+      <div
+        key={p.userId}
+        role="listitem"
+        onClick={() => pick(p)}
+        className={`live-chip${p.role !== "listener" ? " is-speaker" : ""}${m.speaking ? " speaking" : ""}${p.handRaised ? " has-hand" : ""}${selectable(p) ? " selectable" : ""}`}
+        title={`${p.name}${host ? " · boshlovchi" : p.role === "speaker" ? " · so'zlovchi" : ""}${place ? ` · ${place}-navbat` : ""}`}
+      >
+        <span className="live-chip-avatar">
+          <Avatar name={p.name} />
+          {p.handRaised && <i className="live-hand-badge" aria-label="Qo'l ko'targan"><Hand size={11} /></i>}
+          {m.camera && <i className="live-cam-badge" aria-label="Kamera yoqiq"><Camera size={9} /></i>}
+          {!m.micOn && p.role !== "listener" && <i className="live-mic-badge" aria-label="Mikrofon o'chiq"><MicOff size={10} /></i>}
+        </span>
+        <strong>{p.userId === me?.userId ? "Siz" : p.name}</strong>
+        {host && <small>Boshlovchi</small>}
+        {place > 0 && (canMod
+          ? <button type="button" className="live-chip-grant" aria-label={`${p.name}ga so'z berish`} title="So'z berish" onClick={(e) => { e.stopPropagation(); modAction("grant", p); }}>Ruxsat</button>
+          : <small>{place}-navbat</small>)}
+      </div>
+    );
+  };
 
   // Faqat moderator boshqa qatnashchini tanlay oladi (o'zini emas).
   const selectable = (p: LiveParticipant) => canMod && p.userId !== me?.userId;
@@ -629,58 +692,82 @@ export default function LiveSession({
                 )}
 
                 {stage === "cameras" && (
-                  <section className="live-camera-strip live-camera-row" aria-label="Video yoqqanlar">
+                  <section className={`live-stage live-cams n${Math.min(cameraPeople.length, 3)}`} aria-label="Video yoqqanlar">
                     {cameraPeople.map(cameraTile)}
                   </section>
                 )}
 
-                <section className="live-roster">
-                  {handQueue.length > 0 && (
-                    <div className="live-hands" aria-label="Qo'l ko'targanlar">
-                      <h3><Hand size={14} /> Qo&apos;l ko&apos;targanlar ({handQueue.length})</h3>
-                      <div className="live-strip">
-                        {handQueue.map((p) => (
-                          <div key={p.userId} className="live-chip is-hand">
-                            <Avatar name={p.name} />
-                            <strong>{p.userId === me?.userId ? "Siz" : p.name}</strong>
-                            {canMod && <button type="button" onClick={() => modAction("grant", p)}>So&apos;z berish</button>}
-                          </div>
-                        ))}
-                      </div>
+                {/* Faqat ovoz: ikki qator. Video/taqdimot yoqilganda ro'yxat yon panelga o'tadi (pastda). */}
+                {!stage && (<>
+                <section className="live-tier live-tier-speak" aria-label="So'z berilganlar">
+                  <h3><Mic size={13} /> So&apos;z berilganlar <b>{speakers.length}</b></h3>
+                  <div className="live-strip" role="list">
+                    {speakers.map((p) => chip(p))}
+                  </div>
+                </section>
+
+                <section className="live-tier live-tier-hall" aria-label="Tinglovchilar">
+                  <h3>
+                    <Users size={13} /> Tinglovchilar <b>{listenersList.length}</b>
+                    {handQueue.length > 0 && <em><Hand size={12} /> {handQueue.length} navbatda</em>}
+                  </h3>
+                  {hall.length === 0 ? (
+                    <p className="live-empty">Hozircha tinglovchi yo&apos;q</p>
+                  ) : (
+                    <div className="live-strip" role="list">
+                      {hall.map((p, index) => chip(p, p.handRaised ? index + 1 : 0))}
                     </div>
                   )}
-                  <h3>Qatnashchilar ({allParticipants.length})</h3>
-                  {allParticipants.length === 0 && <p className="live-empty">Hozircha hech kim yo&apos;q</p>}
-                  <div className="live-strip" role="list">
-                    {[...speakers, ...listenersList].filter((p) => !av.byUser(p.userId).camera).map((p) => {
-                      const m = av.byUser(p.userId);
-                      const host = p.role === "moderator";
-                      return (
-                        <div
-                          key={p.userId}
-                          role="listitem"
-                          onClick={() => pick(p)}
-                          className={`live-chip${p.role !== "listener" ? " is-speaker" : ""}${m.speaking ? " speaking" : ""}${p.handRaised ? " has-hand" : ""}${selectable(p) ? " selectable" : ""}`}
-                          title={`${p.name}${host ? " · boshlovchi" : p.role === "speaker" ? " · so'zlovchi" : ""}${p.handRaised ? " · qo'l ko'targan" : ""}`}
-                        >
-                          <span className="live-chip-avatar">
-                            <Avatar name={p.name} />
-                            {p.handRaised && <i className="live-hand-badge" aria-label="Qo'l ko'targan"><Hand size={11} /></i>}
-                            {!m.micOn && p.role !== "listener" && <i className="live-mic-badge" aria-label="Mikrofon o'chiq"><MicOff size={10} /></i>}
-                          </span>
-                          <strong>{p.userId === me?.userId ? "Siz" : p.name}</strong>
-                          {host && <small>Boshlovchi</small>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {!canMod && (
-                    <span className="live-queue">
-                      <Hand size={14} /> {handRaised ? "Navbatdasiz" : "Qo'l ko'tarib navbatga turing"}
-                    </span>
+                  {myRole === "listener" && (
+                    <p className={`live-tier-note${handRaised ? " is-queued" : ""}`}>
+                      {handRaised
+                        ? `Navbatdasiz${myQueuePlace ? `: ${myQueuePlace}-o‘rin` : ""} — boshlovchi so‘z beradi.`
+                        : "Gapirish uchun «Qo‘l ko‘tarish»ni bosing."}
+                    </p>
                   )}
                 </section>
+                </>)}
               </div>
+            )}
+
+            {/* ── Video/taqdimot paytida qatnashchilar: o'ng chetdagi tugma bilan ochiladigan, ustidan yopuvchi panel ── */}
+            {connState === "joined" && stage && (
+              <>
+                {peopleOpen && <div className="live-people-scrim" aria-hidden="true" onClick={() => setPeopleOpen(false)} />}
+                <div className={`live-people-dock${peopleOpen ? " is-open" : ""}`}>
+                  <button
+                    type="button"
+                    className="live-people-tab"
+                    aria-expanded={peopleOpen}
+                    aria-controls="live-people"
+                    aria-label={peopleOpen ? "Qatnashchilar ro‘yxatini yopish" : `Qatnashchilar ro‘yxatini ochish: ${allParticipants.length} kishi${handQueue.length ? `, ${handQueue.length} kishi qo‘l ko‘targan` : ""}`}
+                    onClick={() => setPeopleOpen(!peopleOpen)}
+                  >
+                    {peopleOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                    <Users size={15} />
+                    <span>{allParticipants.length}</span>
+                    {handQueue.length > 0 && <b><Hand size={11} />{handQueue.length}</b>}
+                  </button>
+                  <aside id="live-people" className="live-people" aria-label="Qatnashchilar" inert={!peopleOpen}>
+                    <section>
+                      <h3><Mic size={13} /> So&apos;z berilganlar <b>{speakers.length}</b></h3>
+                      <div role="list">{micFirst.map((p) => chip(p))}</div>
+                    </section>
+                    {handQueue.length > 0 && (
+                      <section className="is-hands">
+                        <h3><Hand size={13} /> Qo&apos;l ko&apos;targanlar <b>{handQueue.length}</b></h3>
+                        <div role="list">{handQueue.map((p, index) => chip(p, index + 1))}</div>
+                      </section>
+                    )}
+                    <section>
+                      <h3><Users size={13} /> Tinglovchilar <b>{quietListeners.length}</b></h3>
+                      {quietListeners.length
+                        ? <div role="list">{quietListeners.map((p) => chip(p))}</div>
+                        : <p className="live-empty">Boshqa tinglovchi yo&apos;q</p>}
+                    </section>
+                  </aside>
+                </div>
+              </>
             )}
 
             {/* ── Efirdagi izohlar: xona ustida suzib o'tadi, alohida panel yo'q ── */}
