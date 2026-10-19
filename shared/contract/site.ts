@@ -124,3 +124,36 @@ export type SiteVideo = {
   title: string;
   createdAt: string;
 };
+
+// ── Kun hikmati ─────────────────────────────────────────────────────
+
+export const WISDOM_LIMITS = { text: 280, author: 60, items: 365 } as const;
+/** Qisqa havola kodi: birilm.uz/h/<id>. */
+export const WISDOM_ID_PATTERN = /^[a-z0-9]{6}$/;
+
+export type Wisdom = {
+  id: string;
+  text: string;
+  author: string;
+  /** UTC sana (YYYY-MM-DD): shu kuni navbatsiz ko'rsatiladi. */
+  featuredOn: string | null;
+  createdAt: string;
+};
+
+/** `items` — faqat adminga (tahrirlash uchun to'liq ro'yxat). */
+export type WisdomToday = { today: Wisdom | null; items: Wisdom[] | null };
+
+export const wisdomInputSchema = z.object({
+  text: z.string().trim().min(3, "Hikmat matnini yozing.").max(WISDOM_LIMITS.text, `Hikmat ${WISDOM_LIMITS.text} belgidan oshmasin.`),
+  author: z.string().trim().max(WISDOM_LIMITS.author, `Muallif ${WISDOM_LIMITS.author} belgidan oshmasin.`).default(""),
+});
+export type WisdomInput = z.infer<typeof wisdomInputSchema>;
+
+/** Tahrirlash: matn/muallif yoki «bugun shuni ko'rsat» (`featureToday`). */
+export const wisdomUpdateSchema = wisdomInputSchema.partial().extend({ featureToday: z.boolean().optional() });
+export type WisdomUpdate = z.infer<typeof wisdomUpdateSchema>;
+
+/** Kun (UTC sana). Hamma foydalanuvchida bir xil: hikmat har kuni soat 00:00 UTC da almashadi. */
+export const wisdomDay = (now: number = Date.now()) => new Date(now).toISOString().slice(0, 10);
+/** Navbat: kunlar soni bo'yicha ro'yxatdagi tartib raqami. */
+export const wisdomIndex = (count: number, now: number = Date.now()) => (count > 0 ? Math.floor(now / 86_400_000) % count : -1);

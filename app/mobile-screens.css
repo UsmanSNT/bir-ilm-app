@@ -430,7 +430,7 @@
   transform: translateX(-50%);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
-.m-wisdom figcaption {
+.m-wisdom-caption {
   position: relative;
   z-index: 1;
   display: inline-flex;
@@ -442,9 +442,10 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
-.m-wisdom figcaption svg { color: #1e2e6c; }
+.m-wisdom-caption svg { color: #1e2e6c; }
 .m-leaf-flip { transform: scaleX(-1); }
-.m-wisdom blockquote {
+.m-wisdom-quote {
+  display: block;
   position: relative;
   z-index: 1;
   max-width: 34ch;
@@ -456,8 +457,8 @@
   font-style: italic;
   line-height: 1.45;
 }
-.m-wisdom blockquote::before,
-.m-wisdom blockquote::after {
+.m-wisdom-quote::before,
+.m-wisdom-quote::after {
   position: absolute;
   color: #192558;
   font-size: 44px;
@@ -465,8 +466,8 @@
   line-height: 1;
   opacity: 0.28;
 }
-.m-wisdom blockquote::before { top: -12px; left: -8px; content: "“"; }
-.m-wisdom blockquote::after { right: -8px; bottom: -28px; content: "”"; }
+.m-wisdom-quote::before { top: -12px; left: -8px; content: "“"; }
+.m-wisdom-quote::after { right: -8px; bottom: -28px; content: "”"; }
 .m-wisdom-sign {
   position: relative;
   z-index: 1;
@@ -852,9 +853,13 @@ body:has(.show-mobile-home) { background: #fbf7f0; }
     height: 100%;
   }
 
-  .m-home-screen .m-wisdom {
+  .m-home-screen .m-wisdom-wrap {
     grid-column: 2;
     grid-row: 3;
+    height: 100%;
+  }
+
+  .m-home-screen .m-wisdom-wrap .m-wisdom {
     height: 100%;
   }
 

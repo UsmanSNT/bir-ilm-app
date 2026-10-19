@@ -531,6 +531,21 @@ export const videoLinks = sqliteTable("video_links", {
 }, (t) => [index("idx_video_links_created").on(t.createdAt)]);
 
 /**
+ * Kun hikmati: admin qo'shadi va tahrirlaydi. Har kuni ro'yxatdagi navbatdagisi ko'rsatiladi (`featured_on` bilan
+ * belgilangan kuni — o'sha hikmat). `id` — qisqa ulashish havolasining kodi: birilm.uz/h/<id>.
+ */
+export const wisdoms = sqliteTable("wisdoms", {
+  id: text("id").primaryKey(),
+  text: text("text").notNull(),
+  author: text("author").notNull().default("Bir Ilm"),
+  /** UTC sana (YYYY-MM-DD): shu kuni navbatsiz ko'rsatiladi. */
+  featuredOn: text("featured_on"),
+  createdBy: text("created_by"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_wisdoms_created").on(t.createdAt), index("idx_wisdoms_featured").on(t.featuredOn)]);
+
+/**
  * Viktorinalar: admin/moderator yaratadi, har biri bitta kitobga bog'lanishi mumkin.
  * Kitob o'chirilsa viktorina o'chmaydi, faqat kitobga bog'lanishi uzilib qoladi.
  */

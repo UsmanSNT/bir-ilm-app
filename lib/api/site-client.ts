@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { SiteLinks, SiteLinksInput, SiteVideo } from "@/shared/contract";
+import type { SiteLinks, SiteLinksInput, SiteVideo, Wisdom, WisdomInput, WisdomToday, WisdomUpdate } from "@/shared/contract";
 import { API_PREFIX } from "./config";
 
 type Envelope<T> = { data?: T; error?: { message?: string } };
@@ -34,9 +34,18 @@ const loadVideos = () => call<{ items: SiteVideo[] }>("/site/videos").then((d) =
 const NO_LINKS: SiteLinks = {};
 const NO_VIDEOS: SiteVideo[] = [];
 
+const loadWisdom = () => call<WisdomToday>("/site/wisdom");
+const NO_WISDOM: WisdomToday = { today: null, items: null };
+
 export const useSiteLinks = () => useRemote(loadLinks, NO_LINKS);
+/** Bugungi hikmat (admin uchun to'liq ro'yxat ham). Admin o'zgartirsa hamma joyda yangilanadi. */
+export const useWisdom = () => useRemote(loadWisdom, NO_WISDOM);
 export const useSiteVideos = () => useRemote(loadVideos, NO_VIDEOS);
 
 export const saveSiteLinks = (input: SiteLinksInput) => call<SiteLinks>("/site/links", { method: "PUT", body: JSON.stringify(input) });
 export const addSiteVideo = (url: string, title: string) => call<SiteVideo>("/site/videos", { method: "POST", body: JSON.stringify({ url, title }) });
 export const removeSiteVideo = (id: string) => call<unknown>(`/site/videos/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const createWisdom = (input: WisdomInput) => call<Wisdom>("/site/wisdom", { method: "POST", body: JSON.stringify(input) });
+export const updateWisdom = (id: string, input: WisdomUpdate) => call<Wisdom>(`/site/wisdom/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(input) });
+export const deleteWisdom = (id: string) => call<unknown>(`/site/wisdom/${encodeURIComponent(id)}`, { method: "DELETE" });

@@ -40,6 +40,8 @@ import {
   type QuizMode,
 } from "./quiz-ui";
 import QuizPlay, { type SoloResult } from "./quiz-play";
+import { useWisdom } from "@/lib/api/site-client";
+import { WisdomCard, WisdomDialog, WisdomEditor, useWisdomPrompt } from "./wisdom";
 import QuizLive from "./quiz-live";
 import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
@@ -266,8 +268,13 @@ export default function MobileScreens({
   const talkProgress = talk
     ? talk.status === "live" ? 100 : Math.round(Math.max(0, Math.min(1, 1 - (Date.parse(talk.scheduledAt) - now) / (7 * 86_400_000))) * 100)
     : 0;
-  // Har kuni boshqa hikmat.
-  const quote = wisdom[Math.floor(now / 86_400_000) % wisdom.length] ?? wisdom[0];
+  // Kun hikmati serverdan (admin boshqaradi, hamma uchun bir xil). Server javob bermasa — ilovadagi ro'yxat.
+  const wisdomData = useWisdom();
+  const isAdmin = viewer?.role === "admin";
+  const fallbackQuote = wisdom[Math.floor(now / 86_400_000) % wisdom.length] ?? wisdom[0];
+  const todayWisdom = wisdomData.value.today ?? { id: "", text: fallbackQuote, author: "Bir Ilm", featuredOn: null, createdAt: "" };
+  const [wisdomOpen, setWisdomOpen] = useWisdomPrompt(!wisdomData.loading && Boolean(wisdomData.value.today), screen === "home");
+  const [wisdomEditing, setWisdomEditing] = useState(false);
   // Viktorinalar serverdan: admin/moderator qo'shadi va tahrirlaydi, har biri kitobga bog'lanishi mumkin.
   const quizzes = useMemo<Quiz[]>(() => serverQuizzes.items.map((q) => {
     const linked = q.bookId ? catalog.items.find((b) => b.id === q.bookId) : null;
@@ -543,12 +550,7 @@ export default function MobileScreens({
             )}
           </section>
 
-          <figure className="m-wisdom">
-            <span className="m-wisdom-band" aria-hidden="true" />
-            <figcaption><Leaf size={14} /> Kun hikmati <Leaf size={14} className="m-leaf-flip" /></figcaption>
-            <blockquote>{quote}</blockquote>
-            <span className="m-wisdom-sign">— Bir Ilm</span>
-          </figure>
+          <WisdomCard wisdom={todayWisdom} admin={isAdmin} onOpen={() => setWisdomOpen(true)} onEdit={() => setWisdomEditing(true)} />
 
           <div className="m-shortcuts">
             <QuizEntry
@@ -699,6 +701,17 @@ export default function MobileScreens({
             onSolo={() => { const { quiz, sessionId } = room; setRoom(null); startQuiz(quiz, sessionId); }}
           />
         </div>
+      )}
+
+      <WisdomDialog
+        open={wisdomOpen}
+        onOpenChange={setWisdomOpen}
+        wisdom={todayWisdom}
+        admin={isAdmin}
+        onEdit={() => { setWisdomOpen(false); setWisdomEditing(true); }}
+      />
+      {isAdmin && (
+        <WisdomEditor open={wisdomEditing} onOpenChange={setWisdomEditing} items={wisdomData.value.items ?? []} todayId={wisdomData.value.today?.id ?? null} />
       )}
 
       <BookEditor open={Boolean(editing)} book={editing?.book ?? null} asWeekBook={!editing?.book} onClose={() => setEditing(null)} />
