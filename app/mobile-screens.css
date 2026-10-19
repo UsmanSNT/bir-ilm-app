@@ -549,7 +549,20 @@
   background: #efe5d1;
 }
 
-.m-news > span {
+/* E'lonning o'z rasmi yo'q, kitobi ma'lum: muqova kesilmaydi — o'rtada kitob ko'rinishida, kitob rangi fonida. */
+.m-news-book {
+  display: grid;
+  place-items: center;
+  background: #f4ead6;
+  background: radial-gradient(120% 95% at 50% 105%, color-mix(in srgb, var(--m-news-tint, #c08a2e) 38%, #fbf3e2), #f7eedc 70%);
+}
+
+.m-news-book .m-cover {
+  box-shadow: 0 0 0 1px #00000014, 0 12px 20px -10px rgba(26, 32, 68, 0.55);
+}
+
+/* Kartaning matn qismi (rasm joyi ham span bo'lishi mumkin — unga tegmaydi). */
+.m-news > span:not(.m-news-art) {
   display: block;
   padding: 13px 14px 15px;
 }
@@ -801,7 +814,10 @@
     gap: 0;
   }
   .m-news-carousel .m-news-art { height: 100%; min-height: 104px; }
-  .m-news-carousel .m-news > span { padding: 11px 13px 12px; }
+  .m-news-carousel .m-news-book .m-cover { width: 54px; height: 74px; padding: 7px 6px 6px 9px; }
+  .m-news-carousel .m-news-book .m-cover strong { font-size: 11px; }
+  .m-news-carousel .m-news-book .m-cover > span, .m-news-carousel .m-news-book .m-cover em { font-size: 7px; }
+  .m-news-carousel .m-news > span:not(.m-news-art) { padding: 11px 13px 12px; }
   .m-news-carousel .m-news small {
     display: -webkit-box;
     overflow: hidden;

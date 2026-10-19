@@ -1,7 +1,7 @@
 "use client";
 
 import { audioLinkOf } from "./listen-link";
-import { FormEvent, useEffect, useMemo, useRef, useSyncExternalStore, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useSyncExternalStore, useState, type CSSProperties } from "react";
 import {
   ArrowRight,
   Bell,
@@ -382,7 +382,17 @@ export default function MobileScreens({
     }
   }
 
-  const news = announcements.map((item) => ({ ...item, open: () => { setScreen("news"); window.scrollTo({ top: 0 }); } }));
+  // E'lonning o'z rasmi bo'lmasa — u qaysi kitob haqida bo'lsa, o'sha kitobning muqovasi. Suhbat e'loni kitob saqlanayotganda,
+  // muqova yuklanishidan oldin yaratiladi, shuning uchun e'lonning o'zida rasm bo'lmaydi.
+  const coverBookOf = (title: string) => {
+    const key = title.trim().toLowerCase();
+    return key ? catalog.items.find((b) => b.title.trim().toLowerCase() === key) ?? null : null;
+  };
+  const news = announcements.map((item) => ({
+    ...item,
+    coverBook: item.image ? null : coverBookOf(item.book),
+    open: () => { setScreen("news"); window.scrollTo({ top: 0 }); },
+  }));
 
   return (
     <div className="mobile-home">
@@ -778,11 +788,21 @@ function Subhead({ title, onBack }: { title: string; onBack: () => void }) {
 function NewsCard({
   item,
 }: {
-  item: { id?: string; title: string; body: string; time: string; image: string | null; open: () => void };
+  item: { id?: string; title: string; body: string; time: string; image: string | null; coverBook: Book | null; open: () => void };
 }) {
+  const book = item.coverBook;
   return (
     <button className="m-card m-news" type="button" onClick={item.open}>
-      {item.image ? <img className="m-news-art m-news-photo" src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <DiscussionArt variant={item.id} />}
+      {item.image ? (
+        <img className="m-news-art m-news-photo" src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer" />
+      ) : book ? (
+        // Muqova tik, rasm joyi yotiq: kesilmasligi uchun o'rtada kitob ko'rinishida, kitob rangi fonida.
+        <span className="m-news-art m-news-book" style={{ "--m-news-tint": book.color } as CSSProperties} aria-hidden="true">
+          <BookCover title={book.title} author={book.author} tone="cream" image={book.coverUrl} color={book.color} />
+        </span>
+      ) : (
+        <DiscussionArt variant={item.id} />
+      )}
       <span>
         <span className="m-news-brand">
           <b>BIR ILM</b>
@@ -796,8 +816,11 @@ function NewsCard({
   );
 }
 
-/** `image` — e'lonning birinchi rasmi (albomdan, bo'lmasa matn ichidan); rasm yo'q bo'lsa null. */
-export type Announcement = { id: string; title: string; body: string; time: string; at: number; image: string | null };
+/**
+ * `image` — e'lonning birinchi rasmi (albomdan, bo'lmasa matn ichidan); rasm yo'q bo'lsa null.
+ * `book` — e'lon qaysi kitob haqida (masalan, suhbat e'loni); umumiy e'londa bo'sh.
+ */
+export type Announcement = { id: string; title: string; body: string; time: string; at: number; image: string | null; book: string };
 type AnnouncementPost = { id: string; title?: string; book: string; body: string; createdAt: string; media?: MediaItem[]; attachments?: string[] };
 const parseTime = (iso: string) => new Date(iso.replace(" ", "T") + (iso.endsWith("Z") ? "" : "Z")).getTime();
 
@@ -825,7 +848,7 @@ export function useAnnouncements(): Announcement[] {
     const load = () => fetch("/api/social?scope=announcements", { signal: ctrl.signal })
       .then((r) => (r.ok ? (r.json() as Promise<{ posts?: AnnouncementPost[] }>) : null))
       .then((data) => {
-        setItems((data?.posts ?? []).map((p) => ({ id: p.id, title: p.title || p.book, body: p.body, time: relativeTime(p.createdAt), at: parseTime(p.createdAt), image: announcementImage(p) })));
+        setItems((data?.posts ?? []).map((p) => ({ id: p.id, title: p.title || p.book, body: p.body, time: relativeTime(p.createdAt), at: parseTime(p.createdAt), image: announcementImage(p), book: p.book ?? "" })));
       })
       .catch(() => {});
     load();
