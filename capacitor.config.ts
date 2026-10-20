@@ -34,7 +34,8 @@ const config: CapacitorConfig = {
       // UI tayyor bo'lgach `SplashScreen.hide()` chaqiriladi
       // (mobile/native-shell.ts), shuning uchun avtomatik yopilmaydi.
       launchAutoHide: false,
-      backgroundColor: "#f4f7f5",
+      // Ochilish videosining fon rangi (mobile/intro.ts): splash'dan videoga o'tish sezilmaydi.
+      backgroundColor: "#f4fafe",
       androidScaleType: "CENTER_CROP",
       showSpinner: false,
     },

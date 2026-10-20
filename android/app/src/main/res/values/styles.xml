@@ -16,7 +16,14 @@
     </style>
 
 
+    <!--
+      Ishga tushish ekrani: ochilish videosining (public/assets/bir-ilm-splash.mp4) fon rangi, belgisiz.
+      Android 12+ tizim splash'i odatda ilova ikonkasini ko'rsatadi — shaffof ikonka bilan u ham toza fon
+      bo'ladi va video shu rangdan uzilishsiz boshlanadi.
+    -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">#F4FAFE</item>
+        <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
     </style>
 </resources>

@@ -26,6 +26,7 @@ import { installApiBridge } from "./api-bridge";
 import { capacitorStorage } from "./native-storage";
 import { setupNativeAuth } from "./native-auth";
 import { isNative, setupNativeShell } from "./native-shell";
+import { playIntro } from "./intro";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("#root elementi topilmadi.");
@@ -46,5 +47,6 @@ if (isNative()) {
 createRoot(container).render(<Page />);
 
 // Render boshlangandan keyin qobiqni sozlaymiz, shunda splash ekran
-// bo'sh sahifa ustida emas, tayyor UI ustida yopiladi.
-void setupNativeShell();
+// bo'sh sahifa ustida emas, tayyor UI ustida yopiladi. Ochilish animatsiyasi
+// native splash yopilgach boshlanadi (bir xil fon — o'tish sezilmaydi).
+void setupNativeShell().finally(playIntro);
