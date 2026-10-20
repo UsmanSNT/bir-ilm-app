@@ -18,7 +18,7 @@ import {
   type TransitionEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { Bookmark, BookOpen, Copy, Highlighter, List, Minus, Plus, RotateCcw, Search, Send, ShoppingBag, Trash2, Type, X } from "lucide-react";
+import { Bookmark, BookOpen, Copy, Highlighter, List, Minus, Plus, RotateCcw, Search, Send, ShoppingBag, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { addMark, fetchEbook, fetchMarks, removeMark } from "@/lib/api/books-client";
 import { HIGHLIGHT_COLORS, type CreateEbookMarkInput, type Ebook, type EbookMark, type HighlightColor } from "@/shared/contract";
@@ -82,6 +82,11 @@ type Saved = { anchor: Anchor | null };
 const FONT_SIZES = [15, 16.5, 18, 19.5, 21, 23] as const;
 const DEFAULT_FONT = 2;
 const FONT_KEY = "bir-ebook-font";
+const AUTO_KEY = "bir-ebook-auto";
+const AWAKE_KEY = "bir-ebook-awake";
+/** Avtomatik varaqlash: har sahifa necha soniya turadi. */
+const AUTO_SECONDS = [10, 15, 20, 30, 45, 60, 90, 120] as const;
+type AutoPlay = { on: boolean; seconds: number };
 const placeKey = (id: string) => `bir-ebook:${id}`;
 const BLANK: Sheet = { kind: "blank" };
 
@@ -135,8 +140,15 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   const [progress, setProgress] = useState(0);
   const [at, setAt] = useState(0);
   const [turn, setTurn] = useState<Turn | null>(null);
-  const [chrome, setChrome] = useState(true);
+  // Yuqori va pastki panel: odatda yashirin; markazga bosilganda yoki panel ochilganda ko'rinadi.
+  const [chrome, setChrome] = useState(false);
   const [panel, setPanel] = useState<"toc" | "font" | "find" | null>(null);
+  const chromeShown = chrome || panel !== null;
+  const [auto, setAuto] = useState<AutoPlay>(() => {
+    const saved = readStore<AutoPlay>(AUTO_KEY, { on: false, seconds: 30 });
+    return { on: Boolean(saved.on), seconds: AUTO_SECONDS.includes(saved.seconds as never) ? saved.seconds : 30 };
+  });
+  const [awake, setAwake] = useState(() => readStore<boolean>(AWAKE_KEY, true));
   const [findTab, setFindTab] = useState<"search" | "marks">("search");
   const [query, setQuery] = useState("");
   const [marks, setMarks] = useState<EbookMark[]>([]);
@@ -318,6 +330,34 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   }, [at, step, sheets, pages, book.id, persist]);
 
   useEffect(() => writeStore(FONT_KEY, font), [font]);
+  useEffect(() => writeStore(AUTO_KEY, auto), [auto]);
+  useEffect(() => writeStore(AWAKE_KEY, awake), [awake]);
+
+  // Ekran uxlamasin: brauzer qo'llasa, o'qish davomida ekran yoqiq turadi (qaytib kelganda qayta so'raladi).
+  useEffect(() => {
+    if (!awake || typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
+    let alive = true;
+    let lock: WakeLockSentinel | null = null;
+    const take = () => {
+      navigator.wakeLock
+        .request("screen")
+        .then((sentinel) => {
+          if (alive) lock = sentinel;
+          else void sentinel.release();
+        })
+        .catch(() => undefined);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") take();
+    };
+    take();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      alive = false;
+      document.removeEventListener("visibilitychange", onVisible);
+      void lock?.release();
+    };
+  }, [awake]);
 
   // ── Varaqlash ────────────────────────────────────────────────────
   const canGo = (dir: 1 | -1) => (dir > 0 ? at + step < sheets.length : at > 0);
@@ -341,6 +381,14 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
     // transitionend kelmasa ham (yashirin varaq) — baribir tugaydi.
     committing.current = window.setTimeout(() => commit(dir, true), 900);
   }, [turn, at, step, sheets.length, norm, commit]);
+
+  // Avtomatik varaqlash: har sahifadan keyin belgilangan soniya o'tgach keyingisi. Qo'lda varaqlanganda taymer qayta boshlanadi.
+  const canNext = at + step < sheets.length;
+  useEffect(() => {
+    if (!auto.on || !pages || turn || panel !== null || !canNext) return;
+    const id = window.setTimeout(() => flip(1), auto.seconds * 1000);
+    return () => window.clearTimeout(id);
+  }, [auto.on, auto.seconds, pages, turn, panel, canNext, at, flip]);
 
   const jump = useCallback((index: number) => {
     setTurn(null);
@@ -378,12 +426,12 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   }, []);
 
   // Barmoq bilan tortish: varaq barmoqqa ergashadi; qo'yib yuborilganda tugaydi yoki qaytadi.
-  const drag = useRef<{ id: number; x: number; y: number; t: number; dir: 1 | -1 | 0 } | null>(null);
+  // `text` — sichqoncha matn ustida: surish sahifani aylantirmaydi (matn tanlanadi), bosish esa oddiy bosish.
+  const drag = useRef<{ id: number; x: number; y: number; t: number; dir: 1 | -1 | 0; text: boolean } | null>(null);
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (turn || event.button !== 0 || (event.target as HTMLElement).closest("button, a, input")) return;
-    // Sichqoncha bilan matnni tanlash — sahifani aylantirmaydi (klaviatura va chetdagi bosish ishlaydi).
-    if (event.pointerType === "mouse" && (event.target as HTMLElement).closest(".eb-body")) return;
-    drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, t: performance.now(), dir: 0 };
+    const text = event.pointerType === "mouse" && Boolean((event.target as HTMLElement).closest(".eb-body"));
+    drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, t: performance.now(), dir: 0, text };
   };
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const d = drag.current;
@@ -391,7 +439,7 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
     const dx = event.clientX - d.x;
     const dy = event.clientY - d.y;
     if (!d.dir) {
-      if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      if (d.text || Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
       const dir: 1 | -1 = dx < 0 ? 1 : -1;
       if (!canGo(dir)) {
         drag.current = null;
@@ -442,11 +490,11 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   const current = visible.find((s): s is Extract<Sheet, { kind: "text" }> => s.kind === "text");
   const chapter = current?.page.chapter ?? "";
   const shownNumbers = visible.flatMap((s) => (s.kind === "text" ? [s.number] : []));
-  const pageLabel = !pages
+  const pageLabel = (!pages
     ? ""
     : shownNumbers.length
       ? `${shownNumbers.join("–")} / ${textPages}`
-      : visible[0]?.kind === "cover" ? "Muqova" : "Oxiri";
+      : visible[0]?.kind === "cover" ? "Muqova" : "Oxiri") + (auto.on && pages ? ` · ${auto.seconds} s` : "");
 
   const toc = useMemo(() => {
     if (!pages) return [];
@@ -573,13 +621,14 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   return createPortal(
     <div
       ref={rootRef}
-      className={`eb-reader${chrome ? "" : " is-calm"}${spread ? " is-spread" : ""}`}
+      className={`eb-reader${chromeShown ? " is-chrome" : ""}${spread ? " is-spread" : ""}`}
       role="dialog"
       aria-modal="true"
       aria-label={`«${book.title}» — elektron kitob`}
       tabIndex={-1}
       style={style}
     >
+      <div className="eb-edge eb-edge-top" aria-hidden="true"><span className="eb-handle" /></div>
       <header className="eb-bar">
         <button type="button" className="eb-icon" aria-label="Yopish" onClick={onClose}><X size={20} /></button>
         <div className="eb-title">
@@ -588,7 +637,7 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
         </div>
         <button type="button" className="eb-icon" aria-label="Qidirish va belgilar" aria-expanded={panel === "find"} disabled={!pages} onClick={() => setPanel(panel === "find" ? null : "find")}><Search size={19} /></button>
         <button type="button" className="eb-icon" aria-label="Mundarija" aria-expanded={panel === "toc"} disabled={!toc.length} onClick={() => setPanel(panel === "toc" ? null : "toc")}><List size={20} /></button>
-        <button type="button" className="eb-icon" aria-label="Shrift o‘lchami" aria-expanded={panel === "font"} onClick={() => setPanel(panel === "font" ? null : "font")}><Type size={19} /></button>
+        <button type="button" className="eb-icon" aria-label="Sozlamalar" aria-expanded={panel === "font"} onClick={() => setPanel(panel === "font" ? null : "font")}><SlidersHorizontal size={19} /></button>
       </header>
 
       <div
@@ -621,6 +670,7 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
         )}
       </div>
 
+      <div className="eb-edge eb-edge-bottom" aria-hidden="true"><span className="eb-handle" /></div>
       <footer className="eb-foot">
         <span className="eb-count" aria-live="polite">{pageLabel}</span>
         {sheets.length > 1 && (
@@ -742,10 +792,34 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
         </aside>
       )}
       {panel === "font" && (
-        <aside className="eb-panel eb-font" aria-label="Shrift o‘lchami">
-          <button type="button" aria-label="Kichikroq" disabled={font === 0} onClick={() => setFont((f) => Math.max(0, f - 1))}><Minus size={18} /></button>
-          <span aria-live="polite"><b style={{ fontSize: FONT_SIZES[font] }}>Aa</b> {FONT_SIZES[font]}</span>
-          <button type="button" aria-label="Kattaroq" disabled={font === FONT_SIZES.length - 1} onClick={() => setFont((f) => Math.min(FONT_SIZES.length - 1, f + 1))}><Plus size={18} /></button>
+        <aside className="eb-panel eb-font" aria-label="Sozlamalar">
+          <div className="eb-set-row">
+            <span className="eb-set-label">Shrift</span>
+            <button type="button" aria-label="Kichikroq" disabled={font === 0} onClick={() => setFont((f) => Math.max(0, f - 1))}><Minus size={18} /></button>
+            <span aria-live="polite"><b style={{ fontSize: FONT_SIZES[font] }}>Aa</b> {FONT_SIZES[font]}</span>
+            <button type="button" aria-label="Kattaroq" disabled={font === FONT_SIZES.length - 1} onClick={() => setFont((f) => Math.min(FONT_SIZES.length - 1, f + 1))}><Plus size={18} /></button>
+          </div>
+          <button type="button" role="switch" aria-checked={awake} className="eb-set-switch" onClick={() => setAwake((v) => !v)}>
+            <span>Ekran uxlamasin</span><i aria-hidden="true" />
+          </button>
+          <button type="button" role="switch" aria-checked={auto.on} className="eb-set-switch" onClick={() => setAuto((a) => ({ ...a, on: !a.on }))}>
+            <span>Avtomatik varaqlash</span><i aria-hidden="true" />
+          </button>
+          <div className="eb-set-label">Har sahifa necha soniya turadi</div>
+          <div className="eb-set-chips" role="radiogroup" aria-label="Har sahifa necha soniya turadi">
+            {AUTO_SECONDS.map((seconds) => (
+              <button
+                key={seconds}
+                type="button"
+                role="radio"
+                aria-checked={auto.seconds === seconds}
+                className={auto.seconds === seconds ? "is-on" : undefined}
+                onClick={() => setAuto((a) => ({ ...a, seconds }))}
+              >
+                {seconds >= 60 ? `${seconds / 60} daq` : `${seconds} s`}
+              </button>
+            ))}
+          </div>
         </aside>
       )}
     </div>,
