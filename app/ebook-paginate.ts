@@ -27,7 +27,7 @@ export type Anchor = { block: number; offset: number };
 
 const RUN_TAGS = { bold: "strong", italic: "em" } as const;
 
-type Piece = EbookRun & { hl?: true };
+type Piece = EbookRun & { hl?: string };
 
 function appendRuns(parent: HTMLElement, runs: Piece[]) {
   for (const run of runs) {
@@ -45,6 +45,7 @@ function appendRuns(parent: HTMLElement, runs: Piece[]) {
     if (run.hl) {
       const mark = document.createElement("mark");
       mark.className = "eb-hl";
+      mark.dataset.color = run.hl;
       mark.appendChild(node);
       node = mark;
     }
@@ -72,7 +73,7 @@ export function renderFrag(frag: Frag, highlights?: MarkRange[]): HTMLElement {
       el.dataset.from = String(frag.from);
       const length = runsText(frag.runs).length;
       const local = (highlights ?? [])
-        .map((r) => ({ start: Math.max(0, r.start - frag.from), end: Math.min(length, r.end - frag.from) }))
+        .map((r) => ({ start: Math.max(0, r.start - frag.from), end: Math.min(length, r.end - frag.from), color: r.color }))
         .filter((r) => r.end > r.start);
       appendRuns(el, markRuns(frag.runs, local));
       return el;

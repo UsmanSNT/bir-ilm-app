@@ -18,12 +18,16 @@ import {
   type TransitionEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { Bookmark, BookOpen, Highlighter, List, Minus, Plus, RotateCcw, Search, ShoppingBag, Trash2, Type, X } from "lucide-react";
+import { Bookmark, BookOpen, Copy, Highlighter, List, Minus, Plus, RotateCcw, Search, Send, ShoppingBag, Trash2, Type, X } from "lucide-react";
 import { toast } from "sonner";
 import { addMark, fetchEbook, fetchMarks, removeMark } from "@/lib/api/books-client";
-import type { CreateEbookMarkInput, Ebook, EbookMark } from "@/shared/contract";
+import { HIGHLIGHT_COLORS, type CreateEbookMarkInput, type Ebook, type EbookMark, type HighlightColor } from "@/shared/contract";
 import { ebookTextLength, parseEbook, runsText, tidyEbookSource, type EbookBlock, type MarkRange } from "@/shared/ebook-markup";
 import { pageOfAnchor, paginate, renderFrag, type Anchor, type Page } from "./ebook-paginate";
+import { copyText, type Quote } from "./ebook-quote";
+import QuoteDialog from "./ebook-quote-dialog";
+
+const colorHex = (key: HighlightColor) => HIGHLIGHT_COLORS.find((c) => c.key === key)?.hex ?? HIGHLIGHT_COLORS[0].hex;
 
 export type ReaderBook = { id: string; title: string; author: string; coverUrl: string | null; color: string };
 
@@ -137,6 +141,7 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   const [query, setQuery] = useState("");
   const [marks, setMarks] = useState<EbookMark[]>([]);
   const [selected, setSelected] = useState<Selected | null>(null);
+  const [share, setShare] = useState<Quote | null>(null);
   const persist = draft === undefined;
 
   const stageRef = useRef<HTMLDivElement>(null);
@@ -208,7 +213,7 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   const highlightsByBlock = useMemo(() => {
     const map = new Map<number, MarkRange[]>();
     for (const m of resolved) {
-      if (m.kind === "highlight") map.set(m.block, [...(map.get(m.block) ?? []), { start: m.start, end: m.end }]);
+      if (m.kind === "highlight") map.set(m.block, [...(map.get(m.block) ?? []), { start: m.start, end: m.end, color: m.color }]);
     }
     return map;
   }, [resolved]);
@@ -469,14 +474,31 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
       });
   };
 
-  const highlight = (sel: Selected) => {
+  const clearSelection = () => {
+    window.getSelection()?.removeAllRanges();
+    setSelected(null);
+  };
+
+  const highlight = (sel: Selected, color: HighlightColor) => {
     if (sel.text.length > 500) {
       toast.error("Belgi 500 belgidan oshmasin. Qisqaroq tanlang.");
       return;
     }
-    window.getSelection()?.removeAllRanges();
-    setSelected(null);
-    saveMark({ kind: "highlight", block: sel.block, start: sel.start, end: sel.end, quote: sel.text });
+    clearSelection();
+    saveMark({ kind: "highlight", block: sel.block, start: sel.start, end: sel.end, quote: sel.text, color });
+  };
+
+  const quoteOf = (sel: Selected): Quote => ({ text: sel.text, author: book.author, bookTitle: book.title, accent: colorHex("tilla") });
+
+  const copySelected = async (sel: Selected) => {
+    clearSelection();
+    const ok = await copyText(sel.text);
+    toast(ok ? "Matn nusxalandi" : "Nusxalab bo‘lmadi. Matnni qo‘lda belgilab nusxalang.");
+  };
+
+  const shareSelected = (sel: Selected) => {
+    clearSelection();
+    setShare(quoteOf(sel));
   };
 
   // Xatcho‘p: joriy varaqning boshi. Shu joyda xatcho‘p bo'lsa — olib tashlanadi.
@@ -506,7 +528,7 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
     const quote = source.kind === "verse" || source.kind === "center" || source.kind === "right"
       ? runsText(source.lines[anchorNow.offset] ?? [])
       : blockText(source).slice(anchorNow.offset, anchorNow.offset + 80);
-    saveMark({ kind: "bookmark", block: anchorNow.block, start: anchorNow.offset, end: anchorNow.offset, quote: quote.slice(0, 80) });
+    saveMark({ kind: "bookmark", block: anchorNow.block, start: anchorNow.offset, end: anchorNow.offset, quote: quote.slice(0, 80), color: "tilla" });
   };
 
   // Varaq qatlamlari. Bitta sahifa: joriy varaq chapga buriladi, ostida keyingisi. Ikki sahifa: o'ng varaq
@@ -627,17 +649,27 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
         )}
       </footer>
 
-      {selected && persist && (
+      {selected && (
         <div
           className="eb-sel"
           role="toolbar"
-          aria-label="Matn belgisi"
-          style={{ left: selected.x, top: selected.y }}
+          aria-label="Matn bilan amal"
+          style={{ left: Math.min(Math.max(selected.x, 175), window.innerWidth - 175), top: selected.y }}
           onMouseDown={(event) => event.preventDefault()}
         >
-          <button type="button" onClick={() => highlight(selected)}><Highlighter size={16} /> Belgilash</button>
+          <button type="button" className="eb-sel-icon" aria-label="Nusxalash" title="Nusxalash" onClick={() => void copySelected(selected)}><Copy size={16} /></button>
+          {persist && (
+            <span className="eb-sel-colors" role="group" aria-label="Belgilash rangi">
+              <Highlighter size={15} aria-hidden="true" />
+              {HIGHLIGHT_COLORS.map((c) => (
+                <button key={c.key} type="button" className="eb-sel-dot" style={{ "--dot": c.hex } as CSSProperties} aria-label={`${c.label} rang bilan belgilash`} title={`${c.label} rang`} onClick={() => highlight(selected, c.key)} />
+              ))}
+            </span>
+          )}
+          <button type="button" className="eb-sel-icon" aria-label="Yuborish" title="Yuborish" onClick={() => shareSelected(selected)}><Send size={16} /></button>
         </div>
       )}
+      {share && <QuoteDialog quote={share} onClose={() => setShare(null)} />}
 
       {panel === "toc" && (
         <aside className="eb-panel eb-toc" aria-label="Mundarija">
@@ -699,7 +731,7 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
               {resolved.map((m) => (
                 <li key={m.id} className={`is-${m.kind}`}>
                   <button type="button" onClick={() => jump(sheetFor(m.block, m.start))}>
-                    <span>{m.kind === "bookmark" ? <><Bookmark size={13} /> Xatcho‘p · </> : <Highlighter size={13} />} {m.quote}</span>
+                    <span>{m.kind === "bookmark" ? <><Bookmark size={13} /> Xatcho‘p · </> : <i className="eb-dot" style={{ "--dot": colorHex(m.color) } as CSSProperties} />} {m.quote}</span>
                     <small>{sheetFor(m.block, m.start)}</small>
                   </button>
                   <button type="button" className="eb-del" aria-label="Belgini o‘chirish" onClick={() => removeLocal(m.id)}><Trash2 size={15} /></button>

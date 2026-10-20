@@ -70,6 +70,17 @@ export const EBOOK_MARK_LIMITS = {
 } as const;
 
 export const EBOOK_MARK_KINDS = ["bookmark", "highlight"] as const;
+
+/** Belgi ranglari: kalit (bazada) → rang (ekranda, sahifada oqimli ko'rinishi uchun ochiq ton). */
+export const HIGHLIGHT_COLORS = [
+  { key: "tilla", label: "Oltin", hex: "#e2b65c" },
+  { key: "firuza", label: "Firuza", hex: "#7fd3cf" },
+  { key: "anor", label: "Anor", hex: "#ef9a8b" },
+  { key: "binafsha", label: "Binafsha", hex: "#bfa9ea" },
+  { key: "yashil", label: "Yashil", hex: "#a6d99a" },
+] as const;
+export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number]["key"];
+export const HIGHLIGHT_COLOR_KEYS = HIGHLIGHT_COLORS.map((c) => c.key) as [HighlightColor, ...HighlightColor[]];
 export type EbookMarkKind = (typeof EBOOK_MARK_KINDS)[number];
 
 /**
@@ -83,6 +94,7 @@ export type EbookMark = {
   start: number;
   end: number;
   quote: string;
+  color: HighlightColor;
   createdAt: string;
 };
 
@@ -93,6 +105,7 @@ export const createEbookMarkSchema = z
     start: z.number().int().min(0).max(10_000_000),
     end: z.number().int().min(0).max(10_000_000),
     quote: z.string().max(EBOOK_MARK_LIMITS.quote),
+    color: z.enum(HIGHLIGHT_COLOR_KEYS).default("tilla"),
   })
   .superRefine((mark, ctx) => {
     if (mark.kind === "bookmark" && mark.end !== mark.start) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Xatcho‘p oralig‘i bo‘lmasin." });

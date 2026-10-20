@@ -188,15 +188,15 @@ export function ebookPreview(source: string, rule: PreviewRule): string {
   return lines.slice(0, end).join("\n");
 }
 
-export type MarkRange = { start: number; end: number };
+export type MarkRange = { start: number; end: number; color?: string };
 
 /**
  * Belgilangan oraliqlarni qatorlarga bo'ladi: oraliq ichidagi bo'laklar `hl: true` oladi. `ranges` — qator
  * matni boshiga nisbatan (0 dan). Oraliqlar ustma-ust tushsa ham, bo'lak bir marta belgilanadi.
  */
-export function markRuns<T extends EbookRun>(runs: T[], ranges: MarkRange[]): (T & { hl?: true })[] {
+export function markRuns<T extends EbookRun>(runs: T[], ranges: MarkRange[]): (T & { hl?: string })[] {
   if (!ranges.length) return runs;
-  const out: (T & { hl?: true })[] = [];
+  const out: (T & { hl?: string })[] = [];
   let at = 0;
   for (const run of runs) {
     const end = at + run.text.length;
@@ -209,8 +209,9 @@ export function markRuns<T extends EbookRun>(runs: T[], ranges: MarkRange[]): (T
     for (let i = 0; i < points.length - 1; i++) {
       const from = points[i];
       const to = points[i + 1];
-      const hl = ranges.some((r) => from >= r.start && to <= r.end);
-      out.push({ ...run, text: run.text.slice(from - at, to - at), ...(hl ? { hl: true as const } : {}) });
+      // Ustma-ust tushganda oxirgi (ro'yxatdagi) rang ustun turadi.
+      const hit = ranges.findLast((r) => from >= r.start && to <= r.end);
+      out.push({ ...run, text: run.text.slice(from - at, to - at), ...(hit ? { hl: hit.color ?? "tilla" } : {}) });
     }
     at = end;
   }

@@ -103,12 +103,17 @@ try {
   assert.equal(spaced.quote, " Ilm ", "Tanlangan matn bo'shlig'i o'zgarmasin (trim qilinmaydi)");
   const bm = (await call(marksRoute.POST, path, { method: "POST", cookie: a.cookie, params, body: { kind: "bookmark", block: 2, start: 0, end: 0, quote: "Ikkinchi" }, expect: 201 })).data;
   assert.equal(hl.kind, "highlight");
+  assert.equal(hl.color, "tilla", "Rang berilmasa — oltin");
+  const green = (await call(marksRoute.POST, path, { method: "POST", cookie: a.cookie, params, body: { kind: "highlight", block: 1, start: 30, end: 40, quote: "xatboshi", color: "yashil" }, expect: 201 })).data;
+  assert.equal(green.color, "yashil");
+  await call(marksRoute.POST, path, { method: "POST", cookie: a.cookie, params, body: { kind: "highlight", block: 1, start: 30, end: 40, quote: "xatboshi", color: "qizil" }, expect: 422 });
   assert.equal(bm.end, bm.start);
   console.log("PASS: Yaratish: belgi va xatcho'p saqlanadi, tanlangan matn o'zgarmaydi.");
 
   // ── Ajratish: har kim o'zinikini ko'radi ───────────────────────
   const mine = (await call(marksRoute.GET, path, { cookie: a.cookie, params })).data.items;
-  assert.deepEqual(mine.map((m) => m.id), [hl.id, spaced.id, bm.id], "Tartib: blok, so'ng o'rin");
+  assert.deepEqual(mine.map((m) => m.id), [hl.id, spaced.id, green.id, bm.id], "Tartib: blok, so'ng o'rin");
+  await call(markRoute.DELETE, `${path}/${green.id}`, { method: "DELETE", cookie: a.cookie, params: { id: book.id, mid: green.id } });
   assert.equal((await call(marksRoute.GET, path, { cookie: b.cookie, params })).data.items.length, 0, "Boshqa foydalanuvchi belgilarni ko'rmaydi");
   await call(markRoute.DELETE, `${path}/${hl.id}`, { method: "DELETE", cookie: b.cookie, params: { id: book.id, mid: hl.id }, expect: 404 });
   assert.equal((await call(marksRoute.GET, path, { cookie: a.cookie, params })).data.items.length, 3, "Boshqasi o'chira olmaydi");

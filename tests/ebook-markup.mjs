@@ -60,6 +60,8 @@ assert.equal(marked[0].text, "Ilm ");
 assert.ok(!marked[0].hl && marked[0].bold, "Belgilanmagan bo'lak uslubini saqlaydi");
 assert.ok(marked.filter((r) => r.hl && r.text.trim()).every((r) => r.bold || r.italic), "Belgilangan bo'lak o'z uslubini saqlaydi");
 assert.ok(marked.filter((r) => r.hl && r.bold).length >= 3, "Qalin qism belgilanganda qalinligicha qoladi");
+const colored = markRuns([{ text: "abcdefgh" }], [{ start: 0, end: 6, color: "anor" }, { start: 2, end: 4, color: "yashil" }]);
+assert.deepEqual(colored.map((r) => [r.text, r.hl]), [["ab", "anor"], ["cd", "yashil"], ["ef", "anor"], ["gh", undefined]], "Rang belgilangan oraliq bo'yicha; ustma-ust tushganda oxirgisi ustun");
 assert.ok(marked.filter((r) => r.text.includes("va")).every((r) => r.italic && !r.hl), "Kursiv, belgilanmagan qism");
 assert.equal(markRuns(runs, []), runs, "Oraliq bo'lmasa — o'zgarmaydi");
 

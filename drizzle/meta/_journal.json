@@ -232,6 +232,13 @@
       "when": 1792473572936,
       "tag": "0032_book_marks",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1792474879276,
+      "tag": "0033_book_mark_colors",
+      "breakpoints": true
     }
   ]
 }

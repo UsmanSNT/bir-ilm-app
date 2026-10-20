@@ -245,6 +245,8 @@ export const bookMarks = sqliteTable("book_marks", {
   start: integer("start").notNull(),
   end: integer("end").notNull(),
   quote: text("quote").notNull().default(""),
+  /** Belgi rangi (`HIGHLIGHT_COLORS` kalitlaridan biri). Xatcho'pda ahamiyatsiz. */
+  color: text("color", { enum: ["tilla", "firuza", "anor", "binafsha", "yashil"] }).notNull().default("tilla"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_book_marks_user_book").on(t.userId, t.bookId, t.block, t.start)]);
 

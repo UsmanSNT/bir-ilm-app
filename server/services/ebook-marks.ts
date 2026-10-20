@@ -17,6 +17,7 @@ const toMark = (row: MarkRow): EbookMark => ({
   start: row.start,
   end: row.end,
   quote: row.quote,
+  color: row.color,
   createdAt: row.createdAt,
 });
 
@@ -47,6 +48,7 @@ export async function addMark(db: Database, userId: string, bookId: string, inpu
     start: input.start,
     end: input.end,
     quote: input.quote,
+    color: input.color,
     createdAt: new Date().toISOString(),
   };
   // Mehmon (guest) foydalanuvchi `users` da bo'lmasa ham belgi saqlanishi kerak.

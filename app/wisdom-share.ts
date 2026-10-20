@@ -38,7 +38,7 @@ const MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avg
 const W = 1080;
 const H = 1350;
 
-function loadImage(src: string): Promise<HTMLImageElement | null> {
+export function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const image = new Image();
     image.decoding = "async";
@@ -48,7 +48,7 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
-function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+export function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -59,7 +59,7 @@ function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: num
 }
 
 /** Sakkiz qirrali yulduz (ikki kvadrat ustma-ust) — ilovadagi belgi bilan bir xil. */
-function star(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, color: string) {
+export function star(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, color: string) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.fillStyle = color;
@@ -72,7 +72,7 @@ function star(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: numbe
   ctx.restore();
 }
 
-function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+export function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
   let line = "";
   for (const word of text.split(/\s+/).filter(Boolean)) {

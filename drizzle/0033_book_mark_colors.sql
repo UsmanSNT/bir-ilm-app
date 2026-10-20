@@ -1,0 +1,1 @@
+ALTER TABLE `book_marks` ADD `color` text DEFAULT 'tilla' NOT NULL;
