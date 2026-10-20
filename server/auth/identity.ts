@@ -56,7 +56,8 @@ export function readToken(request: Request): string | null {
 
   const cookie = request.headers.get("cookie");
   if (cookie) {
-    const pattern = new RegExp(`(?:^|;\s*)${AUTH_COOKIE_NAME}=([a-f0-9]{64})(?:;|$)`);
+    // `\\s` — template satrda bitta `\s` "s" harfiga aylanadi va cookie faqat birinchi turganda topilardi.
+    const pattern = new RegExp(`(?:^|;\\s*)${AUTH_COOKIE_NAME}=([a-f0-9]{64})(?:;|$)`);
     const match = pattern.exec(cookie);
     if (match) return match[1].toLowerCase();
   }

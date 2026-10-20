@@ -59,6 +59,7 @@ const forgot = await load("app/api/v1/auth/password/forgot/route.ts");
 const reset = await load("app/api/v1/auth/password/reset/route.ts");
 const change = await load("app/api/v1/auth/password/route.ts");
 const cart = await load("app/api/v1/store/cart/route.ts");
+const logout = await load("app/api/auth/logout/route.ts");
 
 const ORIGIN = "http://127.0.0.1:8787";
 const created = new Set();
@@ -138,6 +139,20 @@ try {
   for (let i = 0; i < 10; i++) await call(login.POST, "/api/v1/auth/login", { method: "POST", ip: "10.9.9.9", body: { email: `brute${i}@example.com`, password: "x" }, expect: 401 });
   await call(login.POST, "/api/v1/auth/login", { method: "POST", ip: "10.9.9.9", body: { email, password: "kitob-sevaman-1" }, expect: 429 });
   console.log("PASS: Kirish: umumiy xato xabari, boshqa qurilmadan kirish, IP bo'yicha cheklov.");
+
+  // --- Chiqish va qayta kirish (cookie sarlavhada birinchi bo'lmasa ham) -------
+  // Brauzer cookie'larni yaratilish tartibida yuboradi: chiqishdan keyin yangi sessiya cookie'si
+  // boshqalaridan (masalan, Cloudflare'ning __cf_bm) keyin turadi.
+  const withOthers = (cookie) => `__cf_bm=abc.def-123; theme=dark; ${cookie}; _ga=GA1.1.1`;
+  assert.equal((await viewer(withOthers(ok.cookie))).userId, g.userId, "Sessiya cookie'si boshqa cookie'lardan keyin ham taniladi");
+  await call(logout.POST, "/api/auth/logout", { method: "POST", cookie: withOthers(ok.cookie) });
+  assert.equal((await viewer(ok.cookie)).signedIn, false, "Chiqqandan keyin eski sessiya yaroqsiz");
+  const newcomer = await guest();
+  const again = await call(login.POST, "/api/v1/auth/login", { method: "POST", cookie: withOthers(newcomer.cookie), body: { email, password: "kitob-sevaman-1" } });
+  const back = await viewer(withOthers(again.cookie));
+  assert.equal(back.userId, g.userId, "Chiqib, qayta kirgandan keyin akkaunt tiklanadi");
+  assert.equal(back.signedIn, true);
+  console.log("PASS: Chiqish va qayta kirish: sessiya cookie'si sarlavhaning istalgan joyida taniladi.");
 
   // --- Tiklash -------------------------------------------------------------
   const before = sqlite.prepare("SELECT count(*) AS n FROM user_sessions WHERE user_id = ?").get(g.userId).n;
