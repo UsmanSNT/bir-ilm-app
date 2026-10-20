@@ -1,6 +1,7 @@
 /** Kutubxona: kitoblar, o'qish jarayoni, izohlar va reyting. */
 import { z } from "zod";
 import { AUDIO_LINK_MAX, normalizeAudioLink } from "./audio-link";
+import type { EbookInfo } from "./ebook";
 
 export const LIBRARY_LIMITS = {
   commentBody: 2000,
@@ -48,6 +49,8 @@ export type Book = {
   price: number;
   /** Do'kon janri. */
   category: string;
+  /** Elektron kitob (matn rejimi); null — yuklanmagan. */
+  ebook: EbookInfo | null;
 };
 
 export type BookTrack = {

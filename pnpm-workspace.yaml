@@ -17,3 +17,6 @@ packageImportMethod: clone-or-copy
 # The explicit installer owns dependency setup, including restored workspaces.
 verifyDepsBeforeRun: false
 optimisticRepeatInstall: false
+# pdfjs-dist faqat brauzerda ishlatiladi (admin PDF importi) — Node uchun native canvas kerak emas.
+ignoredOptionalDependencies:
+  - "@napi-rs/canvas"

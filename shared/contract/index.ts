@@ -11,3 +11,4 @@ export * from "./site";
 export * from "./quiz";
 export * from "./quiz-game";
 export * from "./audio-link";
+export * from "./ebook";

@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { z } from "zod";
-import { BOOK_LIMITS, createBookSchema, type Book, type UpdateBookInput } from "@/shared/contract";
+import { BOOK_LIMITS, createBookSchema, type Book, type Ebook, type UpdateBookInput } from "@/shared/contract";
 import { API_PREFIX, absoluteUrl } from "./config";
 
 type Envelope<T> = { ok?: boolean; data?: T; error?: { message?: string; received?: number } };
@@ -69,6 +69,12 @@ export const createBook = (input: z.input<typeof createBookSchema>) => call<Book
 export const updateBook = (id: string, input: UpdateBookInput) =>
   call<Book>(`/books/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
 export const deleteBook = (id: string) => call(`/books/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+/** Elektron kitob matni (do'kon kitobida oddiy foydalanuvchiga boshlang'ich qismi). */
+export const fetchEbook = (id: string, signal?: AbortSignal) => call<Ebook>(`/books/${encodeURIComponent(id)}/ebook`, { signal });
+export const saveEbook = (id: string, body: string) =>
+  call<Book>(`/books/${encodeURIComponent(id)}/ebook`, { method: "PUT", body: JSON.stringify({ body }) });
+export const deleteEbook = (id: string) => call<Book>(`/books/${encodeURIComponent(id)}/ebook`, { method: "DELETE" });
 
 /** Audio davomiyligini brauzerning o'zi o'qiydi (serverda dekoder kerak bo'lmaydi). */
 export function audioDuration(file: File): Promise<number> {

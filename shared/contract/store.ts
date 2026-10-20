@@ -1,5 +1,6 @@
 /** Book Store: katalog, savat, buyurtma va kitob sharhlari. */
 import { z } from "zod";
+import type { EbookInfo } from "./ebook";
 
 export const STORE_LIMITS = {
   maxQty: 10,
@@ -151,6 +152,8 @@ export type StoreBook = {
   hasAudio: boolean;
   rating: number;
   reviews: number;
+  /** Elektron shakli: hamma boshlang'ich qismini o'qiy oladi; null — qo'yilmagan. */
+  ebook: EbookInfo | null;
 };
 
 export type CartLine = { bookId: string; qty: number };

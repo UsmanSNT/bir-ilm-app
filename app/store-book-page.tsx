@@ -7,6 +7,7 @@ import { deleteReview, fetchReviews, notifyStoreChanged, saveReview, StoreError 
 import { formatPrice, STORE_LIMITS, type ReviewSummary, type StoreBook } from "@/shared/contract";
 import { askAi } from "./store-ai";
 import { BookCover, FormattedText, RatingLine, StarInput, Stars } from "./store-ui";
+import EbookReader from "./ebook-reader";
 
 const reviewDate = (value: string) => {
   const d = new Date(value.includes("T") ? value : `${value.replace(" ", "T")}Z`);
@@ -28,6 +29,7 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
 }) {
   const [summaryText, setSummaryText] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  const [reading, setReading] = useState(false);
   const similar = related.filter((b) => b.id !== book.id && (!book.category || b.category === book.category)).slice(0, 8);
 
   async function summarize() {
@@ -61,6 +63,11 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
               <Heart size={20} fill={saved ? "currentColor" : "none"} />
             </button>
           </div>
+          {book.ebook && (
+            <button type="button" className="zb-btn zb-read-btn" onClick={() => setReading(true)}>
+              <BookOpen size={18} /> Boshlang‘ich qismini o‘qish
+            </button>
+          )}
         </div>
       </section>
 
@@ -95,6 +102,7 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
           </div>
         </section>
       )}
+      {reading && <EbookReader book={book} onClose={() => setReading(false)} onBuy={() => { setReading(false); onAdd(); }} />}
     </article>
   );
 }

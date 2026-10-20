@@ -2,13 +2,14 @@
 
 import ListenLink, { audioLinkOf } from "./listen-link";
 import { useEffect, useId, useRef, useState } from "react";
-import { BookPlus, Bookmark, ChevronLeft, Headphones, Library, Moon, Pause, Pencil, Play, Plus, Search, SkipBack, SkipForward } from "lucide-react";
+import { BookOpen, BookPlus, Bookmark, ChevronLeft, Headphones, Library, Moon, Pause, Pencil, Play, Plus, Search, SkipBack, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { canModerate } from "@/shared/contract/roles";
 import type { Book } from "@/shared/contract";
 import BookEditor from "./book-editor";
+import EbookReader from "./ebook-reader";
 import {
   OPEN_AUDIO_EVENT,
   SPEEDS,
@@ -74,6 +75,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
   const [activeId, setActiveId] = useState<string | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [editing, setEditing] = useState<{ book: Book | null } | null>(null);
+  const [reading, setReading] = useState<Book | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // Tinglash hisobini to'xtatib, yig'ilganini saqlaydi (kitob almashganda ham chaqiriladi).
   const stopCounting = useRef<() => void>(() => {});
@@ -363,7 +365,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
                               <span className="lib-bar" aria-hidden="true"><i style={{ width: `${ratio}%` }} /></span>
                               <em>{clock(position(book))} / {clock(length)}</em>
                             </>
-                          ) : audioLinkOf(book) ? <em>{audioLinkOf(book)!.label} havolasi bor</em> : <em>Audio hali yuklanmagan</em>}
+                          ) : audioLinkOf(book) ? <em>{audioLinkOf(book)!.label} havolasi bor</em> : book.ebook ? <em>Elektron kitob</em> : <em>Audio hali yuklanmagan</em>}
                         </span>
                       </button>
                       {book.audioUrl && (
@@ -421,7 +423,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
         <div className="lib-screen lib-player">
           <header className="lib-head">
             <button type="button" aria-label="Orqaga" onClick={() => setScreen("catalog")}><ChevronLeft size={22} /></button>
-            <h1>Audio kitob</h1>
+            <h1>{!active.audioUrl && !audioLinkOf(active) && active.ebook ? "Elektron kitob" : "Audio kitob"}</h1>
             {editor && <button type="button" aria-label="Kitobni tahrirlash" onClick={() => setEditing({ book: active })}><Pencil size={17} /></button>}
             <button type="button" aria-label={shelf.includes(active.id) ? "Saqlangandan olish" : "Saqlash"} aria-pressed={shelf.includes(active.id)} onClick={() => onToggleSave(active.id)}>
               <Bookmark size={18} fill={shelf.includes(active.id) ? "currentColor" : "none"} />
@@ -430,6 +432,11 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
           <Cover book={active} size="lg" />
           <h2>{active.title}</h2>
           <p>{active.author}</p>
+          {active.ebook && (
+            <button type="button" className="button lib-read" onClick={() => setReading(active)}>
+              <BookOpen size={18} /> Kitobni o‘qish
+            </button>
+          )}
           {active.audioUrl ? (
             <>
               <label className="lib-scrub">
@@ -465,9 +472,9 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
               <p className="lib-link-address">{audioLinkOf(active)!.label} · {audioLinkOf(active)!.display}</p>
               <ListenLink book={active} className="button lib-link-btn" />
             </div>
-          ) : (
+          ) : !active.ebook || editor ? (
             <p className="lib-empty">Bu kitobning audiosi hali yuklanmagan.{editor ? " Tahrirlash (qalam) tugmasi orqali qo‘shing." : ""}</p>
-          )}
+          ) : null}
           {active.tracks.length > 1 && (
             <section className="lib-parts" aria-label="Qismlar">
               <h3>Qismlar · {active.tracks.length}</h3>
@@ -497,6 +504,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
       )}
 
       <BookEditor open={Boolean(editing)} book={editing?.book ?? null} onClose={() => setEditing(null)} />
+      {reading && <EbookReader book={reading} onClose={() => setReading(null)} />}
     </div>
   );
 }

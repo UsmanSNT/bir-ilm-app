@@ -423,6 +423,15 @@
   color: #6e6b81;
 }
 
+/* Elektron kitob: muqova ostida, audio boshqaruvidan oldin. */
+.lib-player .lib-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px auto 14px;
+  padding-inline: 22px;
+}
+
 .lib-chapter {
   margin-top: 6px !important;
   color: #192558 !important;

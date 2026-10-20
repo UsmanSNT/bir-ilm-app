@@ -103,6 +103,9 @@
 .zb-book-hero .zb-muted { color: #cfcde3; }
 .zb-price { margin-top: 4px; color: #fff; font: 600 32px/1 var(--f-display); }
 .zb-book-actions { display: flex; gap: 10px; margin-top: 8px; }
+/* Elektron shakli bo‘lsa: tanishuv qismini o‘qish (tilla hoshiyali, asosiy «savat» tugmasidan keyin). */
+.zb-read-btn { margin-top: 12px; color: var(--lojuvard) !important; background: var(--tilla-och); box-shadow: inset 0 0 0 1.5px var(--tilla-2); }
+.zb-read-btn:hover { filter: brightness(1.04); }
 .zb-book-actions .zb-btn-primary { flex: 1; max-width: 320px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 40%, var(--tilla)); color: var(--lojuvard-3) !important; }
 .zb-book-actions .zb-btn-icon { background: #ffffff1c; color: #fff; box-shadow: none; }
 .zb-book-actions .zb-btn-icon.is-on { background: #fff; color: var(--anor) !important; }
@@ -451,6 +454,19 @@
 .book-editor-pages > span { white-space: nowrap; }
 .book-editor-pages small { margin-left: 4px; color: var(--siyoh-3); font-weight: 600; font-size: 11.5px; }
 @media (max-width: 420px) { .book-editor-upload-btn { display: none; } }
+/* Elektron kitob bo'limi: import, matn, ko'rib chiqish. */
+.book-editor-upload-icon.is-ebook { background: var(--lojuvard); }
+.book-editor-ebook-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.book-editor-ebook-tools button { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1.5px solid var(--chiziq); border-radius: 999px; background: #fff; color: var(--lojuvard); font-size: 13px; font-weight: 700; cursor: pointer; }
+.book-editor-ebook-tools button:hover:not(:disabled) { border-color: var(--lojuvard); }
+.book-editor-ebook-tools button[aria-expanded="true"] { background: var(--tilla-och); border-color: var(--tilla-2); }
+.book-editor-ebook-tools button.is-danger { color: var(--anor); }
+.book-editor-ebook-tools button:disabled { opacity: .5; cursor: default; }
+.book-editor textarea.book-editor-ebook-text { min-height: 220px; font-size: 13px; line-height: 1.5; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: pre-wrap; }
+.book-editor-ebook-help { font-size: 12.5px; color: var(--siyoh-2); }
+.book-editor-ebook-help summary { cursor: pointer; font-weight: 700; color: var(--lojuvard); }
+.book-editor-ebook-help ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.45; }
+.book-editor-ebook-help code { padding: 0 4px; border-radius: 4px; background: var(--qogoz-2); font-size: 12px; }
 .book-editor-actions { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 8px !important; }
 .book-editor-actions:has(> :nth-child(2):last-child) { grid-template-columns: repeat(2, 1fr); }
 .book-editor-actions button { flex: none !important; justify-content: center; height: 44px; padding: 0 10px !important; border: 1.5px solid #d9cfb4 !important; border-radius: 12px !important; background: #fff !important; color: #172351 !important; box-shadow: none !important; transform: none !important; filter: none !important; font-size: 14px !important; font-weight: 700 !important; }

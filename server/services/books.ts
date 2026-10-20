@@ -10,11 +10,15 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { notFound } from "@/server/http/errors";
-import type { Book, BookTrack, CreateBookInput, ReorderTracksInput, UpdateBookInput } from "@/shared/contract";
+import { ebookAccessFor, type Book, type BookTrack, type CreateBookInput, type ReorderTracksInput, type UpdateBookInput } from "@/shared/contract";
 
-const { books, bookTracks } = schema;
+const { books, bookTracks, bookEbooks } = schema;
 type BookRow = typeof books.$inferSelect;
 type TrackRow = typeof bookTracks.$inferSelect;
+/** E-kitobning yengil ma'lumoti (matnning o'zisiz). */
+export type EbookMeta = { bookId: string; chars: number; updatedAt: string };
+
+const ebookMetaColumns = { bookId: bookEbooks.bookId, chars: bookEbooks.chars, updatedAt: bookEbooks.updatedAt };
 
 export const BOOK_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{2,63}$/;
 export const MEDIA_FILE_PATTERN = /^(cover|audio|track-[a-z0-9]{8,32})\.[a-z0-9]{2,5}$/;
@@ -33,7 +37,8 @@ function mediaUrl(row: BookRow, file: string | null): string | null {
   return file ? `/media/books/${row.id}/${file}?v=${encodeURIComponent(row.updatedAt)}` : null;
 }
 
-export function toBook(row: BookRow, trackRows: TrackRow[] = []): Book {
+export function toBook(row: BookRow, trackRows: TrackRow[] = [], ebooks: EbookMeta[] = []): Book {
+  const ebook = ebooks.find((e) => e.bookId === row.id);
   const tracks: BookTrack[] = trackRows
     .filter((t) => t.bookId === row.id)
     .sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt))
@@ -61,6 +66,7 @@ export function toBook(row: BookRow, trackRows: TrackRow[] = []): Book {
     kind: row.kind,
     price: row.price,
     category: row.category,
+    ebook: ebook ? { access: ebookAccessFor(row.kind), chars: ebook.chars, updatedAt: ebook.updatedAt } : null,
   };
 }
 
@@ -68,7 +74,8 @@ export function toBook(row: BookRow, trackRows: TrackRow[] = []): Book {
 export async function listCatalog(db: Database, kind: "library" | "store" = "library"): Promise<Book[]> {
   const rows = await db.select().from(books).where(eq(books.kind, kind)).orderBy(desc(books.active), desc(books.createdAt));
   const tracks = await db.select().from(bookTracks);
-  return rows.map((row) => toBook(row, tracks));
+  const ebooks = await db.select(ebookMetaColumns).from(bookEbooks);
+  return rows.map((row) => toBook(row, tracks, ebooks));
 }
 
 export async function getBookRow(db: Database, id: string): Promise<BookRow> {
@@ -81,7 +88,8 @@ export async function getBookRow(db: Database, id: string): Promise<BookRow> {
 export async function getBook(db: Database, id: string): Promise<Book> {
   const row = await getBookRow(db, id);
   const tracks = await db.select().from(bookTracks).where(eq(bookTracks.bookId, id));
-  return toBook(row, tracks);
+  const ebooks = await db.select(ebookMetaColumns).from(bookEbooks).where(eq(bookEbooks.bookId, id));
+  return toBook(row, tracks, ebooks);
 }
 
 // ── Audiokitob qismlari ─────────────────────────────────────────────

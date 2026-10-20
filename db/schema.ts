@@ -220,6 +220,19 @@ export const books = sqliteTable("books", {
 });
 
 /**
+ * Elektron kitob matni (`shared/ebook-markup.ts` belgilashida). Katalog so'rovlari og'ir matnni
+ * o'qimasligi uchun alohida jadvalda; kitob o'chsa birga o'chadi.
+ */
+export const bookEbooks = sqliteTable("book_ebooks", {
+  bookId: text("book_id").primaryKey().references(() => books.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  /** Belgilarsiz matn uzunligi — katalogda va tanishuv qismida. */
+  chars: integer("chars").notNull().default(0),
+  updatedBy: text("updated_by"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+/**
  * Audiokitob qismlari (boblar) — tartib bilan ketma-ket ijro etiladi.
  * Fayl: BIR_ILM_MEDIA_DIR/books/<kitob-id>/<file>. Jami hajm va soni BOOK_LIMITS'da.
  */

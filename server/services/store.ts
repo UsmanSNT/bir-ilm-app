@@ -14,6 +14,7 @@ import { orderMessageStatements, orderStatusStatements } from "./store-chat";
 import { withItems } from "./store-order-view";
 import { ensureUser } from "./social";
 import { alertAdminsOfOrder } from "./admin-alerts";
+import { ebookAccessFor } from "@/shared/contract";
 import type {
   BookReview,
   CartInput,
@@ -33,6 +34,9 @@ const { books, bookReviews, storeCartItems, storeOrders, storeOrderItems, storeP
 // Jadval nomlari to'g'ridan-to'g'ri: drizzle korrelyatsion subquery'da ustunni jadvalsiz yozadi.
 const ratingSql = sql<number>`coalesce((select avg(rating) from book_reviews where book_reviews.book_id = books.id), 0)`;
 const reviewsSql = sql<number>`(select count(*) from book_reviews where book_reviews.book_id = books.id)`;
+// Elektron shakli bo'lsa — hamma boshlang'ich qismini o'qiy oladi (matnning o'zi bu yerda o'qilmaydi).
+const ebookCharsSql = sql<number | null>`(select chars from book_ebooks where book_ebooks.book_id = books.id)`;
+const ebookUpdatedSql = sql<string | null>`(select updated_at from book_ebooks where book_ebooks.book_id = books.id)`;
 
 /** Sotuvdagi mahsulot: do'kon turidagi va narxi qo'yilgan. Kutubxona (suhbat) kitoblari bu yerga kirmaydi. */
 const onSale = and(eq(books.kind, "store"), gt(books.price, 0));
@@ -57,17 +61,20 @@ export async function listStoreBooks(db: Database): Promise<StoreBook[]> {
       category: books.category,
       rating: ratingSql,
       reviews: reviewsSql,
+      ebookChars: ebookCharsSql,
+      ebookUpdatedAt: ebookUpdatedSql,
     })
     .from(books)
     .where(onSale)
     .orderBy(desc(books.active), desc(books.createdAt));
 
-  return rows.map(({ coverFile, updatedAt, rating, reviews, ...row }) => ({
+  return rows.map(({ coverFile, updatedAt, rating, reviews, ebookChars, ebookUpdatedAt, ...row }) => ({
     ...row,
     coverUrl: coverUrl(row.id, coverFile, updatedAt),
     hasAudio: false,
     rating: Math.round(Number(rating) * 10) / 10,
     reviews: Number(reviews),
+    ebook: ebookUpdatedAt ? { access: ebookAccessFor("store"), chars: Number(ebookChars), updatedAt: ebookUpdatedAt } : null,
   }));
 }
 

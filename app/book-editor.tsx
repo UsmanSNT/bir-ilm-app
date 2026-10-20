@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, CalendarClock, Clock3, Headphones, ImagePlus, Link2, Megaphone, Sparkles, Store, Trash2, Upload, X } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, Clock3, Eye, FileText, Headphones, ImagePlus, Link2, Megaphone, Sparkles, Store, Trash2, Upload, X } from "lucide-react";
 import { looksLikeMarkdown, stripMarkdown } from "@/lib/markdown";
 import { toast } from "sonner";
 import DateTimeField from "./datetime-field";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { audioDuration, createBook, deleteBook, deleteTrack, notifyCatalogChanged, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
+import { audioDuration, createBook, deleteBook, deleteEbook, deleteTrack, fetchEbook, notifyCatalogChanged, saveEbook, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
 import { createLiveSession, fetchLiveSessions, updateLiveSession } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
-import { BOOK_LIMITS, STORE_CATEGORIES, STORE_LIMITS, describeAudioLink, normalizeAudioLink, type Book, type LiveSession } from "@/shared/contract";
+import { BOOK_LIMITS, EBOOK_LIMITS, STORE_CATEGORIES, STORE_LIMITS, describeAudioLink, normalizeAudioLink, type Book, type LiveSession } from "@/shared/contract";
+import { ebookTextLength, tidyEbookSource } from "@/shared/ebook-markup";
+import EbookReader from "./ebook-reader";
 import { clock, dayMonth, durationLabel, localInput, nextTalk, notifyTalksChanged, talkAnnouncement, talkRescheduled } from "./talk-format";
 
 const COLORS = ["#0f4f45", "#294256", "#7a3b2e", "#5b4a8b", "#8a6511", "#2f6f8f", "#374151"];
@@ -90,6 +92,58 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ label: string; sent: number; total: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Elektron kitob: `ebookText` null — o'zgartirilmagan (serverdagisi qoladi).
+  const [ebookText, setEbookText] = useState<string | null>(null);
+  const [ebookLoaded, setEbookLoaded] = useState<string | null>(null);
+  const [ebookRemoved, setEbookRemoved] = useState(false);
+  const [ebookOpen, setEbookOpen] = useState(false);
+  const [ebookWork, setEbookWork] = useState("");
+  const [previewing, setPreviewing] = useState(false);
+  const ebookChars = useMemo(() => (ebookText === null ? 0 : ebookTextLength(ebookText)), [ebookText]);
+  const ebookDirty = ebookText !== null && ebookText !== ebookLoaded;
+
+  /** Serverdagi matnni tahrirlash uchun bir marta yuklaydi. */
+  async function openEbookText() {
+    setEbookOpen(true);
+    if (ebookText !== null || !book?.ebook || ebookRemoved) return;
+    setEbookWork("Matn yuklanmoqda…");
+    try {
+      const current = await fetchEbook(book.id);
+      if (!current.full) throw new Error("To‘liq matnni olib bo‘lmadi.");
+      setEbookLoaded(current.body);
+      setEbookText(current.body);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Matn yuklanmadi.");
+    } finally {
+      setEbookWork("");
+    }
+  }
+
+  /** PDF (matnli), TXT yoki MD fayldan matn. PDF brauzerning o'zida o'qiladi. */
+  async function importEbook(file?: File) {
+    if (!file) return;
+    const pdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    const text = /^text\//.test(file.type) || /\.(txt|md|markdown)$/i.test(file.name);
+    if (!pdf && !text) return toast.error("PDF, TXT yoki MD fayl tanlang.");
+    if (file.size > EBOOK_LIMITS.pdfBytes) return toast.error("Fayl 100 MB dan oshmasin.");
+    setEbookWork(pdf ? "PDF o‘qilmoqda…" : "Fayl o‘qilmoqda…");
+    try {
+      const body = pdf
+        ? await (await import("./pdf-to-ebook")).pdfToEbook(file, (page, total) => setEbookWork(`PDF o‘qilmoqda… ${page}/${total} sahifa`))
+        : tidyEbookSource(await file.text());
+      if (!ebookTextLength(body)) throw new Error("Faylda matn topilmadi.");
+      if (body.length > EBOOK_LIMITS.bodyChars) throw new Error("Matn juda katta (2 mln belgidan oshmasin).");
+      setEbookText(body);
+      setEbookRemoved(false);
+      setEbookOpen(true);
+      toast.success(pdf ? "PDF matnga aylantirildi. Sarlavha va she’rlarni tekshirib, «Saqlash»ni bosing." : "Matn olindi. Tekshirib, «Saqlash»ni bosing.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Faylni o‘qib bo‘lmadi.");
+    } finally {
+      setEbookWork("");
+    }
+  }
 
   const preview = useMemo(() => (cover ? URL.createObjectURL(cover) : null), [cover]);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
@@ -178,6 +232,13 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
         toast.success(`Suhbat e’lon qilindi: ${dayMonth(when)}, ${clock(when)}`);
       }
 
+      // E-kitob matni — katta fayllardan oldin (yuklash uzilsa ham matn saqlanib qoladi).
+      if (ebookRemoved && book?.ebook) saved = await deleteEbook(saved.id);
+      else if (!ebookRemoved && ebookDirty && ebookText?.trim()) {
+        saved = await saveEbook(saved.id, ebookText);
+        setEbookLoaded(ebookText);
+      }
+
       if (cover) {
         setProgress({ label: "Muqova", sent: 0, total: cover.size });
         saved = await uploadBookMedia(saved.id, "cover", cover, (sent, total) => setProgress({ label: "Muqova", sent, total }), abortRef.current.signal);
@@ -231,7 +292,16 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
   const percent = progress ? Math.floor((progress.sent / Math.max(1, progress.total)) * 100) : 0;
 
   return (
-    <Dialog open onOpenChange={(value) => { if (!value && !busy) onClose(); }}>
+    <>
+    {/* Ko'rib chiqishda oyna vaqtincha yopiladi (holat saqlanadi), o'qish oynasi butun ekranni oladi. */}
+    {previewing && ebookText !== null && (
+      <EbookReader
+        book={{ id: book?.id ?? "draft", title: title.trim() || "Nomsiz kitob", author: author.trim(), coverUrl: preview ?? book?.coverUrl ?? null, color }}
+        draft={ebookText}
+        onClose={() => setPreviewing(false)}
+      />
+    )}
+    <Dialog open={!previewing} onOpenChange={(value) => { if (!value && !busy) onClose(); }}>
       <DialogContent className="book-editor">
         <DialogTitle className="sr-only">{store ? (book ? "Mahsulotni tahrirlash" : "Do‘konga yangi kitob") : book ? "Kitobni tahrirlash" : asWeekBook ? "Yangi hafta kitobi" : "Yangi kitob"}</DialogTitle>
         <DialogDescription className="sr-only">{store ? "Do‘kon mahsuloti: muqova, tavsif va narx." : "Kitob: muqova, tavsif va audio qismlar."}</DialogDescription>
@@ -350,6 +420,63 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
             </section>
           )}
 
+          <section className="book-editor-audio-card book-editor-ebook" aria-label="Elektron kitob">
+            <label className="book-editor-upload">
+              <span className="book-editor-upload-icon is-ebook" aria-hidden="true"><BookOpen size={22} /></span>
+              <span className="book-editor-upload-text">
+                <strong>Elektron kitob</strong>
+                <small aria-live="polite">
+                  {ebookWork
+                    || (ebookRemoved
+                      ? "Saqlanganda olib tashlanadi"
+                      : ebookText !== null
+                        ? `${ebookChars.toLocaleString("ru-RU")} belgi · ≈${Math.max(1, Math.round(ebookChars / 1800))} bet${ebookDirty ? " · saqlanmagan" : ""}`
+                        : book?.ebook
+                          ? `Qo‘yilgan · ≈${Math.max(1, Math.round(book.ebook.chars / 1800))} bet`
+                          : "Matnli PDF, TXT yoki MD · matnni joylash ham mumkin")}
+                </small>
+              </span>
+              <span className="book-editor-upload-btn"><Upload size={15} /> PDF / matn</span>
+              <input type="file" accept="application/pdf,.pdf,text/plain,.txt,.md,text/markdown" disabled={busy || Boolean(ebookWork)} onChange={(e) => { void importEbook(e.target.files?.[0]); e.target.value = ""; }} />
+            </label>
+            {store && <p className="book-editor-link-hint">Do‘konda hamma faqat boshlang‘ich qismini (≈10%) o‘qiy oladi.</p>}
+            <div className="book-editor-ebook-tools">
+              <button type="button" className="ghost" disabled={busy || Boolean(ebookWork)} aria-expanded={ebookOpen} onClick={() => (ebookOpen ? setEbookOpen(false) : void openEbookText())}>
+                <FileText size={15} /> {ebookOpen ? "Matnni yopish" : book?.ebook || ebookText !== null ? "Matnni tahrirlash" : "Matnni yozish yoki joylash"}
+              </button>
+              {ebookText !== null && ebookChars > 0 && !ebookRemoved && (
+                <button type="button" className="ghost" disabled={busy} onClick={() => setPreviewing(true)}><Eye size={15} /> Ko‘rib chiqish</button>
+              )}
+              {(book?.ebook || ebookText !== null) && !ebookRemoved && (
+                <button type="button" className="ghost is-danger" disabled={busy} onClick={() => { setEbookRemoved(true); setEbookText(null); setEbookOpen(false); }}><Trash2 size={15} /> Olib tashlash</button>
+              )}
+              {ebookRemoved && <button type="button" className="ghost" onClick={() => setEbookRemoved(false)}>Qaytarish</button>}
+            </div>
+            {ebookOpen && !ebookRemoved && (
+              <>
+                <textarea
+                  className="book-editor-ebook-text"
+                  aria-label="Elektron kitob matni"
+                  placeholder={"# Bob nomi\n\nXatboshi matni…"}
+                  rows={12}
+                  spellCheck={false}
+                  disabled={busy || Boolean(ebookWork)}
+                  value={ebookText ?? ""}
+                  onChange={(e) => { setEbookText(e.target.value); setEbookRemoved(false); }}
+                />
+                <details className="book-editor-ebook-help">
+                  <summary>Belgilash qoidalari</summary>
+                  <ul>
+                    <li><code># Bob</code> — yangi sahifadan boshlanadi, mundarijaga kiradi; <code>## Bo‘lim</code> — mundarijaga kiradi; <code>### Kichik sarlavha</code></li>
+                    <li>Har bir qator — alohida xatboshi.</li>
+                    <li><code>&gt; she’r qatori</code> — she’r; bo‘sh qator bandlarni ajratadi.</li>
+                    <li><code>-&gt; matn &lt;-</code> — o‘rtada; <code>-&gt; imzo</code> — o‘ngda; <code>---</code> — yangi sahifa.</li>
+                    <li><code>**qalin**</code>, <code>*kursiv*</code>. o‘ va g‘ uchun oddiy <code>&apos;</code> yozsangiz bo‘ladi.</li>
+                  </ul>
+                </details>
+              </>
+            )}
+          </section>
           <label className="book-editor-pages">
             <span>Sahifalar soni <small>ixtiyoriy</small></span>
             <input inputMode="numeric" pattern="[0-9]*" placeholder="—" aria-label="Sahifalar soni (ixtiyoriy)" value={pages} disabled={busy} onChange={(e) => setPages(e.target.value.replace(/\D/g, "").slice(0, 4))} />
@@ -398,5 +525,6 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

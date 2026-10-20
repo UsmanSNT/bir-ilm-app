@@ -18,6 +18,7 @@ import "./quiz-game.css";
 import "./wisdom.css";
 import "./profile-v2.css";
 import "./live-room.css";
+import "./ebook.css";
 
 export const metadata: Metadata = {
   title: "Bir Ilm — kitobxonlik ilovasi",

@@ -37,6 +37,7 @@ import FocusTimer, { PomodoroButton } from "./focus-timer";
 import MobileScreens, { markAnnouncementsRead, useAnnouncements, useUnreadAnnouncements } from "./mobile-screens";
 import NotificationCenter from "./notification-center";
 import MobileLibrary from "./mobile-library";
+import EbookReader from "./ebook-reader";
 import ProfileScreens from "./profile-screens";
 import { requestAudio } from "./library-store";
 import { type CommunityComment, type LeaderboardMember } from "./app-data";
@@ -238,6 +239,7 @@ export default function App() {
   // Book Store — alohida rejim; Bir Ilm qobig'i yashiriladi, lekin o'chirilmaydi (jonli suhbat uzilmasin).
   const [store, setStore] = useState(false);
   const [selected, setSelected] = useState<Book | null>(null);
+  const [reading, setReading] = useState<Book | null>(null);
   const [backendMode, setBackendMode] = useState<BackendMode>("local");
   const [serverLeaders, setServerLeaders] = useState<LeaderboardMember[]>([]);
   const announcements = useAnnouncements();
@@ -651,6 +653,7 @@ export default function App() {
       </div>
 
       <TwoFactorDialog open={twoFactorOpen} onClose={() => setTwoFactorOpen(false)} />
+      {reading && <EbookReader book={reading} onClose={() => setReading(null)} />}
       <Dialog open={Boolean(resetToken)} onOpenChange={(open) => { if (!open) setResetToken(""); }}>
         <DialogContent className="app-dialog">
           <DialogTitle>Yangi parol</DialogTitle>
@@ -745,6 +748,7 @@ export default function App() {
                   </div>
                   {selected.summary && <p>{selected.summary}</p>}
                   <div className="book-detail-actions">
+                    {selected.ebook && <button className="button" onClick={() => { setModal(""); setReading(selected); }}><BookOpen size={17}/> Kitobni o‘qish</button>}
                     {selected.audioUrl && <button className="button" onClick={() => { setModal(""); go("shelf"); }}><Headphones size={17}/> Javonimda tinglash</button>}
                     <ListenLink book={selected} />
                     <button
