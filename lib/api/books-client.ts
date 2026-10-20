@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { z } from "zod";
-import { BOOK_LIMITS, createBookSchema, type Book, type Ebook, type UpdateBookInput } from "@/shared/contract";
+import { BOOK_LIMITS, createBookSchema, type Book, type CreateEbookMarkInput, type Ebook, type EbookMark, type UpdateBookInput } from "@/shared/contract";
 import { API_PREFIX, absoluteUrl } from "./config";
 
 type Envelope<T> = { ok?: boolean; data?: T; error?: { message?: string; received?: number } };
@@ -179,3 +179,10 @@ export const saveTracks = (bookId: string, tracks: Array<{ id: string; title: st
 
 export const deleteTrack = (bookId: string, trackId: string) =>
   call<Book>(`/books/${encodeURIComponent(bookId)}/tracks/${encodeURIComponent(trackId)}`, { method: "DELETE" });
+
+/** Foydalanuvchining xatcho‘plari va belgilari (shu kitob uchun). */
+export const fetchMarks = (id: string) => call<{ items: EbookMark[] }>(`/books/${encodeURIComponent(id)}/marks`).then((d) => d.items);
+export const addMark = (id: string, input: CreateEbookMarkInput) =>
+  call<EbookMark>(`/books/${encodeURIComponent(id)}/marks`, { method: "POST", body: JSON.stringify(input) });
+export const removeMark = (id: string, markId: string) =>
+  call(`/books/${encodeURIComponent(id)}/marks/${encodeURIComponent(markId)}`, { method: "DELETE" });

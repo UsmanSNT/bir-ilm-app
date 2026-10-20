@@ -187,3 +187,32 @@ export function ebookPreview(source: string, rule: PreviewRule): string {
   while (end > 0 && ["h1", "h2", "h3", "break", "blank"].includes(classified[end - 1].kind)) end--;
   return lines.slice(0, end).join("\n");
 }
+
+export type MarkRange = { start: number; end: number };
+
+/**
+ * Belgilangan oraliqlarni qatorlarga bo'ladi: oraliq ichidagi bo'laklar `hl: true` oladi. `ranges` — qator
+ * matni boshiga nisbatan (0 dan). Oraliqlar ustma-ust tushsa ham, bo'lak bir marta belgilanadi.
+ */
+export function markRuns<T extends EbookRun>(runs: T[], ranges: MarkRange[]): (T & { hl?: true })[] {
+  if (!ranges.length) return runs;
+  const out: (T & { hl?: true })[] = [];
+  let at = 0;
+  for (const run of runs) {
+    const end = at + run.text.length;
+    const cuts = new Set([at, end]);
+    for (const r of ranges) {
+      if (r.start > at && r.start < end) cuts.add(r.start);
+      if (r.end > at && r.end < end) cuts.add(r.end);
+    }
+    const points = [...cuts].sort((a, b) => a - b);
+    for (let i = 0; i < points.length - 1; i++) {
+      const from = points[i];
+      const to = points[i + 1];
+      const hl = ranges.some((r) => from >= r.start && to <= r.end);
+      out.push({ ...run, text: run.text.slice(from - at, to - at), ...(hl ? { hl: true as const } : {}) });
+    }
+    at = end;
+  }
+  return out;
+}

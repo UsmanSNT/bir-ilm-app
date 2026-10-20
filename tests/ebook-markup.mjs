@@ -1,6 +1,6 @@
 /** E-kitob belgilashi va PDF qatorlaridan matn tiklash. `node --experimental-strip-types` bilan ishlaydi. */
 import assert from "node:assert/strict";
-import { ebookPreview, ebookTextLength, parseEbook, parseInline, tidyEbookSource, typography } from "../shared/ebook-markup.ts";
+import { ebookPreview, ebookTextLength, markRuns, parseEbook, parseInline, tidyEbookSource, typography } from "../shared/ebook-markup.ts";
 import { itemsToLines, pagesToMarkup } from "../lib/pdf-layout.ts";
 
 // ── Tipografiya ─────────────────────────────────────────────────────
@@ -51,6 +51,18 @@ const verse = (n) => `> ${n}-misra ${"m".repeat(22)}`;
 const verseCut = ebookPreview(["# B", "x".repeat(400), verse(1), verse(2), verse(3), "y".repeat(2000)].join("\n"), { share: 0.18, minChars: 0, maxShare: 1 });
 assert.ok(verseCut.endsWith(verse(3)), "She'r bandi o'rtasida kesilmaydi");
 assert.ok(!ebookPreview(["x".repeat(100), "## Sarlavha", "y".repeat(900)].join("\n"), { share: 0.105, minChars: 0, maxShare: 1 }).includes("Sarlavha"), "Oxirida yolg'iz sarlavha qolmaydi");
+// Belgilangan oraliqlar: bo'laklar uslubni saqlaydi, ustma-ust tushgan oraliqlar bitta belgilanadi.
+const runs = [{ text: "Ilm nurdur", bold: true }, { text: " va yomon", italic: true }];
+const marked = markRuns(runs, [{ start: 4, end: 9 }, { start: 6, end: 11 }]);
+assert.equal(marked.map((r) => r.text).join(""), "Ilm nurdur va yomon", "Matn o'zgarmaydi");
+assert.equal(marked.filter((r) => r.hl).map((r) => r.text).join(""), "nurdur ", "Belgilangan qism: 4..11");
+assert.equal(marked[0].text, "Ilm ");
+assert.ok(!marked[0].hl && marked[0].bold, "Belgilanmagan bo'lak uslubini saqlaydi");
+assert.ok(marked.filter((r) => r.hl && r.text.trim()).every((r) => r.bold || r.italic), "Belgilangan bo'lak o'z uslubini saqlaydi");
+assert.ok(marked.filter((r) => r.hl && r.bold).length >= 3, "Qalin qism belgilanganda qalinligicha qoladi");
+assert.ok(marked.filter((r) => r.text.includes("va")).every((r) => r.italic && !r.hl), "Kursiv, belgilanmagan qism");
+assert.equal(markRuns(runs, []), runs, "Oraliq bo'lmasa — o'zgarmaydi");
+
 console.log("PASS: Belgilash: sarlavha, xatboshi, she'r bandlari, o'rta/o'ng, apostroflar, tanishuv qismi.");
 
 // ── PDF qatorlari → belgilash ───────────────────────────────────────

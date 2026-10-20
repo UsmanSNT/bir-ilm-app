@@ -233,6 +233,22 @@ export const bookEbooks = sqliteTable("book_ebooks", {
 });
 
 /**
+ * Foydalanuvchining xatcho‘plari va matn belgilari (elektron kitob). Joy `block` (xatboshi/she'r bandi) va
+ * belgi oralig'i bilan saqlanadi; `quote` — belgilangan matn, kitob tahrirlansa joyni qayta topish uchun.
+ */
+export const bookMarks = sqliteTable("book_marks", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bookId: text("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["bookmark", "highlight"] }).notNull(),
+  block: integer("block").notNull(),
+  start: integer("start").notNull(),
+  end: integer("end").notNull(),
+  quote: text("quote").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_book_marks_user_book").on(t.userId, t.bookId, t.block, t.start)]);
+
+/**
  * Audiokitob qismlari (boblar) — tartib bilan ketma-ket ijro etiladi.
  * Fayl: BIR_ILM_MEDIA_DIR/books/<kitob-id>/<file>. Jami hajm va soni BOOK_LIMITS'da.
  */

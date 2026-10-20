@@ -18,13 +18,58 @@ import {
   type TransitionEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, List, Minus, Plus, RotateCcw, ShoppingBag, Type, X } from "lucide-react";
-import { fetchEbook } from "@/lib/api/books-client";
-import type { Ebook } from "@/shared/contract";
-import { ebookTextLength, parseEbook, tidyEbookSource } from "@/shared/ebook-markup";
+import { Bookmark, BookOpen, Highlighter, List, Minus, Plus, RotateCcw, Search, ShoppingBag, Trash2, Type, X } from "lucide-react";
+import { toast } from "sonner";
+import { addMark, fetchEbook, fetchMarks, removeMark } from "@/lib/api/books-client";
+import type { CreateEbookMarkInput, Ebook, EbookMark } from "@/shared/contract";
+import { ebookTextLength, parseEbook, runsText, tidyEbookSource, type EbookBlock, type MarkRange } from "@/shared/ebook-markup";
 import { pageOfAnchor, paginate, renderFrag, type Anchor, type Page } from "./ebook-paginate";
 
 export type ReaderBook = { id: string; title: string; author: string; coverUrl: string | null; color: string };
+
+/** Blok matni: xatboshi/sarlavha uchun bitta qator, she'r/o'rta/o'ng uchun qatorlar «\n» bilan. */
+function blockText(block: EbookBlock): string {
+  if ("lines" in block) return block.lines.map(runsText).join("\n");
+  if ("runs" in block) return runsText(block.runs);
+  return "";
+}
+
+/** Qidiruvda solishtirish: kichik harf, turli apostroflar bir xil (uzunlik o'zgarmaydi — indekslar mos). */
+/** Saqlanmagan (vaqtinchalik) belgilar uchun ketma-ket raqam. */
+let pendingSeq = 0;
+
+const foldText = (text: string) => text.toLocaleLowerCase("uz").replace(/[‘’ʼʻ`]/g, "'");
+
+type Selected = { block: number; start: number; end: number; text: string; x: number; y: number };
+
+function closestParagraph(node: Node): HTMLElement | null {
+  const el = node instanceof HTMLElement ? node : node.parentElement;
+  return el?.closest<HTMLElement>("p[data-block]") ?? null;
+}
+
+/** Tanlangan matnni blok ichidagi belgi oralig'iga aylantiradi. Bir xatboshi ichidagi tanlovgina qabul qilinadi. */
+function selectionSpan(sel: Selection, blocks: EbookBlock[]): Selected | null {
+  if (sel.rangeCount === 0 || sel.isCollapsed) return null;
+  const range = sel.getRangeAt(0);
+  const para = closestParagraph(range.startContainer);
+  if (!para || para !== closestParagraph(range.endContainer)) return null;
+  const block = Number(para.dataset.block);
+  const from = Number(para.dataset.from);
+  const local = (node: Node, offset: number) => {
+    const probe = document.createRange();
+    probe.selectNodeContents(para);
+    probe.setEnd(node, offset);
+    return probe.toString().length;
+  };
+  const start = from + local(range.startContainer, range.startOffset);
+  const end = from + local(range.endContainer, range.endOffset);
+  const source = blocks[block];
+  if (!source || end <= start) return null;
+  const text = blockText(source).slice(start, end);
+  if (!text.trim()) return null;
+  const rect = range.getBoundingClientRect();
+  return { block, start, end, text, x: rect.left + rect.width / 2, y: rect.top };
+}
 
 type Sheet = { kind: "cover" } | { kind: "text"; page: Page; number: number } | { kind: "end" } | { kind: "blank" };
 type Turn = { dir: 1 | -1; p: number; anim: boolean };
@@ -87,12 +132,16 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   const [at, setAt] = useState(0);
   const [turn, setTurn] = useState<Turn | null>(null);
   const [chrome, setChrome] = useState(true);
-  const [panel, setPanel] = useState<"toc" | "font" | null>(null);
+  const [panel, setPanel] = useState<"toc" | "font" | "find" | null>(null);
+  const [findTab, setFindTab] = useState<"search" | "marks">("search");
+  const [query, setQuery] = useState("");
+  const [marks, setMarks] = useState<EbookMark[]>([]);
+  const [selected, setSelected] = useState<Selected | null>(null);
+  const persist = draft === undefined;
 
   const stageRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const persist = draft === undefined;
   const anchorRef = useRef<Anchor | null>(persist ? readStore<Saved>(placeKey(book.id), { anchor: null }).anchor : null);
   const committing = useRef<number | null>(null);
 
@@ -116,6 +165,79 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   }, [load]);
 
   const blocks = useMemo(() => (ebook ? parseEbook(ebook.body) : []), [ebook]);
+
+  // Xatcho‘p va belgilar — serverdan, faqat o'qish rejimida (muharrir ko'rib chiqishida emas).
+  useEffect(() => {
+    if (!persist || !ebook) return;
+    let alive = true;
+    fetchMarks(book.id).then((items) => { if (alive) setMarks(items); }).catch(() => {});
+    return () => { alive = false; };
+  }, [book.id, persist, ebook]);
+
+  // Matn tanlanganda belgilash tugmasi uchun joyni aniqlaymiz.
+  useEffect(() => {
+    if (!persist) return;
+    let timer = 0;
+    const read = () => {
+      const sel = window.getSelection();
+      const inside = Boolean(sel?.anchorNode && rootRef.current?.contains(sel.anchorNode));
+      setSelected(sel && inside ? selectionSpan(sel, blocks) : null);
+    };
+    const onChange = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(read, 120);
+    };
+    document.addEventListener("selectionchange", onChange);
+    return () => {
+      document.removeEventListener("selectionchange", onChange);
+      window.clearTimeout(timer);
+    };
+  }, [persist, blocks]);
+
+  // Belgilar matnga mos keladimi: matn tahrirlangan bo'lsa, shu so'z bo'yicha qayta topiladi; topilmasa — yashirin.
+  const resolved = useMemo(() => marks.flatMap((m): EbookMark[] => {
+    const block = blocks[m.block];
+    if (!block) return [];
+    if (m.kind === "bookmark") return [m];
+    const text = blockText(block);
+    if (text.slice(m.start, m.end) === m.quote) return [m];
+    const at = text.indexOf(m.quote);
+    return at < 0 ? [] : [{ ...m, start: at, end: at + m.quote.length }];
+  }).sort((a, b) => a.block - b.block || a.start - b.start), [marks, blocks]);
+
+  const highlightsByBlock = useMemo(() => {
+    const map = new Map<number, MarkRange[]>();
+    for (const m of resolved) {
+      if (m.kind === "highlight") map.set(m.block, [...(map.get(m.block) ?? []), { start: m.start, end: m.end }]);
+    }
+    return map;
+  }, [resolved]);
+
+  // Qidiruv indeksi: har bir xatboshi, sarlavha va she'r qatori alohida.
+  const searchIndex = useMemo(() => blocks.flatMap((b, i) => {
+    if ("lines" in b) return b.lines.map((line, j) => ({ block: i, line: j, text: runsText(line) }));
+    if ("runs" in b) return [{ block: i, line: -1, text: runsText(b.runs) }];
+    return [];
+  }), [blocks]);
+
+  const hits = useMemo(() => {
+    const q = foldText(query.trim());
+    if (q.length < 2) return [];
+    const out: { block: number; offset: number; at: number; text: string }[] = [];
+    for (const entry of searchIndex) {
+      const t = foldText(entry.text);
+      if (entry.line >= 0) {
+        const at = t.indexOf(q);
+        if (at >= 0) out.push({ block: entry.block, offset: entry.line, at, text: entry.text });
+      } else {
+        for (let at = t.indexOf(q); at >= 0 && out.length < 200; at = t.indexOf(q, at + q.length)) {
+          out.push({ block: entry.block, offset: at, at, text: entry.text });
+        }
+      }
+      if (out.length >= 200) break;
+    }
+    return out;
+  }, [query, searchIndex]);
 
   // ── O'lcham ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -254,6 +376,8 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   const drag = useRef<{ id: number; x: number; y: number; t: number; dir: 1 | -1 | 0 } | null>(null);
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (turn || event.button !== 0 || (event.target as HTMLElement).closest("button, a, input")) return;
+    // Sichqoncha bilan matnni tanlash — sahifani aylantirmaydi (klaviatura va chetdagi bosish ishlaydi).
+    if (event.pointerType === "mouse" && (event.target as HTMLElement).closest(".eb-body")) return;
     drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, t: performance.now(), dir: 0 };
   };
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -293,6 +417,8 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
       }
       return;
     }
+    // Matn tanlangan bo'lsa — bu bosish emas, belgilash tugmasi uchun.
+    if (window.getSelection()?.toString()) return;
     // Bosish: chap chekka — orqaga, o'ng chekka — oldinga, o'rtasi — boshqaruvni yashirish/ko'rsatish.
     const rect = event.currentTarget.getBoundingClientRect();
     const x = (event.clientX - rect.left) / rect.width;
@@ -326,8 +452,62 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
 
   const sheetAt = (index: number): Sheet => sheets[index] ?? BLANK;
   const sheetView = (sheet: Sheet, side?: "left" | "right") => (
-    <SheetView sheet={sheet} side={side} book={book} ebook={ebook} onBuy={onBuy} onRestart={() => jump(1)} total={textPages} />
+    <SheetView sheet={sheet} side={side} book={book} ebook={ebook} onBuy={onBuy} onRestart={() => jump(1)} total={textPages} highlights={highlightsByBlock} />
   );
+
+  /** Joy qaysi varaqda: varaq raqami = sahifa raqami (muqova — 0). */
+  const sheetFor = (block: number, offset: number) => (pages ? pageOfAnchor(pages, { block, offset }) + 1 : 0);
+
+  const saveMark = (mark: CreateEbookMarkInput) => {
+    const temp: EbookMark = { id: `tmp_${++pendingSeq}`, createdAt: "", ...mark };
+    setMarks((list) => [...list, temp]);
+    addMark(book.id, mark)
+      .then((saved) => setMarks((list) => list.map((m) => (m.id === temp.id ? saved : m))))
+      .catch(() => {
+        setMarks((list) => list.filter((m) => m.id !== temp.id));
+        toast.error("Belgi saqlanmadi. Internetni tekshirib, qayta urinib ko‘ring.");
+      });
+  };
+
+  const highlight = (sel: Selected) => {
+    if (sel.text.length > 500) {
+      toast.error("Belgi 500 belgidan oshmasin. Qisqaroq tanlang.");
+      return;
+    }
+    window.getSelection()?.removeAllRanges();
+    setSelected(null);
+    saveMark({ kind: "highlight", block: sel.block, start: sel.start, end: sel.end, quote: sel.text });
+  };
+
+  // Xatcho‘p: joriy varaqning boshi. Shu joyda xatcho‘p bo'lsa — olib tashlanadi.
+  const anchorNow = current ? current.page.anchor : null;
+  const bookmarkHere = anchorNow ? resolved.find((m) => m.kind === "bookmark" && m.block === anchorNow.block && m.start === anchorNow.offset) : undefined;
+
+  const removeLocal = (id: string) => {
+    const old = marks.find((m) => m.id === id);
+    setMarks((list) => list.filter((m) => m.id !== id));
+    if (id.startsWith("tmp_")) return;
+    removeMark(book.id, id).catch(() => {
+      if (old) setMarks((list) => [...list, old]);
+      toast.error("O‘chirilmadi. Qayta urinib ko‘ring.");
+    });
+  };
+
+  const toggleBookmark = () => {
+    if (!anchorNow) {
+      toast("Xatcho‘p uchun avval matn sahifasiga o‘ting.");
+      return;
+    }
+    if (bookmarkHere) {
+      removeLocal(bookmarkHere.id);
+      return;
+    }
+    const source = blocks[anchorNow.block];
+    const quote = source.kind === "verse" || source.kind === "center" || source.kind === "right"
+      ? runsText(source.lines[anchorNow.offset] ?? [])
+      : blockText(source).slice(anchorNow.offset, anchorNow.offset + 80);
+    saveMark({ kind: "bookmark", block: anchorNow.block, start: anchorNow.offset, end: anchorNow.offset, quote: quote.slice(0, 80) });
+  };
 
   // Varaq qatlamlari. Bitta sahifa: joriy varaq chapga buriladi, ostida keyingisi. Ikki sahifa: o'ng varaq
   // chapga o'tadi — old yuzida joriy o'ng sahifa, orqa yuzida keyingi chap sahifa.
@@ -384,6 +564,7 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
           <strong>{book.title}</strong>
           <span>{chapter ? tocLabel(chapter) : book.author}</span>
         </div>
+        <button type="button" className="eb-icon" aria-label="Qidirish va belgilar" aria-expanded={panel === "find"} disabled={!pages} onClick={() => setPanel(panel === "find" ? null : "find")}><Search size={19} /></button>
         <button type="button" className="eb-icon" aria-label="Mundarija" aria-expanded={panel === "toc"} disabled={!toc.length} onClick={() => setPanel(panel === "toc" ? null : "toc")}><List size={20} /></button>
         <button type="button" className="eb-icon" aria-label="Shrift o‘lchami" aria-expanded={panel === "font"} onClick={() => setPanel(panel === "font" ? null : "font")}><Type size={19} /></button>
       </header>
@@ -433,7 +614,30 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
             style={{ "--eb-at": `${(at / Math.max(1, sheets.length - 1)) * 100}%` } as CSSProperties}
           />
         )}
+        {persist && pages && (
+          <button
+            type="button"
+            className="eb-icon eb-mark-btn"
+            aria-label={bookmarkHere ? "Xatcho‘pni olib tashlash" : "Xatcho‘p qo‘yish"}
+            aria-pressed={Boolean(bookmarkHere)}
+            onClick={toggleBookmark}
+          >
+            <Bookmark size={18} fill={bookmarkHere ? "currentColor" : "none"} />
+          </button>
+        )}
       </footer>
+
+      {selected && persist && (
+        <div
+          className="eb-sel"
+          role="toolbar"
+          aria-label="Matn belgisi"
+          style={{ left: selected.x, top: selected.y }}
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <button type="button" onClick={() => highlight(selected)}><Highlighter size={16} /> Belgilash</button>
+        </div>
+      )}
 
       {panel === "toc" && (
         <aside className="eb-panel eb-toc" aria-label="Mundarija">
@@ -449,6 +653,60 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
             ))}
           </ol>
           {ebook && !ebook.full && <p className="eb-note">Mundarijada faqat tanishuv qismidagi boblar.</p>}
+        </aside>
+      )}
+      {panel === "find" && (
+        <aside className="eb-panel eb-find" aria-label="Qidirish va belgilar">
+          <div className="eb-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected={findTab === "search"} onClick={() => setFindTab("search")}>Qidiruv</button>
+            <button type="button" role="tab" aria-selected={findTab === "marks"} disabled={!persist} onClick={() => setFindTab("marks")}>
+              Belgilar{persist && resolved.length ? ` · ${resolved.length}` : ""}
+            </button>
+          </div>
+          {findTab === "search" && (
+            <>
+              <input
+                type="search"
+                className="eb-find-input"
+                placeholder="Eshitgan jumlangizning bir qismi"
+                aria-label="Matn bo‘yicha qidirish"
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              {query.trim().length >= 2 && (
+                <p className="eb-note" aria-live="polite">{hits.length ? `${hits.length}${hits.length >= 200 ? "+" : ""} ta joy topildi` : "Hech narsa topilmadi"}</p>
+              )}
+              <ol className="eb-hits">
+                {hits.slice(0, 100).map((hit, index) => {
+                  const q = query.trim().length;
+                  const snippet = hit.text.slice(Math.max(0, hit.at - 40), hit.at + q + 60);
+                  return (
+                    <li key={`${hit.block}-${hit.offset}-${index}`}>
+                      <button type="button" onClick={() => jump(sheetFor(hit.block, hit.offset))}>
+                        <span>…{snippet}…</span>
+                        <small>{sheetFor(hit.block, hit.offset)}</small>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </>
+          )}
+          {findTab === "marks" && (
+            <ol className="eb-hits">
+              {resolved.length === 0 && <li className="eb-note">Hali belgi yo‘q. Matnni tanlab «Belgilash» ni bosing yoki varaq boshida xatcho‘p qo‘ying.</li>}
+              {resolved.map((m) => (
+                <li key={m.id} className={`is-${m.kind}`}>
+                  <button type="button" onClick={() => jump(sheetFor(m.block, m.start))}>
+                    <span>{m.kind === "bookmark" ? <><Bookmark size={13} /> Xatcho‘p · </> : <Highlighter size={13} />} {m.quote}</span>
+                    <small>{sheetFor(m.block, m.start)}</small>
+                  </button>
+                  <button type="button" className="eb-del" aria-label="Belgini o‘chirish" onClick={() => removeLocal(m.id)}><Trash2 size={15} /></button>
+                </li>
+              ))}
+            </ol>
+          )}
         </aside>
       )}
       {panel === "font" && (
@@ -478,7 +736,7 @@ function Leaf({ turn, front, back, onTransitionEnd }: { turn: Turn; front: React
   );
 }
 
-function SheetView({ sheet, side, book, ebook, onBuy, onRestart, total }: {
+function SheetView({ sheet, side, book, ebook, onBuy, onRestart, total, highlights }: {
   sheet: Sheet;
   side?: "left" | "right";
   book: ReaderBook;
@@ -486,9 +744,10 @@ function SheetView({ sheet, side, book, ebook, onBuy, onRestart, total }: {
   onBuy?: () => void;
   onRestart: () => void;
   total: number;
+  highlights: Map<number, MarkRange[]>;
 }) {
   const sideClass = side ? ` is-${side}` : "";
-  if (sheet.kind === "text") return <TextPage page={sheet.page} number={sheet.number} side={side} />;
+  if (sheet.kind === "text") return <TextPage page={sheet.page} number={sheet.number} side={side} highlights={highlights} />;
   if (sheet.kind === "cover") {
     return (
       <div className={`eb-page eb-cover${sideClass}`}>
@@ -521,12 +780,12 @@ function SheetView({ sheet, side, book, ebook, onBuy, onRestart, total }: {
   return <div className={`eb-page is-blank${sideClass}`} />;
 }
 
-function TextPage({ page, number, side }: { page: Page; number: number; side?: "left" | "right" }) {
+function TextPage({ page, number, side, highlights }: { page: Page; number: number; side?: "left" | "right"; highlights: Map<number, MarkRange[]> }) {
   const bodyRef = useRef<HTMLDivElement>(null);
   // Chizishdan oldin — varaq almashganda eski matn bir lahza ham ko'rinmasin.
   useLayoutEffect(() => {
-    bodyRef.current?.replaceChildren(...page.frags.map(renderFrag));
-  }, [page]);
+    bodyRef.current?.replaceChildren(...page.frags.map((frag) => renderFrag(frag, frag.t === "p" ? highlights.get(frag.block) : undefined)));
+  }, [page, highlights]);
   return (
     <div className={`eb-page${side ? ` is-${side}` : ""}`}>
       <div className="eb-running" aria-hidden="true">{tocLabel(page.chapter)}</div>

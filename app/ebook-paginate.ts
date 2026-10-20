@@ -6,7 +6,7 @@
  * O'lchash va ko'rsatish bitta `renderFrag` orqali — shuning uchun sahifa ekranda ham aynan o'lchangandek
  * chiqadi. Matn DOM'ga faqat textContent sifatida tushadi (HTML talqin qilinmaydi).
  */
-import { runsText, type EbookBlock, type EbookLine } from "@/shared/ebook-markup";
+import { markRuns, runsText, type EbookBlock, type EbookLine, type EbookRun, type MarkRange } from "@/shared/ebook-markup";
 
 export type Frag =
   | { t: "h1" | "h2" | "h3"; block: number; runs: EbookLine }
@@ -27,7 +27,9 @@ export type Anchor = { block: number; offset: number };
 
 const RUN_TAGS = { bold: "strong", italic: "em" } as const;
 
-function appendRuns(parent: HTMLElement, runs: EbookLine) {
+type Piece = EbookRun & { hl?: true };
+
+function appendRuns(parent: HTMLElement, runs: Piece[]) {
   for (const run of runs) {
     let node: Node = document.createTextNode(run.text);
     if (run.italic) {
@@ -40,13 +42,20 @@ function appendRuns(parent: HTMLElement, runs: EbookLine) {
       strong.appendChild(node);
       node = strong;
     }
+    if (run.hl) {
+      const mark = document.createElement("mark");
+      mark.className = "eb-hl";
+      mark.appendChild(node);
+      node = mark;
+    }
     parent.appendChild(node);
   }
 }
 
 const HEADING_TAG = { h1: "h2", h2: "h3", h3: "h4" } as const;
 
-export function renderFrag(frag: Frag): HTMLElement {
+/** `highlights` — shu blokdagi belgilangan oraliqlar (blok matni boshiga nisbatan). */
+export function renderFrag(frag: Frag, highlights?: MarkRange[]): HTMLElement {
   switch (frag.t) {
     case "h1":
     case "h2":
@@ -59,7 +68,13 @@ export function renderFrag(frag: Frag): HTMLElement {
     case "p": {
       const el = document.createElement("p");
       el.className = frag.cont ? "eb-p eb-cont" : "eb-p";
-      appendRuns(el, frag.runs);
+      el.dataset.block = String(frag.block);
+      el.dataset.from = String(frag.from);
+      const length = runsText(frag.runs).length;
+      const local = (highlights ?? [])
+        .map((r) => ({ start: Math.max(0, r.start - frag.from), end: Math.min(length, r.end - frag.from) }))
+        .filter((r) => r.end > r.start);
+      appendRuns(el, markRuns(frag.runs, local));
       return el;
     }
     default: {

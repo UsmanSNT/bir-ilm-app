@@ -62,3 +62,41 @@ export const saveEbookSchema = z.object({
     }),
 });
 export type SaveEbookInput = z.infer<typeof saveEbookSchema>;
+
+export const EBOOK_MARK_LIMITS = {
+  /** Bitta foydalanuvchi bitta kitobda. */
+  perBook: 500,
+  quote: 500,
+} as const;
+
+export const EBOOK_MARK_KINDS = ["bookmark", "highlight"] as const;
+export type EbookMarkKind = (typeof EBOOK_MARK_KINDS)[number];
+
+/**
+ * Xatcho‘p (`bookmark`, end === start) yoki belgilangan matn (`highlight`, start < end). Joy — blok
+ * (xatboshi/she'r bandi) ichidagi belgi o'rni; `quote` — shu oraliqdagi matn.
+ */
+export type EbookMark = {
+  id: string;
+  kind: EbookMarkKind;
+  block: number;
+  start: number;
+  end: number;
+  quote: string;
+  createdAt: string;
+};
+
+export const createEbookMarkSchema = z
+  .object({
+    kind: z.enum(EBOOK_MARK_KINDS),
+    block: z.number().int().min(0).max(1_000_000),
+    start: z.number().int().min(0).max(10_000_000),
+    end: z.number().int().min(0).max(10_000_000),
+    quote: z.string().max(EBOOK_MARK_LIMITS.quote),
+  })
+  .superRefine((mark, ctx) => {
+    if (mark.kind === "bookmark" && mark.end !== mark.start) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Xatcho‘p oralig‘i bo‘lmasin." });
+    if (mark.kind === "highlight" && mark.end <= mark.start) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Belgi bo‘sh bo‘lmasin." });
+    if (mark.kind === "highlight" && !mark.quote) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Belgilangan matn kerak." });
+  });
+export type CreateEbookMarkInput = z.infer<typeof createEbookMarkSchema>;
