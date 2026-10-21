@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
-  Bell,
   BookOpen,
   ChevronRight,
   Crown,
@@ -36,6 +35,7 @@ import BookDiscovery from "./book-discovery";
 import FocusTimer, { PomodoroButton } from "./focus-timer";
 import MobileScreens, { markAnnouncementsRead, useAnnouncements, useUnreadAnnouncements } from "./mobile-screens";
 import NotificationCenter from "./notification-center";
+import ScrollIcon from "./scroll-icon";
 import MobileLibrary from "./mobile-library";
 import EbookReader from "./ebook-reader";
 import ProfileScreens from "./profile-screens";
@@ -630,7 +630,7 @@ export default function App() {
                 <b>{streak}</b><small>kun</small>
               </button>
               <PomodoroButton className="icon-btn" />
-              <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} />{badge}</button>
+              <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><ScrollIcon size={22} />{badge}</button>
               <button className="topbar-avatar" aria-label={attention.total ? `Profil, ${attention.total} ta yangi` : "Profil"} onClick={() => go("profile")}>{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : <span>{(data.name || "K").slice(0, 1).toUpperCase()}</span>}{storeCount > 0 && <b className="avatar-badge">{storeCount > 9 ? "9+" : storeCount}</b>}</button>
             </div>
           </header>
@@ -648,7 +648,7 @@ export default function App() {
                 </div>
                 <div className="heading-actions">
                   <PomodoroButton className="icon-btn" />
-                  <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><Bell size={22} />{badge}</button>
+                  <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><ScrollIcon size={22} />{badge}</button>
                 </div>
               </div>
 
@@ -772,7 +772,7 @@ export default function App() {
           if (!open && data.onboarded) setModal("");
         }}
       >
-        <DialogContent className="app-dialog" showCloseButton={false}>
+        <DialogContent className={modal === "notifications" ? "app-dialog scroll-open" : "app-dialog"} showCloseButton={false}>
           {/* Bildirishnomalarda sarlavha va izoh ko'rinmaydi (ro'yxatning o'zi yetarli) — faqat ekran o'quvchilar uchun. */}
           <DialogTitle className={data.onboarded && modal === "notifications" ? "sr-only" : undefined}>
             {!data.onboarded

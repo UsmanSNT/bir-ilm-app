@@ -25,6 +25,7 @@ import type { SocialData } from "./social-types";
 import ProfileHero from "./profile-hero";
 import ProfileMenu, { type MenuGroup, type MenuItem } from "./profile-menu";
 import { LinkDeviceDialog } from "./device-link";
+import ScrollIcon from "./scroll-icon";
 
 
 /** Bir Ilm shaxsiy sahifasi: o‘qish, postlar, faollik va Bir Ilm sozlamalari (do‘kon ma’lumotlari bu yerda emas). */
@@ -136,7 +137,7 @@ export default function ProfileScreens(p: ProfileScreensProps) {
   const menuGroups: MenuGroup[] = [
     { id: "account", title: "Shaxsiy hisob", items: accountItems },
     { id: "settings", title: "Sozlamalar", items: [
-      { id: "notifications", title: "Bildirishnomalar", icon: Bell, tone: "binafsha", onClick: p.onNotifications },
+      { id: "notifications", title: "Bildirishnomalar", icon: ScrollIcon, tone: "binafsha", onClick: p.onNotifications },
       { id: "language", title: "Ilova tili", icon: Languages, tone: "lojuvard", value: "O‘zbekcha" },
       { id: "devices", title: "Kamera va mikrofon", icon: Camera, tone: "pushti", onClick: () => open("devices") },
       ...(viewer?.signedIn ? [{ id: "link", title: "Boshqa qurilmani ulash", icon: Smartphone, tone: "yashil", onClick: () => setLinkOpen(true) } satisfies MenuItem] : []),

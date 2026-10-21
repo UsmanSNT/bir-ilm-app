@@ -1617,6 +1617,28 @@ audio {
   font-size: 15px;
 }
 
+/* Bildirishnomalar (yangilik va xatlar): varaq sandiqdan ikki chetga qarab yoyiladi. */
+[data-slot="dialog-content"].scroll-open {
+  animation: scroll-unroll 0.75s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes scroll-unroll {
+  from {
+    clip-path: inset(50% 0 50% 0 round 16px);
+    opacity: 0.4;
+  }
+  to {
+    clip-path: inset(0 0 0 0 round 16px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="dialog-content"].scroll-open {
+    animation: none;
+  }
+}
+
 .app-dialog {
   max-height: 90dvh;
   overflow-y: auto;

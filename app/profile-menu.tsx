@@ -4,15 +4,16 @@
  * Menyu (shaxsiy sahifadagi barcha sozlamalar): guruhlangan kartalar, rangli belgilar va qidiruv.
  * Qidiruv guruh va band nomi bo'yicha; o'zbekcha tutuq belgilari (o‘, g‘, ’) farqlanmaydi.
  */
-import { useMemo, useState, type ReactNode } from "react";
-import { ChevronRight, Search, X, type LucideIcon } from "lucide-react";
+import { useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { ChevronRight, Search, X } from "lucide-react";
 
 export type MenuTone = "firuza" | "tilla" | "anor" | "lojuvard" | "yashil" | "binafsha" | "pushti" | "kulrang";
 
 export type MenuItem = {
   id: string;
   title: string;
-  icon: LucideIcon;
+  /** Lucide belgisi yoki o‘z belgi (masalan, ScrollIcon) — `size` qabul qilsa bas. */
+  icon: ComponentType<{ size?: number }>;
   tone: MenuTone;
   /** O'ng tomondagi qiymat (masalan, «O‘zbekcha», «Yoqilgan»). */
   value?: string;
