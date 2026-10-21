@@ -658,3 +658,13 @@
 .eb-quote-brand { margin-top: 6px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: rgb(255 255 255 / .6); }
 .eb-modal-actions { display: grid; gap: 8px; margin-top: 14px; }
 .eb-modal-actions .button { justify-content: center; }
+
+/* Telefonda: toolbar ekran pastida, tanlash menyusi (nusxalash, ulashish) ustiga chiqmaydi. */
+.eb-sel.is-touch {
+  top: auto;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  transform: translateX(-50%);
+  max-width: calc(100vw - 20px);
+  z-index: 9;
+}

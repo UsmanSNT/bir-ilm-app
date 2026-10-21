@@ -153,6 +153,11 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   const [query, setQuery] = useState("");
   const [marks, setMarks] = useState<EbookMark[]>([]);
   const [selected, setSelected] = useState<Selected | null>(null);
+  /** Toolbar tugmasi bosilganda tanlash yo'qolmasligi uchun vaqt oralig'i (ms). */
+  const holdUntil = useRef(0);
+  const readSelection = useRef<() => void>(() => undefined);
+  /** Telefonda (sensorli ekran) toolbar ekran pastida turadi — tanlash menyusi ustiga chiqmasin. */
+  const touchUi = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const [share, setShare] = useState<Quote | null>(null);
   const persist = draft === undefined;
 
@@ -196,10 +201,13 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
     if (!persist) return;
     let timer = 0;
     const read = () => {
+      // Toolbar tugmasi bosilayotganda telefon tanlashni bekor qiladi — shu lahzada toolbar yashirinmasin.
+      if (Date.now() < holdUntil.current) return;
       const sel = window.getSelection();
       const inside = Boolean(sel?.anchorNode && rootRef.current?.contains(sel.anchorNode));
       setSelected(sel && inside ? selectionSpan(sel, blocks) : null);
     };
+    readSelection.current = read;
     const onChange = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(read, 120);
@@ -430,7 +438,8 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
   const drag = useRef<{ id: number; x: number; y: number; t: number; dir: 1 | -1 | 0; text: boolean } | null>(null);
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (turn || event.button !== 0 || (event.target as HTMLElement).closest("button, a, input")) return;
-    const text = event.pointerType === "mouse" && Boolean((event.target as HTMLElement).closest(".eb-body"));
+    // Matn tanlangan bo'lsa (tutqichlar) yoki sichqoncha matn ustida — sahifa aylanmaydi.
+    const text = (event.pointerType === "mouse" && Boolean((event.target as HTMLElement).closest(".eb-body"))) || Boolean(window.getSelection()?.toString());
     drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, t: performance.now(), dir: 0, text };
   };
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -701,11 +710,15 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
 
       {selected && (
         <div
-          className="eb-sel"
+          className={`eb-sel${touchUi ? " is-touch" : ""}`}
           role="toolbar"
           aria-label="Matn bilan amal"
-          style={{ left: Math.min(Math.max(selected.x, 175), window.innerWidth - 175), top: selected.y }}
+          style={touchUi ? undefined : { left: Math.min(Math.max(selected.x, 175), window.innerWidth - 175), top: selected.y }}
           onMouseDown={(event) => event.preventDefault()}
+          onPointerDown={() => {
+            holdUntil.current = Date.now() + 1200;
+            window.setTimeout(() => readSelection.current(), 1300);
+          }}
         >
           <button type="button" className="eb-sel-icon" aria-label="Nusxalash" title="Nusxalash" onClick={() => void copySelected(selected)}><Copy size={16} /></button>
           {persist && (
