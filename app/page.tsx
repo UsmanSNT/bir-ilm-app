@@ -286,23 +286,72 @@ export default function App() {
     });
   };
 
-  const syncState = async (payload: AppStatePayload, snapshot = data) => {
+  /** Serverga holat yuboradi. Muvaffaqiyatli bo'lsa `true`; tarmoq yoki server xatosida `false`. */
+  const postState = async (payload: AppStatePayload, snapshot: typeof data): Promise<boolean> => {
     try {
       const response = await fetch("/api/app-state", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           ...payload,
-          
           name: snapshot.name,
           activity: activityFromState(snapshot),
         }),
       });
-      if (response.ok) setBackendMode("server");
+      if (response.ok) {
+        setBackendMode("server");
+        return true;
+      }
+      return false;
     } catch {
       setBackendMode("local");
+      return false;
     }
   };
+
+  // Yuborilmagan holat (progress, profile) turi bo'yicha bitta yozuv bo'lib saqlanadi: keyingisi eskisini almashtiradi.
+  const failedSync = useRef(new Map<string, { payload: AppStatePayload; snapshot: typeof data }>());
+  const syncWarned = useRef(false);
+
+  const syncState = async (payload: AppStatePayload, snapshot = data) => {
+    const key = payload.type ?? "state";
+    if (await postState(payload, snapshot)) {
+      failedSync.current.delete(key);
+      if (!failedSync.current.size) syncWarned.current = false;
+      return;
+    }
+    failedSync.current.set(key, { payload, snapshot });
+    if (!syncWarned.current) {
+      syncWarned.current = true;
+      toast.error("Internet bilan aloqa yo‘q. O‘zgarishlar aloqa tiklanganda saqlanadi.");
+    }
+  };
+
+  // Yuborilmagan holatni qayta yuborish: internet tiklanganda va har daqiqada (yozuv qolsa).
+  useEffect(() => {
+    const flush = () => {
+      for (const [key, entry] of [...failedSync.current]) {
+        void postState(entry.payload, entry.snapshot).then((ok) => {
+          if (!ok) return;
+          failedSync.current.delete(key);
+          if (!failedSync.current.size) syncWarned.current = false;
+        });
+      }
+    };
+    const onOnline = () => {
+      if (failedSync.current.size) flush();
+    };
+    window.addEventListener("online", onOnline);
+    const timer = window.setInterval(() => {
+      if (failedSync.current.size) flush();
+    }, 60_000);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.clearInterval(timer);
+    };
+    // postState faqat ref va barqaror setState ishlatadi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const go = (value: string) => {
     // "store:<bo'lim>" — Book Store hisobining bo'limi (masalan, xabarlar); qolgani — Bir Ilm yorliqlari.

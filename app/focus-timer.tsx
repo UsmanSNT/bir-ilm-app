@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, Timer, Check, X, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -117,17 +117,47 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
     }
   }
 
-  async function retry() {
-    setSaving(true);
+  /**
+   * Saqlanmagan seanslarni yuboradi. Server takroriy `sessionId` ni hisoblamaydi (INSERT OR IGNORE),
+   * shuning uchun qayta urinish xavfsiz. `manual` — foydalanuvchi tugmasi bosgan; aks holda xatolar jim o'tadi
+   * va keyingi urinish (internet tiklanganda yoki taymer orqali) kutiladi.
+   */
+  const flushing = useRef(false);
+  const flushPending = useCallback(async (manual: boolean) => {
+    if (flushing.current || !current.current.pending.length) return;
+    flushing.current = true;
+    if (manual) setSaving(true);
     try {
       for (const session of [...current.current.pending]) {
         await callback.current(session);
         save({ ...current.current, pending: current.current.pending.filter(p => p.sessionId !== session.sessionId) });
       }
-      toast.success("Seanslar saqlandi.");
-    } catch { toast.error("Saqlanmadi. Qayta urinib ko'ring."); }
-    finally { setSaving(false); }
+      if (manual) toast.success("Seanslar saqlandi.");
+    } catch {
+      if (manual) toast.error("Saqlanmadi. Qayta urinib ko'ring.");
+    } finally {
+      flushing.current = false;
+      if (manual) setSaving(false);
+    }
+  }, []);
+
+  function retry() {
+    void flushPending(true);
   }
+
+  // Avtomatik qayta yuborish: ochilganda, internet tiklanganda va har daqiqada (saqlanmagan seans qolsa).
+  useEffect(() => {
+    if (!ready) return;
+    const first = window.setTimeout(() => void flushPending(false), 0);
+    const onOnline = () => void flushPending(false);
+    window.addEventListener("online", onOnline);
+    const timer = setInterval(() => void flushPending(false), 60_000);
+    return () => {
+      window.clearTimeout(first);
+      window.removeEventListener("online", onOnline);
+      clearInterval(timer);
+    };
+  }, [ready, flushPending]);
 
   // Ochuvchi tugma alohida: PomodoroButton (qo'ng'iroqcha yonida).
   return <Dialog open={open} onOpenChange={setOpen}>
