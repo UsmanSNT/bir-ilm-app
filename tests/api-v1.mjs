@@ -926,6 +926,33 @@ try {
     console.log("PASS: app-state boshqa foydalanuvchi nomidan yozishga yo'l qo'ymaydi.");
   }
 
+  // --- Muhim fikr: faqat egasiga qaytadi, reytingga kirmaydi, 5000 belgida kesiladi ---
+  {
+    const owner = await webClient();
+    const other = await webClient();
+    const saveNote = (client, note) =>
+      legacyAppState.POST(request("/api/app-state", {
+        method: "POST",
+        body: { type: "note", note },
+        headers: { Cookie: client.cookie, Origin: ORIGIN },
+      }));
+    const readState = async (client) =>
+      (await legacyAppState.GET(request("/api/app-state", { headers: { Cookie: client.cookie } }))).json();
+
+    assert.equal((await saveNote(owner, "  Bugun\n  o'qidim  ")).status, 200);
+    assert.equal((await readState(owner)).note, "Bugun\n  o'qidim", "Eslatma satr uzilishlari bilan saqlanishi kerak");
+    assert.equal((await readState(other)).note, "", "Eslatma boshqa foydalanuvchiga ko'rinmasligi kerak");
+    assert.equal(sqlite.prepare("SELECT 1 FROM user_activity WHERE user_id = ?").get(owner.userId), undefined, "Faqat eslatma reytingga qo'shilmasligi kerak");
+
+    await saveNote(owner, "x".repeat(6000));
+    assert.equal((await readState(owner)).note.length, 5000, "Eslatma 5000 belgida kesilishi kerak");
+
+    await saveNote(owner, "");
+    assert.equal((await readState(owner)).note, "", "Bo'sh eslatma eskisini o'chirishi kerak");
+    sqlite.prepare("DELETE FROM user_notes WHERE user_id IN (?, ?)").run(owner.userId, other.userId);
+    console.log("PASS: muhim fikr faqat egasiga qaytadi, reytingga kirmaydi, uzunligi chegaralanadi.");
+  }
+
   // --- Login: Telegram imzosi, mehmonni bog'lash, ikkinchi qurilma, chiqish -----
   {
     process.env.TELEGRAM_BOT_TOKEN = "123456:TEST-TOKEN";

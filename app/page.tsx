@@ -70,11 +70,37 @@ type State = {
 
 
 type AppStatePayload = {
-  type?: "comment" | "progress" | "profile";
+  type?: "comment" | "progress" | "profile" | "note";
   text?: string;
   page?: number;
   total?: number;
+  note?: string;
 };
+
+/** Oxirgi ma'lum bo'lgan sessiya; mehmon cookie'si almashganini aniqlash uchun. */
+const IDENTITY_KEY = "bir-ilm-identity";
+/** «Muhim fikr» serverga shu kechikishdan keyin yuboriladi (har tugmachada emas). */
+const NOTE_SYNC_DELAY_MS = 1500;
+
+/**
+ * Mehmon sessiyasi almashganmi (brauzer cookie'si tozalangan yoki boshqa qurilma). Faqat ikkala
+ * holat ham mehmon bo'lganda `true`; joriy sessiya saqlanadi.
+ */
+function guestSessionChanged(viewer: { userId: string; signedIn: boolean }): boolean {
+  let previous: { userId?: unknown; signedIn?: unknown } | null = null;
+  try {
+    previous = JSON.parse(localStorage.getItem(IDENTITY_KEY) ?? "null");
+    localStorage.setItem(IDENTITY_KEY, JSON.stringify({ userId: viewer.userId, signedIn: viewer.signedIn }));
+  } catch {
+    return false;
+  }
+  return (
+    typeof previous?.userId === "string" &&
+    previous.userId !== viewer.userId &&
+    previous.signedIn === false &&
+    !viewer.signedIn
+  );
+}
 
 const nav = [
   ["home", "Bosh sahifa", Home],
@@ -353,6 +379,23 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // «Muhim fikr» serverdagi oxirgi (yoki yuborilgan) qiymat. `null` — server javobi hali kelmagan:
+  // bunda yuborish mumkin emas, aks holda mahalliy bo'sh qiymat serverdagi eslatmani o'chirib yuborardi.
+  const serverNote = useRef<string | null>(null);
+  const [noteReady, setNoteReady] = useState(false);
+
+  useEffect(() => {
+    if (!noteReady || data.note === serverNote.current) return;
+    const timer = window.setTimeout(() => {
+      serverNote.current = data.note;
+      // syncState yuborilmagan bo'lsa, qayta urinish navbatiga tushadi.
+      void syncState({ type: "note", note: data.note }, data);
+    }, NOTE_SYNC_DELAY_MS);
+    return () => window.clearTimeout(timer);
+    // Faqat eslatma matni yoki yuklanish holati o'zgarganda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.note, noteReady]);
+
   const go = (value: string) => {
     // "store:<bo'lim>" — Book Store hisobining bo'limi (masalan, xabarlar); qolgani — Bir Ilm yorliqlari.
     if (value.startsWith("store:")) {
@@ -437,10 +480,14 @@ export default function App() {
 
     // Ism server bilan bir xil bo'lsin (Telegram/Google bilan kirganda ism o'sha yerdan keladi).
     fetch("/api/v1/auth/session")
-      .then((r) => (r.ok ? (r.json() as Promise<{ data?: { name?: string } }>) : null))
+      .then((r) => (r.ok ? (r.json() as Promise<{ data?: { name?: string; userId?: string; signedIn?: boolean } }>) : null))
       .then((body) => {
-        const serverName = body?.data?.name;
+        const viewer = body?.data;
+        const serverName = viewer?.name;
         if (serverName && serverName !== "Kitobxon") setData((value) => (value.name === serverName ? value : { ...value, name: serverName }));
+        if (viewer?.userId && guestSessionChanged({ userId: viewer.userId, signedIn: Boolean(viewer.signedIn) })) {
+          toast.info("Mehmon sessiyasi yangilandi: oldingi serverdagi natijalar bu sessiyada ko‘rinmaydi.");
+        }
       })
       .catch(() => {});
 
@@ -451,6 +498,7 @@ export default function App() {
           mode?: BackendMode;
           comments?: CommunityComment[];
           leaderboard?: LeaderboardMember[];
+          note?: string;
         };
         if (appState.mode) setBackendMode(appState.mode);
         if (Array.isArray(appState.comments) && appState.comments.length) {
@@ -459,14 +507,21 @@ export default function App() {
         if (Array.isArray(appState.leaderboard)) {
           setServerLeaders(appState.leaderboard);
         }
+        if (typeof appState.note === "string") {
+          const remote = appState.note;
+          serverNote.current = remote;
+          // Mahalliy eslatma bo'sh bo'lsa, serverdagisi tiklanadi; bo'lmasa mahalliysi serverga yuboriladi.
+          setData((value) => (value.note || !remote ? value : { ...value, note: remote }));
+          setNoteReady(true);
+        }
       })
       .catch(() => setBackendMode("local"));
 
-
+    // Soat har 30 soniyada yangilanadi: ekranda faqat kun/soat/daqiqa ko'rsatiladi.
     const tick = setInterval(() => {
       setNow(Date.now());
       setSession(nextSession());
-    }, 1000);
+    }, 30_000);
 
     return () => clearInterval(tick);
   }, []);

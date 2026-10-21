@@ -48,7 +48,9 @@ type ActivityPayload = {
 };
 
 type AppStatePayload = {
-  type?: "comment" | "progress" | "profile";
+  type?: "comment" | "progress" | "profile" | "note";
+  /** «Muhim fikr» — shaxsiy eslatma; faqat egasiga qaytadi. */
+  note?: string;
   userId?: string;
   name?: string;
   text?: string;
@@ -76,7 +78,7 @@ type LeaderboardRow = {
 };
 
 function emptyPayload(mode: "local" | "seed") {
-  return { mode, activeBookId, comments: [], leaderboard: [] };
+  return { mode, activeBookId, comments: [], leaderboard: [], note: "" };
 }
 
 function cleanText(value: unknown, fallback: string, limit: number) {
@@ -140,7 +142,7 @@ async function upsertActivity(
     .run();
 }
 
-async function handleGet(): Promise<Response> {
+async function handleGet(userId: string): Promise<Response> {
   const db = env.DB;
   if (!db) return Response.json(emptyPayload("local"));
 
@@ -198,11 +200,17 @@ async function handleGet(): Promise<Response> {
       trend: "server",
     }));
 
+    const noteRow = await db
+      .prepare("SELECT note FROM user_notes WHERE user_id = ?")
+      .bind(userId)
+      .first<{ note: string }>();
+
     return Response.json({
       mode: "server",
       activeBookId,
       comments: comments.filter((comment) => !comment.demo),
       leaderboard,
+      note: noteRow?.note ?? "",
     });
   } catch {
     return Response.json(emptyPayload("seed"));
@@ -291,6 +299,20 @@ async function handlePost(request: Request, identity: Identity): Promise<Respons
       return Response.json({ profile: { userId, name } });
     }
 
+    if (type === "note") {
+      // Eslatma — 5000 belgigacha; satr uzilishlari saqlanadi (cleanText ularni bo'shliqqa aylantirardi).
+      const note = typeof payload.note === "string" ? payload.note.trim().slice(0, 5000) : "";
+      await db
+        .prepare(
+          `INSERT INTO user_notes (user_id, note, updated_at)
+           VALUES (?, ?, CURRENT_TIMESTAMP)
+           ON CONFLICT(user_id) DO UPDATE SET note = excluded.note, updated_at = CURRENT_TIMESTAMP`,
+        )
+        .bind(userId, note)
+        .run();
+      return Response.json({ note: { saved: true } });
+    }
+
     return Response.json({ error: "Noma'lum amal." }, { status: 400 });
   } catch {
     return Response.json(
@@ -303,7 +325,9 @@ async function handlePost(request: Request, identity: Identity): Promise<Respons
 // Mavjud mantiq o'zgarmadi; eksport qilingan ishlovchilar unga faqat CORS
 // sarlavhalarini qo'shadi, shunda ayni shu API native ilovadan ham chaqiriladi.
 export async function GET(request: Request): Promise<Response> {
-  return withCors(request, await handleGet());
+  // Eslatma faqat egasiga qaytadi, shuning uchun foydalanuvchi aniqlanadi (cookie yoki Bearer).
+  const identity = await resolveIdentity(request);
+  return withCors(request, await handleGet(identity.userId));
 }
 
 export async function POST(request: Request): Promise<Response> {

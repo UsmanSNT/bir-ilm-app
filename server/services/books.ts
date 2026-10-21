@@ -6,7 +6,7 @@
  */
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, ne } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { notFound } from "@/server/http/errors";
@@ -37,10 +37,8 @@ function mediaUrl(row: BookRow, file: string | null): string | null {
   return file ? `/media/books/${row.id}/${file}?v=${encodeURIComponent(row.updatedAt)}` : null;
 }
 
-export function toBook(row: BookRow, trackRows: TrackRow[] = [], ebooks: EbookMeta[] = []): Book {
-  const ebook = ebooks.find((e) => e.bookId === row.id);
-  const tracks: BookTrack[] = trackRows
-    .filter((t) => t.bookId === row.id)
+function buildBook(row: BookRow, trackRows: TrackRow[], ebook: EbookMeta | undefined): Book {
+  const tracks: BookTrack[] = [...trackRows]
     .sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt))
     .map((t) => ({
       id: t.id,
@@ -70,12 +68,46 @@ export function toBook(row: BookRow, trackRows: TrackRow[] = [], ebooks: EbookMe
   };
 }
 
+function groupByBook<T>(items: T[], bookId: (item: T) => string): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const key = bookId(item);
+    const group = groups.get(key);
+    if (group) group.push(item);
+    else groups.set(key, [item]);
+  }
+  return groups;
+}
+
+/**
+ * Kitoblarni qismlar va e-kitoblar bilan yig'adi. Qismlar/e-kitoblar bir marta guruhlanadi:
+ * kitoblar × qismlar tsikli emas, balki O(kitob + qism + e-kitob).
+ */
+export function toBooks(rows: BookRow[], trackRows: TrackRow[] = [], ebooks: EbookMeta[] = []): Book[] {
+  const tracksByBook = groupByBook(trackRows, (t) => t.bookId);
+  const ebookByBook = new Map(ebooks.map((e) => [e.bookId, e]));
+  return rows.map((row) => buildBook(row, tracksByBook.get(row.id) ?? [], ebookByBook.get(row.id)));
+}
+
+export function toBook(row: BookRow, trackRows: TrackRow[] = [], ebooks: EbookMeta[] = []): Book {
+  return toBooks([row], trackRows, ebooks)[0];
+}
+
 /** `library` — suhbat/kutubxona kitoblari; `store` — do'kon mahsulotlari (alohida ro'yxat). */
 export async function listCatalog(db: Database, kind: "library" | "store" = "library"): Promise<Book[]> {
   const rows = await db.select().from(books).where(eq(books.kind, kind)).orderBy(desc(books.active), desc(books.createdAt));
-  const tracks = await db.select().from(bookTracks);
-  const ebooks = await db.select(ebookMetaColumns).from(bookEbooks);
-  return rows.map((row) => toBook(row, tracks, ebooks));
+  // Faqat shu turdagi kitoblarning qismlari va e-kitob yozuvlari (boshqa tur yuklanmaydi).
+  const tracks = await db
+    .select(getTableColumns(bookTracks))
+    .from(bookTracks)
+    .innerJoin(books, eq(bookTracks.bookId, books.id))
+    .where(eq(books.kind, kind));
+  const ebooks = await db
+    .select(ebookMetaColumns)
+    .from(bookEbooks)
+    .innerJoin(books, eq(bookEbooks.bookId, books.id))
+    .where(eq(books.kind, kind));
+  return toBooks(rows, tracks, ebooks);
 }
 
 export async function getBookRow(db: Database, id: string): Promise<BookRow> {

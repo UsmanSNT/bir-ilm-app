@@ -401,6 +401,15 @@ export const userActivity = sqliteTable(
   ],
 );
 
+/** «Muhim fikr»: foydalanuvchining shaxsiy eslatmasi. Reytingga kirmasligi uchun alohida jadval. */
+export const userNotes = sqliteTable("user_notes", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  note: text("note").notNull().default(""),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 // ── Book Store ──────────────────────────────────────────────────────
 
 /** Savat: har foydalanuvchi uchun bitta; narx bu yerda saqlanmaydi — har doim kitobdan olinadi. */

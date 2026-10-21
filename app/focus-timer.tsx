@@ -93,7 +93,8 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
           const latest = current.current;
           save({ ...latest, pending: latest.pending.filter(p => p.sessionId !== completed.sessionId) });
         }).catch(() => toast.error("Seans qurilmada saqlandi. Internet tiklangach qayta saqlang."));
-      } else {
+      } else if (remaining !== s.remaining) {
+        // 500 ms da bir marta tekshiriladi, sekund esa soniyada bir marta o'zgaradi: qolgan vaqt o'zgarmasa, render qilinmaydi.
         const next = { ...s, remaining };
         current.current = next;
         setState(next);
