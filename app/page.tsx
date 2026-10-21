@@ -1,36 +1,24 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
-  BadgeCheck,
-  Bell,
   BookOpen,
-  Check,
   ChevronRight,
-  Clock,
   Crown,
-  Database,
   Flame,
   Headphones,
   Home,
-  LibraryBig,
-  Medal,
-  MessageSquare,
-  MonitorSmartphone,
-  Plus,
-  Send,
-  Settings,
-  Smartphone,
-  Star,
-  Trophy,
-  Upload,
+  Mic,
+  Store,
   Users,
   UserRound,
   Wifi,
-  X,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import Dock from "./dock";
+import BookStore, { type StoreRoute } from "./book-store";
+import type { AccountTab, AdminArea } from "./store-account";
 import {
   Dialog,
   DialogClose,
@@ -38,21 +26,29 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
 import { toast, Toaster } from "sonner";
+import ListenLink, { audioLinkOf } from "./listen-link";
 import LiveSession from "./live-session";
-import ReadingDashboard from "./reading-dashboard";
+import ReadingDashboard, { type PostFocus } from "./reading-dashboard";
+import SocialLinks from "./social-links";
 import BookDiscovery from "./book-discovery";
-import FocusTimer from "./focus-timer";
-import {
-  Book,
-  CommunityComment,
-  LeaderboardMember,
-  books,
-  seedComments,
-  seedLeaderboard,
-} from "./app-data";
+import FocusTimer, { PomodoroButton } from "./focus-timer";
+import MobileScreens, { markAnnouncementsRead, useAnnouncements, useUnreadAnnouncements } from "./mobile-screens";
+import NotificationCenter from "./notification-center";
+import ScrollIcon from "./scroll-icon";
+import MobileLibrary from "./mobile-library";
+import EbookReader from "./ebook-reader";
+import ProfileScreens from "./profile-screens";
+import { requestAudio } from "./library-store";
+import { type CommunityComment, type LeaderboardMember } from "./app-data";
+import { RESET_TOKEN_PATTERN, type Book } from "@/shared/contract";
+import { ResetPasswordForm } from "./password-auth";
+import { TwoFactorDialog } from "./two-factor";
+import { useViewer } from "@/lib/api/roles-client";
+import { useAdminAttention } from "@/lib/api/admin-attention";
+import { useStoreInbox } from "@/lib/api/store-client";
+import { markNotificationsRead, refreshNotifications, useNotifications } from "@/lib/api/notifications-client";
+import { absoluteUrl } from "@/lib/api/config";
 
 type BackendMode = "local" | "server" | "seed";
 
@@ -72,38 +68,58 @@ type State = {
   lastActiveDate: string;
 };
 
-type Recording = {
-  id: string;
-  title: string;
-  file: Blob;
-  url?: string;
-};
 
 type AppStatePayload = {
-  type?: "comment" | "progress" | "profile";
+  type?: "comment" | "progress" | "profile" | "note";
   text?: string;
   page?: number;
   total?: number;
+  note?: string;
 };
+
+/** Oxirgi ma'lum bo'lgan sessiya; mehmon cookie'si almashganini aniqlash uchun. */
+const IDENTITY_KEY = "bir-ilm-identity";
+/** «Muhim fikr» serverga shu kechikishdan keyin yuboriladi (har tugmachada emas). */
+const NOTE_SYNC_DELAY_MS = 1500;
+
+/**
+ * Mehmon sessiyasi almashganmi (brauzer cookie'si tozalangan yoki boshqa qurilma). Faqat ikkala
+ * holat ham mehmon bo'lganda `true`; joriy sessiya saqlanadi.
+ */
+function guestSessionChanged(viewer: { userId: string; signedIn: boolean }): boolean {
+  let previous: { userId?: unknown; signedIn?: unknown } | null = null;
+  try {
+    previous = JSON.parse(localStorage.getItem(IDENTITY_KEY) ?? "null");
+    localStorage.setItem(IDENTITY_KEY, JSON.stringify({ userId: viewer.userId, signedIn: viewer.signedIn }));
+  } catch {
+    return false;
+  }
+  return (
+    typeof previous?.userId === "string" &&
+    previous.userId !== viewer.userId &&
+    previous.signedIn === false &&
+    !viewer.signedIn
+  );
+}
 
 const nav = [
   ["home", "Bosh sahifa", Home],
-  ["community", "Chat", MessageSquare],
-  ["talks", "Suhbat", Headphones],
-  ["shelf", "Javon", LibraryBig],
+  ["community", "Gurung", Users],
+  ["talks", "Suhbat", Mic],
+  ["shelf", "Javon", BookOpen],
   ["profile", "Profil", UserRound],
 ] as const;
 
 const initial: State = {
   name: "Kitobxon",
   page: 0,
-  total: books[0]?.pages ?? 320,
-  shelf: [books[0]?.id ?? "atomic-habits"],
+  total: 320,
+  shelf: [],
   note: "",
   reading: false,
   talk: false,
-  onboarded: false,
-  comments: seedComments,
+  onboarded: true, // Kirishda ism so‘ralmaydi: ism hisobdan (Google/Telegram) yoki profildan olinadi.
+  comments: [],
   streak: 0,
   points: 120,
   activeDays: 0,
@@ -136,8 +152,8 @@ function normalizeSavedState(
   const shelf = Array.isArray(saved.shelf)
     ? saved.shelf
         .map((item) => {
-          if (typeof item === "number") return books[item]?.id;
-          if (typeof item === "string") return item;
+          // Faqat serverdagi kitoblar (book_...) qoladi — eski namuna kitob IDlari tashlanadi.
+          if (typeof item === "string" && item.startsWith("book_")) return item;
           return null;
         })
         .filter((item): item is string => Boolean(item))
@@ -164,44 +180,20 @@ function getInitialState() {
   }
 }
 
-function audioDB(
-  action: "all" | "put" | "delete",
-  value?: Recording | string,
-): Promise<Recording[]> {
-  return new Promise((resolve, reject) => {
-    const open = indexedDB.open("bir-ilm-audio", 1);
-    open.onupgradeneeded = () => {
-      open.result.createObjectStore("audio", { keyPath: "id" });
-    };
-    open.onerror = () => reject(open.error);
-    open.onsuccess = () => {
-      const db = open.result;
-      const tx = db.transaction("audio", action === "all" ? "readonly" : "readwrite");
-      const store = tx.objectStore("audio");
-      const request =
-        action === "all"
-          ? store.getAll()
-          : action === "put"
-            ? store.put(value)
-            : store.delete(value as string);
 
-      tx.oncomplete = () => {
-        resolve(action === "all" ? (request.result as Recording[]) : []);
-        db.close();
-      };
-      tx.onerror = () => reject(tx.error);
-    };
-  });
+/** Streak oxirgi faollik bugun yoki kecha bo'lgandagina davom etadi; aks holda u uzilgan (0). */
+function currentStreak({ streak, lastActiveDate }: Pick<State, "streak" | "lastActiveDate">) {
+  return lastActiveDate === todayKey() || lastActiveDate === yesterdayKey() ? streak : 0;
 }
 
 function Brand() {
   return (
-    <div className="brand brand-with-logo">
-      <Image src="/assets/bir-ilm-logo.jpg" alt="BIR ILM" width={62} height={62} />
-      <div>
-        <span className="wordmark">BIR ILM</span>
-        <span className="brand-tag">SINANG, QO&apos;LLANG, ULASHING</span>
-      </div>
+    <div className="brand">
+      <span className="brand-mark"><Image src="/assets/bir-ilm-mark.webp" alt="" width={52} height={52} priority /></span>
+      <span className="brand-text">
+        <span className="wordmark">Bir Ilm</span>
+        <span className="brand-tag">Sinang · qo‘llang · ulashing</span>
+      </span>
     </div>
   );
 }
@@ -241,7 +233,6 @@ function mergeLeaders(
   const rows: Array<LeaderboardMember & { current?: boolean }> = [
     current,
     ...serverLeaders,
-    ...seedLeaderboard,
   ];
   const unique = new Map<string, LeaderboardMember & { current?: boolean }>();
   rows.forEach((row) => {
@@ -263,27 +254,36 @@ export default function App() {
   const [now, setNow] = useState(0);
   const [session, setSession] = useState(0);
   const [modal, setModal] = useState("");
-  const [selected, setSelected] = useState<Book>(books[0]);
-  const [message, setMessage] = useState("");
-  const [audio, setAudio] = useState<Recording[]>([]);
-  const [audioTitle, setAudioTitle] = useState("Atom odatlar muhokamasi");
-  const [busy, setBusy] = useState(false);
+  // Shaxsiy sahifa va do'kon Hisobim bitta joyda: Hisobim ochiladi (bildirishnoma, profil, avatar).
+  const [storeRoute, setStoreRoute] = useState<StoreRoute | undefined>(undefined);
+  const openStoreAccount = (tab: AccountTab, area?: AdminArea) => {
+    setModal("");
+    setStoreRoute({ tab, area, nonce: (storeRoute?.nonce ?? 0) + 1 });
+    setStore(true);
+    window.scrollTo({ top: 0 });
+  };
+  // Book Store — alohida rejim; Bir Ilm qobig'i yashiriladi, lekin o'chirilmaydi (jonli suhbat uzilmasin).
+  const [store, setStore] = useState(false);
+  const [selected, setSelected] = useState<Book | null>(null);
+  const [reading, setReading] = useState<Book | null>(null);
   const [backendMode, setBackendMode] = useState<BackendMode>("local");
   const [serverLeaders, setServerLeaders] = useState<LeaderboardMember[]>([]);
+  const announcements = useAnnouncements();
+  const unreadAnnouncements = useUnreadAnnouncements(announcements);
+  // Bildirishnoma bosilganda ochiladigan post (va izoh) — Gurung lentasi uni o'qish oynasida ochadi.
+  const [focusPost, setFocusPost] = useState<PostFocus | null>(null);
 
-  const pct = Math.round((data.page / Math.max(1, data.total)) * 100);
-  const secs = Math.max(0, Math.floor((session - now) / 1000));
-  const timer = `${Math.floor(secs / 86400)} kun ${String(
-    Math.floor(secs / 3600) % 24,
-  ).padStart(2, "0")}:${String(Math.floor(secs / 60) % 60).padStart(
-    2,
-    "0",
-  )}:${String(secs % 60).padStart(2, "0")}`;
+  // Qo'ng'iroqcha ochilganda eng yangi holat olinadi. O'qilgan deb faqat bosilgan bildirishnoma belgilanadi.
+  useEffect(() => {
+    if (modal === "notifications") refreshNotifications();
+  }, [modal]);
+
   const leaders = useMemo(
     () => mergeLeaders(data, serverLeaders),
     [data, serverLeaders],
   );
   const myRank = Math.max(1, leaders.findIndex((leader) => leader.current) + 1);
+  const streak = currentStreak(data);
   const backendLabel =
     backendMode === "server"
       ? "Backend faol"
@@ -312,28 +312,163 @@ export default function App() {
     });
   };
 
-  const syncState = async (payload: AppStatePayload, snapshot = data) => {
+  /** Serverga holat yuboradi. Muvaffaqiyatli bo'lsa `true`; tarmoq yoki server xatosida `false`. */
+  const postState = async (payload: AppStatePayload, snapshot: typeof data): Promise<boolean> => {
     try {
       const response = await fetch("/api/app-state", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           ...payload,
-          userId: "local-reader",
           name: snapshot.name,
           activity: activityFromState(snapshot),
         }),
       });
-      if (response.ok) setBackendMode("server");
+      if (response.ok) {
+        setBackendMode("server");
+        return true;
+      }
+      return false;
     } catch {
       setBackendMode("local");
+      return false;
     }
   };
 
+  // Yuborilmagan holat (progress, profile) turi bo'yicha bitta yozuv bo'lib saqlanadi: keyingisi eskisini almashtiradi.
+  const failedSync = useRef(new Map<string, { payload: AppStatePayload; snapshot: typeof data }>());
+  const syncWarned = useRef(false);
+
+  const syncState = async (payload: AppStatePayload, snapshot = data) => {
+    const key = payload.type ?? "state";
+    if (await postState(payload, snapshot)) {
+      failedSync.current.delete(key);
+      if (!failedSync.current.size) syncWarned.current = false;
+      return;
+    }
+    failedSync.current.set(key, { payload, snapshot });
+    if (!syncWarned.current) {
+      syncWarned.current = true;
+      toast.error("Internet bilan aloqa yo‘q. O‘zgarishlar aloqa tiklanganda saqlanadi.");
+    }
+  };
+
+  // Yuborilmagan holatni qayta yuborish: internet tiklanganda va har daqiqada (yozuv qolsa).
+  useEffect(() => {
+    const flush = () => {
+      for (const [key, entry] of [...failedSync.current]) {
+        void postState(entry.payload, entry.snapshot).then((ok) => {
+          if (!ok) return;
+          failedSync.current.delete(key);
+          if (!failedSync.current.size) syncWarned.current = false;
+        });
+      }
+    };
+    const onOnline = () => {
+      if (failedSync.current.size) flush();
+    };
+    window.addEventListener("online", onOnline);
+    const timer = window.setInterval(() => {
+      if (failedSync.current.size) flush();
+    }, 60_000);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.clearInterval(timer);
+    };
+    // postState faqat ref va barqaror setState ishlatadi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // «Muhim fikr» serverdagi oxirgi (yoki yuborilgan) qiymat. `null` — server javobi hali kelmagan:
+  // bunda yuborish mumkin emas, aks holda mahalliy bo'sh qiymat serverdagi eslatmani o'chirib yuborardi.
+  const serverNote = useRef<string | null>(null);
+  const [noteReady, setNoteReady] = useState(false);
+
+  useEffect(() => {
+    if (!noteReady || data.note === serverNote.current) return;
+    const timer = window.setTimeout(() => {
+      serverNote.current = data.note;
+      // syncState yuborilmagan bo'lsa, qayta urinish navbatiga tushadi.
+      void syncState({ type: "note", note: data.note }, data);
+    }, NOTE_SYNC_DELAY_MS);
+    return () => window.clearTimeout(timer);
+    // Faqat eslatma matni yoki yuklanish holati o'zgarganda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.note, noteReady]);
+
   const go = (value: string) => {
+    // "store:<bo'lim>" — Book Store hisobining bo'limi (masalan, xabarlar); qolgani — Bir Ilm yorliqlari.
+    if (value.startsWith("store:")) {
+      openStoreAccount(value.slice("store:".length) as AccountTab);
+      return;
+    }
     setTab(value);
     window.scrollTo({ top: 0 });
   };
+
+  /** Bildirishnoma yoki Faollikdan: Gurungga o'tib, postni (va izohni) ochadi. */
+  const openPost = (postId: string, replyId: string | null = null) => {
+    setModal("");
+    go("community");
+    setFocusPost((prev) => ({ postId, replyId, nonce: (prev?.nonce ?? 0) + 1 }));
+  };
+
+  // Parolni tiklash havolasi (/?reset=<token>): token manzildan darhol olib tashlanadi.
+  const [resetToken, setResetToken] = useState("");
+  const [twoFactorOpen, setTwoFactorOpen] = useState(false);
+  const viewer = useViewer();
+  const onAdminNew = useCallback((change: { orders: number; chats: number }) => {
+    if (change.orders) toast.success(change.orders === 1 ? "Yangi buyurtma keldi!" : `${change.orders} ta yangi buyurtma keldi!`);
+    else if (change.chats) toast("Do‘kon chatida yangi xabar bor");
+  }, []);
+  const attention = useAdminAttention(viewer?.role === "admin", onAdminNew);
+  // Qo'ng'iroqcha = yangi e'lonlar + do'kon yozishmalari (xaridor: o'qilmagan xabarlar; admin: yangi buyurtma va chatlar).
+  // Admin ham xarid qilishi mumkin — ikkala hisob birga qo'shiladi.
+  const isAdmin = viewer?.role === "admin";
+
+  // Navbar: sahifa surilganda shaffof-xira (blur) holatga o'tadi; balandligi CSS'ga beriladi —
+  // bosh sahifadagi koshinli blok navbar ortidan boshlanib, u bilan bitta yaxlit blok bo'lib ko'rinadi.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  const headerObserver = useRef<ResizeObserver | null>(null);
+  // Navbar keyinroq (yuklanish ekranidan so'ng) paydo bo'ladi — shuning uchun callback ref.
+  const headerRef = useCallback((header: HTMLElement | null) => {
+    headerObserver.current?.disconnect();
+    headerObserver.current = null;
+    if (!header) return;
+    const observer = new ResizeObserver(() => document.documentElement.style.setProperty("--app-header-h", `${header.offsetHeight}px`));
+    observer.observe(header);
+    headerObserver.current = observer;
+  }, []);
+  const storeInbox = useStoreInbox(Boolean(viewer?.signedIn)).inbox;
+  const customerUnread = storeInbox?.unread ?? 0;
+  const storeCount = customerUnread + (isAdmin ? attention.total : 0);
+  const inbox = useNotifications(Boolean(viewer?.signedIn));
+  const bell = unreadAnnouncements.length + inbox.unread + storeCount;
+  const badge = bell > 0 ? <span className="bell-badge">{bell > 9 ? "9+" : bell}</span> : null;
+  const unreadThreads = storeInbox?.items.filter((item) => item.unread > 0) ?? [];
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get("reset");
+    if (!token || !RESET_TOKEN_PATTERN.test(token)) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    queueMicrotask(() => setResetToken(token));
+  }, []);
+
+  // Google/Telegram'dan qaytganda natijani ko'rsatib, manzilni tozalaymiz.
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const result = query.get("login");
+    if (!result) return;
+    if (result === "ok") toast.success("Hisobingizga kirdingiz");
+    else if (result === "2fa") queueMicrotask(() => setTwoFactorOpen(true));
+    else toast.error(query.get("message") || "Kirib bo‘lmadi. Qayta urinib ko‘ring.");
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -343,6 +478,19 @@ export default function App() {
       setSession(nextSession());
     });
 
+    // Ism server bilan bir xil bo'lsin (Telegram/Google bilan kirganda ism o'sha yerdan keladi).
+    fetch("/api/v1/auth/session")
+      .then((r) => (r.ok ? (r.json() as Promise<{ data?: { name?: string; userId?: string; signedIn?: boolean } }>) : null))
+      .then((body) => {
+        const viewer = body?.data;
+        const serverName = viewer?.name;
+        if (serverName && serverName !== "Kitobxon") setData((value) => (value.name === serverName ? value : { ...value, name: serverName }));
+        if (viewer?.userId && guestSessionChanged({ userId: viewer.userId, signedIn: Boolean(viewer.signedIn) })) {
+          toast.info("Mehmon sessiyasi yangilandi: oldingi serverdagi natijalar bu sessiyada ko‘rinmaydi.");
+        }
+      })
+      .catch(() => {});
+
     fetch("/api/app-state")
       .then((response) => response.json())
       .then((payload) => {
@@ -350,6 +498,7 @@ export default function App() {
           mode?: BackendMode;
           comments?: CommunityComment[];
           leaderboard?: LeaderboardMember[];
+          note?: string;
         };
         if (appState.mode) setBackendMode(appState.mode);
         if (Array.isArray(appState.comments) && appState.comments.length) {
@@ -358,19 +507,21 @@ export default function App() {
         if (Array.isArray(appState.leaderboard)) {
           setServerLeaders(appState.leaderboard);
         }
+        if (typeof appState.note === "string") {
+          const remote = appState.note;
+          serverNote.current = remote;
+          // Mahalliy eslatma bo'sh bo'lsa, serverdagisi tiklanadi; bo'lmasa mahalliysi serverga yuboriladi.
+          setData((value) => (value.note || !remote ? value : { ...value, note: remote }));
+          setNoteReady(true);
+        }
       })
       .catch(() => setBackendMode("local"));
 
-    audioDB("all")
-      .then((rows) =>
-        setAudio(rows.map((row) => ({ ...row, url: URL.createObjectURL(row.file) }))),
-      )
-      .catch(() => toast.error("Audio xotirasi mavjud emas"));
-
+    // Soat har 30 soniyada yangilanadi: ekranda faqat kun/soat/daqiqa ko'rsatiladi.
     const tick = setInterval(() => {
       setNow(Date.now());
       setSession(nextSession());
-    }, 1000);
+    }, 30_000);
 
     return () => clearInterval(tick);
   }, []);
@@ -422,33 +573,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.total]);
 
-  function week() {
-    return (
-      <section className="week-header">
-        <div className="week-top">
-          <span className="eyebrow">HAFTA KITOBI</span>
-          <span className="timer">
-            <Clock size={15} />
-            {timer}
-          </span>
-        </div>
-        <h2>Atom odatlar</h2>
-        <p>James Clear</p>
-        <div className="week-bottom">
-          <span>Suhbat: yakshanba, 18:00</span>
-          <span>{backendLabel}</span>
-        </div>
-        <Progress value={pct} aria-label="O'qish progressi" />
-        <div className="progress-label">
-          <span>
-            {data.page} / {data.total} sahifa
-          </span>
-          <span>{pct}%</span>
-        </div>
-      </section>
-    );
-  }
-
   function updateProgress(page: number, total = data.total) {
     const next = {
       ...data,
@@ -460,50 +584,7 @@ export default function App() {
     void syncState({ type: "progress", page: next.page, total: next.total }, next);
   }
 
-  async function upload(file?: File) {
-    if (!file) return;
-    if (!file.type.startsWith("audio/") || file.size > 50 * 1024 * 1024) {
-      toast.error("50 MB gacha audio tanlang");
-      return;
-    }
 
-    setBusy(true);
-    const row = {
-      id: crypto.randomUUID(),
-      title: audioTitle.trim() || file.name,
-      file,
-    };
-
-    try {
-      await audioDB("put", row);
-      setAudio((items) => [...items, { ...row, url: URL.createObjectURL(file) }]);
-      touchActivity(15);
-      toast.success("Audio qurilmaga saqlandi");
-    } catch {
-      toast.error("Audio saqlanmadi");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function submitComment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const text = message.trim();
-    if (!text) return;
-
-    const comment: CommunityComment = {
-      id: Date.now(),
-      name: data.name,
-      text,
-      createdAt: new Date().toISOString(),
-    };
-    const next = { ...data, comments: [...data.comments, comment] };
-    setData(next);
-    setMessage("");
-    touchActivity(35);
-    void syncState({ type: "comment", text }, next);
-    toast.success("Izoh saqlandi");
-  }
 
   if (!ready) {
     return (
@@ -517,266 +598,119 @@ export default function App() {
   return (
     <>
       <Toaster richColors position="top-center" />
-      <div className="app-shell">
-        <aside className="desktop-rail">
-          <Brand />
-          <div className="rail-intro"><span>KITOB BILAN</span><strong>Har kuningiz<br/>mazmunli.</strong><p>O‘qing. Fikrlashing.<br/>Birga o‘sing.</p></div>
-          <div className="rail-status">
-            <Wifi size={18} />
-            <span>{backendLabel}</span>
-          </div>
-        </aside>
+      {store && (
+        <BookStore
+          key={storeRoute?.nonce ?? 0}
+          route={storeRoute}
+          shelf={data.shelf}
+          onBack={() => { setStore(false); window.scrollTo({ top: 0 }); }}
+          onToggle={(id) => {
+            const saved = data.shelf.includes(id);
+            update({ shelf: saved ? data.shelf.filter((item) => item !== id) : [...data.shelf, id] });
+            toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi");
+          }}
+        />
+      )}
+      <div hidden={store} className={`app-shell${tab === "home" ? " show-mobile-home" : ""}${tab === "community" ? " show-community" : ""}${tab === "shelf" ? " show-mobile-shelf" : ""}${tab === "talks" ? " show-talks" : ""}${tab === "profile" ? " show-profile" : ""}`}>
+        <Dock
+          mode="main"
+          label="Asosiy bo'limlar"
+          left={nav.slice(0, 2).map(([id, label, icon]) => ({ id, label, icon, active: tab === id, onClick: () => go(id) }))}
+          right={nav.slice(2, 4).map(([id, label, icon]) => ({ id, label, icon, active: tab === id, onClick: () => go(id) }))}
+          center={{ label: "Do‘kon", ariaLabel: "Book Store'ni ochish", icon: Store, onClick: () => { setStore(true); window.scrollTo({ top: 0 }); } }}
+        />
 
         <main className="app-main">
-          <header className="app-header">
+          <header ref={headerRef} className={`app-header${scrolled ? " is-scrolled" : ""}`}>
             <Brand />
-            <button
-              className="icon-btn"
-              aria-label="Bildirishnomalar"
-              onClick={() => setModal("notifications")}
-            >
-              <Bell size={22} />
-            </button>
+            <div className="header-actions">
+              <span className="topbar-status" title="Ma'lumotlar qayerda saqlanmoqda"><Wifi size={15} />{backendLabel}</span>
+              <button type="button" className="streak-chip" data-active={streak > 0} title="Kunlik streak" aria-label={`Kunlik streak: ${streak} kun. Faollar reytingini ochish`} onClick={() => go("leaders")}>
+                <span className="streak-flame" aria-hidden="true"><Flame size={17} strokeWidth={2.2} /></span>
+                <b>{streak}</b><small>kun</small>
+              </button>
+              <PomodoroButton className="icon-btn" />
+              <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><ScrollIcon size={22} />{badge}</button>
+              <button className="topbar-avatar" aria-label={attention.total ? `Profil, ${attention.total} ta yangi` : "Profil"} onClick={() => go("profile")}>{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : <span>{(data.name || "K").slice(0, 1).toUpperCase()}</span>}{storeCount > 0 && <b className="avatar-badge">{storeCount > 9 ? "9+" : storeCount}</b>}</button>
+            </div>
           </header>
 
           <Tabs value={tab} onValueChange={go} className="app-tabs">
-            <TabsList className="navigation" aria-label="Asosiy bo'limlar">
-              {nav.map(([id, label, Icon]) => (
-                <TabsTrigger value={id} key={id}>
-                  <Icon size={22} strokeWidth={1.8} />
-                  <span>{label}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
             <div className="workspace">
               <div className="page-heading">
                 <div>
-                  <p className="eyebrow">BIR HAFTA. BIR KITOB.</p>
+                  <p className="eyebrow">Bir hafta · bir kitob</p>
                   <h1>
                     {tab === "home"
-                      ? `Salom, ${data.name}`
+                      ? <>Assalomu alaykum, <em>{data.name}</em></>
                       : tab === "leaders" ? "Faollar" : nav.find((item) => item[0] === tab)?.[1]}
                   </h1>
                 </div>
-                <FocusTimer onComplete={async session => {
-                  const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", name: data.name, ...session }) });
-                  if (!response.ok) throw Error("Seans saqlanmadi");
-                  window.dispatchEvent(new Event("bir-focus-saved"));
-                }} />
+                <div className="heading-actions">
+                  <PomodoroButton className="icon-btn" />
+                  <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><ScrollIcon size={22} />{badge}</button>
+                </div>
               </div>
 
               <TabsContent value="home">
-                <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
-                <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
-              </TabsContent>
-              <TabsContent value="profile">
-                <ReadingDashboard mode="profile" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
-                <button className="button profile-ranking" onClick={() => go("leaders")}><Trophy size={18}/>Faollar reytingi · #{myRank}</button>
-                <div className="home-grid">
-                  <div className="stack">
-                    {week()}
-                    <div className="stats">
-                      <div className="mini">
-                        <strong>
-                          {Math.max(
-                            1,
-                            Math.ceil(
-                              (data.total - data.page) /
-                                Math.max(1, Math.ceil(secs / 86400)),
-                            ),
-                          )}
-                        </strong>
-                        <span>kunlik sahifa rejasi</span>
-                      </div>
-                      <div className="mini">
-                        <strong>{data.shelf.length}</strong>
-                        <span>javoningizdagi kitob</span>
-                      </div>
-                    </div>
-                    <button className="button full" onClick={() => setModal("progress")}>
-                      <BookOpen size={18} />
-                      Progressni yangilash
-                    </button>
-                  </div>
-
-                  <div className="stack">
-                    <h3 className="section-title">Bugungi reja</h3>
-                    <div className="card tasks">
-                      {[
-                        ["progress", "Kitob o'qish", `${data.page} sahifa o'qildi`, BookOpen],
-                        [
-                          "note",
-                          "Muhim fikr yozish",
-                          data.note ? "Fikringiz saqlangan" : "O'qiganingizdan bir xulosa",
-                          data.note ? Check : Plus,
-                        ],
-                        ["community", "Chatga fikr yozish", "Hafta savoliga javob bering", Users],
-                      ].map(([id, title, sub, Icon]) => {
-                        const TaskIcon = Icon as typeof Home;
-                        return (
-                          <button
-                            className="task"
-                            key={id as string}
-                            onClick={() =>
-                              id === "community" ? go("community") : setModal(id as string)
-                            }
-                          >
-                            <span className="check">
-                              <TaskIcon size={20} />
-                            </span>
-                            <span>
-                              {title as string}
-                              <small>{sub as string}</small>
-                            </span>
-                            <ChevronRight size={18} />
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                  </div>
+                <div className="desktop-home">
+                  <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
+                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={streak} />
                 </div>
+                <MobileScreens
+                  name={data.name}
+                  session={session}
+                  now={now}
+                  reminderOn={data.talk}
+                  onContinue={(book) => {
+                    // Kitob bo'lsa pleerda ochiladi, bo'lmasa Javonim'dagi audiokitoblar.
+                    if (book) requestAudio(book.id);
+                    go("shelf");
+                  }}
+                  onOpenNotifications={() => setModal("notifications")}
+                  onOpenTalks={() => go("talks")}
+                  onOpenBook={(book) => {
+                    setSelected(book);
+                    setModal("book");
+                  }}
+                  onAddReminder={() => {
+                    if (data.talk) toast("Eslatma allaqachon yoqilgan");
+                    else {
+                      update({ talk: true });
+                      toast.success("Yakshanba, 18:00 uchun eslatma qo‘shildi");
+                    }
+                  }}
+                />
+                <SocialLinks />
               </TabsContent>
 
               <TabsContent value="community">
-                <div className="community-layout">
-                  <div>
-                    {week()}
-                    <div className="chat-panel">
-                      <div className="section-row tight">
-                        <h3>Fikrlar va savollar</h3>
-                        <span>{data.comments.length} ta izoh</span>
-                      </div>
-                      <div className="messages">
-                        {data.comments.map((comment) => (
-                          <article className="message" key={comment.id}>
-                            <span className="avatar">{comment.name.slice(0, 1)}</span>
-                            <div>
-                              <div className="message-head">
-                                <strong>{comment.name}</strong>
-                                <small>{comment.demo ? "Namuna" : "Siz"}</small>
-                              </div>
-                              <p>{comment.text}</p>
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                      <form className="composer" onSubmit={submitComment}>
-                        <textarea
-                          aria-label="Izoh yoki savol"
-                          placeholder="Fikr yoki savol yozing..."
-                          value={message}
-                          maxLength={2000}
-                          onChange={(event) => setMessage(event.target.value)}
-                        />
-                        <button
-                          className="button"
-                          disabled={!message.trim()}
-                          aria-label="Izoh yuborish"
-                        >
-                          <Send size={20} />
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-
-                  <aside className="side-panel">
-                    <h3>Chat holati</h3>
-                    <div className="status-line">
-                      <BadgeCheck size={19} />
-                      <span>{backendLabel}</span>
-                    </div>
-                    <p>
-                      Backend ulanganda chat, progress va reyting barcha qurilmalarda bitta
-                      hisobga bog&apos;lanadi.
-                    </p>
-                    <button className="button secondary" onClick={() => setModal("note")}>
-                      <Star size={18} />
-                      Hafta fikrini yozish
-                    </button>
-                  </aside>
-                </div>
+                <section className="community-screen" aria-label="Gurung">
+                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={streak} focus={focusPost} />
+                </section>
               </TabsContent>
 
-              <TabsContent value="talks">
-                <LiveSession name={data.name} date={session} onComments={() => go("community")} />
-                <div className="section-row">
-                  <h3>O&apos;tgan kitoblar suhbatlari</h3>
-                  <Headphones size={22} />
-                </div>
-                <p className="muted">
-                  Suhbat yozuvlari serverga ko&apos;chirilganda Android, iOS va web bir xil
-                  ro&apos;yxatni ko&apos;radi. Hozir qurilmadagi audioni qo&apos;shib tinglash mumkin.
-                </p>
-                <div className="card upload-card">
-                  <label>
-                    Kitob yoki suhbat nomi
-                    <input
-                      value={audioTitle}
-                      maxLength={100}
-                      onChange={(event) => setAudioTitle(event.target.value)}
-                    />
-                  </label>
-                  <label className="button upload">
-                    <Upload size={18} />
-                    {busy ? "Saqlanmoqda..." : "Audio qo'shish"}
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      disabled={busy}
-                      onChange={(event) => {
-                        void upload(event.target.files?.[0]);
-                        event.target.value = "";
-                      }}
-                    />
-                  </label>
-                  <small>50 MB gacha · Brauzer qo&apos;llaydigan audio formatlari</small>
-                </div>
-
-                {audio.map((recording) => (
-                  <article className="card audio-card" key={recording.id}>
-                    <div className="section-row">
-                      <h3>{recording.title}</h3>
-                      <button
-                        className="icon-btn"
-                        aria-label={`${recording.title} audiosini o'chirish`}
-                        onClick={async () => {
-                          try {
-                            await audioDB("delete", recording.id);
-                            URL.revokeObjectURL(recording.url!);
-                            setAudio((items) => items.filter((item) => item.id !== recording.id));
-                            toast.success("Audio o'chirildi");
-                          } catch {
-                            toast.error("O'chirib bo'lmadi");
-                          }
-                        }}
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-                    <audio
-                      controls
-                      preload="metadata"
-                      src={recording.url}
-                      onError={() => toast.error("Brauzer bu audio formatini ocha olmadi")}
-                    />
-                  </article>
-                ))}
-
-                {!audio.length && (
-                  <div className="empty">
-                    <Headphones size={34} />
-                    <h3>Hozircha audio yo&apos;q</h3>
-                    <p>Birinchi suhbat yozuvini yuqoridan qo&apos;shing.</p>
-                  </div>
-                )}
+              <TabsContent value="talks" forceMount className="talks-tab">
+                <LiveSession name={data.name} date={session} />
               </TabsContent>
 
               <TabsContent value="shelf">
-                <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
+                <div className="desktop-shelf">
+                  <BookDiscovery library shelf={data.shelf} page={data.page} total={data.total} streak={streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
+                </div>
+                <MobileLibrary
+                  shelf={data.shelf}
+                  onToggleSave={(id) => {
+                    const saved = data.shelf.includes(id);
+                    update({ shelf: saved ? data.shelf.filter((item) => item !== id) : [...data.shelf, id] });
+                    toast.success(saved ? "Saqlangandan olindi" : "Saqlanganlarga qo‘shildi");
+                  }}
+                />
               </TabsContent>
 
+              <TabsContent value="profile">
+                <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={streak} rank={myRank} points={activityFromState(data).score} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} onOpenPost={openPost} />
+              </TabsContent>
               <TabsContent value="leaders">
                 <button className="text-btn profile-ranking" onClick={() => go("profile")}>Profilga qaytish</button>
                 <div className="leaders-grid">
@@ -805,73 +739,32 @@ export default function App() {
                       ))}
                     </div>
                   </section>
-
-                  <aside className="streak-panel">
-                    <span className="flame">
-                      <Flame size={28} />
-                    </span>
-                    <h3>{data.streak || 0} kun streak</h3>
-                    <p>Har kuni progress, izoh yoki suhbat harakati streakni davom ettiradi.</p>
-                    <div className="streak-stats">
-                      <div>
-                        <strong>#{myRank}</strong>
-                        <span>reyting</span>
-                      </div>
-                      <div>
-                        <strong>{activityFromState(data).score}</strong>
-                        <span>ball</span>
-                      </div>
-                    </div>
-                    <button className="button" onClick={() => setModal("progress")}>
-                      <Medal size={18} />
-                      Bugungi progress
-                    </button>
-                  </aside>
                 </div>
-
-                <div className="profile card">
-                  <span className="avatar large">{data.name[0]}</span>
-                  <div>
-                    <h3>{data.name}</h3>
-                    <p className="muted">Bir Ilm kitobxoni</p>
-                  </div>
-                  <button className="text-btn" onClick={() => setModal("profile")}>
-                    Tahrirlash
-                  </button>
-                </div>
-
-                <h3 className="section-title">Sozlamalar</h3>
-                {[
-                  ["notifications", "Bildirishnomalar", "O'qish va suhbat eslatmalari", Bell],
-                  ["progress", "Kitob rejasi", "Sahifa soni va o'qish progressi", BookOpen],
-                  ["profile", "Profil", "Kitobxon ismini o'zgartirish", Users],
-                  ["about", "App holati", "Web, backend va app chiqarish yo'li", Settings],
-                ].map(([id, title, sub, Icon]) => {
-                  const SettingIcon = Icon as typeof Bell;
-                  return (
-                    <button
-                      className="setting"
-                      key={id as string}
-                      onClick={() => setModal(id as string)}
-                    >
-                      <SettingIcon size={22} />
-                      <span>
-                        <strong>{title as string}</strong>
-                        <small>{sub as string}</small>
-                      </span>
-                      <ChevronRight size={18} />
-                    </button>
-                  );
-                })}
               </TabsContent>
             </div>
           </Tabs>
 
+          <FocusTimer onComplete={async session => {
+            const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", name: data.name, ...session }) });
+            if (!response.ok) throw Error("Seans saqlanmadi");
+            window.dispatchEvent(new Event("bir-focus-saved"));
+          }} />
+
           <footer className="desktop-footer">
-            SINANG, QO&apos;LLANG, ULASHING <span>Bir Ilm · Appga tayyor web</span>
+            <span>Sinang · qo‘llang · ulashing</span> <SocialLinks variant="inline" /> <span>© Bir Ilm</span>
           </footer>
         </main>
       </div>
+
+      <TwoFactorDialog open={twoFactorOpen} onClose={() => setTwoFactorOpen(false)} />
+      {reading && <EbookReader book={reading} onClose={() => setReading(null)} />}
+      <Dialog open={Boolean(resetToken)} onOpenChange={(open) => { if (!open) setResetToken(""); }}>
+        <DialogContent className="app-dialog">
+          <DialogTitle>Yangi parol</DialogTitle>
+          <DialogDescription>Hisobingiz uchun yangi parol o‘rnating.</DialogDescription>
+          {resetToken && <ResetPasswordForm token={resetToken} />}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!data.onboarded || Boolean(modal)}
@@ -879,22 +772,22 @@ export default function App() {
           if (!open && data.onboarded) setModal("");
         }}
       >
-        <DialogContent className="app-dialog" showCloseButton={false}>
-          <DialogTitle>
+        <DialogContent className={modal === "notifications" ? "app-dialog scroll-open" : "app-dialog"} showCloseButton={false}>
+          {/* Bildirishnomalarda sarlavha va izoh ko'rinmaydi (ro'yxatning o'zi yetarli) — faqat ekran o'quvchilar uchun. */}
+          <DialogTitle className={data.onboarded && modal === "notifications" ? "sr-only" : undefined}>
             {!data.onboarded
               ? "Bir haftada bitta kitob"
               : ({
-                  progress: "O'qish progressi",
                   note: "Muhim fikringiz",
-                  book: selected.title,
-                  profile: "Profil",
+                  book: selected?.title ?? "Kitob",
                   notifications: "Bildirishnomalar",
-                  about: "App holati",
                 } as Record<string, string>)[modal]}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className={data.onboarded && modal === "notifications" ? "sr-only" : undefined}>
             {!data.onboarded
               ? "Har kuni o'qing. Hafta oxirida kitobni birga tahlil qiling."
+              : modal === "notifications"
+                ? "O‘qilmagan reaksiya va izohlar, do‘kon xabarlari va e‘lonlar."
               : "O'zgarishlar backend mavjud bo'lsa serverga, aks holda qurilmaga saqlanadi."}
           </DialogDescription>
 
@@ -929,37 +822,6 @@ export default function App() {
             </>
           ) : (
             <>
-              {modal === "progress" && (
-                <>
-                  <label>
-                    Kitobdagi jami sahifa
-                    <input
-                      type="number"
-                      min={1}
-                      max={5000}
-                      value={data.total}
-                      onChange={(event) => {
-                        const total = Math.min(5000, Math.max(1, Number(event.target.value)));
-                        updateProgress(Math.min(data.page, total), total);
-                      }}
-                    />
-                  </label>
-                  <label>
-                    O&apos;qilgan sahifa
-                    <input
-                      type="number"
-                      min={0}
-                      max={data.total}
-                      value={data.page}
-                      onChange={(event) =>
-                        updateProgress(Math.max(0, Math.min(data.total, Number(event.target.value))))
-                      }
-                    />
-                  </label>
-                  <Progress value={pct} />
-                  <p>{pct}% o&apos;qildi. Jami sahifani o&apos;z nashringizga moslang.</p>
-                </>
-              )}
 
               {modal === "note" && (
                 <textarea
@@ -977,119 +839,61 @@ export default function App() {
                 />
               )}
 
-              {modal === "profile" && (
-                <label>
-                  Ismingiz
-                  <input
-                    value={data.name}
-                    maxLength={40}
-                    onChange={(event) => {
-                      const next = { ...data, name: event.target.value };
-                      setData(next);
-                      void syncState({ type: "profile" }, next);
-                    }}
-                  />
-                </label>
-              )}
-
-              {modal === "book" && (
+              {modal === "book" && selected && (
                 <>
-                  <p className="muted">{selected.author}</p>
-                  <p>{selected.summary}</p>
-                  <p className="book-detail-meta"><BookOpen size={18}/> {selected.pages} sahifa</p>
-                  <p className="small-note">Bu kitob haqida ma’lumot. To‘liq matn va audio hali joylanmagan.</p>
-                  <button
-                    className="button"
-                    onClick={() => {
-                      const isSaved = data.shelf.includes(selected.id);
-                      update({
-                        shelf: isSaved
-                          ? data.shelf.filter((id) => id !== selected.id)
-                          : [...data.shelf, selected.id],
-                      });
-                      touchActivity(8);
-                      toast.success(isSaved ? "Javondan olindi" : "Javonga qo'shildi");
-                    }}
-                  >
-                    {data.shelf.includes(selected.id) ? "Javondan olish" : "Javonga qo'shish"}
-                  </button>
+                  <div className="book-detail-head">
+                    <span className="book-detail-cover" style={{ backgroundColor: selected.color }}>{selected.coverUrl ? <img src={selected.coverUrl} alt="" /> : selected.title}</span>
+                    <div>
+                      <p className="muted">{selected.author}</p>
+                      {selected.audioUrl
+                        ? <p className="book-detail-meta"><Headphones size={18}/> {selected.audioSeconds ? `${Math.floor(selected.audioSeconds / 3600)} soat ${Math.round((selected.audioSeconds % 3600) / 60)} daqiqa` : "Audiokitob"}</p>
+                        : audioLinkOf(selected) && <p className="book-detail-meta book-detail-link"><Headphones size={18}/> <span>{audioLinkOf(selected)!.label} · {audioLinkOf(selected)!.display}</span></p>}
+                    </div>
+                  </div>
+                  {selected.summary && <p>{selected.summary}</p>}
+                  <div className="book-detail-actions">
+                    {selected.ebook && <button className="button" onClick={() => { setModal(""); setReading(selected); }}><BookOpen size={17}/> Kitobni o‘qish</button>}
+                    {selected.audioUrl && <button className="button" onClick={() => { setModal(""); go("shelf"); }}><Headphones size={17}/> Javonimda tinglash</button>}
+                    <ListenLink book={selected} />
+                    <button
+                      className="button secondary"
+                      onClick={() => {
+                        const isSaved = data.shelf.includes(selected.id);
+                        update({ shelf: isSaved ? data.shelf.filter((id) => id !== selected.id) : [...data.shelf, selected.id] });
+                        touchActivity(8);
+                        toast.success(isSaved ? "Javondan olindi" : "Javonga qo'shildi");
+                      }}
+                    >
+                      {data.shelf.includes(selected.id) ? "Javondan olish" : "Javonga qo'shish"}
+                    </button>
+                  </div>
                 </>
               )}
 
               {modal === "notifications" && (
-                <>
-                  <div className="setting">
-                    <label htmlFor="read-reminder">O&apos;qish eslatmasi</label>
-                    <Switch
-                      id="read-reminder"
-                      checked={data.reading}
-                      onCheckedChange={(value) => update({ reading: value })}
-                    />
-                  </div>
-                  <div className="setting">
-                    <label htmlFor="talk-reminder">Suhbat eslatmasi</label>
-                    <Switch
-                      id="talk-reminder"
-                      checked={data.talk}
-                      onCheckedChange={(value) => update({ talk: value })}
-                    />
-                  </div>
-                  {(data.reading || data.talk) && (
-                    <button
-                      className="button"
-                      onClick={() =>
-                        toast("Bir Ilm eslatmasi", {
-                          description: "Bugungi o'qish uchun vaqt ajrating.",
-                        })
-                      }
-                    >
-                      Eslatmani sinash
-                    </button>
-                  )}
-                </>
+                <NotificationCenter
+                  notifications={inbox.items}
+                  announcements={unreadAnnouncements}
+                  storeThreads={unreadThreads}
+                  isAdmin={isAdmin}
+                  adminOrders={attention.orders}
+                  adminChats={attention.chats}
+                  onOpenNotification={(item) => {
+                    void markNotificationsRead({ ids: [item.id] });
+                    openPost(item.postId, item.replyId);
+                  }}
+                  onOpenAnnouncement={(item) => {
+                    markAnnouncementsRead([item.id]);
+                    openPost(item.id);
+                  }}
+                  onOpenStore={openStoreAccount}
+                  onReadAll={() => {
+                    if (inbox.items.length) void markNotificationsRead({ all: true });
+                    markAnnouncementsRead(unreadAnnouncements.map((item) => item.id));
+                  }}
+                />
               )}
 
-              {modal === "about" && (
-                <>
-                  <Brand />
-                  <div className="readiness modal-readiness">
-                    <div className="readiness-item">
-                      <MonitorSmartphone size={20} />
-                      <span>
-                        <strong>Web</strong>
-                        <small>PC va mobile responsive</small>
-                      </span>
-                    </div>
-                    <div className="readiness-item">
-                      <Smartphone size={20} />
-                      <span>
-                        <strong>Android/iOS</strong>
-                        <small>PWA manifest va app shell tayyor</small>
-                      </span>
-                    </div>
-                    <div className="readiness-item">
-                      <Database size={20} />
-                      <span>
-                        <strong>Backend</strong>
-                        <small>D1 schema va API qo&apos;shildi</small>
-                      </span>
-                    </div>
-                  </div>
-                  <p>
-                    Keyingi qadam: real login, push bildirishnoma, audio fayllar uchun server
-                    storage va Play Market/App Store paketlarini ulash.
-                  </p>
-                  <button
-                    className="text-btn"
-                    onClick={() => {
-                      setModal("");
-                      update({ onboarded: false });
-                    }}
-                  >
-                    Onboardingni qayta ko&apos;rish
-                  </button>
-                </>
-              )}
 
               <DialogClose asChild>
                 <button

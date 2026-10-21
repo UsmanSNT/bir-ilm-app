@@ -1,0 +1,1 @@
+ALTER TABLE `books` ADD `audio_link` text DEFAULT '' NOT NULL;
