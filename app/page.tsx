@@ -45,6 +45,7 @@ import LiveSession from "./live-session";
 import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
+import Team from "./team";
 import {
   Book,
   CommunityComment,
@@ -556,7 +557,7 @@ export default function App() {
                   <h1>
                     {tab === "home"
                       ? `Salom, ${data.name}`
-                      : tab === "leaders" ? "Faollar" : nav.find((item) => item[0] === tab)?.[1]}
+                      : tab === "leaders" ? "Faollar" : tab === "team" ? "Loyiha jamoasi" : nav.find((item) => item[0] === tab)?.[1]}
                   </h1>
                 </div>
                 <FocusTimer onComplete={async session => {
@@ -845,6 +846,7 @@ export default function App() {
                   ["notifications", "Bildirishnomalar", "O'qish va suhbat eslatmalari", Bell],
                   ["progress", "Kitob rejasi", "Sahifa soni va o'qish progressi", BookOpen],
                   ["profile", "Profil", "Kitobxon ismini o'zgartirish", Users],
+                  ["team", "Loyiha jamoasi", "Bir Ilmni yuritayotgan odamlar", Users],
                   ["about", "App holati", "Web, backend va app chiqarish yo'li", Settings],
                 ].map(([id, title, sub, Icon]) => {
                   const SettingIcon = Icon as typeof Bell;
@@ -852,7 +854,7 @@ export default function App() {
                     <button
                       className="setting"
                       key={id as string}
-                      onClick={() => setModal(id as string)}
+                      onClick={() => (id === "team" ? go("team") : setModal(id as string))}
                     >
                       <SettingIcon size={22} />
                       <span>
@@ -863,6 +865,10 @@ export default function App() {
                     </button>
                   );
                 })}
+              </TabsContent>
+              <TabsContent value="team">
+                <button className="text-btn profile-ranking" onClick={() => go("profile")}>Profilga qaytish</button>
+                <Team />
               </TabsContent>
             </div>
           </Tabs>
