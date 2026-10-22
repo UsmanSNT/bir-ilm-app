@@ -5,7 +5,9 @@ export type TeamMember = {
   bio: string;
   /** Fayl public/assets/team/ ichida bo'lishi kerak, masalan "/assets/team/ali.jpg". Bo'sh bo'lsa bosh harflar ko'rsatiladi. */
   photo?: string;
-  links?: { label: string; href: string }[];
+  /** Faqat foydalanuvchi nomi, "@"siz. Masalan: "bir_ilm" */
+  telegram?: string;
+  instagram?: string;
 };
 
 // Haqiqiy a'zolar ma'lumotlari bilan almashtiring.
@@ -15,6 +17,8 @@ export const team: TeamMember[] = [
     name: "Ism Familiya",
     role: "Loyiha asoschisi",
     bio: "Bu yerga a'zo haqida 2-3 gaplik qisqa ma'lumot yoziladi.",
+    telegram: "username",
+    instagram: "username",
   },
   {
     id: "member-2",

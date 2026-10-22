@@ -12,9 +12,10 @@
 .team-body h3 { font-size: 18px; color: #262b44; }
 .team-role { align-self: flex-start; padding: 4px 10px; border-radius: 999px; background: #eeebff; color: #5140b0; font-size: 12px; font-weight: 700; }
 .team-body p { margin-top: 6px; color: #62677d; font-size: 14px; line-height: 1.65; }
-.team-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
-.team-links a { display: inline-flex; align-items: center; gap: 3px; color: #5140b0; font-size: 13px; font-weight: 700; text-decoration: none; }
-.team-links a:hover { text-decoration: underline; }
+.team-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.team-link { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid #e7e8f1; background: #f8f9fc; color: #343a5c; font-size: 13px; font-weight: 700; text-decoration: none; transition: background .2s ease, color .2s ease, border-color .2s ease; }
+.team-link.telegram:hover, .team-link.telegram:focus-visible { background: #229ed9; border-color: #229ed9; color: #fff; }
+.team-link.instagram:hover, .team-link.instagram:focus-visible { background: linear-gradient(45deg, #f09433, #dc2743 55%, #bc1888); border-color: #dc2743; color: #fff; }
 @media (max-width: 560px) {
   .team-grid { grid-template-columns: 1fr; }
   .team-photo { aspect-ratio: 4 / 3; }
