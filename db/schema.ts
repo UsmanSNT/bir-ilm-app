@@ -106,3 +106,26 @@ export const userActivity = sqliteTable(
     index("idx_user_activity_score").on(table.score, table.streak, table.pagesRead),
   ],
 );
+
+export const teamMembers = sqliteTable(
+  "team_members",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    role: text("role").notNull().default(""),
+    bio: text("bio").notNull().default(""),
+    photo: text("photo").notNull().default(""),
+    telegram: text("telegram").notNull().default(""),
+    instagram: text("instagram").notNull().default(""),
+    sortOrder: integer("sort_order").notNull().default(0),
+    visible: integer("visible", { mode: "boolean" }).notNull().default(true),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index("idx_team_order").on(table.visible, table.sortOrder)],
+);
+
+export const admins = sqliteTable("admins", {
+  email: text("email").primaryKey(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

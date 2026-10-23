@@ -124,3 +124,7 @@ The portable build runs Vinext directly without a host `timeout` command. The ma
 
 - [vinext Documentation](https://github.com/cloudflare/vinext)
 - [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+
+## Admin panel
+
+`/admin` — jamoa a'zolarini qo'shish, tahrirlash, yashirish, o'chirish va tartiblash. Kirish platforma ChatGPT sign-in emaili bo'yicha; email `ADMIN_EMAILS` (vergul bilan) o'zgaruvchisida yoki `admins` jadvalida bo'lishi shart, aks holda ruxsat berilmaydi. Birinchi adminni D1 ga qo'shish: `INSERT INTO admins (email) VALUES ('siz@example.com');` (kichik harflarda).

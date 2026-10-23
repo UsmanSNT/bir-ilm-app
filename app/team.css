@@ -21,3 +21,4 @@
   .team-photo { aspect-ratio: 4 / 3; }
 }
 @media (prefers-reduced-motion: reduce) { .team-card { transition: none; } .team-card:hover { transform: none; } }
+.team-status { padding: 32px 0; color: #62677d; }
