@@ -157,6 +157,11 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
         send(client.ws, { type: "error", message: "Suhbat topilmadi." });
         return;
       }
+      // Jamoa suhbati boshqalar uchun mavjud emas (ro'yxatda ham ko'rinmaydi).
+      if (!live.liveSessionVisibleTo(session, canModerate(user?.role ?? "user"))) {
+        send(client.ws, { type: "error", message: "Suhbat topilmadi." });
+        return;
+      }
       // Boshlanmagan suhbatga hech kim (admin ham) kirmaydi: admin avval ro'yxatdagi oynadan boshlaydi.
       if (session.status === "planned") {
         send(client.ws, { type: "error", message: "Suhbat hali boshlanmadi." });
@@ -300,13 +305,14 @@ async function handleMessage(db: Database, client: Client, msg: WsClientMessage)
       return;
     }
 
-    // ── Faqat admin: suhbatni boshlash va tugatish ────────────────
+    // ── Admin yoki suhbatni ochgan moderator: boshlash va tugatish ────────────────
 
     case "mod:start":
     case "mod:end": {
       if (!client.sessionId) return;
-      if ((await getUserRole(db, client.userId)) !== "admin") {
-        send(client.ws, { type: "error", message: "Suhbatni faqat admin boshlaydi va tugatadi." });
+      const hosted = await live.getLiveSession(db, client.sessionId);
+      if (!hosted || !live.canHostLiveSession(await getUserRole(db, client.userId), hosted, client.userId)) {
+        send(client.ws, { type: "error", message: "Suhbatni admin yoki uni ochgan moderator boshlaydi va tugatadi." });
         return;
       }
       if (msg.type === "mod:start") {

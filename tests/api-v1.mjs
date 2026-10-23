@@ -579,7 +579,7 @@ try {
     console.log("PASS: eski API native qobiqdan ham ishlaydi (Bearer + CORS).");
   }
 
-  // --- Rollar: faqat admin suhbat yaratadi va rol beradi ---------------------
+  // --- Rollar: admin va moderator suhbat ochadi, faqat admin rol beradi -------
   {
     const admin = await webClient();
     const member = await webClient();
@@ -614,8 +614,8 @@ try {
     });
     assert.equal(promoted.data.role, "moderator");
 
-    // Moderator ham suhbat yarata olmaydi — bu faqat admin ishi.
-    await member.call(live.POST, "/api/v1/live", { method: "POST", body: newSession, expect: 403 });
+    // Moderator ham suhbat ocha oladi (rol berish esa faqat admin ishi: yuqoridagi 403 shuni ko'rsatadi).
+    await member.call(live.POST, "/api/v1/live", { method: "POST", body: newSession, expect: 201 });
 
     await admin.call(adminUser.PATCH, `/api/v1/admin/users/${admin.userId}`, {
       method: "PATCH",

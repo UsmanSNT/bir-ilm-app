@@ -326,6 +326,11 @@ export const liveSessions = sqliteTable("live_sessions", {
   endedAt: text("ended_at"),
   /** Moderator userId. */
   moderatorId: text("moderator_id").notNull().references(() => users.id),
+  /**
+   * Kimlar uchun: `public` — hamma ko'radi va qo'shiladi; `team` — faqat admin va moderatorlar (boshqalarga
+   * ro'yxatda ham, e'londa ham ko'rinmaydi, qo'shila olmaydi). Jamoaning o'zaro suhbatlari uchun.
+   */
+  audience: text("audience", { enum: ["public", "team"] }).notNull().default("public"),
   /** Hozir yozib olayotgan admin (null — yozilmayapti). */
   recordingBy: text("recording_by"),
   /**

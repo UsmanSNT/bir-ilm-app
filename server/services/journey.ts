@@ -135,7 +135,7 @@ export async function weekBookOnAir(db: Database, bookId: string, now = Date.now
   if (!book) return false;
   if (book.activeSince && Date.parse(book.activeSince) >= endsAt) return true;
   const talks = await db.query.liveSessions.findMany({
-    where: and(ne(liveSessions.status, "ended"), sql`lower(trim(${liveSessions.bookTitle})) = ${book.title.trim().toLowerCase()}`),
+    where: and(ne(liveSessions.status, "ended"), eq(liveSessions.audience, "public"), sql`lower(trim(${liveSessions.bookTitle})) = ${book.title.trim().toLowerCase()}`),
     columns: { status: true, scheduledAt: true },
   });
   return talks.some((talk) => talk.status === "live" || Date.parse(talk.scheduledAt) > now);

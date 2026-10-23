@@ -1,7 +1,7 @@
 /** Bitta jonli suhbat: tafsilotlar va o'chirish (faqat admin). */
 import { defineRoute } from "@/server/http/handler";
 import { notFound } from "@/server/http/errors";
-import { deleteLiveSession, getLiveSession, getParticipants, getRecentMessages, updateLiveSession } from "@/server/services/live";
+import { deleteLiveSession, getLiveSession, getParticipants, getRecentMessages, liveSessionVisibleTo, updateLiveSession } from "@/server/services/live";
 import { createCommunityPost } from "@/server/services/community";
 import { getUserRole, requireRole } from "@/server/services/roles";
 import { canModerate } from "@/shared/contract/roles";
@@ -28,7 +28,7 @@ export const GET = defineRoute<undefined, SessionDetail>({
     const staff = canModerate(await getUserRole(db, identity.userId));
     const session = await getLiveSession(db, params.id, staff);
     // Audiosi joylanmagan tugagan suhbat oddiy foydalanuvchiga yo'q.
-    if (!session || (!staff && session.status === "ended" && !session.archive)) throw notFound("Suhbat topilmadi.");
+    if (!session || !liveSessionVisibleTo(session, staff) || (!staff && session.status === "ended" && !session.archive)) throw notFound("Suhbat topilmadi.");
     // Izohlar tarixi faqat admin/moderatorga: oddiy foydalanuvchi izohlarni faqat efirda (suzib o'tganda) ko'radi.
     const [participants, recentMessages] = await Promise.all([
       getParticipants(db, params.id),

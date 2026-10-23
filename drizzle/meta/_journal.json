@@ -274,6 +274,13 @@
       "when": 1792744009468,
       "tag": "0038_team_alumni_ebook_source",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1792755544019,
+      "tag": "0039_live_audience",
+      "breakpoints": true
     }
   ]
 }

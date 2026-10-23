@@ -6,6 +6,10 @@ import type { UserRole } from "./roles";
 export const LIVE_SESSION_STATUSES = ["planned", "live", "ended"] as const;
 export type LiveSessionStatus = (typeof LIVE_SESSION_STATUSES)[number];
 
+/** `public` — hamma; `team` — faqat admin va moderatorlar. */
+export const LIVE_AUDIENCES = ["public", "team"] as const;
+export type LiveAudience = (typeof LIVE_AUDIENCES)[number];
+
 export const LIVE_ROLES = ["listener", "speaker", "moderator"] as const;
 export type LiveRole = (typeof LIVE_ROLES)[number];
 
@@ -28,15 +32,22 @@ export const LIMITS_LIVE = {
 
 const trimmed = (max: number) => z.string().trim().max(max);
 
-export const createLiveSessionSchema = z.object({
-  bookTitle: trimmed(160).min(1, "Kitob nomini yozing."),
-  title: trimmed(LIMITS_LIVE.title).min(1, "Sarlavhani yozing."),
-  scheduledAt: z.string().datetime({ message: "ISO 8601 format kerak." }),
-  /** Bo'lsa — bosh sahifa yangiliklarida (va qo'ng'iroqchada) e'lon ham joylanadi. */
-  announcement: z
-    .object({ title: trimmed(160).min(1), body: trimmed(2000).min(1) })
-    .optional(),
-});
+export const createLiveSessionSchema = z
+  .object({
+    bookTitle: trimmed(160).min(1, "Mavzu yoki kitob nomini yozing."),
+    title: trimmed(LIMITS_LIVE.title).min(1, "Sarlavhani yozing."),
+    scheduledAt: z.string().datetime({ message: "ISO 8601 format kerak." }),
+    /** Kimlar uchun. `team` — faqat admin va moderatorlar ko'radi va qo'shiladi. */
+    audience: z.enum(LIVE_AUDIENCES).default("public"),
+    /** Bo'lsa — bosh sahifa yangiliklarida (va qo'ng'iroqchada) e'lon ham joylanadi. Jamoa suhbati e'lon qilinmaydi. */
+    announcement: z
+      .object({ title: trimmed(160).min(1), body: trimmed(2000).min(1) })
+      .optional(),
+  })
+  .refine((value) => !(value.audience === "team" && value.announcement), {
+    message: "Jamoa suhbati e'lon qilinmaydi.",
+    path: ["announcement"],
+  });
 
 export const liveMessageSchema = z.object({
   body: trimmed(LIMITS_LIVE.messageBody).min(1, "Xabarni yozing."),
@@ -75,6 +86,8 @@ export type LiveSession = {
   startedAt: string | null;
   endedAt: string | null;
   moderatorId: string;
+  /** Kimlar uchun; `team` suhbatni faqat admin va moderatorlar ko'radi. */
+  audience: LiveAudience;
   participantCount: number;
   /**
    * Izohlar soni — faqat admin/moderatorga; boshqalarga doim 0. Izohlar efirda suzib o'tadi,

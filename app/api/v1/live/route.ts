@@ -23,7 +23,7 @@ export const POST = defineRoute<CreateLiveSessionInput, LiveSession>({
   source: "body",
   status: 201,
   handler: async ({ db, identity, input }) => {
-    await requireRole(db, identity.userId, ["admin"], "Suhbatni faqat admin yarata oladi.");
+    await requireRole(db, identity.userId, ["admin", "moderator"], "Suhbatni faqat admin yoki moderator ochadi.");
     const session = await createLiveSession(db, identity.userId, input);
     if (input.announcement) {
       await createCommunityPost(db, identity.userId, {
