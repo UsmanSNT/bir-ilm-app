@@ -183,6 +183,10 @@
 .ab-member-hidden { position: absolute; z-index: 1; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; background: #1b1a2ecc; color: #fff; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .ab-team-hint { display: flex; gap: 8px; margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--tilla-och); color: var(--siyoh-2); font-size: 12.5px; line-height: 1.5; }
 .ab-team-hint svg { flex: none; margin-top: 2px; color: var(--tilla); }
+.ab-team-dots { display: none; justify-content: center; gap: 8px; margin-top: 14px; }
+.ab-team-dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 999px; background: var(--chiziq); cursor: pointer; transition: width .25s ease, background .25s ease; }
+.ab-team-dots button[aria-current="true"] { width: 24px; background: var(--lojuvard); }
+.ab-team-dots button:focus-visible { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
 .ab-member-bio { margin: 0; padding: 14px 16px 18px; color: var(--siyoh-2); font-size: 14px; line-height: 1.6; }
 
 .ab-note { margin: 22px 0 0; padding: 12px 14px; border-radius: var(--r-sm); background: var(--qogoz); color: var(--siyoh-2); font-size: 12.5px; line-height: 1.6; }
@@ -229,30 +233,22 @@
   .ab-step.is-current .ab-step-year::after { content: none; }
   .ab-jubilee { grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; padding: 16px; }
   .ab-jubilee-track { grid-column: 1 / -1; grid-row: 2; }
-  .ab-team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .ab-member { border-radius: 20px; }
-  .ab-member-caption { left: 12px; right: 12px; bottom: 10px; gap: 4px; }
-  .ab-member-caption h3 { font-size: 16px; }
-  .ab-member-caption span { padding: 3px 8px; font-size: 10.5px; }
-  .ab-member-social { top: 8px; right: 8px; gap: 4px; }
-  .ab-member-social a { width: 30px; height: 30px; }
-  .ab-member-initials { font-size: 44px; }
-  .ab-team-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.ab-team-empty { display: grid; justify-items: center; gap: 6px; width: 100%; margin-top: 18px; padding: 28px 16px; border: 2px dashed var(--chiziq); border-radius: 20px; background: var(--qogoz); color: var(--siyoh-2); font: inherit; text-align: center; cursor: pointer; }
-.ab-team-empty svg { color: var(--firuza); }
-.ab-team-empty strong { color: var(--siyoh); font: 600 17px var(--f-display); }
-.ab-team-empty span { font-size: 13px; }
-.ab-team-empty:hover { border-color: var(--tilla-2); }
-.ab-member.is-hidden { opacity: .72; }
-.ab-member-hidden { position: absolute; z-index: 1; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; background: #1b1a2ecc; color: #fff; font-size: 11px; font-weight: 800; white-space: nowrap; }
-.ab-team-hint { display: flex; gap: 8px; margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--tilla-och); color: var(--siyoh-2); font-size: 12.5px; line-height: 1.5; }
-.ab-team-hint svg { flex: none; margin-top: 2px; color: var(--tilla); }
-.ab-member-bio { padding: 10px 12px 14px; font-size: 12.5px; line-height: 1.55; }
+  /* Telefonda: har bir a'zo bitta katta karta, yonma-yon suriladi (keyingisi chetdan ko'rinib turadi) */
+  .ab-team-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 86%; gap: 12px; margin: 18px -16px 0; padding: 0 16px 6px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; scrollbar-width: none; }
+  .ab-team-grid::-webkit-scrollbar { display: none; }
+  .ab-team-grid.is-single { grid-auto-columns: 100%; }
+  .ab-member { scroll-snap-align: start; border-radius: 22px; }
+  .ab-member:hover { transform: none; }
+  .ab-member-caption { left: 16px; right: 16px; bottom: 16px; gap: 7px; }
+  .ab-member-caption h3 { font-size: 24px; }
+  .ab-member-caption span { padding: 4px 11px; font-size: 12.5px; }
+  .ab-member-social { top: 14px; right: 14px; gap: 8px; }
+  .ab-member-social a { width: 40px; height: 40px; }
+  .ab-member-initials { font-size: 76px; }
+  .ab-member-bio { padding: 14px 18px 20px; font-size: 14.5px; line-height: 1.6; }
+  .ab-team-dots { display: flex; }
 }
 
-@media (max-width: 340px) {
-  .ab-team-grid { grid-template-columns: 1fr; }
-}
 
 
 @media (prefers-reduced-motion: reduce) {

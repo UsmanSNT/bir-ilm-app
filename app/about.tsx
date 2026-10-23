@@ -296,6 +296,56 @@ function TeamCard({ member }: { member: TeamMember }) {
   );
 }
 
+/**
+ * Jamoa kartalari. Kompyuterda — to'r, telefonda — har biri bitta katta karta, barmoq bilan suriladi
+ * (CSS scroll-snap); pastdagi nuqtalar joriy kartani ko'rsatadi va bosilganda o'shanga o'tadi.
+ */
+function TeamCarousel({ team }: { team: TeamMember[] }) {
+  const track = useRef<HTMLUListElement>(null);
+  const frame = useRef(0);
+  const [active, setActive] = useState(0);
+
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+
+  const onScroll = () => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const el = track.current;
+      if (!el) return;
+      const cards = Array.from(el.children) as HTMLElement[];
+      const start = el.scrollLeft + (cards[0]?.offsetLeft ?? 0);
+      let nearest = 0;
+      cards.forEach((card, index) => {
+        if (Math.abs(card.offsetLeft - start) < Math.abs(cards[nearest].offsetLeft - start)) nearest = index;
+      });
+      setActive(nearest);
+    });
+  };
+
+  const goTo = (index: number) => {
+    const el = track.current;
+    const cards = el ? (Array.from(el.children) as HTMLElement[]) : [];
+    if (!el || !cards[index]) return;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ left: cards[index].offsetLeft - cards[0].offsetLeft, behavior: smooth ? "smooth" : "auto" });
+  };
+
+  return (
+    <>
+      <ul ref={track} className={`ab-team-grid${team.length === 1 ? " is-single" : ""}`} onScroll={onScroll} aria-label="Jamoa a‘zolari">
+        {team.map((member) => <TeamCard key={member.id} member={member} />)}
+      </ul>
+      {team.length > 1 && (
+        <div className="ab-team-dots" role="group" aria-label="Jamoa a‘zolari bo‘yicha o‘tish">
+          {team.map((member, index) => (
+            <button key={member.id} type="button" aria-label={`${index + 1}-a‘zo: ${member.name}`} aria-current={index === active} onClick={() => goTo(index)} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 /** «Biz haqimizda»: tanishtiruv, hisoblangan yo'l, haftalik jadval va jamoa. */
 export default function About({ onBack }: { onBack: () => void }) {
   const { journey, about, loading, now } = useJourney();
@@ -424,9 +474,7 @@ export default function About({ onBack }: { onBack: () => void }) {
             <p className="ab-team-hint"><EyeOff size={14} /> «Yashirin» kartalarni faqat adminlar ko‘radi. Ko‘rsatish uchun «Tahrirlash» → kartani oching → «Saytda ko‘rinsin».</p>
           )}
           {team.length > 0 ? (
-            <ul className="ab-team-grid">
-              {team.map((member) => <TeamCard key={member.id} member={member} />)}
-            </ul>
+            <TeamCarousel team={team} />
           ) : (
             <button type="button" className="ab-team-empty" onClick={() => setEditing("team")}>
               <UserPlus size={22} />
