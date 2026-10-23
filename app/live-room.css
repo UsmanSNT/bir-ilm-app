@@ -116,8 +116,10 @@
 .live-overlay .live-controls.is-typing { padding-top: 8px; padding-bottom: 8px; }
 .live-overlay .live-controls.is-typing .live-control-actions { display: none; }
 /* Izoh yozilayotganda (klaviatura ochiq) sahna qisqaradi, video va izoh maydoni birga ko'rinadi. */
-.live-overlay .live-window:has(.live-controls.is-typing) .live-stage { max-height: 30dvh; }
-.live-overlay .live-window:has(.live-controls.is-typing) .live-stage video { max-height: 30dvh; width: 100%; object-fit: cover; }
+.live-overlay .live-window:has(.live-controls.is-typing) .live-stage { height: 180px; max-height: 180px; }
+.live-overlay .live-window:has(.live-controls.is-typing) .live-stage .live-cams { height: 100%; }
+.live-overlay .live-window:has(.live-controls.is-typing) .live-stage .live-video-tile { height: 100%; }
+.live-overlay .live-window:has(.live-controls.is-typing) .live-stage video { height: 100%; width: 100%; object-fit: cover; }
 .live-overlay .live-controls .live-float-form { margin: 0; }
 .live-overlay .live-control-actions { align-items: flex-end; justify-content: space-between; gap: 2px; padding: 10px 8px 9px; border-radius: 30px; background: #ffffff14; box-shadow: inset 0 0 0 1px #e2b65c3d, 0 14px 30px -16px #000; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .live-overlay .live-control-actions button { gap: 6px; color: #e9ecff; }
@@ -154,8 +156,8 @@
 @media (max-width: 500px) {
   .live-overlay { padding: 0; }
   /* Telefonda xona ekrandagi ko'rinadigan balandlikka to'liq sig'adi; footer doim pastda qoladi. */
-  .live-overlay { display: flex; }
-  .live-overlay .live-window { width: 100%; height: auto; flex: 1 1 auto; min-height: 0; max-height: 100%; border: 0; border-radius: 0; }
+  .live-overlay { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; }
+  .live-overlay .live-window { width: 100%; height: auto; flex: 1 1 0; min-height: 0; max-height: none; border: 0; border-radius: 0; }
   .live-overlay .live-room-title strong { font-size: 19px; }
   .live-overlay .live-speakers { grid-template-columns: repeat(3, 1fr); }
 }
