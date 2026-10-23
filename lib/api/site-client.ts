@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_ABOUT } from "@/shared/contract/about";
-import type { AboutSettings, JourneyBook, SiteLinks, SiteLinksInput, SiteVideo, TeamMember, TeamMemberInput, Wisdom, WisdomInput, WisdomToday, WisdomUpdate } from "@/shared/contract";
+import type { AboutSettings, JourneyBook, JourneyImportInput, JourneyImportResult, JourneyTitleInput, SiteLinks, SiteLinksInput, SiteVideo, TeamMember, TeamMemberInput, Wisdom, WisdomInput, WisdomToday, WisdomUpdate } from "@/shared/contract";
 import { API_PREFIX } from "./config";
 
 type Envelope<T> = { data?: T; error?: { message?: string; fields?: Record<string, string[]> } };
@@ -79,6 +79,13 @@ const loadJourneyBooks = () => call<{ items: JourneyBook[] }>("/site/journey").t
 const NO_JOURNEY_BOOKS: JourneyBook[] = [];
 /** «Bir Ilm yo'li»: suhbat vaqti belgilangan hafta kitoblari (tartib raqami bilan). Suhbat o'zgarganda yangilanadi. */
 export const useJourneyBooks = () => useRemote(loadJourneyBooks, NO_JOURNEY_BOOKS, JOURNEY_EVENTS);
+
+/** Admin: bitta haftaning kitob nomini yozish/olib tashlash va ro'yxatni bir yo'la joylash. Javob — yangilangan to'liq ro'yxat. */
+export const saveJourneyTitle = (number: number, input: JourneyTitleInput) =>
+  call<{ items: JourneyBook[] }>(`/site/journey/${number}`, { method: "PUT", body: JSON.stringify(input) }).then(items);
+export const removeJourneyTitle = (number: number) => call<{ items: JourneyBook[] }>(`/site/journey/${number}`, { method: "DELETE" }).then(items);
+export const importJourneyTitles = (rows: JourneyImportInput["items"]) =>
+  call<JourneyImportResult>("/site/journey/import", { method: "POST", body: JSON.stringify({ items: rows }) });
 
 export const fetchTeamAdmin = loadTeamAll;
 export const createTeamMember = (input: TeamMemberInput) => call<TeamList>("/site/team", { method: "POST", body: JSON.stringify(input) }).then(items);

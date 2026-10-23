@@ -1,6 +1,6 @@
 /** «Biz haqimizda»: tanishtiruv matni, video va haftalik muhokamalar hisobining tayanch nuqtasi. */
 import { z } from "zod";
-import { isValidAnchor, saturdaySessionAt, type Anchor } from "../journey";
+import { isValidAnchor, JOURNEY_LIMITS, saturdaySessionAt, type Anchor } from "../journey";
 import { parseVideoUrl, type ParsedVideo } from "./site";
 
 export const ABOUT_LIMITS = { intro: 1500, videoUrl: 500, anchorMax: 10_000 } as const;
@@ -90,3 +90,24 @@ export type JourneyBook = {
   /** Kutubxonadagi kitob; o'chirilgan bo'lsa — null (nomi saqlanib qoladi). */
   bookId: string | null;
 };
+
+/** Bitta haftaning kitob nomi (admin qo'lda kiritadi). */
+export const journeyTitleSchema = z.object({
+  title: z.string().trim().min(1, "Kitob nomini yozing.").max(JOURNEY_LIMITS.title, `Nom ${JOURNEY_LIMITS.title} belgidan oshmasin.`),
+  author: z.string().trim().max(JOURNEY_LIMITS.author, `Muallif ${JOURNEY_LIMITS.author} belgidan oshmasin.`).default(""),
+});
+export type JourneyTitleInput = z.input<typeof journeyTitleSchema>;
+export type JourneyTitleData = z.output<typeof journeyTitleSchema>;
+
+/** Ro'yxatni bir yo'la joylash: har bir qator `parseJourneyList` dan o'tgan bo'ladi. */
+export const journeyImportSchema = z.object({
+  items: z
+    .array(journeyTitleSchema.extend({ number: z.number().int("Raqam butun bo'lsin.").min(1, "Raqam 1 dan boshlanadi.").max(ABOUT_LIMITS.anchorMax + JOURNEY_LIMITS.weeksAhead) }))
+    .min(1, "Ro'yxat bo'sh.")
+    .max(JOURNEY_LIMITS.importRows, `Bir yo'la ${JOURNEY_LIMITS.importRows} tadan ko'p kitob joylab bo'lmaydi.`),
+});
+export type JourneyImportInput = z.input<typeof journeyImportSchema>;
+export type JourneyImportData = z.output<typeof journeyImportSchema>;
+
+/** `skipped` — suhbat jadvalidagi kutubxona kitobiga bog'langan haftalar: ularning nomi kitob oynasidan o'zgaradi. */
+export type JourneyImportResult = { items: JourneyBook[]; saved: number; skipped: number[] };

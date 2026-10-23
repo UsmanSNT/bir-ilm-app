@@ -63,6 +63,9 @@ export function saturdaySessionAt(date: string): number | null {
   return check.getUTCDay() === SATURDAY ? at : null;
 }
 
+/** «Yo'l» kitoblari nomlarini kiritish chegaralari. `weeksAhead` — tayanch raqamdan necha hafta keyingisigacha nom yozish mumkin. */
+export const JOURNEY_LIMITS = { title: 160, author: 120, importRows: 500, weeksAhead: 520 } as const;
+
 export function isValidAnchor(anchor: Anchor): boolean {
   return Number.isInteger(anchor.number) && anchor.number >= 1 && anchor.number <= 10_000 && saturdaySessionAt(anchor.date) !== null;
 }
@@ -85,6 +88,17 @@ export function saturdayOnOrAfter(at: number): string {
 export function sessionNumberOf(anchor: Anchor, date: string): number | null {
   const at = saturdaySessionAt(date);
   return at === null ? null : Math.round((at - firstSessionAt(anchor)) / WEEK) + 1;
+}
+
+/** Tartib raqami kiritiladigan oraliqda: 1 dan tayanch raqamdan `weeksAhead` hafta keyingisigacha. */
+export function journeyNumberInRange(anchor: Anchor, number: number): boolean {
+  return Number.isInteger(number) && number >= 1 && number <= anchor.number + JOURNEY_LIMITS.weeksAhead;
+}
+
+/** `sessionNumberOf` ning teskarisi: n-muhokamaning shanba sanasi ("YYYY-MM-DD"); noto'g'ri raqam — null. */
+export function sessionDateOf(anchor: Anchor, number: number): string | null {
+  if (!Number.isInteger(number) || number < 1) return null;
+  return new Date(firstSessionAt(anchor) + (number - 1) * WEEK).toISOString().slice(0, 10);
 }
 
 /** Berilgan vaqtdan keyin boshlanadigan eng yaqin muhokama vaqti. */

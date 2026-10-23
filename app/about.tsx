@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Mic, ChevronDown, EyeOff, Globe, Leaf, LibraryBig, Pencil, Play, Radio, Sprout, TreeDeciduous, TreePine, Trees, UserPlus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Mic, ChevronDown, EyeOff, ListPlus, Globe, Leaf, LibraryBig, Pencil, Play, Radio, Sprout, TreeDeciduous, TreePine, Trees, UserPlus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { absoluteUrl } from "@/lib/api/config";
 import { useViewer } from "@/lib/api/roles-client";
@@ -19,6 +19,7 @@ import {
   type ShelfYear,
 } from "@/shared/journey";
 import AdminAbout from "./admin-about";
+import { JourneyImportForm, JourneyTitleForm } from "./admin-journey";
 import AdminTeam from "./admin-team";
 import { Facebook, Instagram, Telegram, YouTube } from "./brand-icons";
 import TeamAvatarArt from "./team-avatar";
@@ -118,15 +119,25 @@ const SHELF_COLUMNS = 53;
 
 type ShelfPick = { year: number; cell: number };
 
-function Shelf({ shelf, titles }: { shelf: ShelfYear[]; titles: ReadonlyMap<number, JourneyBook> }) {
+function Shelf({ shelf, titles, admin, onEdit, onImport }: {
+  shelf: ShelfYear[];
+  titles: ReadonlyMap<number, JourneyBook>;
+  /** Faqat admin: tanlangan haftaning nomini yozish va ro'yxatni joylash. */
+  admin: boolean;
+  onEdit: (cell: ShelfCell) => void;
+  onImport: () => void;
+}) {
+  // `picked` — hozir ko'rsatilayotgan hafta (sichqoncha ustidan o'tganda ham o'zgaradi); `pinned` — oxirgi bosilgan hafta:
+  // sichqoncha chiqib ketsa yoki oyna ochilsa shunga qaytiladi.
   const [picked, setPicked] = useState<ShelfPick | null>(null);
+  const [pinned, setPinned] = useState<ShelfPick | null>(null);
   const active = picked ? shelf[picked.year]?.cells[picked.cell] ?? null : null;
 
   /**
    * Chiziq ingichka (~4 px), barmoq esa keng: bosilgan joyga eng yaqin chiziq tanlanadi. Tanlov
    * qatordagi gorizontal o'rindan hisoblanadi, shuning uchun oraliqqa tegib ketish xato bermaydi.
    */
-  const select = (yearIndex: number, event: PointerEvent<HTMLDivElement>) => {
+  const select = (yearIndex: number, event: PointerEvent<HTMLDivElement>, pin: boolean) => {
     const row = event.currentTarget;
     const rect = row.getBoundingClientRect();
     const style = getComputedStyle(row);
@@ -139,7 +150,9 @@ function Shelf({ shelf, titles }: { shelf: ShelfYear[]; titles: ReadonlyMap<numb
     // Yil boshidagi «hali boshlanmagan» o'rinlar tanlanmaydi: birinchi haqiqiy chiziqqa o'tadi.
     while (cell < cells.length && cells[cell].n === null) cell += 1;
     if (cell >= cells.length) return;
-    setPicked((current) => (current?.year === yearIndex && current.cell === cell ? current : { year: yearIndex, cell }));
+    const keep = (current: ShelfPick | null) => (current?.year === yearIndex && current.cell === cell ? current : { year: yearIndex, cell });
+    setPicked(keep);
+    if (pin) setPinned(keep);
   };
 
   const rows = shelf.map((year, yearIndex) => (
@@ -152,9 +165,9 @@ function Shelf({ shelf, titles }: { shelf: ShelfYear[]; titles: ReadonlyMap<numb
         className="ab-shelf-books"
         role="img"
         aria-label={`${year.year}-yil: ${year.held} ta kitob muhokama qilingan${year.planned ? `, ${year.planned} ta rejada` : ""}`}
-        onPointerDown={(event) => select(yearIndex, event)}
+        onPointerDown={(event) => select(yearIndex, event, true)}
         // Sichqoncha — ustidan o'tganda; barmoq — bosib, gorizontal surganda. Vertikal surish sahifani aylantiradi.
-        onPointerMove={(event) => { if (event.pointerType === "mouse" || event.buttons) select(yearIndex, event); }}
+        onPointerMove={(event) => { if (event.pointerType === "mouse" || event.buttons) select(yearIndex, event, event.buttons > 0); }}
       >
         {year.cells.map((cell, cellIndex) => (
           <span
@@ -168,8 +181,8 @@ function Shelf({ shelf, titles }: { shelf: ShelfYear[]; titles: ReadonlyMap<numb
   ));
 
   return (
-    // Tanlov barmoq ko'tarilganda saqlanadi (aks holda telefonda nom darhol yo'qolardi); faqat sichqoncha chiqib ketsa tozalanadi.
-    <div className="ab-shelf" onPointerLeave={(event) => { if (event.pointerType === "mouse") setPicked(null); }}>
+    // Tanlov barmoq ko'tarilganda saqlanadi (aks holda telefonda nom darhol yo'qolardi); sichqoncha chiqib ketsa — oxirgi bosilgan haftaga qaytadi.
+    <div className="ab-shelf" onPointerLeave={(event) => { if (event.pointerType === "mouse") setPicked(pinned); }}>
       <p className="ab-shelf-readout" aria-live="polite">
         {active && active.n !== null ? (
           <>
@@ -181,6 +194,18 @@ function Shelf({ shelf, titles }: { shelf: ShelfYear[]; titles: ReadonlyMap<numb
           `Har bir chiziq — bitta shanba, bitta kitob. ${titles.size > 0 ? "Kitob nomi va sanasini" : "Sanasini"} ko‘rish uchun chiziq ustiga bosing.`
         )}
       </p>
+      {admin && (
+        // Doim ko'rinadi (tanlov bo'lmasa o'chiq), shuning uchun qatorlar siljimaydi.
+        <div className="ab-shelf-admin">
+          <button type="button" disabled={!active || active.n === null} onClick={() => active && onEdit(active)}>
+            <Pencil size={14} />
+            {active && active.n !== null
+              ? `${active.n}-kitob nomini ${titles.has(active.n) ? "o‘zgartirish" : "yozish"}`
+              : "Nom yozish uchun chiziqni tanlang"}
+          </button>
+          <button type="button" onClick={onImport}><ListPlus size={14} /> Ro‘yxatni joylash</button>
+        </div>
+      )}
       {rows}
     </div>
   );
@@ -463,7 +488,7 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
   const { value: everyone } = useTeam(isAdmin);
   const team = useMemo(() => everyone.filter((member) => !member.former), [everyone]);
   const alumni = useMemo(() => everyone.filter((member) => member.former), [everyone]);
-  const [editing, setEditing] = useState<"team" | "about" | null>(null);
+  const [editing, setEditing] = useState<"team" | "about" | "journey" | { week: number; at: number } | null>(null);
   const journeyBooks = useJourneyBooks().value;
   const titles = useMemo(() => new Map(journeyBooks.map((entry) => [entry.number, entry])), [journeyBooks]);
   const { completed, elapsed, next, live } = journey;
@@ -477,6 +502,7 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
           <span className="ab-admin-tools">
             <button type="button" onClick={() => setEditing("about")}><Pencil size={15} /> Matn va video</button>
             <button type="button" onClick={() => setEditing("team")}><Pencil size={15} /> Jamoa</button>
+            <button type="button" onClick={() => setEditing("journey")}><ListPlus size={15} /> O‘tgan kitoblar</button>
           </span>
         )}
       </div>
@@ -534,7 +560,7 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
         <details className="ab-weeks">
           <summary>
             <span>Har bir haftani ko‘rish</span>
-            <small>{completed} ta muhokama · navbatdagisi {next.n}-kitob</small>
+            <small>{completed} ta muhokama · navbatdagisi {next.n}-kitob{isAdmin ? ` · nomi yozilgani: ${titles.size}` : ""}</small>
             <ChevronDown size={18} aria-hidden="true" />
           </summary>
           <ul className="ab-legend" aria-label="Belgilar">
@@ -543,7 +569,7 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
             <li><i className="ab-spine next" />Keyingi</li>
             <li><i className="ab-spine future" />Rejada</li>
           </ul>
-          <Shelf shelf={journey.shelf} titles={titles} />
+          <Shelf shelf={journey.shelf} titles={titles} admin={isAdmin} onEdit={(cell) => cell.n !== null && setEditing({ week: cell.n, at: cell.at })} onImport={() => setEditing("journey")} />
         </details>
 
       </section>
@@ -600,11 +626,14 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
         <Dialog open={editing !== null} onOpenChange={(open) => { if (!open) setEditing(null); }}>
           <DialogContent className="ab-edit-dialog" showCloseButton={false}>
             <div className="ab-edit-head">
-              <DialogTitle>{editing === "about" ? "«Biz haqimizda» matni va videosi" : "Jamoa"}</DialogTitle>
+              <DialogTitle>{editing === "about" ? "«Biz haqimizda» matni va videosi" : editing === "journey" ? "O‘tgan kitoblar ro‘yxati" : typeof editing === "object" && editing ? `${editing.week}-kitob nomi` : "Jamoa"}</DialogTitle>
               <button type="button" className="ab-admin-icon" aria-label="Yopish" onClick={() => setEditing(null)}><X size={18} /></button>
             </div>
             <DialogDescription className="sr-only">O‘zgarishlar saqlangan zahoti sahifada ko‘rinadi.</DialogDescription>
-            {editing === "about" ? <AdminAbout /> : <AdminTeam />}
+            {editing === "about" ? <AdminAbout />
+              : editing === "journey" ? <JourneyImportForm anchor={about.anchor} entries={journeyBooks} onClose={() => setEditing(null)} />
+              : typeof editing === "object" && editing ? <JourneyTitleForm key={editing.week} number={editing.week} at={editing.at} entry={titles.get(editing.week) ?? null} onClose={() => setEditing(null)} />
+              : <AdminTeam />}
           </DialogContent>
         </Dialog>
       )}

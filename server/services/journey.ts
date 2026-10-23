@@ -6,11 +6,12 @@
  * Shu shanba soat 22:00 (Seul) o'tgach hafta kitobi e'londan tushadi — suhbat jonli yoki hali oldinda bo'lsa, qoladi.
  * Hafta tugagach admin o'sha kitobni qayta tanlasa, u yangi suhbat vaqti belgilanguncha e'londa turadi.
  */
-import { and, asc, desc, eq, gte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
-import type { JourneyBook } from "@/shared/contract";
-import { saturdayOnOrAfter, saturdaySessionAt, sessionNumberOf } from "@/shared/journey";
+import { badRequest, notFound } from "@/server/http/errors";
+import type { JourneyBook, JourneyImportData, JourneyTitleData } from "@/shared/contract";
+import { JOURNEY_LIMITS, journeyNumberInRange, saturdayOnOrAfter, saturdaySessionAt, sessionDateOf, sessionNumberOf, type Anchor } from "@/shared/journey";
 import { getAbout } from "./about";
 
 const { books, journeyBooks, liveSessions } = schema;
@@ -26,6 +27,63 @@ const toJourneyBook = (row: typeof journeyBooks.$inferSelect): JourneyBook => ({
 export async function listJourneyBooks(db: Database): Promise<JourneyBook[]> {
   const rows = await db.select().from(journeyBooks).orderBy(asc(journeyBooks.number));
   return rows.map(toJourneyBook);
+}
+
+const LINKED_NOTE = "Bu hafta kutubxonadagi kitob suhbatiga bog‘langan — nomi kitob oynasidan o‘zgaradi.";
+
+/** Raqamning shanba sanasi; oraliqdan tashqari raqam — 400. */
+function dateOfNumber(anchor: Anchor, number: number): string {
+  const date = journeyNumberInRange(anchor, number) ? sessionDateOf(anchor, number) : null;
+  if (!date) throw badRequest(`${number}-kitob yo‘q: raqam 1 dan ${anchor.number + JOURNEY_LIMITS.weeksAhead} gacha bo‘lsin.`);
+  return date;
+}
+
+const manualRow = (number: number, discussedOn: string, { title, author }: JourneyTitleData, stamp: string) => ({
+  values: { number, discussedOn, title, author, bookId: null, createdAt: stamp, updatedAt: stamp },
+  set: { discussedOn, title, author, updatedAt: stamp },
+});
+
+/**
+ * Admin o'tgan (yoki rejadagi) haftaning kitob nomini qo'lda yozadi. Suhbat jadvalidagi kutubxona kitobiga
+ * bog'langan hafta o'zgarmaydi: uning nomi kitobning o'zidan keladi.
+ */
+export async function setJourneyTitle(db: Database, number: number, input: JourneyTitleData, now = Date.now()): Promise<JourneyBook[]> {
+  const { anchor } = await getAbout(db);
+  const date = dateOfNumber(anchor, number);
+  const existing = await db.query.journeyBooks.findFirst({ where: eq(journeyBooks.number, number), columns: { bookId: true } });
+  if (existing?.bookId) throw badRequest(LINKED_NOTE);
+  const row = manualRow(number, date, input, new Date(now).toISOString());
+  await db.insert(journeyBooks).values(row.values).onConflictDoUpdate({ target: journeyBooks.number, set: row.set });
+  return listJourneyBooks(db);
+}
+
+export async function removeJourneyTitle(db: Database, number: number): Promise<JourneyBook[]> {
+  const existing = await db.query.journeyBooks.findFirst({ where: eq(journeyBooks.number, number), columns: { bookId: true } });
+  if (!existing) throw notFound("Bu haftaning kitob nomi yozilmagan.");
+  if (existing.bookId) throw badRequest(LINKED_NOTE);
+  await db.delete(journeyBooks).where(eq(journeyBooks.number, number));
+  return listJourneyBooks(db);
+}
+
+/**
+ * Ro'yxatni bir yo'la saqlaydi (bir raqam takrorlansa, oxirgisi). Raqamlardan biri oraliqdan tashqarida bo'lsa —
+ * hech narsa yozilmaydi. Suhbat jadvaliga bog'langan haftalar o'tkazib yuboriladi (`skipped`).
+ */
+export async function importJourneyTitles(db: Database, { items }: JourneyImportData, now = Date.now()): Promise<{ items: JourneyBook[]; saved: number; skipped: number[] }> {
+  const { anchor } = await getAbout(db);
+  const rows = [...new Map(items.map((item) => [item.number, item])).values()].sort((a, b) => a.number - b.number);
+  const dates = new Map(rows.map((row) => [row.number, dateOfNumber(anchor, row.number)]));
+  const linked = new Set((await db.select({ number: journeyBooks.number }).from(journeyBooks).where(isNotNull(journeyBooks.bookId))).map((row) => row.number));
+  const stamp = new Date(now).toISOString();
+  const statements = rows
+    .filter((row) => !linked.has(row.number))
+    .map((row) => {
+      const { values, set } = manualRow(row.number, dates.get(row.number)!, row, stamp);
+      return db.insert(journeyBooks).values(values).onConflictDoUpdate({ target: journeyBooks.number, set });
+    });
+  // Bitta partiya — hammasi yoki hech narsa.
+  if (statements.length) await db.batch(statements as [(typeof statements)[number], ...(typeof statements)[number][]]);
+  return { items: await listJourneyBooks(db), saved: statements.length, skipped: rows.filter((row) => linked.has(row.number)).map((row) => row.number) };
 }
 
 const findLibraryBook = (db: Database, title: string) =>

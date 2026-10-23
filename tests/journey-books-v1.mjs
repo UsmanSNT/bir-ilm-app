@@ -58,8 +58,11 @@ const live = await load("app/api/v1/live/route.ts");
 const talk = await load("app/api/v1/live/[id]/route.ts");
 const start = await load("app/api/v1/live/[id]/start/route.ts");
 const journey = await load("app/api/v1/site/journey/route.ts");
+const journeyOne = await load("app/api/v1/site/journey/[number]/route.ts");
+const journeyImport = await load("app/api/v1/site/journey/import/route.ts");
+const { parseJourneyList } = await load("shared/journey-import.ts");
 const { DEFAULT_ABOUT } = await load("shared/contract/index.ts");
-const { saturdayOnOrAfter, saturdaySessionAt, sessionNumberOf } = await load("shared/journey.ts");
+const { saturdayOnOrAfter, saturdaySessionAt, sessionDateOf, sessionNumberOf } = await load("shared/journey.ts");
 
 const ORIGIN = "http://127.0.0.1:8787";
 const DAY = 86_400_000;
@@ -180,6 +183,96 @@ try {
   createdTalks.push(other.id);
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM journey_books").get().n, before);
   console.log("PASS: Kutubxonada yo'q mavzudagi suhbat ro'yxatga yozilmaydi.");
+
+  // --- Ro'yxat matnini o'qish -----------------------------------------------------
+  const listText = [
+    "# izoh qatori",
+    "",
+    "247. Barkamol farzand tarbiyasi — Abdulla Avloniy",
+    "246) «Kichik shahzoda» | Antuan de Sent-Ekzyuperi",
+    "2026-10-03 | Atom odatlar | Jeyms Klir",
+    "26.09.2026   Alkimyogar",
+    "243-kitob: 1984 - Jorj Oruell",
+    "1 Birinchi kitob",
+    "5\tBeshinchi\tMuallif",
+    "246 Qayta yozildi",
+  ].join("\r\n");
+  const parsed = parseJourneyList(listText, anchor);
+  assert.deepEqual(parsed.issues, []);
+  assert.equal(parsed.duplicates, 1, "246 takrorlandi — oxirgisi qoladi");
+  assert.deepEqual(parsed.rows, [
+    { number: 1, title: "Birinchi kitob", author: "" },
+    { number: 5, title: "Beshinchi", author: "Muallif" },
+    { number: 243, title: "1984", author: "Jorj Oruell" },
+    { number: 244, title: "Alkimyogar", author: "" },
+    { number: 245, title: "Atom odatlar", author: "Jeyms Klir" },
+    { number: 246, title: "Qayta yozildi", author: "" },
+    { number: 247, title: "Barkamol farzand tarbiyasi", author: "Abdulla Avloniy" },
+  ], "Raqam, sana (YYYY-MM-DD, DD.MM.YYYY), «nom», |, tab, — va - ajratgichlari");
+  const reasons = (text) => parseJourneyList(text, anchor).issues.map((issue) => issue.reason);
+  assert.deepEqual(reasons("Raqamsiz qator"), ["Qator raqam yoki sana bilan boshlansin"]);
+  assert.deepEqual(reasons("2026-10-21 | Chorshanba"), ["Sana shanba emas yoki noto‘g‘ri"]);
+  assert.deepEqual(reasons("2021-01-02 | Juda eski"), ["Sana yo‘l boshlanishidan oldin"]);
+  assert.deepEqual(reasons("9999 | Juda katta"), [`Raqam 1 dan ${anchor.number + 520} gacha bo‘lsin`]);
+  assert.deepEqual(reasons("247."), ["Kitob nomi yo‘q"]);
+  assert.deepEqual(reasons("247Nomi"), ["Raqamdan keyin nuqta, tire yoki bo‘shliq qo‘ying"]);
+  assert.deepEqual(reasons(`5 ${"x".repeat(161)}`), ["Nom 160 belgidan oshmasin"]);
+  assert.deepEqual(parseJourneyList("12. «O‘tkan kunlar» — Abdulla Qodiriy\n13 Sarlavha | ", anchor).rows.map((row) => [row.number, row.title, row.author]), [[12, "O‘tkan kunlar", "Abdulla Qodiriy"], [13, "Sarlavha", ""]], "Qo'shtirnoq olinadi, bo'sh muallif — bo'sh");
+  console.log("PASS: Ro'yxat matni: raqam yoki sana, nom va muallif o'qiladi; noto'g'ri qatorlar sababi bilan qaytariladi.");
+
+  // --- Admin o'tgan kitoblar nomini kiritadi ----------------------------------------
+  const linkedNumber = sessionNumberOf(anchor, past);
+  const oneUrl = (n) => `/api/v1/site/journey/${n}`;
+  const putOne = (who, n, body, expect = 200) => who.call(journeyOne.PUT, oneUrl(n), { method: "PUT", params: { number: String(n) }, body, expect });
+  const delOne = (who, n, expect = 200) => who.call(journeyOne.DELETE, oneUrl(n), { method: "DELETE", params: { number: String(n) }, expect });
+  await putOne(user, 200, { title: "Begona" }, 403);
+  const manual = (await putOne(admin, 200, { title: "  Eski kitob ", author: " Muallif " })).data.items.find((item) => item.number === 200);
+  assert.deepEqual(manual, { number: 200, discussedOn: sessionDateOf(anchor, 200), title: "Eski kitob", author: "Muallif", bookId: null });
+  assert.equal(saturdaySessionAt(manual.discussedOn) !== null, true, "Sana shanba");
+  const renamed = (await putOne(admin, 200, { title: "Yangi nom" })).data.items.filter((item) => item.number === 200);
+  assert.deepEqual(renamed.map((item) => [item.title, item.author]), [["Yangi nom", ""]], "Qayta yozilsa yangilanadi, takror qo'shilmaydi");
+  assert.equal((await user.call(journey.GET, "/api/v1/site/journey")).data.items.find((item) => item.number === 200).title, "Yangi nom", "Hamma ko'radi");
+  await putOne(admin, 200, { title: "   " }, 422);
+  await putOne(admin, 200, { title: "x".repeat(161) }, 422);
+  await putOne(admin, 0, { title: "Nol" }, 400);
+  await putOne(admin, anchor.number + 521, { title: "Juda uzoq" }, 400);
+  await putOne(admin, "abc", { title: "Harf" }, 400);
+  await putOne(admin, linkedNumber, { title: "Boshqa nom" }, 400);
+  await delOne(admin, linkedNumber, 400);
+  assert.deepEqual(ours(), [{ number: linkedNumber, discussedOn: past }], "Suhbatga bog'langan hafta tegilmadi");
+  await delOne(user, 200, 403);
+  await delOne(admin, 200);
+  await delOne(admin, 200, 404);
+  console.log("PASS: Bitta haftaning nomi: faqat admin yozadi va o'chiradi; sana raqamdan hisoblanadi; suhbatga bog'langan hafta o'zgarmaydi.");
+
+  // --- Ro'yxatni bir yo'la joylash --------------------------------------------------
+  const importItems = (who, items, expect = 200) => who.call(journeyImport.POST, "/api/v1/site/journey/import", { method: "POST", body: { items }, expect });
+  const rowsCount = () => sqlite.prepare("SELECT count(*) AS n FROM journey_books").get().n;
+  await importItems(user, [{ number: 10, title: "A" }], 403);
+  await importItems(admin, [], 422);
+  await importItems(admin, Array.from({ length: 501 }, (_, i) => ({ number: i + 1, title: "x" })), 422);
+  const countBefore = rowsCount();
+  const onAirBefore = (await weekBook()).activeBookId;
+  await importItems(admin, [{ number: 10, title: "A" }, { number: 5000, title: "Oraliqdan tashqari" }], 400);
+  assert.equal(rowsCount(), countBefore, "Bitta noto'g'ri raqam — hech narsa yozilmaydi");
+  const imported = (await importItems(admin, [
+    { number: 10, title: "A" },
+    { number: 11, title: " B ", author: "Muallif" },
+    { number: 10, title: "A2" },
+    { number: linkedNumber, title: "Bog'langan haftaga yozilmaydi" },
+  ])).data;
+  assert.deepEqual([imported.saved, imported.skipped], [2, [linkedNumber]]);
+  const byNumber = new Map(imported.items.map((item) => [item.number, item]));
+  assert.deepEqual([byNumber.get(10).title, byNumber.get(11).title, byNumber.get(11).author], ["A2", "B", "Muallif"], "Takror raqam — oxirgisi");
+  assert.equal(byNumber.get(10).discussedOn, sessionDateOf(anchor, 10));
+  assert.equal(byNumber.get(linkedNumber).bookId, id, "Bog'langan hafta o'zgarmadi");
+  assert.deepEqual(imported.items.map((item) => item.number), [...imported.items.map((item) => item.number)].sort((a, b) => a - b), "Raqam bo'yicha tartiblangan");
+  // Qayta joylash — eskisini almashtiradi, takror yozuv yaratmaydi.
+  const again = (await importItems(admin, [{ number: 10, title: "A3" }])).data;
+  assert.equal(again.items.filter((item) => item.number === 10).length, 1);
+  assert.equal(again.items.find((item) => item.number === 10).title, "A3");
+  assert.equal((await weekBook()).activeBookId, onAirBefore, "Qo'lda kiritilgan nomlar hafta kitobi e'loniga ta'sir qilmaydi");
+  console.log("PASS: Ro'yxatni joylash: faqat admin, hammasi yoki hech narsa, takror raqam — oxirgisi, bog'langan hafta o'tkazib yuboriladi.");
 
   console.log("\nHAMMASI O'TDI: «Bir Ilm yo'li» ro'yxati va hafta kitobi muddati.");
 } finally {
