@@ -463,6 +463,12 @@
 .book-editor-ebook-tools button.is-danger { color: var(--anor); }
 .book-editor-ebook-tools button:disabled { opacity: .5; cursor: default; }
 .book-editor textarea.book-editor-ebook-text { min-height: 220px; font-size: 13px; line-height: 1.5; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: pre-wrap; }
+.book-editor-source { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 10px 0 0; border: 0; border-top: 1px dashed var(--chiziq); }
+.book-editor-source legend { float: left; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; width: 100%; margin: 0 0 8px; padding: 0; color: var(--siyoh); font-size: 13px; font-weight: 800; }
+.book-editor-source legend small { color: var(--siyoh-3); font-size: 11.5px; font-weight: 600; }
+.book-editor-source > * { clear: both; }
+.book-editor .book-editor-source > input:not([type=file]):not([type=checkbox]) { min-height: 42px; background: #fff; }
+.book-editor-link-hint em { font-style: normal; font-weight: 700; color: var(--siyoh-2); }
 .book-editor-ebook-help { font-size: 12.5px; color: var(--siyoh-2); }
 .book-editor-ebook-help summary { cursor: pointer; font-weight: 700; color: var(--lojuvard); }
 .book-editor-ebook-help ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.45; }

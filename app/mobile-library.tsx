@@ -10,6 +10,7 @@ import { canModerate } from "@/shared/contract/roles";
 import type { Book } from "@/shared/contract";
 import BookEditor from "./book-editor";
 import EbookReader from "./ebook-reader";
+import EbookSourceNote from "./ebook-source";
 import {
   OPEN_AUDIO_EVENT,
   SPEEDS,
@@ -432,6 +433,7 @@ export default function MobileLibrary({ shelf, onToggleSave }: { shelf: string[]
           <Cover book={active} size="lg" />
           <h2>{active.title}</h2>
           <p>{active.author}</p>
+          {active.ebook?.source && <EbookSourceNote source={active.ebook.source} className="lib-source" />}
           {active.ebook && (
             <button type="button" className="button lib-read" onClick={() => setReading(active)}>
               <BookOpen size={18} /> Kitobni o‘qish

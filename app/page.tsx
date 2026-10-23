@@ -38,6 +38,7 @@ import NotificationCenter from "./notification-center";
 import ScrollIcon from "./scroll-icon";
 import MobileLibrary from "./mobile-library";
 import EbookReader from "./ebook-reader";
+import EbookSourceNote from "./ebook-source";
 import ProfileScreens from "./profile-screens";
 import About from "./about";
 import { nextSessionAfter } from "@/shared/journey";
@@ -881,6 +882,7 @@ export default function App() {
                     </div>
                   </div>
                   {selected.summary && <p>{selected.summary}</p>}
+                  {selected.ebook?.source && <EbookSourceNote source={selected.ebook.source} />}
                   <div className="book-detail-actions">
                     {selected.ebook && <button className="button" onClick={() => { setModal(""); setReading(selected); }}><BookOpen size={17}/> Kitobni o‘qish</button>}
                     {selected.audioUrl && <button className="button" onClick={() => { setModal(""); go("shelf"); }}><Headphones size={17}/> Javonimda tinglash</button>}

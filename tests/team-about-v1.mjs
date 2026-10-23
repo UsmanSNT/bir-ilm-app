@@ -64,7 +64,7 @@ const move = await load("app/api/v1/site/team/[id]/move/route.ts");
 const photo = await load("app/api/v1/site/team/[id]/photo/route.ts");
 const media = await load("app/media/team/[file]/route.ts");
 const about = await load("app/api/v1/site/about/route.ts");
-const { normalizeHandle, normalizeWebsite, resolveAboutVideo, readStoredAbout, DEFAULT_ABOUT } = await load("shared/contract/index.ts");
+const { normalizeHandle, normalizeWebsite, resolveAboutVideo, readStoredAbout, DEFAULT_ABOUT, TEAM_LIMITS } = await load("shared/contract/index.ts");
 
 const ORIGIN = "http://127.0.0.1:8787";
 const createdUsers = [];
@@ -163,6 +163,45 @@ try {
   assert.ok((await user.call(team.GET, "/api/v1/site/team")).data.items.some((m) => m.id === third));
   await admin.call(member.PUT, "/api/v1/site/team/team_yoq", { method: "PUT", params: { id: "team_yoq" }, body: { name: "Yo'q" }, expect: 404 });
   console.log("PASS: Jamoa: faqat admin boshqaradi, yangi a'zo oxiriga qo'shiladi, tartib va yashirish ishlaydi.");
+
+  // --- Sobiq a'zolar, davr va avatar --------------------------------------------
+  await admin.call(team.POST, "/api/v1/site/team", { method: "POST", body: { name: "X", avatar: "robot" }, expect: 422 });
+  await admin.call(team.POST, "/api/v1/site/team", { method: "POST", body: { name: "X", period: "2".repeat(TEAM_LIMITS.period + 1) }, expect: 422 });
+  await admin.call(team.POST, "/api/v1/site/team", { method: "POST", body: { name: "X", former: "ha" }, expect: 422 });
+  const addMember = async (body) => {
+    const items = (await admin.call(team.POST, "/api/v1/site/team", { method: "POST", body, expect: 201 })).data.items;
+    const created = items.find((m) => m.name === body.name);
+    createdMembers.push(created.id);
+    return created;
+  };
+  const alumnus = await addMember({ name: "Test Sobiq", role: "Loyiha asoschisi", period: "2022–2024", avatar: "man", former: true });
+  const alumna = await addMember({ name: "Test Sobiq Ikki", avatar: "woman", former: true });
+  assert.deepEqual([alumnus.former, alumnus.avatar, alumnus.period], [true, "man", "2022–2024"]);
+  const plain = all.find((m) => m.id === first);
+  assert.deepEqual([plain.former, plain.avatar, plain.period], [false, null, ""], "Yuborilmagan maydonlar standart: hozirgi jamoa, avatarsiz, davrsiz");
+  all = (await admin.call(team.GET, "/api/v1/site/team?all=1")).data.items;
+  assert.deepEqual(names(all), ["Test Ikkinchi", "Test Birinchi", "Test Uchinchi", "Test Sobiq", "Test Sobiq Ikki"], "Hozirgi jamoa avval, sobiq a'zolar keyin");
+  const publicNames = names((await user.call(team.GET, "/api/v1/site/team")).data.items);
+  assert.ok(publicNames.includes("Test Sobiq") && publicNames.includes("Test Sobiq Ikki"), "Sobiq a'zolar ommaga ham ko'rinadi");
+
+  // Tartiblash faqat o'z guruhi ichida.
+  const orderAfter = async (id, direction) => names((await admin.call(move.POST, `/api/v1/site/team/${id}/move`, { method: "POST", params: { id }, body: { direction } })).data.items);
+  assert.deepEqual(await orderAfter(alumna.id, "up"), ["Test Ikkinchi", "Test Birinchi", "Test Uchinchi", "Test Sobiq Ikki", "Test Sobiq"]);
+  assert.deepEqual(await orderAfter(alumna.id, "up"), ["Test Ikkinchi", "Test Birinchi", "Test Uchinchi", "Test Sobiq Ikki", "Test Sobiq"], "Sobiqlar ro'yxati boshidagi hozirgi jamoaga o'tmaydi");
+  assert.deepEqual(await orderAfter(third, "down"), ["Test Ikkinchi", "Test Birinchi", "Test Uchinchi", "Test Sobiq Ikki", "Test Sobiq"], "Hozirgi jamoa oxiridagi sobiqlarga o'tmaydi");
+
+  // Guruhni almashtirish — yangi guruhning oxiriga.
+  const base = { name: "Test Uchinchi", bio: "", visible: true };
+  all = (await admin.call(member.PUT, `/api/v1/site/team/${third}`, { method: "PUT", params: { id: third }, body: { ...base, former: true, period: "2023" } })).data.items;
+  assert.deepEqual(names(all), ["Test Ikkinchi", "Test Birinchi", "Test Sobiq Ikki", "Test Sobiq", "Test Uchinchi"]);
+  assert.equal(all.find((m) => m.id === third).period, "2023");
+  all = (await admin.call(member.PUT, `/api/v1/site/team/${third}`, { method: "PUT", params: { id: third }, body: { ...base, former: false } })).data.items;
+  assert.deepEqual(names(all), ["Test Ikkinchi", "Test Birinchi", "Test Uchinchi", "Test Sobiq Ikki", "Test Sobiq"], "Qaytsa hozirgi jamoa oxiriga tushadi");
+  const orders2 = all.map((m) => m.sortOrder);
+  assert.equal(new Set(orders2).size, orders2.length, "Tartib raqamlari takrorlanmaydi");
+  all = (await admin.call(member.PUT, `/api/v1/site/team/${alumnus.id}`, { method: "PUT", params: { id: alumnus.id }, body: { name: "Test Sobiq", avatar: null, former: true } })).data.items;
+  assert.equal(all.find((m) => m.id === alumnus.id).avatar, null, "Avatarni olib tashlash mumkin");
+  console.log("PASS: Sobiq a'zolar alohida guruhda, avatar va davr saqlanadi, tartiblash guruh ichida ishlaydi.");
 
   // --- Rasm ---------------------------------------------------------------------
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8]);

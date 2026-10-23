@@ -21,6 +21,7 @@ import {
 import AdminAbout from "./admin-about";
 import AdminTeam from "./admin-team";
 import { Facebook, Instagram, Telegram, YouTube } from "./brand-icons";
+import TeamAvatarArt from "./team-avatar";
 import { StarMedal } from "./quiz-ui";
 import { useNow } from "./talk-format";
 import { uzDateTashkent, uzDays, uzMonths } from "./uz-date";
@@ -297,6 +298,8 @@ function TeamCard({ member }: { member: TeamMember }) {
         {!member.visible && <span className="ab-member-hidden" title="Saytda ko‘rinmaydi — faqat admin ko‘radi"><EyeOff size={13} /> Yashirin</span>}
         {member.photoUrl && !broken ? (
           <img src={absoluteUrl(member.photoUrl)} alt={member.name} loading="lazy" onError={() => setBroken(true)} />
+        ) : member.avatar ? (
+          <TeamAvatarArt kind={member.avatar} className="ab-member-avatar" />
         ) : (
           <span className="ab-member-initials" aria-hidden="true">{initials(member.name)}</span>
         )}
@@ -307,6 +310,31 @@ function TeamCard({ member }: { member: TeamMember }) {
       </div>
       {member.bio && <p className="ab-member-bio">{member.bio}</p>}
       <MemberLinks member={member} />
+    </li>
+  );
+}
+
+/** Sobiq a'zo: ixcham gorizontal karta (rasm/avatar, ism, lavozim va davr, qisqa ma'lumot, havolalar). */
+function AlumniCard({ member }: { member: TeamMember }) {
+  const [broken, setBroken] = useState(false);
+  const meta = [member.role, member.period].filter(Boolean);
+  return (
+    <li className={`ab-alumnus${member.visible ? "" : " is-hidden"}`}>
+      <span className="ab-alumnus-photo">
+        {member.photoUrl && !broken ? (
+          <img src={absoluteUrl(member.photoUrl)} alt={member.name} loading="lazy" onError={() => setBroken(true)} />
+        ) : member.avatar ? (
+          <TeamAvatarArt kind={member.avatar} />
+        ) : (
+          <span aria-hidden="true">{initials(member.name)}</span>
+        )}
+      </span>
+      <div className="ab-alumnus-body">
+        <h4>{member.name}{!member.visible && <span className="ab-alumnus-hidden" title="Saytda ko‘rinmaydi — faqat admin ko‘radi"><EyeOff size={12} /> Yashirin</span>}</h4>
+        {meta.length > 0 && <p className="ab-alumnus-meta">{meta.join(" · ")}</p>}
+        {member.bio && <p className="ab-alumnus-bio">{member.bio}</p>}
+        <MemberLinks member={member} />
+      </div>
     </li>
   );
 }
@@ -414,7 +442,9 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
   const { journey, about, loading, now } = useJourney();
   const isAdmin = useViewer()?.role === "admin";
   // Admin yashirin a'zolarni ham ko'radi va shu sahifadan tahrirlaydi.
-  const { value: team } = useTeam(isAdmin);
+  const { value: everyone } = useTeam(isAdmin);
+  const team = useMemo(() => everyone.filter((member) => !member.former), [everyone]);
+  const alumni = useMemo(() => everyone.filter((member) => member.former), [everyone]);
   const [editing, setEditing] = useState<"team" | "about" | null>(null);
   const journeyBooks = useJourneyBooks().value;
   const titles = useMemo(() => new Map(journeyBooks.map((entry) => [entry.number, entry])), [journeyBooks]);
@@ -519,6 +549,30 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
               <UserPlus size={22} />
               <strong>Hali jamoa a’zosi qo‘shilmagan</strong>
               <span>Birinchi kartani qo‘shing — u shu yerda ko‘rinadi.</span>
+            </button>
+          )}
+        </section>
+      )}
+
+      {(alumni.length > 0 || (isAdmin && team.length > 0)) && (
+        <section className="ab-team ab-alumni" aria-labelledby="ab-alumni-title">
+          <div className="ab-team-head">
+            <div>
+              <span className="ab-eyebrow">Hissa qo‘shganlar</span>
+              <h3 id="ab-alumni-title">Avval loyihada bo‘lganlar</h3>
+            </div>
+            {isAdmin && <button type="button" className="ab-team-edit" onClick={() => setEditing("team")}><Pencil size={15} /> Tahrirlash</button>}
+          </div>
+          {alumni.length > 0 ? (
+            <>
+              <p className="ab-alumni-lead">Loyihani boshlagan va turli davrlarda unga hissa qo‘shgan insonlar. Ularga rahmat.</p>
+              <ul className="ab-alumni-list">{alumni.map((member) => <AlumniCard key={member.id} member={member} />)}</ul>
+            </>
+          ) : (
+            <button type="button" className="ab-team-empty" onClick={() => setEditing("team")}>
+              <UserPlus size={22} />
+              <strong>Sobiq a’zolar hali qo‘shilmagan</strong>
+              <span>Loyihani boshlaganlar va avval jamoada bo‘lganlarni shu yerga qo‘shing.</span>
             </button>
           )}
         </section>

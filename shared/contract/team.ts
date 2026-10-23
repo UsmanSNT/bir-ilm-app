@@ -2,7 +2,15 @@
 import { z } from "zod";
 import { normalizeSocialUrl } from "./site";
 
-export const TEAM_LIMITS = { name: 60, role: 60, bio: 500, url: 300, members: 50, photoBytes: 3 * 1024 * 1024 } as const;
+export const TEAM_LIMITS = { name: 60, role: 60, bio: 500, period: 40, url: 300, members: 50, photoBytes: 3 * 1024 * 1024 } as const;
+
+/** Rasm qo'ymaslikni xohlaganlar uchun tayyor avatarlar (yuzsiz, oddiy tasvirlar). Kalit bazada saqlanadi. */
+export const TEAM_AVATARS = [
+  { key: "woman", label: "Hijobli ayol" },
+  { key: "man", label: "Yigit" },
+] as const;
+export type TeamAvatar = (typeof TEAM_AVATARS)[number]["key"];
+const TEAM_AVATAR_KEYS = TEAM_AVATARS.map((avatar) => avatar.key) as [TeamAvatar, ...TeamAvatar[]];
 
 export type TeamMember = {
   id: string;
@@ -18,6 +26,12 @@ export type TeamMember = {
   youtube: string;
   facebook: string;
   website: string;
+  /** Rasm yo'q bo'lsa ko'rsatiladigan avatar; null — bosh harflar. */
+  avatar: TeamAvatar | null;
+  /** true — hozir jamoada emas, avval loyihada bo'lgan (alohida bo'limda). */
+  former: boolean;
+  /** Loyihadagi davri, erkin matn («2022–2024»); bo'sh — ko'rsatilmaydi. */
+  period: string;
   visible: boolean;
   sortOrder: number;
 };
@@ -108,6 +122,9 @@ export const teamMemberInputSchema = z.object({
   youtube: urlField("YouTube", (value) => normalizeSocialUrl("youtube", value)),
   facebook: urlField("Facebook", (value) => normalizeSocialUrl("facebook", value)),
   website: urlField("Veb-sayt", normalizeWebsite),
+  avatar: z.enum(TEAM_AVATAR_KEYS).nullable().default(null),
+  former: z.boolean().default(false),
+  period: z.string().trim().max(TEAM_LIMITS.period, `Davr ${TEAM_LIMITS.period} belgidan oshmasin.`).default(""),
   visible: z.boolean().default(true),
 });
 export type TeamMemberInput = z.input<typeof teamMemberInputSchema>;

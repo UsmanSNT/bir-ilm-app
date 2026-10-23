@@ -10,7 +10,7 @@ import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { notFound } from "@/server/http/errors";
 import { getUserRole } from "@/server/services/roles";
-import { EBOOK_PREVIEW, ebookAccessFor, type Book, type Ebook, type EbookAccess } from "@/shared/contract";
+import { EBOOK_PREVIEW, ebookAccessFor, ebookSourceOf, type Book, type Ebook, type EbookAccess, type EbookSourceData, type SaveEbookInput } from "@/shared/contract";
 import { ebookPreview, ebookTextLength } from "@/shared/ebook-markup";
 import { getBook, getBookRow } from "./books";
 
@@ -37,18 +37,37 @@ export async function readEbook(db: Database, bookId: string, userId: string): P
     body: full ? row.body : ebookPreview(row.body, EBOOK_PREVIEW),
     chars: row.chars,
     updatedAt: row.updatedAt,
+    source: ebookSourceOf(row.sourceName, row.sourceUrl),
   };
 }
 
-/** Matn tayyor holda keladi (`saveEbookSchema` tozalagan). Qayta yuklansa almashtiriladi. */
-export async function saveEbook(db: Database, bookId: string, userId: string, body: string): Promise<Book> {
+/**
+ * Matn tayyor holda keladi (`saveEbookSchema` tozalagan). Qayta yuklansa almashtiriladi; manba berilmagan bo'lsa
+ * avvalgisi qoladi (yangi e-kitobda — bo'sh).
+ */
+export async function saveEbook(db: Database, bookId: string, userId: string, { body, sourceName, sourceUrl }: SaveEbookInput): Promise<Book> {
   await getBookRow(db, bookId);
-  const values = { body, chars: ebookTextLength(body), updatedBy: userId, updatedAt: new Date().toISOString() };
+  const source = sourceName !== undefined || sourceUrl !== undefined ? { sourceName: sourceName ?? "", sourceUrl: sourceUrl ?? "" } : {};
+  const values = { body, chars: ebookTextLength(body), updatedBy: userId, updatedAt: new Date().toISOString(), ...source };
   await db
     .insert(bookEbooks)
     .values({ bookId, ...values })
     .onConflictDoUpdate({ target: bookEbooks.bookId, set: values });
   await db.update(books).set({ updatedAt: values.updatedAt }).where(eq(books.id, bookId));
+  return getBook(db, bookId);
+}
+
+/** Matnni o'zgartirmasdan faqat manbani yangilaydi (yoki bo'sh yuborilsa olib tashlaydi). */
+export async function setEbookSource(db: Database, bookId: string, userId: string, { sourceName, sourceUrl }: EbookSourceData): Promise<Book> {
+  await getBookRow(db, bookId);
+  const stamp = new Date().toISOString();
+  const updated = await db
+    .update(bookEbooks)
+    .set({ sourceName, sourceUrl, updatedBy: userId, updatedAt: stamp })
+    .where(eq(bookEbooks.bookId, bookId))
+    .returning({ bookId: bookEbooks.bookId });
+  if (updated.length === 0) throw notFound("Bu kitobning elektron shakli hali qo‘yilmagan.");
+  await db.update(books).set({ updatedAt: stamp }).where(eq(books.id, bookId));
   return getBook(db, bookId);
 }
 

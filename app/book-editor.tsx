@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, Clock3, Eye, FileText, Headphones, ImagePlus, Link2, Megaphone, Sparkles, Store, Trash2, Upload, X } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, Clock3, Eye, FileText, Headphones, ImagePlus, Library, Link2, Megaphone, Sparkles, Store, Trash2, Upload, X } from "lucide-react";
 import { looksLikeMarkdown, stripMarkdown } from "@/lib/markdown";
 import { toast } from "sonner";
 import DateTimeField from "./datetime-field";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { audioDuration, createBook, deleteBook, deleteEbook, deleteTrack, fetchEbook, notifyCatalogChanged, saveEbook, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
+import { audioDuration, createBook, deleteBook, deleteEbook, deleteTrack, fetchEbook, notifyCatalogChanged, saveEbook, saveEbookSource, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
 import { createLiveSession, fetchLiveSessions, updateLiveSession } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
-import { BOOK_LIMITS, EBOOK_LIMITS, STORE_CATEGORIES, STORE_LIMITS, describeAudioLink, normalizeAudioLink, type Book, type LiveSession } from "@/shared/contract";
+import { BOOK_LIMITS, EBOOK_LIMITS, ebookSourceLabel, STORE_CATEGORIES, STORE_LIMITS, describeAudioLink, normalizeAudioLink, type Book, type LiveSession } from "@/shared/contract";
 import { ebookTextLength, tidyEbookSource } from "@/shared/ebook-markup";
 import EbookReader from "./ebook-reader";
 import { clock, dayMonth, durationLabel, localInput, nextTalk, notifyTalksChanged, talkAnnouncement, talkRescheduled } from "./talk-format";
@@ -102,6 +102,12 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
   const [previewing, setPreviewing] = useState(false);
   const ebookChars = useMemo(() => (ebookText === null ? 0 : ebookTextLength(ebookText)), [ebookText]);
   const ebookDirty = ebookText !== null && ebookText !== ebookLoaded;
+  // Manba (matn qayerdan olingani): kitobga kirishdan oldin ko'rsatiladi.
+  const savedSource = book?.ebook?.source ?? null;
+  const [sourceName, setSourceName] = useState(savedSource?.name ?? "");
+  const [sourceUrl, setSourceUrl] = useState(savedSource?.url ?? "");
+  const sourceDirty = sourceName.trim() !== (savedSource?.name ?? "") || sourceUrl.trim() !== (savedSource?.url ?? "");
+  const hasEbook = !ebookRemoved && (Boolean(book?.ebook) || ebookText !== null);
 
   /** Serverdagi matnni tahrirlash uchun bir marta yuklaydi. */
   async function openEbookText() {
@@ -235,8 +241,10 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
       // E-kitob matni — katta fayllardan oldin (yuklash uzilsa ham matn saqlanib qoladi).
       if (ebookRemoved && book?.ebook) saved = await deleteEbook(saved.id);
       else if (!ebookRemoved && ebookDirty && ebookText?.trim()) {
-        saved = await saveEbook(saved.id, ebookText);
+        saved = await saveEbook(saved.id, ebookText, sourceDirty || !book?.ebook ? { sourceName: sourceName.trim(), sourceUrl: sourceUrl.trim() } : undefined);
         setEbookLoaded(ebookText);
+      } else if (!ebookRemoved && book?.ebook && sourceDirty) {
+        saved = await saveEbookSource(saved.id, { sourceName: sourceName.trim(), sourceUrl: sourceUrl.trim() });
       }
 
       if (cover) {
@@ -298,6 +306,7 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
       <EbookReader
         book={{ id: book?.id ?? "draft", title: title.trim() || "Nomsiz kitob", author: author.trim(), coverUrl: preview ?? book?.coverUrl ?? null, color }}
         draft={ebookText}
+        draftSource={sourceName.trim() || sourceUrl.trim() ? { name: sourceName.trim(), url: sourceUrl.trim() } : null}
         onClose={() => setPreviewing(false)}
       />
     )}
@@ -452,6 +461,40 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
               )}
               {ebookRemoved && <button type="button" className="ghost" onClick={() => setEbookRemoved(false)}>Qaytarish</button>}
             </div>
+            {hasEbook && (
+              <fieldset className="book-editor-source" disabled={busy}>
+                <legend><Library size={15} aria-hidden="true" /> Manba <small>matn qayerdan olingani — kitobga kirishdan oldin ko‘rsatiladi</small></legend>
+                <input
+                  type="text"
+                  aria-label="Manba nomi"
+                  placeholder="Manba nomi (masalan: Vikimanba)"
+                  maxLength={EBOOK_LIMITS.sourceName}
+                  autoComplete="off"
+                  value={sourceName}
+                  onChange={(e) => setSourceName(e.target.value)}
+                />
+                <label className="book-editor-link">
+                  <Link2 size={16} aria-hidden="true" />
+                  <input
+                    type="text"
+                    inputMode="url"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    aria-label="Manba havolasi"
+                    placeholder="Havola (masalan: uz.wikisource.org/…)"
+                    maxLength={EBOOK_LIMITS.sourceUrl}
+                    value={sourceUrl}
+                    onChange={(e) => setSourceUrl(e.target.value)}
+                  />
+                </label>
+                <p className="book-editor-link-hint">
+                  {sourceName.trim() || sourceUrl.trim()
+                    ? <>O‘quvchi ko‘radi: <em>Manba: {ebookSourceLabel({ name: sourceName.trim(), url: sourceUrl.trim().replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "") })}</em></>
+                    : "Nom yoki havolaning bittasi yetarli. Bo‘sh qoldirsangiz, manba ko‘rsatilmaydi."}
+                </p>
+              </fieldset>
+            )}
             {ebookOpen && !ebookRemoved && (
               <>
                 <textarea

@@ -29,6 +29,9 @@ const toMember = (row: typeof teamMembers.$inferSelect): TeamMember => ({
   youtube: row.youtube,
   facebook: row.facebook,
   website: row.website,
+  avatar: row.avatar,
+  former: row.former,
+  period: row.period,
   visible: row.visible,
   sortOrder: row.sortOrder,
 });
@@ -38,7 +41,8 @@ export async function listTeam(db: Database, includeHidden = false): Promise<Tea
     .select()
     .from(teamMembers)
     .where(includeHidden ? undefined : eq(teamMembers.visible, true))
-    .orderBy(asc(teamMembers.sortOrder), asc(teamMembers.createdAt));
+    // Avval hozirgi jamoa, keyin sobiq a'zolar; har guruh ichida admin belgilagan tartib.
+    .orderBy(asc(teamMembers.former), asc(teamMembers.sortOrder), asc(teamMembers.createdAt));
   return rows.map(toMember);
 }
 
@@ -73,8 +77,14 @@ export async function createTeamMember(db: Database, actorId: string, input: Tea
 }
 
 export async function updateTeamMember(db: Database, id: string, input: TeamMemberData): Promise<TeamMember[]> {
-  await findMember(db, id);
-  await db.update(teamMembers).set({ ...input, updatedAt: new Date().toISOString() }).where(eq(teamMembers.id, id));
+  const row = await findMember(db, id);
+  const patch: Partial<typeof teamMembers.$inferInsert> = { ...input, updatedAt: new Date().toISOString() };
+  if (input.former !== row.former) {
+    // Boshqa guruhga o'tgan a'zo o'sha guruhning oxiriga tushadi.
+    const [{ last }] = await db.select({ last: sql<number>`coalesce(max(${teamMembers.sortOrder}), 0)` }).from(teamMembers);
+    patch.sortOrder = Number(last) + 1;
+  }
+  await db.update(teamMembers).set(patch).where(eq(teamMembers.id, id));
   return listTeam(db, true);
 }
 
@@ -85,13 +95,17 @@ export async function deleteTeamMember(db: Database, id: string): Promise<TeamMe
   return listTeam(db, true);
 }
 
-/** Qo'shni a'zo bilan o'rin almashtiradi va tartibni 1..n qilib qayta yozadi (bo'shliq va takror qolmaydi). */
+/**
+ * O'z guruhidagi (hozirgi jamoa yoki sobiq a'zolar) qo'shni a'zo bilan o'rin almashtiradi va tartibni
+ * 1..n qilib qayta yozadi (bo'shliq va takror qolmaydi).
+ */
 export async function moveTeamMember(db: Database, id: string, { direction }: TeamMoveInput): Promise<TeamMember[]> {
-  const ids = (await listTeam(db, true)).map((member) => member.id);
+  const members = await listTeam(db, true);
+  const ids = members.map((member) => member.id);
   const from = ids.indexOf(id);
   if (from === -1) throw notFound("Jamoa a'zosi topilmadi.");
   const to = direction === "up" ? from - 1 : from + 1;
-  if (to < 0 || to >= ids.length) return listTeam(db, true);
+  if (to < 0 || to >= ids.length || members[to].former !== members[from].former) return members;
   [ids[from], ids[to]] = [ids[to], ids[from]];
   const statements = ids.map((memberId, index) => db.update(teamMembers).set({ sortOrder: index + 1 }).where(eq(teamMembers.id, memberId)));
   await db.batch(statements as [(typeof statements)[number], ...(typeof statements)[number][]]);

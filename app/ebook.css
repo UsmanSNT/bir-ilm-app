@@ -668,3 +668,7 @@
   max-width: calc(100vw - 20px);
   z-index: 9;
 }
+
+/* Muqovadagi manba: sahifa chizig'idan chiqmasin, matn uzunligi sahifani buzmasin. */
+.eb-cover .eb-cover-source { justify-content: center; max-width: 30ch; margin: 2px 0 0; font-size: 12.5px; text-align: center; }
+.eb-cover .eb-cover-source a { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }

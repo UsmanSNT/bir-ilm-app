@@ -230,6 +230,9 @@ export const bookEbooks = sqliteTable("book_ebooks", {
   body: text("body").notNull(),
   /** Belgilarsiz matn uzunligi — katalogda va tanishuv qismida. */
   chars: integer("chars").notNull().default(0),
+  /** Matn qayerdan olingani: manba nomi va https havolasi. Bo'sh — ko'rsatilmaydi. */
+  sourceName: text("source_name").notNull().default(""),
+  sourceUrl: text("source_url").notNull().default(""),
   updatedBy: text("updated_by"),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
@@ -652,6 +655,12 @@ export const teamMembers = sqliteTable("team_members", {
   youtube: text("youtube").notNull().default(""),
   facebook: text("facebook").notNull().default(""),
   website: text("website").notNull().default(""),
+  /** Rasm o'rniga tanlangan avatar (`TEAM_AVATARS` kalitlari bilan bir xil); null — bosh harflar. Rasm bo'lsa ahamiyatsiz. */
+  avatar: text("avatar", { enum: ["woman", "man"] }),
+  /** Hozir jamoada emas, avval loyihada bo'lgan. Alohida bo'limda ko'rinadi. */
+  former: integer("former", { mode: "boolean" }).notNull().default(false),
+  /** Loyihadagi davri, erkin matn (masalan, «2022–2024»). */
+  period: text("period").notNull().default(""),
   sortOrder: integer("sort_order").notNull().default(0),
   visible: integer("visible", { mode: "boolean" }).notNull().default(true),
   createdBy: text("created_by"),

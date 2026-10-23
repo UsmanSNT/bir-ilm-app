@@ -8,6 +8,7 @@ import { formatPrice, STORE_LIMITS, type ReviewSummary, type StoreBook } from "@
 import { askAi } from "./store-ai";
 import { BookCover, FormattedText, RatingLine, StarInput, Stars } from "./store-ui";
 import EbookReader from "./ebook-reader";
+import EbookSourceNote from "./ebook-source";
 
 const reviewDate = (value: string) => {
   const d = new Date(value.includes("T") ? value : `${value.replace(" ", "T")}Z`);
@@ -63,6 +64,7 @@ export default function StoreBookPage({ book, related, saved, onBack, onOpen, on
               <Heart size={20} fill={saved ? "currentColor" : "none"} />
             </button>
           </div>
+          {book.ebook?.source && <EbookSourceNote source={book.ebook.source} className="zb-source" />}
           {book.ebook && (
             <button type="button" className="zb-btn zb-read-btn" onClick={() => setReading(true)}>
               <BookOpen size={18} /> Boshlang‘ich qismini o‘qish

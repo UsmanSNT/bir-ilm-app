@@ -2602,3 +2602,11 @@ input {
 .dtf-btn.is-primary:hover:not(:disabled) { background: #22307a; }
 .dtf-btn:disabled { opacity: .45; cursor: default; }
 @media (max-width: 480px) { .feed-chip svg { display: none; } .feed-chip { padding: 0 11px; } .feed-chips { gap: 5px; } }
+
+/* «Manba: …» — elektron kitob matni qayerdan olingani (kitobga kirishdan oldin). */
+.ebook-source{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:8px 0 0;color:var(--siyoh-3,#6b6a7a);font-size:13px;line-height:1.4}
+.ebook-source svg{flex:none;color:var(--tilla,#b98a2e)}
+.ebook-source a,.ebook-source b{display:inline-flex;align-items:center;gap:4px;color:var(--lojuvard,#192558);font-weight:700;text-decoration:underline;text-decoration-color:var(--tilla-2,#e2b65c);text-underline-offset:3px;overflow-wrap:anywhere}
+.ebook-source b{text-decoration:none}
+.ebook-source a:hover{text-decoration-thickness:2px}
+.ebook-source a:focus-visible{outline:2px solid var(--tilla-2,#e2b65c);outline-offset:3px;border-radius:4px}

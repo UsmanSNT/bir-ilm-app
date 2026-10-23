@@ -44,7 +44,7 @@ const booksRoute = await load("app/api/v1/books/route.ts");
 const bookRoute = await load("app/api/v1/books/[id]/route.ts");
 const ebookRoute = await load("app/api/v1/books/[id]/ebook/route.ts");
 const storeBooks = await load("app/api/v1/store/books/route.ts");
-const { EBOOK_PREVIEW } = await load("shared/contract/ebook.ts");
+const { EBOOK_PREVIEW, EBOOK_LIMITS, ebookSourceLabel } = await load("shared/contract/ebook.ts");
 const { ebookPreview, ebookTextLength } = await load("shared/ebook-markup.ts");
 
 const ORIGIN = "http://127.0.0.1:8787";
@@ -136,8 +136,49 @@ try {
   assert.ok(!/^#/.test(preview.body.split("\n").at(-1)), "Oxirida yolg'iz sarlavha qolmaydi");
   for (const staff of [admin, moderator]) assert.equal((await staff.call(ebookRoute.GET, `/api/v1/books/${store.id}/ebook`, p(store))).data.full, true);
   const listed = (await reader.call(storeBooks.GET, "/api/v1/store/books")).data.items.find((b) => b.id === store.id);
-  assert.deepEqual(listed.ebook, { access: "preview", chars: full.chars, updatedAt: listed.ebook.updatedAt });
+  assert.deepEqual(listed.ebook, { access: "preview", chars: full.chars, updatedAt: listed.ebook.updatedAt, source: null });
   console.log("PASS: Do'kon kitobi: oddiy o'quvchiga faqat boshlang'ich qismi, admin/moderatorga to'liq; vitrinada belgisi bor.");
+
+  // ── Manba: matn qayerdan olingani (kitobga kirishdan oldin ko'rsatiladi) ──
+  const sourceOf = async (who, book) => (await who.call(booksRoute.GET, "/api/v1/books")).data.items.find((b) => b.id === book.id).ebook.source;
+  assert.equal(await sourceOf(reader, library), null, "Manba qo'yilmagan — ko'rsatilmaydi");
+  assert.equal(full.source, null);
+  const patchSource = (who, book, sourceBody, expect = 200) => who.call(ebookRoute.PATCH, `/api/v1/books/${book.id}/ebook`, { method: "PATCH", body: sourceBody, ...p(book), expect });
+  await patchSource(reader, library, { sourceName: "X" }, 403);
+  for (const bad of ["javascript:alert(1)", "https://user:pw@example.com", "localhost", "ftp://example.com/x"]) await patchSource(admin, library, { sourceUrl: bad }, 422);
+  await patchSource(admin, library, { sourceUrl: `https://example.com/${"a".repeat(EBOOK_LIMITS.sourceUrl)}` }, 422);
+  await patchSource(admin, library, { sourceName: "n".repeat(EBOOK_LIMITS.sourceName + 1) }, 422);
+  const plain = (await admin.call(booksRoute.POST, "/api/v1/books", { method: "POST", body: { title: "Matnsiz kitob", author: "Muallif" }, expect: 201 })).data;
+  createdBooks.push(plain.id);
+  await patchSource(admin, plain, { sourceName: "X" }, 404);
+
+  const both = (await patchSource(moderator, library, { sourceName: "  Vikimanba ", sourceUrl: "uz.wikisource.org/wiki/Test" })).data;
+  assert.deepEqual(both.ebook.source, { name: "Vikimanba", url: "https://uz.wikisource.org/wiki/Test" }, "Havola https ga keltiriladi, nom tozalanadi");
+  assert.equal(both.ebook.chars, full.chars, "Matn o'zgarmaydi");
+  assert.deepEqual(await sourceOf(reader, library), both.ebook.source, "Hamma katalogda ko'radi");
+  assert.deepEqual((await reader.call(ebookRoute.GET, `/api/v1/books/${library.id}/ebook`, p(library))).data.source, both.ebook.source, "O'qish oynasi muqovasi uchun ham");
+  assert.equal((await reader.call(ebookRoute.GET, `/api/v1/books/${library.id}/ebook`, p(library))).data.body, full.body);
+
+  assert.deepEqual((await patchSource(admin, library, { sourceName: "Muallifning o'zi" })).data.ebook.source, { name: "Muallifning o'zi", url: "" }, "Faqat nom ham bo'ladi");
+  const urlOnly = (await patchSource(admin, library, { sourceUrl: "https://www.example.org/kitob/" })).data.ebook.source;
+  assert.deepEqual(urlOnly, { name: "", url: "https://www.example.org/kitob/" });
+  assert.equal(ebookSourceLabel(urlOnly), "example.org/kitob", "Nom bo'lmasa — havola domeni");
+
+  // Matnni qayta yuklash: manba berilmasa saqlanadi, berilsa almashadi.
+  await admin.call(ebookRoute.PUT, `/api/v1/books/${library.id}/ebook`, { method: "PUT", body: { body: `${body}\n\nQo'shimcha xatboshi.` }, ...p(library) });
+  assert.deepEqual(await sourceOf(reader, library), urlOnly, "Matn almashganda manba qoladi");
+  await admin.call(ebookRoute.PUT, `/api/v1/books/${library.id}/ebook`, { method: "PUT", body: { body, sourceName: "Yangi manba" }, ...p(library) });
+  assert.deepEqual(await sourceOf(reader, library), { name: "Yangi manba", url: "" }, "Berilgan manba almashtiradi (ikkinchisi bo'sh)");
+  await admin.call(ebookRoute.PUT, `/api/v1/books/${library.id}/ebook`, { method: "PUT", body: { body, sourceName: "Bad", sourceUrl: "javascript:1" }, ...p(library), expect: 422 });
+
+  // Do'kon vitrinasida ham.
+  await patchSource(admin, store, { sourceName: "Nashriyot", sourceUrl: "https://example.com/nashr" });
+  assert.deepEqual((await reader.call(storeBooks.GET, "/api/v1/store/books")).data.items.find((b) => b.id === store.id).ebook.source, { name: "Nashriyot", url: "https://example.com/nashr" });
+
+  // Bo'sh yuborilsa — olib tashlanadi.
+  assert.equal((await patchSource(admin, library, {})).data.ebook.source, null);
+  assert.equal(await sourceOf(reader, library), null);
+  console.log("PASS: Manba: faqat admin/moderator qo'yadi, havola tekshiriladi, katalog, o'qish oynasi va vitrinada ko'rinadi, matn almashganda saqlanadi.");
 
   // ── Olib tashlash va kitob bilan birga o'chish ───────────────────
   await reader.call(ebookRoute.DELETE, `/api/v1/books/${library.id}/ebook`, { method: "DELETE", ...p(library), expect: 403 });

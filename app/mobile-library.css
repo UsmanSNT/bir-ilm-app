@@ -432,6 +432,11 @@
   padding-inline: 22px;
 }
 
+.lib-player .lib-source {
+  justify-content: center;
+  margin: 2px 0 8px;
+}
+
 .lib-chapter {
   margin-top: 6px !important;
   color: #192558 !important;

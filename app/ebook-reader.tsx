@@ -21,11 +21,12 @@ import { createPortal } from "react-dom";
 import { Bookmark, BookOpen, Copy, Highlighter, List, Minus, Plus, RotateCcw, Search, Send, ShoppingBag, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { addMark, fetchEbook, fetchMarks, removeMark } from "@/lib/api/books-client";
-import { HIGHLIGHT_COLORS, type CreateEbookMarkInput, type Ebook, type EbookMark, type HighlightColor } from "@/shared/contract";
+import { HIGHLIGHT_COLORS, type CreateEbookMarkInput, type Ebook, type EbookMark, type EbookSource, type HighlightColor } from "@/shared/contract";
 import { ebookTextLength, parseEbook, runsText, tidyEbookSource, type EbookBlock, type MarkRange } from "@/shared/ebook-markup";
 import { pageOfAnchor, paginate, renderFrag, type Anchor, type Page } from "./ebook-paginate";
 import { copyText, type Quote } from "./ebook-quote";
 import QuoteDialog from "./ebook-quote-dialog";
+import EbookSourceNote from "./ebook-source";
 
 const colorHex = (key: HighlightColor) => HIGHLIGHT_COLORS.find((c) => c.key === key)?.hex ?? HIGHLIGHT_COLORS[0].hex;
 
@@ -128,7 +129,7 @@ function layoutFor(width: number, height: number) {
  * `draft` — saqlanmagan matnni ko'rib chiqish (muharrirda): serverga murojaat yo'q, joy eslab qolinmaydi.
  * `onBuy` — do'kon kitobi: tanishuv qismi oxirida «Savatga qo'shish».
  */
-export default function EbookReader({ book, draft, onClose, onBuy }: { book: ReaderBook; draft?: string; onClose: () => void; onBuy?: () => void }) {
+export default function EbookReader({ book, draft, draftSource = null, onClose, onBuy }: { book: ReaderBook; draft?: string; draftSource?: EbookSource | null; onClose: () => void; onBuy?: () => void }) {
   const [ebook, setEbook] = useState<Ebook | null>(null);
   const [error, setError] = useState("");
   const [font, setFont] = useState(() => {
@@ -172,14 +173,14 @@ export default function EbookReader({ book, draft, onClose, onBuy }: { book: Rea
     setError("");
     if (draft !== undefined) {
       const body = tidyEbookSource(draft);
-      const local = { bookId: book.id, title: book.title, author: book.author, access: "free" as const, full: true, body, chars: ebookTextLength(body), updatedAt: "" };
+      const local = { bookId: book.id, title: book.title, author: book.author, access: "free" as const, full: true, body, chars: ebookTextLength(body), updatedAt: "", source: draftSource };
       setEbook(local);
       return;
     }
     fetchEbook(book.id, signal)
       .then(setEbook)
       .catch((e: Error) => { if (!signal?.aborted) setError(e.message || "Kitobni ochib bo‘lmadi."); });
-  }, [book.id, book.title, book.author, draft]);
+  }, [book.id, book.title, book.author, draft, draftSource]);
   useEffect(() => {
     const controller = new AbortController();
     queueMicrotask(() => load(controller.signal));
@@ -876,6 +877,7 @@ function SheetView({ sheet, side, book, ebook, onBuy, onRestart, total, highligh
         <h2>{book.title}</h2>
         <p>{book.author}</p>
         <span className="eb-cover-star" aria-hidden="true" />
+        {ebook?.source && <EbookSourceNote source={ebook.source} className="eb-cover-source" />}
         {ebook && ebook.access === "preview" && (
           <p className="eb-cover-note">{ebook.full ? "To‘liq matn — admin/moderator sifatida ko‘ryapsiz" : "Tanishuv uchun boshlang‘ich qismi"}</p>
         )}

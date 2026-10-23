@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { z } from "zod";
-import { BOOK_LIMITS, createBookSchema, type Book, type CreateEbookMarkInput, type Ebook, type EbookMark, type UpdateBookInput } from "@/shared/contract";
+import { BOOK_LIMITS, createBookSchema, type Book, type CreateEbookMarkInput, type Ebook, type EbookMark, type EbookSourceInput, type UpdateBookInput } from "@/shared/contract";
 import { API_PREFIX, absoluteUrl } from "./config";
 
 type Envelope<T> = { ok?: boolean; data?: T; error?: { message?: string; received?: number } };
@@ -72,8 +72,12 @@ export const deleteBook = (id: string) => call(`/books/${encodeURIComponent(id)}
 
 /** Elektron kitob matni (do'kon kitobida oddiy foydalanuvchiga boshlang'ich qismi). */
 export const fetchEbook = (id: string, signal?: AbortSignal) => call<Ebook>(`/books/${encodeURIComponent(id)}/ebook`, { signal });
-export const saveEbook = (id: string, body: string) =>
-  call<Book>(`/books/${encodeURIComponent(id)}/ebook`, { method: "PUT", body: JSON.stringify({ body }) });
+/** `source` berilmasa mavjud manba o'zgarmaydi. */
+export const saveEbook = (id: string, body: string, source?: EbookSourceInput) =>
+  call<Book>(`/books/${encodeURIComponent(id)}/ebook`, { method: "PUT", body: JSON.stringify({ body, ...source }) });
+/** Matnni tegmasdan manbani almashtirish; ikkalasi bo'sh — olib tashlash. */
+export const saveEbookSource = (id: string, source: EbookSourceInput) =>
+  call<Book>(`/books/${encodeURIComponent(id)}/ebook`, { method: "PATCH", body: JSON.stringify(source) });
 export const deleteEbook = (id: string) => call<Book>(`/books/${encodeURIComponent(id)}/ebook`, { method: "DELETE" });
 
 /** Audio davomiyligini brauzerning o'zi o'qiydi (serverda dekoder kerak bo'lmaydi). */

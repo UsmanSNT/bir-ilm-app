@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { ebookTextLength, tidyEbookSource, type PreviewRule } from "../ebook-markup";
 import type { BookKind } from "./library";
+import { normalizeWebsite, websiteLabel } from "./team";
 
 export const EBOOK_ACCESS = ["free", "preview"] as const;
 export type EbookAccess = (typeof EBOOK_ACCESS)[number];
@@ -18,7 +19,18 @@ export const EBOOK_LIMITS = {
   bodyChars: 2_000_000,
   /** Admin import qiladigan PDF: 100 MB (brauzerning o'zida o'qiladi, serverga yuborilmaydi). */
   pdfBytes: 100 * 1024 * 1024,
+  sourceName: 120,
+  sourceUrl: 300,
 } as const;
+
+/** Matn qayerdan olingani: manba nomi va/yoki https havolasi (kamida bittasi bo'ladi). */
+export type EbookSource = { name: string; url: string };
+
+/** Bazadagi ikki maydondan manba; ikkisi ham bo'sh — manba ko'rsatilmaydi. */
+export const ebookSourceOf = (name: string, url: string): EbookSource | null => (name || url ? { name, url } : null);
+
+/** Ekranda ko'rinadigan nom: yozilgan nom, bo'lmasa havola domeni («wikisource.org/…»). */
+export const ebookSourceLabel = (source: EbookSource): string => source.name || websiteLabel(source.url);
 
 /** Do'kon kitobining tanishuv qismi: matnning 10 foizi, kamida 4000 belgi, ko'pi bilan yarmi. */
 export const EBOOK_PREVIEW: PreviewRule = { share: 0.1, minChars: 4000, maxShare: 0.5 };
@@ -34,6 +46,8 @@ export type EbookInfo = {
   /** Matn uzunligi (belgilarsiz). */
   chars: number;
   updatedAt: string;
+  /** Matn qayerdan olingani; kitobga kirishdan oldin ko'rsatiladi. null — ko'rsatilmagan. */
+  source: EbookSource | null;
 };
 
 /** O'qish oynasi oladigan matn. */
@@ -48,9 +62,34 @@ export type Ebook = {
   /** To'liq matn uzunligi (tanishuv qismida ham — qancha qolganini ko'rsatish uchun). */
   chars: number;
   updatedAt: string;
+  source: EbookSource | null;
 };
 
+const sourceNameField = z.string().trim().max(EBOOK_LIMITS.sourceName, `Manba nomi ${EBOOK_LIMITS.sourceName} belgidan oshmasin.`);
+const sourceUrlField = z
+  .string()
+  .max(EBOOK_LIMITS.sourceUrl, `Manba havolasi ${EBOOK_LIMITS.sourceUrl} belgidan oshmasin.`)
+  .transform((value, ctx) => {
+    const url = normalizeWebsite(value);
+    if (url === null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Manba havolasini to‘g‘ri yozing. Masalan: https://uz.wikisource.org/…" });
+      return z.NEVER;
+    }
+    return url;
+  });
+
+/** Faqat manbani almashtirish (matn tegilmaydi). Ikkalasi ham bo'sh — manba olib tashlanadi. */
+export const ebookSourceSchema = z.object({
+  sourceName: sourceNameField.default(""),
+  sourceUrl: sourceUrlField.default(""),
+});
+export type EbookSourceInput = z.input<typeof ebookSourceSchema>;
+export type EbookSourceData = z.output<typeof ebookSourceSchema>;
+
 export const saveEbookSchema = z.object({
+  /** Berilmasa — mavjud manba o'zgarmaydi; bittasi berilsa, ikkinchisi bo'sh deb olinadi. */
+  sourceName: sourceNameField.optional(),
+  sourceUrl: sourceUrlField.optional(),
   body: z
     .string()
     .max(EBOOK_LIMITS.bodyChars * 2, "Matn juda katta.")
@@ -61,7 +100,7 @@ export const saveEbookSchema = z.object({
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Matn ${EBOOK_LIMITS.bodyChars.toLocaleString("en-US")} belgidan oshmasin.` });
     }),
 });
-export type SaveEbookInput = z.infer<typeof saveEbookSchema>;
+export type SaveEbookInput = z.output<typeof saveEbookSchema>;
 
 export const EBOOK_MARK_LIMITS = {
   /** Bitta foydalanuvchi bitta kitobda. */

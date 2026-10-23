@@ -11,15 +11,15 @@ import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { notFound } from "@/server/http/errors";
 import { weekBookOnAir } from "./journey";
-import { ebookAccessFor, type Book, type BookTrack, type CreateBookInput, type ReorderTracksInput, type UpdateBookInput } from "@/shared/contract";
+import { ebookAccessFor, ebookSourceOf, type Book, type BookTrack, type CreateBookInput, type ReorderTracksInput, type UpdateBookInput } from "@/shared/contract";
 
 const { books, bookTracks, bookEbooks } = schema;
 type BookRow = typeof books.$inferSelect;
 type TrackRow = typeof bookTracks.$inferSelect;
 /** E-kitobning yengil ma'lumoti (matnning o'zisiz). */
-export type EbookMeta = { bookId: string; chars: number; updatedAt: string };
+export type EbookMeta = { bookId: string; chars: number; updatedAt: string; sourceName: string; sourceUrl: string };
 
-const ebookMetaColumns = { bookId: bookEbooks.bookId, chars: bookEbooks.chars, updatedAt: bookEbooks.updatedAt };
+const ebookMetaColumns = { bookId: bookEbooks.bookId, chars: bookEbooks.chars, updatedAt: bookEbooks.updatedAt, sourceName: bookEbooks.sourceName, sourceUrl: bookEbooks.sourceUrl };
 
 export const BOOK_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{2,63}$/;
 export const MEDIA_FILE_PATTERN = /^(cover|audio|track-[a-z0-9]{8,32})\.[a-z0-9]{2,5}$/;
@@ -65,7 +65,7 @@ function buildBook(row: BookRow, trackRows: TrackRow[], ebook: EbookMeta | undef
     kind: row.kind,
     price: row.price,
     category: row.category,
-    ebook: ebook ? { access: ebookAccessFor(row.kind), chars: ebook.chars, updatedAt: ebook.updatedAt } : null,
+    ebook: ebook ? { access: ebookAccessFor(row.kind), chars: ebook.chars, updatedAt: ebook.updatedAt, source: ebookSourceOf(ebook.sourceName, ebook.sourceUrl) } : null,
   };
 }
 
