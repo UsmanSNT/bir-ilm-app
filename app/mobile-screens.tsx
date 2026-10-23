@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Headphones,
   Leaf,
+  LibraryBig,
   Pencil,
   Plus,
   UserRound,
@@ -40,7 +41,7 @@ import {
   type QuizMode,
 } from "./quiz-ui";
 import QuizPlay, { type SoloResult } from "./quiz-play";
-import { useWisdom } from "@/lib/api/site-client";
+import { useJourneyBooks, useWisdom } from "@/lib/api/site-client";
 import { WisdomCard, WisdomDialog, WisdomEditor, useWisdomPrompt } from "./wisdom";
 import { JourneyEntry } from "./about";
 import QuizLive from "./quiz-live";
@@ -53,6 +54,7 @@ import type { LiveSession } from "@/shared/contract/live";
 import { TALKS_CHANGED, WEEKDAYS, clock, countdown, dayMonth, nextTalk, toggleTalkReminder, useTalkReminders } from "./talk-format";
 import type { Book, MediaItem } from "@/shared/contract";
 import { absoluteUrl } from "@/lib/api/config";
+import { uzMonths } from "./uz-date";
 import { dayKey, listenedLabel, useLibrarySave } from "./library-store";
 import { PomodoroButton } from "./focus-timer";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -176,6 +178,12 @@ function DiscussionArt({ variant = "talk" }: { variant?: string }) {
   );
 }
 
+/** «2026-10-24» → «24-oktabr». */
+const dayOfMonth = (date: string) => {
+  const [, month, day] = date.split("-").map(Number);
+  return `${day}-${uzMonths[month - 1]}`;
+};
+
 export default function MobileScreens({
   name,
   session,
@@ -264,7 +272,10 @@ export default function MobileScreens({
     window.addEventListener(TALKS_CHANGED, load);
     return () => window.removeEventListener(TALKS_CHANGED, load);
   }, []);
-  const talk = nextTalk(talks, featured?.title);
+  // Hafta kitobi e'londan tushgan bo'lsa (shanba 22:00 Seuldan keyin), o'sha kitobning suhbati ham ko'rsatilmaydi.
+  const talk = featured ? nextTalk(talks, featured.title) : null;
+  const journeyBooks = useJourneyBooks().value;
+  const journeyEntry = featured ? journeyBooks.filter((entry) => entry.bookId === featured.id).at(-1) ?? null : null;
   const reminders = useTalkReminders();
   const reminded = talk ? reminders.includes(talk.id) : false;
   const talkAt = talk ? new Date(talk.scheduledAt) : null;
@@ -490,11 +501,18 @@ export default function MobileScreens({
             <div className="m-week-row">
               {featured ? <button type="button" className="m-week-cover" onClick={() => onOpenBook(featured)} aria-label={`${featured.title} haqida`}><BookCover title={featured.title} author={featured.author} tone="cream" image={featured.coverUrl} color={featured.color} /></button> : <BookCover title="Tez orada" author="Bir Ilm" tone="cream" />}
               <div>
-                <h2>{featured?.title ?? "Haftaning kitobi hali tanlanmagan"}</h2>
-                <p className="m-author">{featured?.author ?? "Admin tez orada e‘lon qiladi"}</p>
+                <h2>{featured?.title ?? "Tez kunda yangi kitob e’lon qilinadi"}</h2>
+                <p className="m-author">{featured?.author ?? (editor ? "Foydalanuvchilar hozir shu yozuvni ko‘rishmoqda." : "Keyingi muhokama — shanba kuni.")}</p>
                 {featured?.summary && <p className="m-blurb">{featured.summary.slice(0, 90)}{featured.summary.length > 90 ? "…" : ""}</p>}
               </div>
             </div>
+            {(journeyEntry || !featured) && (
+              <button type="button" className="m-week-journey" onClick={onOpenAbout}>
+                <LibraryBig size={15} aria-hidden="true" />
+                <span>{journeyEntry ? `${journeyEntry.number}-kitob · ${dayOfMonth(journeyEntry.discussedOn)}` : "Bir Ilm yo‘li"}</span>
+                <ChevronRight size={15} aria-hidden="true" />
+              </button>
+            )}
             {talk && talkAt ? (
               <div className={`m-week-timeline m-talk-next ${talkProgress >= 80 ? "is-finishing" : ""}`}>
                 <button type="button" className="m-talk-when" onClick={onOpenTalks}>

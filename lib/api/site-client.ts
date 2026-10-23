@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_ABOUT } from "@/shared/contract/about";
-import type { AboutSettings, SiteLinks, SiteLinksInput, SiteVideo, TeamMember, TeamMemberInput, Wisdom, WisdomInput, WisdomToday, WisdomUpdate } from "@/shared/contract";
+import type { AboutSettings, JourneyBook, SiteLinks, SiteLinksInput, SiteVideo, TeamMember, TeamMemberInput, Wisdom, WisdomInput, WisdomToday, WisdomUpdate } from "@/shared/contract";
 import { API_PREFIX } from "./config";
 
 type Envelope<T> = { data?: T; error?: { message?: string; fields?: Record<string, string[]> } };
@@ -22,15 +22,17 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 export const SITE_CHANGED = "bir-site-changed";
 export const notifySiteChanged = () => window.dispatchEvent(new Event(SITE_CHANGED));
 
-/** Bir martalik yuklash; admin o'zgartirsa hamma joyda yangilanadi. */
-function useRemote<T>(load: () => Promise<T>, initial: T): { value: T; loading: boolean } {
+const SITE_EVENTS = [SITE_CHANGED] as const;
+
+/** Bir martalik yuklash; admin o'zgartirsa hamma joyda yangilanadi. `events` barqaror (modul darajasidagi) ro'yxat bo'lsin. */
+function useRemote<T>(load: () => Promise<T>, initial: T, events: readonly string[] = SITE_EVENTS): { value: T; loading: boolean } {
   const [state, setState] = useState({ value: initial, loading: true });
   const run = useCallback(() => { load().then((value) => setState({ value, loading: false })).catch(() => setState((s) => ({ ...s, loading: false }))); }, [load]);
   useEffect(() => {
     run();
-    window.addEventListener(SITE_CHANGED, run);
-    return () => window.removeEventListener(SITE_CHANGED, run);
-  }, [run]);
+    for (const name of events) window.addEventListener(name, run);
+    return () => { for (const name of events) window.removeEventListener(name, run); };
+  }, [run, events]);
   return state;
 }
 
@@ -58,7 +60,7 @@ export const deleteWisdom = (id: string) => call<unknown>(`/site/wisdom/${encode
 // ── Loyiha jamoasi va «Biz haqimizda» ───────────────────────────────
 
 type TeamList = { items: TeamMember[] };
-const items = (d: TeamList) => d.items;
+const items = <T,>(d: { items: T[] }) => d.items;
 const memberPath = (id: string) => `/site/team/${encodeURIComponent(id)}`;
 
 const loadTeam = () => call<TeamList>("/site/team").then(items);
@@ -70,6 +72,13 @@ const loadAbout = () => call<AboutSettings>("/site/about");
 export const useTeam = (includeHidden = false) => useRemote(includeHidden ? loadTeamAll : loadTeam, NO_TEAM);
 /** Yuklanguncha standart qiymat: hisoblar darhol chiqadi, keyin kerak bo'lsa yangilanadi. */
 export const useAbout = () => useRemote(loadAbout, DEFAULT_ABOUT);
+
+/** Suhbat vaqti belgilanganda ro'yxatga yoziladi: app/talk-format.ts dagi TALKS_CHANGED hodisasi bilan bir xil nom. */
+const JOURNEY_EVENTS = [SITE_CHANGED, "bir-talks-changed"] as const;
+const loadJourneyBooks = () => call<{ items: JourneyBook[] }>("/site/journey").then(items);
+const NO_JOURNEY_BOOKS: JourneyBook[] = [];
+/** «Bir Ilm yo'li»: suhbat vaqti belgilangan hafta kitoblari (tartib raqami bilan). Suhbat o'zgarganda yangilanadi. */
+export const useJourneyBooks = () => useRemote(loadJourneyBooks, NO_JOURNEY_BOOKS, JOURNEY_EVENTS);
 
 export const fetchTeamAdmin = loadTeamAll;
 export const createTeamMember = (input: TeamMemberInput) => call<TeamList>("/site/team", { method: "POST", body: JSON.stringify(input) }).then(items);

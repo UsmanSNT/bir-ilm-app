@@ -320,6 +320,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--firuza-2); }
 .m-talk-badge { background: var(--tilla-och); color: var(--lojuvard-3); }
 .m-talk-badge.live { background: var(--anor); color: #fff; }
 .m-talk-none { color: var(--tilla-2); }
+.m-week-journey { justify-self: start; display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 12px; border: 1.5px solid #e2b65c88; border-radius: 999px; background: #ffffff10; color: var(--tilla-2); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.m-week-journey:hover { background: #ffffff1c; }
+.m-week-journey:focus-visible { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
 .m-week-labels { color: #cfcde3; }
 .m-week-labels strong { color: var(--tilla-2); }
 .m-week-track { background: #ffffff1f; }

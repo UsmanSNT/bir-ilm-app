@@ -11,6 +11,7 @@ import { schema } from "@/server/db/client";
 import { ensureUser } from "./social";
 import { mediaRoot } from "./books";
 import { decodeCursor, encodeCursor } from "./cursor";
+import { recordJourneyBook } from "./journey";
 import { badRequest, notFound } from "@/server/http/errors";
 import type { Page } from "@/shared/contract/common";
 import type {
@@ -43,6 +44,8 @@ export async function createLiveSession(
     scheduledAt: input.scheduledAt,
     moderatorId,
   });
+  // Hafta kitobining suhbati «Bir Ilm yo'li» ro'yxatiga yoziladi (kitob nomi va shanba).
+  await recordJourneyBook(db, input.bookTitle, input.scheduledAt);
   return (await getLiveSession(db, id))!;
 }
 
@@ -253,6 +256,9 @@ export async function updateLiveSession(
   if (patch.title !== undefined) set.title = patch.title;
   if (patch.scheduledAt !== undefined) set.scheduledAt = patch.scheduledAt;
   await db.update(schema.liveSessions).set(set).where(eq(schema.liveSessions.id, id));
+  if (patch.scheduledAt !== undefined || patch.bookTitle !== undefined) {
+    await recordJourneyBook(db, set.bookTitle ?? row.bookTitle, set.scheduledAt ?? row.scheduledAt);
+  }
   return (await getLiveSession(db, id, true))!;
 }
 

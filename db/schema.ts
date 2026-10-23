@@ -197,6 +197,8 @@ export const books = sqliteTable("books", {
   pages: integer("pages").notNull().default(320),
   /** Haftaning kitobi (bosh sahifa va profilda ko'rinadi). Bir vaqtda bittasi. */
   active: integer("active", { mode: "boolean" }).notNull().default(false),
+  /** Hafta kitobi qilingan vaqt (ISO). Hafta tugagach qayta tanlangan kitob yangi suhbat vaqtigacha e'londa turadi. */
+  activeSince: text("active_since"),
   /** Media fayllar nomi (BIR_ILM_MEDIA_DIR/books/<id>/ ichida); null — yuklanmagan. */
   coverFile: text("cover_file"),
   audioFile: text("audio_file"),
@@ -663,3 +665,17 @@ export const siteSettings = sqliteTable("site_settings", {
   value: text("value").notNull(),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+/**
+ * «Bir Ilm yo'li» kitoblar ro'yxati: har shanba (tartib raqami bo'yicha) muhokama qilingan yoki qilinadigan kitob.
+ * Hafta kitobiga suhbat vaqti belgilanganda yoziladi; kitob o'chirilsa nomi saqlanib qoladi.
+ */
+export const journeyBooks = sqliteTable("journey_books", {
+  number: integer("number").primaryKey(),
+  discussedOn: text("discussed_on").notNull(),
+  title: text("title").notNull(),
+  author: text("author").notNull().default(""),
+  bookId: text("book_id").references(() => books.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_journey_books_book").on(t.bookId)]);

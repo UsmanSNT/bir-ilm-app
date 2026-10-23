@@ -10,6 +10,7 @@ import { and, desc, eq, getTableColumns, ne } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { notFound } from "@/server/http/errors";
+import { weekBookOnAir } from "./journey";
 import { ebookAccessFor, type Book, type BookTrack, type CreateBookInput, type ReorderTracksInput, type UpdateBookInput } from "@/shared/contract";
 
 const { books, bookTracks, bookEbooks } = schema;
@@ -190,9 +191,13 @@ export async function updateBook(db: Database, id: string, input: UpdateBookInpu
   const row = await getBookRow(db, id);
   const store = row.kind === "store";
   const { active, price, category, audioLink, ...common } = input;
-  const patch = store ? { ...common, price, category } : { ...common, active, audioLink };
+  const patch: Partial<typeof books.$inferInsert> = store ? { ...common, price, category } : { ...common, active, audioLink };
   // Haftaning kitobi bitta bo'ladi (faqat kutubxona kitoblari orasida).
-  if (!store && active) await db.update(books).set({ active: false }).where(and(ne(books.id, id), eq(books.kind, "library")));
+  if (!store && active) {
+    await db.update(books).set({ active: false }).where(and(ne(books.id, id), eq(books.kind, "library")));
+    // Yangi tanlov (yoki haftasi tugagan kitobni qayta tanlash) — e'lon muddati shu paytdan boshlanadi.
+    if (!row.active || !(await weekBookOnAir(db, id))) patch.activeSince = now();
+  }
   await db.update(books).set({ ...patch, updatedAt: now() }).where(eq(books.id, id));
   return getBook(db, id);
 }

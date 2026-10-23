@@ -76,3 +76,17 @@ export function readStoredAbout(raw: string | null | undefined): AboutSettings {
     anchor: isValidAnchor(anchor) ? anchor : DEFAULT_ABOUT.anchor,
   };
 }
+
+/**
+ * «Bir Ilm yo'li» ro'yxatidagi kitob: qaysi shanba (tartib raqami) qaysi kitob muhokama qilingan yoki qilinadi.
+ * Hafta kitobiga suhbat vaqti belgilanganda server o'zi yozadi.
+ */
+export type JourneyBook = {
+  number: number;
+  /** Muhokama sanasi (shanba), YYYY-MM-DD. */
+  discussedOn: string;
+  title: string;
+  author: string;
+  /** Kutubxonadagi kitob; o'chirilgan bo'lsa — null (nomi saqlanib qoladi). */
+  bookId: string | null;
+};

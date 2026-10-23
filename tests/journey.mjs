@@ -1,7 +1,7 @@
 /** «Bir Ilm yo'li» hisoblari (sof funksiyalar). `node --experimental-strip-types tests/journey.mjs` */
 import assert from "node:assert/strict";
 
-const { computeJourney, formatSpan, formatCountdown, splitCountdown, nextSessionAfter, saturdaySessionAt } = await import("../shared/journey.ts");
+const { computeJourney, formatSpan, formatCountdown, splitCountdown, nextSessionAfter, saturdaySessionAt, saturdayOnOrAfter, sessionNumberOf } = await import("../shared/journey.ts");
 const { uzDateTashkent: formatUzDate } = await import("../app/uz-date.ts");
 
 const anchor = { number: 248, date: "2026-10-24" };
@@ -67,6 +67,14 @@ assert.equal(nextSessionAfter(utc("2026-10-23T12:00:00Z")), utc("2026-10-24T13:0
 assert.equal(nextSessionAfter(utc("2026-10-24T13:00:00Z")), utc("2026-10-31T13:00:00Z"));
 assert.equal(nextSessionAfter(utc("2026-10-24T12:59:00Z")), utc("2026-10-24T13:00:00Z"));
 assert.equal(saturdaySessionAt("2026-10-25"), null, "yakshanba rad etiladi");
+// Suhbat vaqtidan shanba va kitob raqami (22:00 Seul = 18:00 Toshkent, sana bir xil).
+assert.equal(saturdayOnOrAfter(utc("2026-10-24T13:00:00Z")), "2026-10-24");
+assert.equal(saturdayOnOrAfter(utc("2026-10-21T10:00:00Z")), "2026-10-24", "chorshanba — shu haftaning shanbasi");
+assert.equal(saturdayOnOrAfter(utc("2026-10-24T20:00:00Z")), "2026-10-31", "Toshkentda allaqachon yakshanba");
+assert.equal(sessionNumberOf(anchor, "2026-10-24"), 248);
+assert.equal(sessionNumberOf(anchor, "2026-10-31"), 249);
+assert.equal(sessionNumberOf(anchor, "2022-01-29"), 1);
+assert.equal(sessionNumberOf(anchor, "2026-10-25"), null);
 assert.equal(saturdaySessionAt("2026-02-30"), null, "mavjud bo'lmagan sana");
 assert.equal(formatCountdown(25 * 3_600_000 + 60_000), "1 kun 1 soat");
 assert.equal(formatCountdown(90 * 60_000), "1 soat 30 daqiqa");

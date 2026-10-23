@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { defineRoute } from "@/server/http/handler";
 import { createBook, listCatalog } from "@/server/services/books";
+import { weekBookOnAir } from "@/server/services/journey";
 import { listBooks } from "@/server/services/library";
 import { requireRole } from "@/server/services/roles";
 import { createBookSchema, type Book, type CreateBookInput } from "@/shared/contract";
@@ -15,7 +16,7 @@ export const runtime = "edge";
 
 type BooksResponse = {
   items: Book[];
-  /** Shu haftaning kitobi. */
+  /** Shu haftaning kitobi. Muhokama shanbasi soat 22:00 (Seul) o'tgach — null (suhbat jonli yoki hali oldinda bo'lsa, qoladi). */
   activeBookId: string | null;
 };
 
@@ -33,7 +34,9 @@ export const GET = defineRoute<Query, BooksResponse>({
     }
     const items = await listBooks(db);
     const active = items.find((book) => book.active) ?? null;
-    return { items, activeBookId: active?.id ?? null };
+    if (!active || (await weekBookOnAir(db, active.id))) return { items, activeBookId: active?.id ?? null };
+    // Hafta tugadi: e'lon tushadi, admin yangi hafta kitobini joylaydi.
+    return { items: items.map((book) => (book.id === active.id ? { ...book, active: false } : book)), activeBookId: null };
   },
 });
 

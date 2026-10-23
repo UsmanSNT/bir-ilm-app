@@ -5,8 +5,8 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Mic, ChevronDown, Ey
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { absoluteUrl } from "@/lib/api/config";
 import { useViewer } from "@/lib/api/roles-client";
-import { useAbout, useTeam } from "@/lib/api/site-client";
-import { resolveAboutVideo, teamProfileUrl, videoEmbedUrl, videoThumbnail, websiteLabel, type TeamMember } from "@/shared/contract";
+import { useAbout, useJourneyBooks, useTeam } from "@/lib/api/site-client";
+import { resolveAboutVideo, teamProfileUrl, videoEmbedUrl, videoThumbnail, websiteLabel, type JourneyBook, type TeamMember } from "@/shared/contract";
 import {
   SESSION,
   JUBILEE_STEP,
@@ -112,7 +112,7 @@ const STATE_TEXT: Record<ShelfCell["state"], string> = {
 const spineStyle = (n: number) => ({ "--h": `${64 + ((n * 37) % 37)}%` }) as CSSProperties;
 const isMilestone = (n: number | null) => n !== null && (n === 1 || n % 50 === 0);
 
-function Shelf({ shelf }: { shelf: ShelfYear[] }) {
+function Shelf({ shelf, titles }: { shelf: ShelfYear[]; titles: ReadonlyMap<number, JourneyBook> }) {
   const [active, setActive] = useState<ShelfCell | null>(null);
 
   const rows = useMemo(
@@ -155,10 +155,11 @@ function Shelf({ shelf }: { shelf: ShelfYear[] }) {
       <p className="ab-shelf-readout" aria-live="polite">
         {active && active.n !== null ? (
           <>
-            <strong>#{active.n}</strong> · {uzDateTashkent(active.at)} · {STATE_TEXT[active.state]}
+            <strong>#{active.n}</strong>
+            {titles.get(active.n) && <> · «{titles.get(active.n)?.title}»</>} · {uzDateTashkent(active.at)} · {STATE_TEXT[active.state]}
           </>
         ) : (
-          "Har bir chiziq — bitta shanba, bitta kitob. Sanasini ko‘rish uchun chiziq ustiga bosing."
+          "Har bir chiziq — bitta shanba, bitta kitob. Kitob nomi va sanasini ko‘rish uchun chiziq ustiga bosing."
         )}
       </p>
       {rows}
@@ -415,6 +416,8 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
   // Admin yashirin a'zolarni ham ko'radi va shu sahifadan tahrirlaydi.
   const { value: team } = useTeam(isAdmin);
   const [editing, setEditing] = useState<"team" | "about" | null>(null);
+  const journeyBooks = useJourneyBooks().value;
+  const titles = useMemo(() => new Map(journeyBooks.map((entry) => [entry.number, entry])), [journeyBooks]);
   const { completed, elapsed, next, live } = journey;
   const paragraphs = about.intro.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
 
@@ -492,7 +495,7 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
             <li><i className="ab-spine next" />Keyingi</li>
             <li><i className="ab-spine future" />Rejada</li>
           </ul>
-          <Shelf shelf={journey.shelf} />
+          <Shelf shelf={journey.shelf} titles={titles} />
         </details>
 
       </section>

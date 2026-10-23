@@ -73,6 +73,20 @@ function firstSessionAt(anchor: Anchor): number {
   return at - (anchor.number - 1) * WEEK;
 }
 
+/** Vaqtning Toshkent sanasidan boshlab (shu kun ham) eng yaqin shanba: "YYYY-MM-DD". */
+export function saturdayOnOrAfter(at: number): string {
+  const { year, month, day } = tashkentParts(at);
+  const date = new Date(Date.UTC(year, month, day));
+  date.setUTCDate(date.getUTCDate() + ((SATURDAY - date.getUTCDay() + 7) % 7));
+  return date.toISOString().slice(0, 10);
+}
+
+/** Shu shanbadagi muhokamaning tartib raqami (tayanch nuqtaga ko'ra). Shanba bo'lmasa — null; yo'l boshlanishidan oldin — 0 yoki manfiy. */
+export function sessionNumberOf(anchor: Anchor, date: string): number | null {
+  const at = saturdaySessionAt(date);
+  return at === null ? null : Math.round((at - firstSessionAt(anchor)) / WEEK) + 1;
+}
+
 /** Berilgan vaqtdan keyin boshlanadigan eng yaqin muhokama vaqti. */
 export function nextSessionAfter(now: number): number {
   const reference = Date.UTC(2026, 9, 24, SESSION.utcHour);
