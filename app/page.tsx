@@ -41,6 +41,7 @@ import EbookReader from "./ebook-reader";
 import ProfileScreens from "./profile-screens";
 import About from "./about";
 import { nextSessionAfter } from "@/shared/journey";
+import { GUEST_NAME, IDENTITY_KEY, LEGACY_STATE_KEY, STATE_KEY } from "@/lib/local-profile";
 import { requestAudio } from "./library-store";
 import { type CommunityComment, type LeaderboardMember } from "./app-data";
 import { RESET_TOKEN_PATTERN, type Book } from "@/shared/contract";
@@ -80,28 +81,36 @@ type AppStatePayload = {
 };
 
 /** Oxirgi ma'lum bo'lgan sessiya; mehmon cookie'si almashganini aniqlash uchun. */
-const IDENTITY_KEY = "bir-ilm-identity";
 /** «Muhim fikr» serverga shu kechikishdan keyin yuboriladi (har tugmachada emas). */
 const NOTE_SYNC_DELAY_MS = 1500;
 
-/**
- * Mehmon sessiyasi almashganmi (brauzer cookie'si tozalangan yoki boshqa qurilma). Faqat ikkala
- * holat ham mehmon bo'lganda `true`; joriy sessiya saqlanadi.
- */
-function guestSessionChanged(viewer: { userId: string; signedIn: boolean }): boolean {
-  let previous: { userId?: unknown; signedIn?: unknown } | null = null;
+type StoredIdentity = { userId?: unknown; signedIn?: unknown } | null;
+
+function readStoredIdentity(): StoredIdentity {
   try {
-    previous = JSON.parse(localStorage.getItem(IDENTITY_KEY) ?? "null");
+    return JSON.parse(localStorage.getItem(IDENTITY_KEY) ?? "null") as StoredIdentity;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Oldingi sessiya bilan solishtiradi va joriysini saqlaydi.
+ * `guestChanged` — mehmon sessiyasi almashgan (cookie tozalangan yoki boshqa qurilma), ikkala holat ham mehmon.
+ * `signedOut` — oldin hisobga kirilgan edi, endi yo'q (chiqish yoki sessiya muddati tugagan).
+ */
+function identityTransition(viewer: { userId: string; signedIn: boolean }): { guestChanged: boolean; signedOut: boolean } {
+  const previous = readStoredIdentity();
+  try {
     localStorage.setItem(IDENTITY_KEY, JSON.stringify({ userId: viewer.userId, signedIn: viewer.signedIn }));
   } catch {
-    return false;
+    return { guestChanged: false, signedOut: false };
   }
-  return (
-    typeof previous?.userId === "string" &&
-    previous.userId !== viewer.userId &&
-    previous.signedIn === false &&
-    !viewer.signedIn
-  );
+  return {
+    guestChanged:
+      typeof previous?.userId === "string" && previous.userId !== viewer.userId && previous.signedIn === false && !viewer.signedIn,
+    signedOut: previous?.signedIn === true && !viewer.signedIn,
+  };
 }
 
 const nav = [
@@ -166,8 +175,8 @@ function getInitialState() {
 
   try {
     const raw =
-      window.localStorage.getItem("bir-ilm-v2") ??
-      window.localStorage.getItem("bir-ilm-v1");
+      window.localStorage.getItem(STATE_KEY) ??
+      window.localStorage.getItem(LEGACY_STATE_KEY);
     return normalizeSavedState(raw ? JSON.parse(raw) : null);
   } catch {
     return initial;
@@ -249,6 +258,11 @@ function mergeLeaders(
 export default function App() {
   const [data, setData] = useState<State>(initial);
   const [ready, setReady] = useState(false);
+  const viewer = useViewer();
+  // Sessiya javobi kelguncha oxirgi ma'lum holat: kirgan foydalanuvchida ism miltillamaydi, mehmonda umuman chiqmaydi.
+  const [cachedSignedIn, setCachedSignedIn] = useState(false);
+  const signedIn = viewer ? viewer.signedIn : cachedSignedIn;
+  const shownName = signedIn ? data.name || GUEST_NAME : GUEST_NAME;
   const [tab, setTab] = useState("home");
   const aboutReturn = useRef("home");
   const [now, setNow] = useState(0);
@@ -282,8 +296,8 @@ export default function App() {
   }, [modal]);
 
   const leaders = useMemo(
-    () => mergeLeaders(data, serverLeaders),
-    [data, serverLeaders],
+    () => mergeLeaders({ ...data, name: shownName }, serverLeaders),
+    [data, serverLeaders, shownName],
   );
   const myRank = Math.max(1, leaders.findIndex((leader) => leader.current) + 1);
   const streak = currentStreak(data);
@@ -321,9 +335,9 @@ export default function App() {
       const response = await fetch("/api/app-state", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        // Ism yuborilmaydi: server uni sessiyadagi akkauntdan oladi (qurilmadagi ism mehmon yozuviga tushmasin).
         body: JSON.stringify({
           ...payload,
-          name: snapshot.name,
           activity: activityFromState(snapshot),
         }),
       });
@@ -421,7 +435,6 @@ export default function App() {
   // Parolni tiklash havolasi (/?reset=<token>): token manzildan darhol olib tashlanadi.
   const [resetToken, setResetToken] = useState("");
   const [twoFactorOpen, setTwoFactorOpen] = useState(false);
-  const viewer = useViewer();
   const onAdminNew = useCallback((change: { orders: number; chats: number }) => {
     if (change.orders) toast.success(change.orders === 1 ? "Yangi buyurtma keldi!" : `${change.orders} ta yangi buyurtma keldi!`);
     else if (change.chats) toast("Do‘kon chatida yangi xabar bor");
@@ -478,6 +491,7 @@ export default function App() {
   useEffect(() => {
     queueMicrotask(() => {
       setData(getInitialState());
+      setCachedSignedIn(readStoredIdentity()?.signedIn === true);
       setReady(true);
       setNow(Date.now());
       setSession(nextSessionAfter(Date.now()));
@@ -488,11 +502,17 @@ export default function App() {
       .then((r) => (r.ok ? (r.json() as Promise<{ data?: { name?: string; userId?: string; signedIn?: boolean } }>) : null))
       .then((body) => {
         const viewer = body?.data;
-        const serverName = viewer?.name;
-        if (serverName && serverName !== "Kitobxon") setData((value) => (value.name === serverName ? value : { ...value, name: serverName }));
-        if (viewer?.userId && guestSessionChanged({ userId: viewer.userId, signedIn: Boolean(viewer.signedIn) })) {
-          toast.info("Mehmon sessiyasi yangilandi: oldingi serverdagi natijalar bu sessiyada ko‘rinmaydi.");
+        if (!viewer?.userId) return;
+        const { guestChanged, signedOut } = identityTransition({ userId: viewer.userId, signedIn: Boolean(viewer.signedIn) });
+        if (viewer.signedIn) {
+          const serverName = viewer.name;
+          if (serverName && serverName !== GUEST_NAME) setData((value) => (value.name === serverName ? value : { ...value, name: serverName }));
+        } else {
+          // Mehmon: qurilmada qolgan shaxsiy ism ishlatilmaydi; chiqishda «Muhim fikr» ham qurilmadan o'chadi
+          // (u hisobda saqlangan, qayta kirganda tiklanadi).
+          setData((value) => (value.name === GUEST_NAME && !(signedOut && value.note) ? value : { ...value, name: GUEST_NAME, note: signedOut ? "" : value.note }));
         }
+        if (guestChanged) toast.info("Mehmon sessiyasi yangilandi: oldingi serverdagi natijalar bu sessiyada ko‘rinmaydi.");
       })
       .catch(() => {});
 
@@ -534,7 +554,7 @@ export default function App() {
   useEffect(() => {
     if (!ready) return;
     try {
-      localStorage.setItem("bir-ilm-v2", JSON.stringify(data));
+      localStorage.setItem(STATE_KEY, JSON.stringify(data));
     } catch {
       toast.error("Xotira to'ldi. O'zgarish saqlanmadi");
     }
@@ -636,7 +656,7 @@ export default function App() {
               </button>
               <PomodoroButton className="icon-btn" />
               <button className="icon-btn" aria-label="Bildirishnomalar" onClick={() => setModal("notifications")}><ScrollIcon size={22} />{badge}</button>
-              <button className="topbar-avatar" aria-label={attention.total ? `Profil, ${attention.total} ta yangi` : "Profil"} onClick={() => go("profile")}>{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : <span>{(data.name || "K").slice(0, 1).toUpperCase()}</span>}{storeCount > 0 && <b className="avatar-badge">{storeCount > 9 ? "9+" : storeCount}</b>}</button>
+              <button className="topbar-avatar" aria-label={attention.total ? `Profil, ${attention.total} ta yangi` : "Profil"} onClick={() => go("profile")}>{viewer?.avatarUrl ? <img src={absoluteUrl(viewer.avatarUrl)} alt="" referrerPolicy="no-referrer" /> : <span>{shownName.slice(0, 1).toUpperCase()}</span>}{storeCount > 0 && <b className="avatar-badge">{storeCount > 9 ? "9+" : storeCount}</b>}</button>
             </div>
           </header>
 
@@ -647,7 +667,7 @@ export default function App() {
                   <p className="eyebrow">Bir hafta · bir kitob</p>
                   <h1>
                     {tab === "home"
-                      ? <>Assalomu alaykum, <em>{data.name}</em></>
+                      ? <>Assalomu alaykum, <em>{shownName}</em></>
                       : tab === "leaders" ? "Faollar" : tab === "about" ? "Biz haqimizda" : nav.find((item) => item[0] === tab)?.[1]}
                   </h1>
                 </div>
@@ -660,10 +680,10 @@ export default function App() {
               <TabsContent value="home">
                 <div className="desktop-home">
                   <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={streak} onNavigate={go} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
-                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={streak} />
+                  <ReadingDashboard mode="feed" name={shownName} pages={data.page} shelfCount={data.shelf.length} streak={streak} />
                 </div>
                 <MobileScreens
-                  name={data.name}
+                  name={shownName}
                   session={session}
                   now={now}
                   reminderOn={data.talk}
@@ -692,12 +712,12 @@ export default function App() {
 
               <TabsContent value="community">
                 <section className="community-screen" aria-label="Gurung">
-                  <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={streak} focus={focusPost} />
+                  <ReadingDashboard mode="feed" name={shownName} pages={data.page} shelfCount={data.shelf.length} streak={streak} focus={focusPost} />
                 </section>
               </TabsContent>
 
               <TabsContent value="talks" forceMount className="talks-tab">
-                <LiveSession name={data.name} date={session} />
+                <LiveSession name={shownName} date={session} />
               </TabsContent>
 
               <TabsContent value="shelf">
@@ -754,7 +774,7 @@ export default function App() {
           </Tabs>
 
           <FocusTimer onComplete={async session => {
-            const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", name: data.name, ...session }) });
+            const response = await fetch("/api/social", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", name: shownName, ...session }) });
             if (!response.ok) throw Error("Seans saqlanmadi");
             window.dispatchEvent(new Event("bir-focus-saved"));
           }} />
@@ -815,14 +835,6 @@ export default function App() {
                 <Brand />
               </div>
               <p>O&apos;qish progressi, chat, javon, reyting va streak bir joyda.</p>
-              <label>
-                Ismingiz
-                <input
-                  value={data.name}
-                  maxLength={40}
-                  onChange={(event) => update({ name: event.target.value })}
-                />
-              </label>
               <button
                 className="button"
                 onClick={() => {
