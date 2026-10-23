@@ -1,0 +1,1 @@
+ALTER TABLE `reading_posts` ADD `design` text;

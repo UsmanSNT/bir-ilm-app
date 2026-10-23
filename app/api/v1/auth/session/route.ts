@@ -1,0 +1,88 @@
+/**
+ * Sessiya.
+ *
+ * `POST` — mehmon sessiyasini ochadi yoki mavjudini tasdiqlaydi.
+ *   - Web:          cookie avtomatik o'rnatiladi, token qaytarilmaydi.
+ *   - Android/iOS:  `{ platform: "android", wantToken: true }` yuboradi va
+ *                   qaytgan tokenni xavfsiz saqlovda (Keychain / EncryptedSharedPreferences)
+ *                   saqlab, keyingi so'rovlarda `Authorization: Bearer <token>` bilan yuboradi.
+ *
+ * `GET` — joriy foydalanuvchi ma'lumoti.
+ */
+import { defineRoute } from "@/server/http/handler";
+import { TOKEN_MAX_AGE_SECONDS } from "@/server/auth/identity";
+import { getProfile } from "@/server/services/social";
+import { getUserRole } from "@/server/services/roles";
+import { isSignedIn, listAccounts } from "@/server/services/accounts";
+import { loginConfig } from "@/server/auth/providers";
+import { hasPassword } from "@/server/auth/passwords";
+import { hasTwoFactor } from "@/server/auth/two-factor";
+import { canSendEmail, canSendTelegram } from "@/server/services/notify";
+import { schema } from "@/server/db/client";
+import { eq } from "drizzle-orm";
+import { createSessionSchema, type CreateSessionInput, type Session, type Viewer } from "@/shared/contract";
+
+export const runtime = "edge";
+
+export const POST = defineRoute<CreateSessionInput, Session>({
+  schema: createSessionSchema,
+  source: "body",
+  status: 201,
+  // Akkaunt yozuvi bu yerda yaratilmaydi: foydalanuvchi birinchi marta biror narsa
+  // yozganda (post, progress, login) `ensureUser` o'zi yaratadi. Aks holda har bir
+  // ochilgan brauzer yoki bot bazada bo'sh "Kitobxon" akkauntini qoldirardi.
+  handler: async ({ identity, input }) => ({
+    userId: identity.userId,
+    // Tokenni faqat so'ralganda qaytaramiz. Web uni so'ramaydi, chunki
+    // HttpOnly cookie XSS hujumidan ko'proq himoya qiladi.
+    token: input.wantToken ? identity.token : null,
+    expiresAt: new Date(Date.now() + TOKEN_MAX_AGE_SECONDS * 1000).toISOString(),
+  }),
+});
+
+export const GET = defineRoute<undefined, Viewer>({
+  handler: async ({ db, identity, request }) => {
+    const [profile, role, accounts, user, signedIn, passwordSet, twoFactor] = await Promise.all([
+      getProfile(db, identity.userId),
+      getUserRole(db, identity.userId),
+      listAccounts(db, identity.userId),
+      db.query.users.findFirst({
+        where: eq(schema.users.id, identity.userId),
+        columns: { avatarUrl: true, coverUrl: true, username: true, profession: true, birthDate: true, gender: true, createdAt: true },
+      }),
+      isSignedIn(db, identity.userId),
+      hasPassword(db, identity.userId),
+      hasTwoFactor(db, identity.userId),
+    ]);
+    const config = loginConfig(request);
+
+    return {
+      userId: identity.userId,
+      name: profile?.name ?? "Kitobxon",
+      bio: profile?.bio ?? "",
+      posts: profile?.posts ?? 0,
+      followers: profile?.followers ?? 0,
+      role,
+      avatarUrl: user?.avatarUrl ?? null,
+      accounts,
+      signedIn,
+      loginProviders: {
+        google: Boolean(config.google),
+        telegramBot: config.telegram?.username ?? null,
+        password: true,
+        passwordReset: canSendEmail() || canSendTelegram(),
+      },
+      hasPassword: passwordSet,
+      twoFactor,
+      coverUrl: user?.coverUrl ?? null,
+      username: user?.username ?? null,
+      profession: user?.profession ?? "",
+      birthDate: user?.birthDate ?? null,
+      gender: user?.gender ?? null,
+      // SQLite CURRENT_TIMESTAMP — UTC, «YYYY-MM-DD HH:MM:SS».
+      joinedAt: user?.createdAt ? (user.createdAt.includes("T") ? user.createdAt : `${user.createdAt.replace(" ", "T")}Z`) : null,
+    };
+  },
+});
+
+export const OPTIONS = POST;

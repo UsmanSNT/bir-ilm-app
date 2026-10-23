@@ -1,21 +1,59 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, Timer, Check, X, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogPortal, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogPortal, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { finishPhase, type Session, type TimerState } from "./focus-state";
 const KEY = "bir-ilm-focus-v1";
 const blank = (): TimerState => ({ minutes: 25, remaining: 1500, endAt: null, sessionId: "", pending: [] });
+const STATE_EVENT = "bir-focus-state";
+const OPEN_EVENT = "bir-open-pomodoro";
+
+/**
+ * Qo'ng'iroqcha yonidagi ixcham taymer tugmasi. Taymerning o'zi (FocusTimer) sahifada bitta,
+ * bu tugma esa uni ochadi va seans ketayotganda qolgan daqiqani ko'rsatadi.
+ */
+export function PomodoroButton({ className = "" }: { className?: string }) {
+  const [left, setLeft] = useState<number | null>(null);
+  const [onBreak, setOnBreak] = useState(false);
+  useEffect(() => {
+    const read = () => {
+      try {
+        const s = JSON.parse(localStorage.getItem(KEY) || "null") as TimerState | null;
+        const running = s?.endAt ? Math.max(0, Math.ceil((s.endAt - Date.now()) / 60000)) : null;
+        setLeft(running);
+        setOnBreak(s?.phase === "break");
+      } catch {
+        setLeft(null);
+      }
+    };
+    read();
+    const tick = setInterval(read, 5000);
+    window.addEventListener(STATE_EVENT, read);
+    return () => {
+      clearInterval(tick);
+      window.removeEventListener(STATE_EVENT, read);
+    };
+  }, []);
+  const label = left === null ? "Pomodoro taymeri" : `Pomodoro: ${onBreak ? "tanaffus" : "seans"}, ${left} daqiqa qoldi`;
+  return (
+    <button type="button" className={`pomo-btn${left !== null ? " is-running" : ""} ${className}`} aria-label={label} title={label} onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}>
+      <Timer size={21} />
+      {left !== null && <span className="pomo-badge">{left}</span>}
+    </button>
+  );
+}
 
 export default function FocusTimer({ onComplete }: { onComplete: (session: Session) => Promise<void> }) {
   const [state, setState] = useState<TimerState>(blank);
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [open, setOpen] = useState(false);
   const current = useRef(state);
   const callback = useRef(onComplete);
   useEffect(() => { callback.current = onComplete; }, [onComplete]);
@@ -25,6 +63,7 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
     setState(next);
     try { localStorage.setItem(KEY, JSON.stringify(next)); }
     catch { toast.error("Taymer qurilma xotirasiga saqlanmadi."); }
+    window.dispatchEvent(new Event(STATE_EVENT));
   }
 
   useEffect(() => {
@@ -54,13 +93,20 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
           const latest = current.current;
           save({ ...latest, pending: latest.pending.filter(p => p.sessionId !== completed.sessionId) });
         }).catch(() => toast.error("Seans qurilmada saqlandi. Internet tiklangach qayta saqlang."));
-      } else {
+      } else if (remaining !== s.remaining) {
+        // 500 ms da bir marta tekshiriladi, sekund esa soniyada bir marta o'zgaradi: qolgan vaqt o'zgarmasa, render qilinmaydi.
         const next = { ...s, remaining };
         current.current = next;
         setState(next);
       }
     }, 500);
     return () => clearInterval(tick);
+  }, []);
+
+  useEffect(() => {
+    const openTimer = () => setOpen(true);
+    window.addEventListener(OPEN_EVENT, openTimer);
+    return () => window.removeEventListener(OPEN_EVENT, openTimer);
   }, []);
 
   function toggle() {
@@ -72,25 +118,50 @@ export default function FocusTimer({ onComplete }: { onComplete: (session: Sessi
     }
   }
 
-  async function retry() {
-    setSaving(true);
+  /**
+   * Saqlanmagan seanslarni yuboradi. Server takroriy `sessionId` ni hisoblamaydi (INSERT OR IGNORE),
+   * shuning uchun qayta urinish xavfsiz. `manual` — foydalanuvchi tugmasi bosgan; aks holda xatolar jim o'tadi
+   * va keyingi urinish (internet tiklanganda yoki taymer orqali) kutiladi.
+   */
+  const flushing = useRef(false);
+  const flushPending = useCallback(async (manual: boolean) => {
+    if (flushing.current || !current.current.pending.length) return;
+    flushing.current = true;
+    if (manual) setSaving(true);
     try {
       for (const session of [...current.current.pending]) {
         await callback.current(session);
         save({ ...current.current, pending: current.current.pending.filter(p => p.sessionId !== session.sessionId) });
       }
-      toast.success("Seanslar saqlandi.");
-    } catch { toast.error("Saqlanmadi. Qayta urinib ko'ring."); }
-    finally { setSaving(false); }
+      if (manual) toast.success("Seanslar saqlandi.");
+    } catch {
+      if (manual) toast.error("Saqlanmadi. Qayta urinib ko'ring.");
+    } finally {
+      flushing.current = false;
+      if (manual) setSaving(false);
+    }
+  }, []);
+
+  function retry() {
+    void flushPending(true);
   }
 
-  return <Dialog>
-    <DialogTrigger asChild>
-      <button className="focus-launcher" disabled={!ready}>
-        <Timer size={20} />
-        <span><strong>Pomodoro</strong><small>{state.phase === "break" ? "5 daqiqa tanaffus" : state.endAt ? "Seans davom etmoqda" : "Diqqat vaqti"}</small></span>
-      </button>
-    </DialogTrigger>
+  // Avtomatik qayta yuborish: ochilganda, internet tiklanganda va har daqiqada (saqlanmagan seans qolsa).
+  useEffect(() => {
+    if (!ready) return;
+    const first = window.setTimeout(() => void flushPending(false), 0);
+    const onOnline = () => void flushPending(false);
+    window.addEventListener("online", onOnline);
+    const timer = setInterval(() => void flushPending(false), 60_000);
+    return () => {
+      window.clearTimeout(first);
+      window.removeEventListener("online", onOnline);
+      clearInterval(timer);
+    };
+  }, [ready, flushPending]);
+
+  // Ochuvchi tugma alohida: PomodoroButton (qo'ng'iroqcha yonida).
+  return <Dialog open={open} onOpenChange={setOpen}>
     <DialogPortal>
     <DialogPrimitive.Overlay className="pomodoro-backdrop" />
     <DialogPrimitive.Content className="pomodoro-fullscreen" aria-describedby={undefined}>
