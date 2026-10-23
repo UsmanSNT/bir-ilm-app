@@ -14,6 +14,7 @@ import {
   Flame,
   Headphones,
   Home,
+  Info,
   LibraryBig,
   Medal,
   MessageSquare,
@@ -46,6 +47,8 @@ import ReadingDashboard from "./reading-dashboard";
 import BookDiscovery from "./book-discovery";
 import FocusTimer from "./focus-timer";
 import Team from "./team";
+import About, { JourneyRailCard, JourneyStrip } from "./about";
+import { nextSessionAfter } from "@/lib/journey";
 import {
   Book,
   CommunityComment,
@@ -119,14 +122,6 @@ function yesterdayKey() {
   const date = new Date();
   date.setDate(date.getDate() - 1);
   return date.toISOString().slice(0, 10);
-}
-
-function nextSession() {
-  const date = new Date();
-  date.setHours(18, 0, 0, 0);
-  date.setDate(date.getDate() + ((7 - date.getDay()) % 7));
-  if (date.getTime() <= Date.now()) date.setDate(date.getDate() + 7);
-  return date.getTime();
 }
 
 function normalizeSavedState(
@@ -341,7 +336,7 @@ export default function App() {
       setData(getInitialState());
       setReady(true);
       setNow(Date.now());
-      setSession(nextSession());
+      setSession(nextSessionAfter(Date.now()));
     });
 
     fetch("/api/app-state")
@@ -370,7 +365,7 @@ export default function App() {
 
     const tick = setInterval(() => {
       setNow(Date.now());
-      setSession(nextSession());
+      setSession(nextSessionAfter(Date.now()));
     }, 1000);
 
     return () => clearInterval(tick);
@@ -436,7 +431,7 @@ export default function App() {
         <h2>Atom odatlar</h2>
         <p>James Clear</p>
         <div className="week-bottom">
-          <span>Suhbat: yakshanba, 18:00</span>
+          <span>Suhbat: shanba, 18:00 UZB</span>
           <span>{backendLabel}</span>
         </div>
         <Progress value={pct} aria-label="O'qish progressi" />
@@ -522,6 +517,7 @@ export default function App() {
         <aside className="desktop-rail">
           <Brand />
           <div className="rail-intro"><span>KITOB BILAN</span><strong>Har kuningiz<br/>mazmunli.</strong><p>O‘qing. Fikrlashing.<br/>Birga o‘sing.</p></div>
+          <JourneyRailCard onOpen={() => go("about-us")} />
           <div className="rail-status">
             <Wifi size={18} />
             <span>{backendLabel}</span>
@@ -531,13 +527,18 @@ export default function App() {
         <main className="app-main">
           <header className="app-header">
             <Brand />
-            <button
-              className="icon-btn"
-              aria-label="Bildirishnomalar"
-              onClick={() => setModal("notifications")}
-            >
-              <Bell size={22} />
-            </button>
+            <div className="header-actions">
+              <button className="icon-btn" aria-label="Biz haqimizda" onClick={() => go("about-us")}>
+                <Info size={22} />
+              </button>
+              <button
+                className="icon-btn"
+                aria-label="Bildirishnomalar"
+                onClick={() => setModal("notifications")}
+              >
+                <Bell size={22} />
+              </button>
+            </div>
           </header>
 
           <Tabs value={tab} onValueChange={go} className="app-tabs">
@@ -557,7 +558,7 @@ export default function App() {
                   <h1>
                     {tab === "home"
                       ? `Salom, ${data.name}`
-                      : tab === "leaders" ? "Faollar" : tab === "team" ? "Loyiha jamoasi" : nav.find((item) => item[0] === tab)?.[1]}
+                      : tab === "leaders" ? "Faollar" : tab === "team" ? "Loyiha jamoasi" : tab === "about-us" ? "Biz haqimizda" : nav.find((item) => item[0] === tab)?.[1]}
                   </h1>
                 </div>
                 <FocusTimer onComplete={async session => {
@@ -568,6 +569,7 @@ export default function App() {
               </div>
 
               <TabsContent value="home">
+                <JourneyStrip onOpen={() => go("about-us")} />
                 <BookDiscovery shelf={data.shelf} page={data.page} total={data.total} streak={data.streak} onNavigate={go} onProgress={() => setModal("progress")} onOpen={book => { setSelected(book); setModal("book"); }} onToggle={book => { const saved = data.shelf.includes(book.id); update({ shelf: saved ? data.shelf.filter(id => id !== book.id) : [...data.shelf, book.id] }); toast.success(saved ? "Javondan olindi" : "Javonga qo‘shildi"); }} />
                 <ReadingDashboard mode="feed" name={data.name} pages={data.page} shelfCount={data.shelf.length} streak={data.streak} />
               </TabsContent>
@@ -846,6 +848,7 @@ export default function App() {
                   ["notifications", "Bildirishnomalar", "O'qish va suhbat eslatmalari", Bell],
                   ["progress", "Kitob rejasi", "Sahifa soni va o'qish progressi", BookOpen],
                   ["profile", "Profil", "Kitobxon ismini o'zgartirish", Users],
+                  ["about-us", "Biz haqimizda", "Bir Ilm yo'li, jadval va video", Info],
                   ["team", "Loyiha jamoasi", "Bir Ilmni yuritayotgan odamlar", Users],
                   ["about", "App holati", "Web, backend va app chiqarish yo'li", Settings],
                 ].map(([id, title, sub, Icon]) => {
@@ -854,7 +857,7 @@ export default function App() {
                     <button
                       className="setting"
                       key={id as string}
-                      onClick={() => (id === "team" ? go("team") : setModal(id as string))}
+                      onClick={() => (id === "team" || id === "about-us" ? go(id) : setModal(id as string))}
                     >
                       <SettingIcon size={22} />
                       <span>
@@ -869,6 +872,9 @@ export default function App() {
               <TabsContent value="team">
                 <button className="text-btn profile-ranking" onClick={() => go("profile")}>Profilga qaytish</button>
                 <Team />
+              </TabsContent>
+              <TabsContent value="about-us">
+                <About onTeam={() => go("team")} />
               </TabsContent>
             </div>
           </Tabs>

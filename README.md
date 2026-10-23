@@ -127,4 +127,8 @@ The portable build runs Vinext directly without a host `timeout` command. The ma
 
 ## Admin panel
 
-`/admin` — jamoa a'zolarini qo'shish, tahrirlash, yashirish, o'chirish va tartiblash. Kirish platforma ChatGPT sign-in emaili bo'yicha; email `ADMIN_EMAILS` (vergul bilan) o'zgaruvchisida yoki `admins` jadvalida bo'lishi shart, aks holda ruxsat berilmaydi. Birinchi adminni D1 ga qo'shish: `INSERT INTO admins (email) VALUES ('siz@example.com');` (kichik harflarda).
+`/admin` — ikki bo'lim: **Jamoa** (a'zolarni qo'shish, tahrirlash, yashirish, o'chirish va tartiblash) va **Biz haqimizda** (tanishtiruv matni, video havolasi, hisob nuqtasi). Kirish platforma ChatGPT sign-in emaili bo'yicha; email `ADMIN_EMAILS` (vergul bilan) o'zgaruvchisida yoki `admins` jadvalida bo'lishi shart, aks holda ruxsat berilmaydi. Birinchi adminni D1 ga qo'shish: `INSERT INTO admins (email) VALUES ('siz@example.com');` (kichik harflarda).
+
+## Biz haqimizda va "Bir Ilm yo'li"
+
+Muhokama har shanba 18:00 Toshkent (22:00 Seul) vaqtida. Barcha statistika `lib/journey.ts` da bitta hisob nuqtasidan hisoblanadi (standart: 248-kitob, 2026-10-24) va har shanba uzluksiz o'tkazilgan deb taxmin qilinadi. Nuqta admin paneldan o'zgartiriladi. Tekshiruv: `node --experimental-strip-types tests/journey.mjs`.

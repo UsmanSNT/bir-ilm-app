@@ -22,3 +22,31 @@ export async function checkAdmin(): Promise<AdminCheck> {
   if (!(await isAdminEmail(user.email))) return { ok: false, status: 403, error: "Sizda admin huquqi yo'q." };
   return { ok: true, email: user.email };
 }
+
+export const NO_STORE = { "Cache-Control": "no-store" } as const;
+
+export const jsonError = (error: string, status = 400) => Response.json({ error }, { status, headers: NO_STORE });
+
+/**
+ * Admin API so'rovlari uchun umumiy himoya: o'zgartiruvchi so'rovlarda boshqa domendan kelganini rad etadi,
+ * admin huquqini va D1 mavjudligini tekshiradi. Ruxsat bo'lsa D1 ni, aks holda tayyor xato javobini qaytaradi.
+ */
+export async function adminGuard(request: Request, mutating: boolean): Promise<{ db: D1Database } | { denied: Response }> {
+  if (mutating) {
+    const origin = request.headers.get("origin");
+    if (origin && origin !== new URL(request.url).origin) return { denied: jsonError("So'rov rad etildi.", 403) };
+  }
+  const admin = await checkAdmin();
+  if (!admin.ok) return { denied: jsonError(admin.error, admin.status) };
+  if (!env.DB) return { denied: jsonError("Ma'lumotlar bazasi mavjud emas.", 503) };
+  return { db: env.DB };
+}
+
+export async function readJsonObject(request: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const raw: unknown = await request.json();
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}

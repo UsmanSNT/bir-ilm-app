@@ -41,3 +41,23 @@
   .admin-two { grid-template-columns: 1fr; }
   .admin-row-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 76px; }
 }
+.admin-tabs { display: inline-flex; gap: 4px; margin-bottom: 20px; padding: 4px; border-radius: 12px; background: #e9eaf3; }
+.admin-tabs button { padding: 8px 16px; border: 0; border-radius: 9px; background: transparent; color: #4a4f6b; font-size: 14px; font-weight: 700; cursor: pointer; }
+.admin-tabs button.is-active { background: #fff; color: #33307a; box-shadow: 0 2px 8px #2b2f5714; }
+.admin-tabs button:focus-visible { outline: 2px solid #7763ed; outline-offset: 1px; }
+.admin-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.admin-toolbar p { color: #62677d; font-size: 13px; }
+.admin-card { padding: 22px; border: 1px solid #e7e8f1; border-radius: 16px; background: #fff; }
+.admin-form-inline { display: flex; flex-direction: column; gap: 18px; }
+.admin-form-inline label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #4a4f6b; }
+.admin-form-inline small { font-weight: 400; color: #7a7f96; }
+.admin-form-inline input, .admin-form-inline textarea { padding: 10px 12px; border: 1px solid #d9dbe8; border-radius: 10px; font: inherit; font-weight: 400; color: #262b44; }
+.admin-form-inline input:focus-visible, .admin-form-inline textarea:focus-visible { outline: 2px solid #7763ed; outline-offset: 1px; }
+.admin-form-inline input[aria-invalid="true"] { border-color: #b42318; }
+.admin-anchor { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 16px; border: 1px solid #e7e8f1; border-radius: 12px; }
+.admin-anchor legend { padding: 0 6px; font-size: 14px; font-weight: 800; }
+.admin-anchor > p { color: #62677d; font-size: 13px; }
+.admin-preview { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #edf8f3; color: #0f4f45; font-size: 13px; line-height: 1.5; }
+.admin-preview svg { flex-shrink: 0; margin-top: 2px; }
+.admin-preview.admin-error { background: #fdecea; }
+.admin-error { color: #b42318 !important; }
