@@ -1617,24 +1617,96 @@ audio {
   font-size: 15px;
 }
 
-/* Bildirishnomalar (yangilik va xatlar): varaq sandiqdan ikki chetga qarab yoyiladi. */
-[data-slot="dialog-content"].scroll-open {
-  animation: scroll-unroll 0.75s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+/*
+ * Bildirishnomalar (yangilik va xatlar): eski noma kabi — qog'oz markazdan chap va o'ngga yoyiladi,
+ * ikki chetdagi o'ram tayoqchalari (.scroll-rod) shu bilan birga chetlarga suriladi; yopilganda qaytib o'raladi.
+ * Tayoqchalar qog'oz chegarasidan chiqib turadi, shuning uchun oyna o'zi emas, ro'yxat ichida aylanadi.
+ */
+.app-dialog.scroll-open {
+  --rod: 14px;
+  overflow: visible;
+  max-height: none;
+  background:
+    linear-gradient(90deg, #e6d3ad 0, #f7eedb 26px, transparent 44px, transparent calc(100% - 44px), #f7eedb calc(100% - 26px), #e6d3ad 100%),
+    var(--sahifa) !important;
+  animation: scroll-unroll 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.app-dialog.scroll-open[data-state="closed"] {
+  animation: scroll-roll-up 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.app-dialog.scroll-open .notification-center {
+  max-height: min(62dvh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
+.scroll-rod {
+  position: absolute;
+  z-index: 2;
+  top: -12px;
+  bottom: -12px;
+  width: var(--rod);
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6b4718 0%, #a87a2c 22%, #f0cf83 48%, #c08a2e 70%, #5e3d12 100%);
+  box-shadow: 0 6px 14px -6px #3b2709aa;
+  pointer-events: none;
+}
+.scroll-rod.is-left { left: calc(var(--rod) / -2 - 2px); animation: scroll-rod-left 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.scroll-rod.is-right { right: calc(var(--rod) / -2 - 2px); animation: scroll-rod-right 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+[data-state="closed"] > .scroll-rod.is-left { animation: scroll-rod-left-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) both; }
+[data-state="closed"] > .scroll-rod.is-right { animation: scroll-rod-right-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) both; }
+/* Tayoqcha uchlaridagi dumaloq boshchalar */
+.scroll-rod::before,
+.scroll-rod::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: calc(var(--rod) + 8px);
+  height: calc(var(--rod) + 8px);
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fbe6b0 0%, var(--tilla-2) 38%, var(--tilla) 68%, #6b4718 100%);
+  box-shadow: 0 2px 6px #3b270999;
+}
+.scroll-rod::before { top: -10px; }
+.scroll-rod::after { bottom: -10px; }
+
 @keyframes scroll-unroll {
-  from {
-    clip-path: inset(50% 0 50% 0 round 16px);
-    opacity: 0.4;
-  }
-  to {
-    clip-path: inset(0 0 0 0 round 16px);
-    opacity: 1;
-  }
+  from { clip-path: inset(-30px calc(50% - var(--rod) / 2 - 4px) -30px calc(50% - var(--rod) / 2 - 4px)); }
+  to { clip-path: inset(-30px calc(var(--rod) / -2 - 6px) -30px calc(var(--rod) / -2 - 6px)); }
+}
+@keyframes scroll-roll-up {
+  from { clip-path: inset(-30px calc(var(--rod) / -2 - 6px) -30px calc(var(--rod) / -2 - 6px)); opacity: 1; }
+  80% { opacity: 1; }
+  to { clip-path: inset(-30px calc(50% - var(--rod) / 2 - 4px) -30px calc(50% - var(--rod) / 2 - 4px)); opacity: 0; }
+}
+@keyframes scroll-rod-left {
+  from { left: calc(50% - var(--rod) / 2); }
+  to { left: calc(var(--rod) / -2 - 2px); }
+}
+@keyframes scroll-rod-right {
+  from { right: calc(50% - var(--rod) / 2); }
+  to { right: calc(var(--rod) / -2 - 2px); }
+}
+/* Yopilish: qog'oz bilan bir xil egri chiziqda markazga (`reverse` egri chiziqni ham teskari qilib, qog'ozdan ajratib qo'yadi) */
+@keyframes scroll-rod-left-in {
+  from { left: calc(var(--rod) / -2 - 2px); opacity: 1; }
+  80% { opacity: 1; }
+  to { left: calc(50% - var(--rod) / 2); opacity: 0; }
+}
+@keyframes scroll-rod-right-in {
+  from { right: calc(var(--rod) / -2 - 2px); opacity: 1; }
+  80% { opacity: 1; }
+  to { right: calc(50% - var(--rod) / 2); opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-slot="dialog-content"].scroll-open {
+  .app-dialog.scroll-open,
+  .app-dialog.scroll-open[data-state="closed"],
+  .scroll-rod.is-left,
+  .scroll-rod.is-right,
+  [data-state="closed"] > .scroll-rod.is-left,
+  [data-state="closed"] > .scroll-rod.is-right {
     animation: none;
   }
 }

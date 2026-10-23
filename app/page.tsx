@@ -249,6 +249,9 @@ export default function App() {
   const [now, setNow] = useState(0);
   const [session, setSession] = useState(0);
   const [modal, setModal] = useState("");
+  // Yopilayotgan oyna turi: yopilish animatsiyasi (masalan, noma o'ralishi) tugaguncha uslub saqlanadi.
+  const [closingModal, setClosingModal] = useState("");
+  const dialogKind = modal || closingModal;
   // Shaxsiy sahifa va do'kon Hisobim bitta joyda: Hisobim ochiladi (bildirishnoma, profil, avatar).
   const [storeRoute, setStoreRoute] = useState<StoreRoute | undefined>(undefined);
   const openStoreAccount = (tab: AccountTab, area?: AdminArea) => {
@@ -770,24 +773,33 @@ export default function App() {
       <Dialog
         open={!data.onboarded || Boolean(modal)}
         onOpenChange={(open) => {
-          if (!open && data.onboarded) setModal("");
+          if (!open && data.onboarded) {
+            setClosingModal(modal);
+            setModal("");
+          }
         }}
       >
-        <DialogContent className={modal === "notifications" ? "app-dialog scroll-open" : "app-dialog"} showCloseButton={false}>
+        <DialogContent className={dialogKind === "notifications" ? "app-dialog scroll-open" : "app-dialog"} showCloseButton={false}>
+          {dialogKind === "notifications" && (
+            <>
+              <span className="scroll-rod is-left" aria-hidden="true" />
+              <span className="scroll-rod is-right" aria-hidden="true" />
+            </>
+          )}
           {/* Bildirishnomalarda sarlavha va izoh ko'rinmaydi (ro'yxatning o'zi yetarli) — faqat ekran o'quvchilar uchun. */}
-          <DialogTitle className={data.onboarded && modal === "notifications" ? "sr-only" : undefined}>
+          <DialogTitle className={data.onboarded && dialogKind === "notifications" ? "sr-only" : undefined}>
             {!data.onboarded
               ? "Bir haftada bitta kitob"
               : ({
                   note: "Muhim fikringiz",
                   book: selected?.title ?? "Kitob",
                   notifications: "Bildirishnomalar",
-                } as Record<string, string>)[modal]}
+                } as Record<string, string>)[dialogKind]}
           </DialogTitle>
-          <DialogDescription className={data.onboarded && modal === "notifications" ? "sr-only" : undefined}>
+          <DialogDescription className={data.onboarded && dialogKind === "notifications" ? "sr-only" : undefined}>
             {!data.onboarded
               ? "Har kuni o'qing. Hafta oxirida kitobni birga tahlil qiling."
-              : modal === "notifications"
+              : dialogKind === "notifications"
                 ? "O‘qilmagan reaksiya va izohlar, do‘kon xabarlari va e‘lonlar."
               : "O'zgarishlar backend mavjud bo'lsa serverga, aks holda qurilmaga saqlanadi."}
           </DialogDescription>
@@ -824,7 +836,7 @@ export default function App() {
           ) : (
             <>
 
-              {modal === "note" && (
+              {dialogKind === "note" && (
                 <textarea
                   className="note-input"
                   aria-label="Muhim fikr"
@@ -840,7 +852,7 @@ export default function App() {
                 />
               )}
 
-              {modal === "book" && selected && (
+              {dialogKind === "book" && selected && (
                 <>
                   <div className="book-detail-head">
                     <span className="book-detail-cover" style={{ backgroundColor: selected.color }}>{selected.coverUrl ? <img src={selected.coverUrl} alt="" /> : selected.title}</span>
@@ -871,7 +883,7 @@ export default function App() {
                 </>
               )}
 
-              {modal === "notifications" && (
+              {dialogKind === "notifications" && (
                 <NotificationCenter
                   notifications={inbox.items}
                   announcements={unreadAnnouncements}
