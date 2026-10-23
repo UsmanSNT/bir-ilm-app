@@ -1,5 +1,6 @@
 /** Jonli suhbatlar ro'yxati va yaratish. */
 import { defineRoute } from "@/server/http/handler";
+import { forbidden } from "@/server/http/errors";
 import { createLiveSession, listLiveSessions } from "@/server/services/live";
 import { createCommunityPost } from "@/server/services/community";
 import { getUserRole, requireRole } from "@/server/services/roles";
@@ -23,7 +24,9 @@ export const POST = defineRoute<CreateLiveSessionInput, LiveSession>({
   source: "body",
   status: 201,
   handler: async ({ db, identity, input }) => {
-    await requireRole(db, identity.userId, ["admin"], "Suhbatni faqat admin yarata oladi.");
+    const role = await requireRole(db, identity.userId, ["admin", "moderator"], "Suhbatni faqat admin yoki moderator yarata oladi.");
+    // E’lon (bosh sahifa va e’lonlar doskasi) faqat admin uchun; moderator suhbatni e’lonsiz ochadi.
+    if (input.announcement && role !== "admin") throw forbidden("E’lonni faqat admin joylaydi.");
     const session = await createLiveSession(db, identity.userId, input);
     if (input.announcement) {
       await createCommunityPost(db, identity.userId, {

@@ -1840,36 +1840,6 @@ input {
   background: #1e2d6a;
 }
 
-.free-talk {
-  display: grid;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 16px;
-  border: 1px dashed #9fd3b9;
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.free-talk label {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-weight: 600;
-}
-
-.free-talk label input {
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  accent-color: #21865e;
-}
-
-.free-talk label small {
-  display: block;
-  color: #547066;
-  font-size: 13px;
-  font-weight: 400;
-}
 
 .live-dock {
   position: fixed;

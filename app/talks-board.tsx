@@ -25,7 +25,8 @@ import type { LiveSession } from "@/shared/contract/live";
 import BookEditor from "./book-editor";
 import TalkManage from "./talk-manage";
 import TalkGate from "./talk-gate";
-import { clock, dayMonth, durationLabel, koreaStamp, toggleTalkReminder, useTalkReminders } from "./talk-format";
+import { clock, dayMonth, durationLabel, koreaStamp, notifyTalksChanged, toggleTalkReminder, useTalkReminders } from "./talk-format";
+import { createLiveSession, startLiveSessionRest } from "@/lib/api/live-client";
 
 // Suhbatlar bo'limining asosiy oynasi (xonaga kirishdan oldingi holat).
 
@@ -98,7 +99,37 @@ export default function TalksBoard({
   const [managing, setManaging] = useState<string | null>(null);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [gateId, setGateId] = useState<string | null>(null);
+  const [freeQuiet, setFreeQuiet] = useState(false);
+  const [freeBusy, setFreeBusy] = useState(false);
+  const [freeError, setFreeError] = useState("");
   const gateSession = gateId ? sessions.find((s) => s.id === gateId) ?? null : null;
+
+  // Erkin suhbat: darhol ochiladi. E’lon faqat admin uchun va «e’lon qilmaslik» belgilanmagan bo‘lsa joylanadi.
+  async function openFreeTalk() {
+    setFreeBusy(true);
+    setFreeError("");
+    const created = await createLiveSession({
+      bookTitle: "Erkin suhbat",
+      title: "Erkin suhbat",
+      scheduledAt: new Date().toISOString(),
+      announcement: isAdmin && !freeQuiet
+        ? { title: "Erkin suhbat boshlandi", body: "Jonli erkin suhbat hozir ochiq. «Suhbatlar» bo‘limidan qo‘shiling." }
+        : undefined,
+    });
+    if (!created) {
+      setFreeBusy(false);
+      setFreeError("Suhbatni ochib bo‘lmadi.");
+      return;
+    }
+    const started = await startLiveSessionRest(created.id);
+    setFreeBusy(false);
+    if (typeof started === "string") {
+      setFreeError(started);
+      return;
+    }
+    notifyTalksChanged();
+    onJoin(started.id);
+  }
   const [player, setPlayer] = useState<{ id: string; playing: boolean; at: number } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -306,7 +337,31 @@ export default function TalksBoard({
     );
   } else if (filter === "live") {
     const live = upcoming.filter((s) => s.status === "live");
-    content = live.length ? live.map(featured) : empty("Hozir jonli suhbat yo‘q. Kelgusi suhbatga eslatma qo‘yib qo‘ying.");
+    content = live.length ? live.map(featured) : (
+      <>
+        {empty("Hozir jonli suhbat yo‘q. Kelgusi suhbatga eslatma qo‘yib qo‘ying.")}
+        {staff && (
+          <div className="tb-free">
+            <label>
+              <input
+                type="checkbox"
+                checked={isAdmin ? freeQuiet : true}
+                disabled={!isAdmin}
+                onChange={(e) => setFreeQuiet(e.target.checked)}
+              />
+              <span>
+                E’lon qilmaslik
+                <small>{isAdmin ? "Belgilansa, suhbat e’lonlar doskasida chiqmaydi" : "Moderator suhbati e’lonlar doskasida chiqmaydi"}</small>
+              </span>
+            </label>
+            <button type="button" className="button" disabled={freeBusy} onClick={() => void openFreeTalk()}>
+              {freeBusy ? "Ochilmoqda…" : "Erkin suhbat ochish"}
+            </button>
+            {freeError && <p className="tb-free-error" role="alert">{freeError}</p>}
+          </div>
+        )}
+      </>
+    );
   } else if (filter === "past") {
     content = past.length ? <div className="tb-past-list">{past.map(pastRow)}</div> : empty("Hali o‘tgan suhbatlar yo‘q.");
   } else {
