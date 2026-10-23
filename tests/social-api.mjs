@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { sqlite } from "../scripts/local-d1.mjs";
 
 // This test creates disposable readers only in the local D1 preview.
-const origin = "http://127.0.0.1:8787";
+const origin = process.env.TEST_ORIGIN ?? "http://127.0.0.1:8787";
 const ids = [];
 async function reader(name) {
   const response = await fetch(`${origin}/api/social`);
@@ -11,6 +11,8 @@ async function reader(name) {
   assert.match(response.headers.get("set-cookie"), /HttpOnly/);
   const initial = await response.json();
   ids.push(initial.userId);
+  // Community'da faqat ro'yxatdan o'tganlar yozadi — Google hisobini bog'laymiz.
+  sqlite.prepare("INSERT OR IGNORE INTO auth_accounts (provider, subject, user_id, display_name) VALUES ('google', ?, ?, 'Test')").run(`test-${initial.userId}`, initial.userId);
   return {
     id: initial.userId,
     get: async (query = "") => {

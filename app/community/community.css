@@ -1,0 +1,268 @@
+/* Community: formatlangan matn, muharrir, albom, o'qish oynasi, reaksiyalar */
+
+.rt-content { color: #1c2249; font-size: 16px; line-height: 1.7; overflow-wrap: anywhere; }
+.rt-content > * + * { margin-top: 0.85em; }
+.rt-content p { margin: 0; white-space: pre-wrap; }
+.rt-content h2, .rt-content h3 { font-weight: 700; }
+.rt-content h2 { font-size: 1.45em; line-height: 1.3; margin-top: 1.4em; color: #181d3f; }
+.rt-content h3 { font-size: 1.18em; line-height: 1.35; margin-top: 1.2em; color: #181d3f; }
+.rt-content > h2:first-child, .rt-content > h3:first-child { margin-top: 0; }
+.rt-content blockquote { margin: 1em 0; padding: 4px 0 4px 16px; border-left: 3px solid #273b8a; color: #182556; font-style: italic; white-space: pre-wrap; }
+.rt-content pre { margin: 1em 0; padding: 14px 16px; border-radius: 8px; background: #fbf6ec; color: #1b2146; font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-x: auto; }
+.rt-content code { padding: 1px 5px; border-radius: 4px; background: #faf4e8; color: #a32b43; font: 0.9em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.rt-content pre code { padding: 0; background: none; color: inherit; font: inherit; }
+.rt-content ul, .rt-content ol { margin: 0.6em 0; padding-left: 1.5em; }
+.rt-content ul { list-style: disc; }
+.rt-content ol { list-style: decimal; }
+.rt-content li + li { margin-top: 0.3em; }
+.rt-content li::marker { color: #172353; }
+.rt-content a { color: #172250; text-decoration: underline; text-underline-offset: 2px; }
+.rt-content hr { border: 0; margin: 1.8em auto; width: 80px; height: 1px; background: #c6e5e3; }
+.rt-content strong, .rt-content b { font-weight: 700; }
+.rt-content em, .rt-content i { font-style: italic; }
+
+.rt-spoiler { border-radius: 4px; cursor: pointer; background: #a3a1b0; color: transparent; transition: color .2s, background .2s; background-image: radial-gradient(circle at 1px 1px, #ffffff66 1px, transparent 0); background-size: 4px 4px; animation: rt-dust 1.2s linear infinite; user-select: none; }
+.rt-spoiler * { color: transparent !important; text-decoration-color: transparent !important; }
+.rt-spoiler.is-shown { background: #e4f3f2; color: inherit; cursor: text; animation: none; user-select: text; }
+.rt-spoiler.is-shown * { color: inherit !important; }
+@keyframes rt-dust { to { background-position: 4px 4px; } }
+@media (prefers-reduced-motion: reduce) { .rt-spoiler { animation: none; } }
+
+.rt-figure { margin: 1.2em 0; }
+.rt-figure img, .rt-figure video { display: block; width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px; background: #f9f3e8; }
+.rt-figure-open { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.rt-figure figcaption { margin-top: 6px; color: #69667a; font-size: 13px; text-align: center; }
+
+/* Albom — Telegram kabi to'r */
+.rt-album { display: grid; gap: 3px; margin: 4px 0 14px; border-radius: 12px; overflow: hidden; background: #e2f2f1; }
+.rt-album-item { position: relative; display: block; min-width: 0; min-height: 0; padding: 0; border: 0; background: #d9eeed; cursor: zoom-in; overflow: hidden; }
+.rt-album-item img, .rt-album-item video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.rt-album.count-1 .rt-album-item { width: 100%; max-height: min(78vh, 680px); }
+.rt-album-video { display: block; width: 100%; max-height: min(78vh, 680px); background: #000; }
+.rt-album.count-2 { grid-template-columns: 1fr 1fr; aspect-ratio: 2 / 1.1; }
+.rt-album.count-3 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; aspect-ratio: 4 / 3; }
+.rt-album.count-3 .rt-album-item:first-child { grid-row: span 2; }
+.rt-album.count-4 { grid-template-columns: 1fr 1fr; aspect-ratio: 1; }
+.rt-album:is(.count-5, .count-6, .count-7, .count-8, .count-9, .count-10) { grid-template-columns: repeat(6, 1fr); grid-auto-rows: 120px; }
+.rt-album:is(.count-5, .count-6, .count-7, .count-8, .count-9, .count-10) .rt-album-item { grid-column: span 2; }
+.rt-album:is(.count-5, .count-6, .count-7, .count-8, .count-9, .count-10) .rt-album-item:nth-child(-n+2) { grid-column: span 3; grid-row: span 2; }
+.rt-play { position: absolute; inset: 0; margin: auto; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; background: #0009; color: #fff; }
+
+.rt-lightbox { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 56px 12px; background: #000000f0; pointer-events: auto; }
+.rt-lightbox img, .rt-lightbox video { max-width: 100%; max-height: calc(100dvh - 112px); object-fit: contain; border-radius: 4px; }
+.rt-lightbox-close { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%; background: #ffffff1f; color: #fff; }
+.rt-lightbox-count { position: absolute; top: max(22px, env(safe-area-inset-top)); left: 0; right: 0; text-align: center; color: #fffc; font-size: 14px; pointer-events: none; }
+.rt-lightbox-nav { position: absolute; top: 50%; translate: 0 -50%; width: 48px; height: 48px; display: grid; place-items: center; border: 0; border-radius: 50%; background: #ffffff1f; color: #fff; }
+.rt-lightbox-nav.prev { left: 12px; }
+.rt-lightbox-nav.next { right: 12px; }
+@media (max-width: 700px) { .rt-lightbox-nav { display: none; } }
+
+/* ── Muharrir ── */
+.rt-editor-wrap { display: grid; gap: 0; border: 1px solid #d2ebe9; border-radius: 10px; background: #fff; }
+.rt-toolbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 2px; padding: 6px; border-bottom: 1px solid #def0ef; border-radius: 10px 10px 0 0; background: #fcf9f3; overflow-x: auto; scrollbar-width: none; }
+.rt-toolbar::-webkit-scrollbar { display: none; }
+.rt-tool { flex: 0 0 auto; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #1b285f; }
+.rt-tool:hover { background: #e5f4f3; }
+.rt-tool[aria-pressed=true] { background: #1d234c; color: #fff; }
+.rt-sep { flex: 0 0 1px; height: 22px; margin: 0 4px; background: #cee9e7; }
+.rt-linkbar { display: flex; align-items: center; gap: 6px; width: 100%; padding-left: 6px; color: #1b285f; }
+.rt-linkbar input { flex: 1; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid #c3e4e2; border-radius: 7px; background: #fff; font-size: 15px; }
+.rt-editor { min-height: 180px; padding: 16px; outline: none; white-space: pre-wrap; caret-color: #172353; }
+.rt-editor-wrap.is-article .rt-editor { min-height: 320px; font-size: 17px; }
+.rt-editor.is-empty::before { content: attr(data-placeholder); position: absolute; color: #8b889c; pointer-events: none; max-width: calc(100% - 64px); }
+.rt-editor-wrap { position: relative; }
+.rt-editor [data-spoiler] { border-radius: 3px; background: #dccfb9; background-image: radial-gradient(circle at 1px 1px, #ffffff99 1px, transparent 0); background-size: 4px 4px; }
+.rt-editor a { cursor: text; }
+.rt-media { position: relative; margin: 1em 0; user-select: none; }
+.rt-media img, .rt-media video { display: block; max-width: 100%; max-height: 420px; margin: 0 auto; border-radius: 8px; background: #f9f3e8; }
+.rt-media figcaption { min-height: 1.6em; margin-top: 6px; color: #69667a; font-size: 14px; text-align: center; outline: none; user-select: text; white-space: normal; }
+.rt-media figcaption:empty::before { content: attr(data-placeholder); color: #a3a1b1; }
+.rt-media-remove { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 50%; background: #000a; color: #fff; font-size: 20px; line-height: 1; }
+.rt-media-progress { position: absolute; left: 16px; right: 16px; top: 50%; height: 6px; border-radius: 3px; background: #fff9; overflow: hidden; }
+.rt-media-progress i { display: block; height: 100%; background: #273b8a; transition: width .2s; }
+.rt-media[data-upload] img, .rt-media[data-upload] video { opacity: .55; }
+.rt-pending { padding: 6px 16px 10px; color: #69667a; font-size: 13px; }
+
+/* ── Yozish oynasi ── */
+[data-slot="dialog-content"].post-composer { display: flex; flex-direction: column; align-items: stretch; gap: 0; width: min(100% - 32px, 760px); max-width: none; max-height: calc(100dvh - 40px); padding: 0; overflow: hidden; }
+.composer-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #def0ef; }
+.composer-head h2 { flex: 1; font-size: 17px; }
+.composer-publish { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 8px 16px; }
+.composer-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: grid; gap: 14px; align-content: start; }
+.composer-modes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.composer-modes [role=radio] { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 6px 14px; border: 1px solid #c3e4e2; border-radius: 20px; background: #fff; color: #172352; font-size: 14px; }
+.composer-modes [role=radio][aria-checked=true] { background: #1d234c; border-color: #1d234c; color: #fff; }
+.composer-modes .announce-toggle { padding: 7px 12px; border-radius: 20px; }
+.composer-album { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.composer-album.count-0 { grid-template-columns: 1fr; }
+.composer-slot { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #e2f2f1; }
+.composer-slot img, .composer-slot video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.composer-slot.has-error { outline: 2px solid #b42318; }
+.composer-slot-tools { position: absolute; top: 5px; right: 5px; display: flex; gap: 4px; }
+.composer-slot-tools button { width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 50%; background: #000a; color: #fff; font-size: 17px; line-height: 1; }
+.composer-progress { position: absolute; left: 8px; right: 8px; bottom: 8px; height: 5px; border-radius: 3px; background: #fffa; overflow: hidden; }
+.composer-progress i { display: block; height: 100%; background: #273b8a; transition: width .2s; }
+.composer-retry { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 5px; border: 0; background: #b42318cc; color: #fff; font-size: 13px; font-weight: 600; }
+.composer-add { aspect-ratio: 1; display: grid; place-items: center; border: 1.5px dashed #b0dcd9; border-radius: 10px; background: #fcf9f3; color: #172353; }
+.composer-add.is-empty { aspect-ratio: auto; display: flex; gap: 14px; justify-content: flex-start; padding: 18px; text-align: left; }
+.composer-add span { display: grid; gap: 2px; }
+.composer-add strong { color: #1e254f; font-size: 15px; }
+.composer-add small { color: #69667a; font-size: 13px; }
+.composer-add:hover { background: #faf5eb; }
+.composer-title { width: 100%; resize: none; overflow: hidden; border: 0; padding: 4px 2px; background: none; color: #181d3f; font: 700 26px/1.25 var(--f-display); outline: none; }
+.composer-title::placeholder { color: #a8a6b5; }
+.composer-book { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #daefed; border-radius: 8px; color: #a32b43; }
+.composer-book input { flex: 1; min-width: 0; height: 40px; border: 0; background: none; color: #1d244e; font-size: 15px; outline: none; }
+.composer-foot { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid #def0ef; color: #68657a; font-size: 13px; }
+.composer-foot .is-over { color: #b42318; font-weight: 700; }
+.composer-hint { margin-left: auto; text-align: right; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 700px) {
+  [data-slot="dialog-content"].post-composer { inset: 0 !important; transform: none !important; --tw-translate-x: 0 !important; --tw-translate-y: 0 !important; width: 100% !important; max-width: none !important; height: 100dvh; max-height: none; border: 0; border-radius: 0; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); animation: none !important; }
+  .composer-scroll { padding: 12px; }
+  .composer-hint { display: none; }
+  .composer-title { font-size: 23px; }
+}
+
+/* ── Lenta ── */
+.compose-launch { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 10px 14px; border: 1px solid #cde9e7; border-radius: 12px; background: #fff; color: #69667a; text-align: left; box-shadow: 0 1px 2px #1d234c0d; }
+.compose-launch:hover:not(:disabled) { border-color: #67e4e2; }
+.compose-launch-text { flex: 1; min-width: 0; font-size: 15px; }
+.compose-launch-icons { display: flex; gap: 10px; color: #172353; }
+@media (max-width: 420px) { .compose-launch-icons svg:nth-child(n+2) { display: none; } }
+
+.reading-post { position: relative; }
+.reading-post .reader-avatar { padding: 0; border: 0; overflow: hidden; }
+.reader-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.reader-avatar.small { width: 30px; height: 30px; flex-basis: 30px; font-size: 13px; }
+.reading-post .post-author { display: grid; justify-items: start; gap: 0; }
+.post-meta { font-size: 12px; color: #646175; }
+.post-header .follow-button { min-height: 34px; }
+.post-title { margin-bottom: 10px; font-size: 19px; line-height: 1.35; color: #181d3f; }
+.post-text.is-clamped { max-height: 440px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 78%, transparent); mask-image: linear-gradient(#000 78%, transparent); }
+.post-text:not(.is-clamped) { max-height: none; }
+.post-text .rt-content { font-size: 15.5px; }
+.post-more { margin-top: 2px; font-weight: 600; }
+.reading-post .post-book { display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 0; padding: 4px 10px; border-radius: 16px; background: #fbeef1; font-size: 13px; }
+.reading-post .post-book svg { margin: 0; }
+.post-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.post-footer-actions { display: flex; gap: 4px; margin-left: auto; }
+.post-action { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 6px 10px; border: 0; border-radius: 19px; background: none; color: #253883; font-size: 14px; }
+.post-action:hover { background: #faf4e9; }
+
+.reaction-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.reaction-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 3px 10px 3px 7px; border: 1px solid #d6eceb; border-radius: 16px; background: #fcf8f0; color: #172352; font-size: 13px; font-weight: 600; }
+.reaction-chip.is-mine { border-color: #1d234c; background: #1d234c; color: #fff; }
+.reaction-emoji { font-size: 17px; line-height: 1; }
+.reaction-add { width: 34px; height: 32px; display: grid; place-items: center; border: 1px dashed #bfe2e0; border-radius: 16px; background: none; color: #6e6b81; }
+.reaction-add:hover { color: #1d234c; border-color: #1d234c; }
+.reaction-picker { display: flex; flex-wrap: wrap; gap: 2px; width: auto !important; max-width: 300px; padding: 6px !important; border-radius: 24px !important; }
+.reaction-picker button { width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; font-size: 24px; line-height: 1; transition: transform .12s; }
+.reaction-picker button:hover { transform: scale(1.25); background: #fbf6ec; }
+.reaction-picker button.is-mine { background: #e1f2f1; }
+
+.post-menu [role=menuitem] { display: flex; align-items: center; gap: 9px; min-height: 38px; cursor: pointer; }
+.post-menu [role=menuitem].is-danger { color: #b42318; }
+
+.post-replies { margin-top: 10px; }
+.post-reply { display: flex; align-items: flex-start; gap: 9px; padding-right: 30px; }
+.post-reply > div { min-width: 0; }
+.post-reply time { font-size: 12px; color: #7a778e; }
+.reply-form textarea { min-height: 44px; }
+.reply-login { margin-top: 8px; font-size: 14px; }
+
+/* Maqola kartasi */
+.article-card { display: grid; gap: 8px; width: 100%; padding: 0 0 14px; border: 1px solid #d6eceb; border-radius: 14px; background: #fff; text-align: left; overflow: hidden; color: inherit; }
+.article-card:hover { border-color: #a3d5d2; box-shadow: 0 4px 16px #1d234c12; }
+.article-card > span:not(.article-cover), .article-card > strong { margin-inline: 16px; }
+.article-card > :first-child:not(.article-cover) { margin-top: 14px; }
+.article-cover { display: block; aspect-ratio: 16 / 8; background: #e2f2f1; overflow: hidden; }
+.article-cover img, .article-cover video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.article-kicker { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; color: #a32b43; font-size: 11px; font-weight: 700; letter-spacing: .06em; }
+.article-title { color: #181d3f; font: 700 22px/1.3 var(--f-display); }
+.article-excerpt { color: #203172; font-size: 15px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.article-read { display: inline-flex; align-items: center; gap: 6px; color: #172353; font-size: 14px; font-weight: 600; }
+
+/* ── O'qish oynasi ── */
+[data-slot="dialog-content"].post-reader { inset: 0 !important; transform: none !important; --tw-translate-x: 0 !important; --tw-translate-y: 0 !important; width: 100% !important; max-width: none !important; height: 100dvh; margin: 0; padding: 0; border: 0; border-radius: 0; display: flex; flex-direction: column; gap: 0; background: #fcf9f3; animation: none !important; }
+.reader-progress { position: absolute; top: 0; left: 0; right: 0; height: 3px; z-index: 3; }
+.reader-progress i { display: block; height: 100%; background: #273b8a; }
+.reader-bar { display: flex; align-items: center; gap: 10px; padding: max(8px, env(safe-area-inset-top)) 12px 8px; border-bottom: 1px solid #e2f2f1; background: #fffffff2; }
+.reader-bar-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: #172352; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 28px 18px calc(48px + env(safe-area-inset-bottom)); }
+.reader-article { max-width: 680px; margin: 0 auto; }
+.reader-title { margin: 8px 0 14px; color: #161a39; font: 700 clamp(28px, 5vw, 40px)/1.2 var(--f-display); overflow-wrap: anywhere; }
+.reader-byline { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+.reader-byline > span:last-child { display: grid; }
+.reader-byline small { color: #6b697d; font-size: 13px; }
+.reader-body.rt-content { font-size: 18px; line-height: 1.8; }
+.reader-article:not(.is-article) .reader-body.rt-content { font-size: 17px; }
+.reader-article.is-article .reader-body p { font-family: var(--f-display); font-size: 19px; }
+.reader-article .rt-album { margin-bottom: 20px; }
+.reader-footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid #def0ef; justify-content: space-between; }
+.reader-comments { margin-top: 26px; }
+.reader-comments h2 { display: flex; align-items: center; gap: 8px; font-size: 18px; color: #181d3f; }
+.reader-comments h2 span { padding: 1px 8px; border-radius: 10px; background: #e1f2f1; color: #1d234c; font-size: 13px; }
+.reader-comments .post-replies { padding-left: 0; border-left: 0; }
+
+[data-slot="dialog-content"].login-dialog { max-width: 440px; }
+
+/* Telefonda lenta ekran chetiga tegmasin */
+@media (max-width: 700px) {
+  .dashboard-feed .social-main { padding-inline: 14px; }
+  .reading-post .rt-album { margin-inline: -4px; }
+  .article-title { font-size: 20px; }
+  .reader-scroll { padding: 20px 16px calc(40px + env(safe-area-inset-bottom)); }
+  .reader-article.is-article .reader-body p { font-size: 18px; }
+  .post-footer-actions .post-action { padding-inline: 8px; }
+}
+
+/* ───────── Post albomi: karusel ───────── */
+.rt-carousel { position: relative; margin: 4px 0 14px; border-radius: 16px; overflow: hidden; background: #f1e8d4; }
+.rt-carousel-track { display: flex; width: 100%; max-height: min(78vh, 680px); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; outline-offset: -3px; }
+.rt-carousel-track::-webkit-scrollbar { display: none; }
+.rt-carousel-slide { position: relative; flex: 0 0 100%; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; scroll-snap-align: center; scroll-snap-stop: always; cursor: zoom-in; }
+.rt-carousel-slide img, .rt-carousel-slide video { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; }
+.rt-carousel-count { position: absolute; top: 10px; right: 10px; padding: 3px 10px; border-radius: 999px; background: #000a; color: #fff; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; pointer-events: none; }
+.rt-carousel-nav { position: absolute; top: 50%; display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: #ffffffe6; color: #1d234c; box-shadow: 0 4px 12px #0004; transform: translateY(-50%); cursor: pointer; }
+.rt-carousel-nav.is-prev { left: 8px; }
+.rt-carousel-nav.is-next { right: 8px; }
+@media (hover: none) { .rt-carousel-nav { display: none; } }
+.rt-carousel-dots { position: absolute; left: 0; right: 0; bottom: 10px; display: flex; justify-content: center; gap: 5px; pointer-events: none; }
+.rt-carousel-dots i { width: 6px; height: 6px; border-radius: 50%; background: #ffffff99; box-shadow: 0 0 0 1px #0003; transition: transform .15s, background .15s; }
+.rt-carousel-dots i.is-on { background: #fff; transform: scale(1.35); }
+
+/* Moslashuvchan ramka: rasm o'z nisbatida va to'liq ko'rinadi; ortiqcha joy shu rasmning xira nusxasi bilan to'ladi. */
+.rt-frame { position: relative; isolation: isolate; overflow: hidden; background: #1b1a2e; }
+.rt-frame .rt-frame-fill { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; filter: blur(22px) saturate(1.2) brightness(.82); transform: scale(1.15); pointer-events: none; user-select: none; }
+.rt-frame .rt-frame-img { position: relative; display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; }
+
+/* ───────── Composer: rasm tartibi ───────── */
+.composer-order-hint { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 8px; padding: 8px 12px; border-radius: 12px; background: #e2b65c24; color: #5b4510; font-size: 12.5px; line-height: 1.45; box-shadow: inset 0 0 0 1px #e2b65c66; }
+.composer-order-hint svg { flex: none; margin-top: 2px; }
+.composer-album { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+.composer-slot { aspect-ratio: 4 / 5; cursor: grab; }
+.composer-slot.is-dragging { opacity: .45; outline: 2px dashed #273b8a; }
+.composer-slot-num { position: absolute; z-index: 2; top: 6px; left: 6px; display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: #1d234c; color: #fff; font-size: 12px; font-weight: 800; box-shadow: 0 2px 6px #0006; }
+.composer-slot-tools { z-index: 2; }
+.composer-slot-tools button { width: 28px; height: 28px; }
+.composer-slot-move { position: absolute; z-index: 2; left: 6px; right: 6px; bottom: 6px; display: flex; justify-content: space-between; }
+.composer-slot-move button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: #ffffffee; color: #1d234c; font-size: 22px; font-weight: 800; line-height: 1; box-shadow: 0 2px 8px #0005; cursor: pointer; }
+.composer-slot-move button:disabled { opacity: .3; cursor: default; }
+.composer-slot-move button:only-child { margin-left: auto; }
+.composer-full { margin: 6px 2px 0; color: #8a5a00; font-size: 13px; }
+
+/* Post sarlavhasi: Obuna va amallar tugmasi ixcham, bir qatorda */
+.reading-post .post-header { flex-wrap: nowrap; gap: 8px; container-type: inline-size; }
+.reading-post .post-header .post-author { flex: 1 1 auto; min-width: 0; grid-template-columns: minmax(0, 1fr); }
+.reading-post .post-header .author-link { display: block; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reading-post .post-header .follow-button { min-height: 30px; height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; gap: 4px; white-space: nowrap; flex-shrink: 0; }
+.reading-post .post-header .follow-button svg { width: 14px; height: 14px; }
+.reading-post .post-header .icon-btn { width: 30px; height: 30px; min-width: 30px; min-height: 30px; padding: 0; flex-shrink: 0; }
+.reading-post .post-header .icon-btn svg { width: 16px; height: 16px; }
+/* Tor ekranda «Obunadasiz» faqat belgi bo'lib qoladi (matn ekran o'quvchilar uchun saqlanadi) — tugmalar karta ichida qoladi. */
+@container (max-width: 380px) {
+  .reading-post .post-header .follow-button[aria-pressed="true"] { width: 30px; padding: 0; }
+  .reading-post .post-header .follow-button[aria-pressed="true"] span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}

@@ -1,0 +1,289 @@
+/**
+ * «Bir Ilm yo'li» kitoblar ro'yxati va hafta kitobining muddati.
+ * Route funksiyalari to'g'ridan-to'g'ri chaqiriladi (server shart emas). Sanalar bugungi kunga nisbatan olinadi.
+ * Ishga tushirish: `node --experimental-strip-types tests/journey-books-v1.mjs`
+ */
+import assert from "node:assert/strict";
+import { statSync } from "node:fs";
+import { registerHooks } from "node:module";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = new URL("../", import.meta.url);
+const d1Module = new URL("scripts/local-d1.mjs", projectRoot).href;
+
+/** Bundler kengaytmasiz import qiladi; Node uchun uni o'zimiz topamiz. */
+function isFile(url) {
+  try {
+    return statSync(fileURLToPath(url)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function withExtension(url) {
+  if (isFile(url)) return url;
+
+  for (const candidate of [".ts", ".tsx", "/index.ts", "/index.tsx"]) {
+    const attempt = `${url}${candidate}`;
+    if (isFile(attempt)) return attempt;
+  }
+
+  return url;
+}
+
+// Loyihada `@/*` aliasi va Worker moduli ishlatiladi; Node uchun ularni
+// preview serveri qiladigan tarzda xaritalaymiz.
+registerHooks({
+  resolve(specifier, context, next) {
+    if (specifier === "cloudflare:workers") return { url: d1Module, shortCircuit: true };
+
+    if (specifier.startsWith("@/")) {
+      return next(withExtension(new URL(specifier.slice(2), projectRoot).href), context);
+    }
+
+    if (specifier.startsWith(".") && context.parentURL?.startsWith("file:")) {
+      return next(withExtension(new URL(specifier, context.parentURL).href), context);
+    }
+
+    return next(specifier, context);
+  },
+});
+
+const { sqlite } = await import(d1Module);
+const load = (p) => import(new URL(p, projectRoot).href);
+const session = await load("app/api/v1/auth/session/route.ts");
+const books = await load("app/api/v1/books/route.ts");
+const book = await load("app/api/v1/books/[id]/route.ts");
+const live = await load("app/api/v1/live/route.ts");
+const talk = await load("app/api/v1/live/[id]/route.ts");
+const start = await load("app/api/v1/live/[id]/start/route.ts");
+const journey = await load("app/api/v1/site/journey/route.ts");
+const journeyOne = await load("app/api/v1/site/journey/[number]/route.ts");
+const journeyImport = await load("app/api/v1/site/journey/import/route.ts");
+const { parseJourneyList } = await load("shared/journey-import.ts");
+const { DEFAULT_ABOUT } = await load("shared/contract/index.ts");
+const { saturdayOnOrAfter, saturdaySessionAt, sessionDateOf, sessionNumberOf } = await load("shared/journey.ts");
+
+const ORIGIN = "http://127.0.0.1:8787";
+const DAY = 86_400_000;
+const createdUsers = [];
+const createdTalks = [];
+const createdBooks = [];
+const aboutBefore = sqlite.prepare("SELECT value FROM site_settings WHERE key = 'about'").get();
+const journeyBefore = sqlite.prepare("SELECT * FROM journey_books").all();
+const activeBefore = sqlite.prepare("SELECT id, active_since FROM books WHERE kind = 'library' AND active = 1").all();
+
+async function client() {
+  const response = await session.POST(new Request(`${ORIGIN}/api/v1/auth/session`, { method: "POST", headers: { "Content-Type": "application/json", Origin: ORIGIN }, body: JSON.stringify({ platform: "web", wantToken: false }) }));
+  const payload = await response.json();
+  const cookie = response.headers.get("set-cookie").split(";")[0];
+  createdUsers.push(payload.data.userId);
+  const send = async (handler, path, { params, expect = 200, method = "GET", body } = {}) => {
+    const headers = { Cookie: cookie, Origin: ORIGIN };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    const res = await handler(new Request(`${ORIGIN}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }), params ? { params: Promise.resolve(params) } : undefined);
+    const payload = await res.json();
+    assert.equal(res.status, expect, `${method} ${path} → ${res.status}: ${JSON.stringify(payload)}`);
+    return payload;
+  };
+  return { userId: payload.data.userId, call: send };
+}
+
+const at = (saturday) => new Date(saturdaySessionAt(saturday)).toISOString();
+const plusWeek = (saturday) => new Date(Date.parse(`${saturday}T00:00:00Z`) + 7 * DAY).toISOString().slice(0, 10);
+
+try {
+  // Tayanch nuqta standart: 248-kitob — 2026-10-24.
+  sqlite.prepare("DELETE FROM site_settings WHERE key = 'about'").run();
+  const anchor = DEFAULT_ABOUT.anchor;
+  const admin = await client();
+  const user = await client();
+  sqlite.prepare("INSERT INTO users (id, role) VALUES (?, 'admin') ON CONFLICT(id) DO UPDATE SET role = 'admin'").run(admin.userId);
+
+  const title = `Sinov yo‘li ${crypto.randomUUID().slice(0, 8)}`;
+  const created = (await admin.call(books.POST, "/api/v1/books", { method: "POST", body: { title, author: "Sinov Muallif" }, expect: 201 })).data;
+  createdBooks.push(created.id);
+  const id = created.id;
+  await admin.call(book.PATCH, `/api/v1/books/${id}`, { method: "PATCH", params: { id }, body: { active: true } });
+  const ours = () => sqlite.prepare("SELECT number, discussed_on AS discussedOn FROM journey_books WHERE book_id = ? ORDER BY number").all(id).map((r) => ({ ...r }));
+  const weekBook = async (who = user) => (await who.call(books.GET, "/api/v1/books")).data;
+
+  // --- Suhbat vaqti belgilanmagan kitob muddatsiz turadi --------------------------
+  assert.equal((await weekBook()).activeBookId, id);
+  assert.deepEqual(ours(), []);
+  console.log("PASS: Suhbat vaqti belgilanmagan hafta kitobi e'londa turadi, ro'yxatga yozilmaydi.");
+
+  // --- Suhbat belgilanganda kitob nomi va shanbasi ro'yxatga yoziladi --------------
+  const next = saturdayOnOrAfter(Date.now() + 7 * DAY);
+  await user.call(live.POST, "/api/v1/live", { method: "POST", body: { bookTitle: title, title: "Sinov", scheduledAt: at(next) }, expect: 403 });
+  const created_talk = (await admin.call(live.POST, "/api/v1/live", { method: "POST", body: { bookTitle: `  ${title.toUpperCase()} `, title: "Sinov suhbati", scheduledAt: at(next) }, expect: 201 })).data;
+  createdTalks.push(created_talk.id);
+  const talkId = created_talk.id;
+  assert.deepEqual(ours(), [{ number: sessionNumberOf(anchor, next), discussedOn: next }], "Nom katta-kichik harf va bo'shliqdan qat'i nazar kitobga bog'lanadi");
+  const listed = (await user.call(journey.GET, "/api/v1/site/journey")).data.items;
+  const entry = listed.find((item) => item.bookId === id);
+  assert.deepEqual(entry, { number: sessionNumberOf(anchor, next), discussedOn: next, title, author: "Sinov Muallif", bookId: id }, "Ro'yxatda kutubxonadagi nom");
+  assert.deepEqual(listed.map((item) => item.number), [...listed.map((item) => item.number)].sort((a, b) => a - b), "Tartib raqami bo'yicha");
+  assert.equal((await weekBook()).activeBookId, id);
+  console.log("PASS: Suhbat belgilanganda kitob nomi va shanbasi «Bir Ilm yo'li» ro'yxatiga yoziladi (tartib raqami bilan).");
+
+  // --- Boshqa haftaga ko'chirilsa, eski (hali o'tmagan) yozuv o'chadi -----------
+  const later = plusWeek(next);
+  await admin.call(talk.PATCH, `/api/v1/live/${talkId}`, { method: "PATCH", params: { id: talkId }, body: { scheduledAt: at(later) } });
+  assert.deepEqual(ours(), [{ number: sessionNumberOf(anchor, later), discussedOn: later }]);
+  // Shanba kuni kechroq (Toshkentda o'sha kun) — o'sha shanba; yarim tundan keyin — keyingi shanba.
+  await admin.call(talk.PATCH, `/api/v1/live/${talkId}`, { method: "PATCH", params: { id: talkId }, body: { scheduledAt: new Date(saturdaySessionAt(later) + 5 * 3_600_000).toISOString() } });
+  assert.deepEqual(ours(), [{ number: sessionNumberOf(anchor, later), discussedOn: later }]);
+  await admin.call(talk.PATCH, `/api/v1/live/${talkId}`, { method: "PATCH", params: { id: talkId }, body: { scheduledAt: new Date(saturdaySessionAt(later) + 7 * 3_600_000).toISOString() } });
+  assert.deepEqual(ours(), [{ number: sessionNumberOf(anchor, plusWeek(later)), discussedOn: plusWeek(later) }]);
+  console.log("PASS: Suhbat boshqa haftaga ko'chirilsa, ro'yxatda faqat yangi shanba qoladi.");
+
+  // --- Shanba 22:00 (Seul) o'tgach e'lon tushadi ----------------------------------
+  const past = saturdayOnOrAfter(Date.now() - 14 * DAY);
+  await admin.call(talk.PATCH, `/api/v1/live/${talkId}`, { method: "PATCH", params: { id: talkId }, body: { scheduledAt: at(past) } });
+  assert.deepEqual(ours(), [{ number: sessionNumberOf(anchor, past), discussedOn: past }], "O'tgan suhbat ham ro'yxatda qoladi, kelajakdagisi o'chadi");
+  // Kitob o'sha haftadan oldin tanlangan.
+  sqlite.prepare("UPDATE books SET active_since = ? WHERE id = ?").run(new Date(saturdaySessionAt(past) - 3 * DAY).toISOString(), id);
+  for (const who of [user, admin]) {
+    const expired = await weekBook(who);
+    assert.equal(expired.activeBookId, null, "Hafta tugadi — e'lon yo'q (hamma uchun)");
+    assert.equal(expired.items.find((b) => b.id === id).active, false);
+  }
+  console.log("PASS: Muhokama shanbasi soat 22:00 (Seul) o'tgach hafta kitobi e'londan tushadi.");
+
+  // --- Suhbat jonli bo'lsa, tugaguncha qoladi -----------------------------------
+  await admin.call(start.POST, `/api/v1/live/${talkId}/start`, { method: "POST", params: { id: talkId } });
+  assert.equal((await weekBook()).activeBookId, id, "Jonli suhbat paytida kitob turadi");
+  sqlite.prepare("UPDATE live_sessions SET status = 'ended', ended_at = ? WHERE id = ?").run(new Date().toISOString(), talkId);
+  assert.equal((await weekBook()).activeBookId, null, "Suhbat tugagach tushadi");
+  // O'sha kuni kechroqqa surilgan (hali boshlanmagan) suhbat ham kitobni ushlab turadi.
+  const soon = (await admin.call(live.POST, "/api/v1/live", { method: "POST", body: { bookTitle: title, title: "Kechroq", scheduledAt: new Date(Date.now() + 3_600_000).toISOString() }, expect: 201 })).data;
+  createdTalks.push(soon.id);
+  // Ro'yxatda faqat o'tgan shanba qolsin: kitobni endi faqat kelayotgan suhbat ushlab turadi.
+  sqlite.prepare("DELETE FROM journey_books WHERE book_id = ? AND discussed_on <> ?").run(id, past);
+  assert.equal((await weekBook()).activeBookId, id, "Kelayotgan suhbat bor — kitob turadi");
+  sqlite.prepare("UPDATE live_sessions SET scheduled_at = ? WHERE id = ?").run(new Date(Date.now() - 60_000).toISOString(), soon.id);
+  assert.equal((await weekBook()).activeBookId, null, "Vaqti o'tgan, boshlanmagan suhbat ushlab turmaydi");
+  sqlite.prepare("DELETE FROM live_sessions WHERE id = ?").run(soon.id);
+  console.log("PASS: Suhbat jonli yoki hali oldinda bo'lsa, kitob e'londa qoladi; tugagach tushadi.");
+
+  // --- Hafta tugagach qayta tanlansa, yangi suhbat vaqtigacha turadi ------------
+  await user.call(book.PATCH, `/api/v1/books/${id}`, { method: "PATCH", params: { id }, body: { active: true }, expect: 403 });
+  await admin.call(book.PATCH, `/api/v1/books/${id}`, { method: "PATCH", params: { id }, body: { active: true } });
+  assert.equal((await weekBook()).activeBookId, id);
+  assert.deepEqual(ours(), [{ number: sessionNumberOf(anchor, past), discussedOn: past }], "Tarix o'zgarmaydi");
+  const since = sqlite.prepare("SELECT active_since FROM books WHERE id = ?").get(id).active_since;
+  await admin.call(book.PATCH, `/api/v1/books/${id}`, { method: "PATCH", params: { id }, body: { active: true, summary: "Tahrir" } });
+  assert.equal(sqlite.prepare("SELECT active_since FROM books WHERE id = ?").get(id).active_since, since, "E'londagi kitobni tahrirlash muddatni yangilamaydi");
+  console.log("PASS: Hafta tugagan kitob qayta tanlansa, yangi suhbat vaqti belgilanguncha e'londa turadi.");
+
+  // --- Kutubxonada yo'q mavzu ro'yxatga tushmaydi -------------------------------
+  const before = sqlite.prepare("SELECT count(*) AS n FROM journey_books").get().n;
+  const other = (await admin.call(live.POST, "/api/v1/live", { method: "POST", body: { bookTitle: `Mavzu ${crypto.randomUUID()}`, title: "Mavzu", scheduledAt: at(plusWeek(plusWeek(next))) }, expect: 201 })).data;
+  createdTalks.push(other.id);
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM journey_books").get().n, before);
+  console.log("PASS: Kutubxonada yo'q mavzudagi suhbat ro'yxatga yozilmaydi.");
+
+  // --- Ro'yxat matnini o'qish -----------------------------------------------------
+  const listText = [
+    "# izoh qatori",
+    "",
+    "247. Barkamol farzand tarbiyasi — Abdulla Avloniy",
+    "246) «Kichik shahzoda» | Antuan de Sent-Ekzyuperi",
+    "2026-10-03 | Atom odatlar | Jeyms Klir",
+    "26.09.2026   Alkimyogar",
+    "243-kitob: 1984 - Jorj Oruell",
+    "1 Birinchi kitob",
+    "5\tBeshinchi\tMuallif",
+    "246 Qayta yozildi",
+  ].join("\r\n");
+  const parsed = parseJourneyList(listText, anchor);
+  assert.deepEqual(parsed.issues, []);
+  assert.equal(parsed.duplicates, 1, "246 takrorlandi — oxirgisi qoladi");
+  assert.deepEqual(parsed.rows, [
+    { number: 1, title: "Birinchi kitob", author: "" },
+    { number: 5, title: "Beshinchi", author: "Muallif" },
+    { number: 243, title: "1984", author: "Jorj Oruell" },
+    { number: 244, title: "Alkimyogar", author: "" },
+    { number: 245, title: "Atom odatlar", author: "Jeyms Klir" },
+    { number: 246, title: "Qayta yozildi", author: "" },
+    { number: 247, title: "Barkamol farzand tarbiyasi", author: "Abdulla Avloniy" },
+  ], "Raqam, sana (YYYY-MM-DD, DD.MM.YYYY), «nom», |, tab, — va - ajratgichlari");
+  const reasons = (text) => parseJourneyList(text, anchor).issues.map((issue) => issue.reason);
+  assert.deepEqual(reasons("Raqamsiz qator"), ["Qator raqam yoki sana bilan boshlansin"]);
+  assert.deepEqual(reasons("2026-10-21 | Chorshanba"), ["Sana shanba emas yoki noto‘g‘ri"]);
+  assert.deepEqual(reasons("2021-01-02 | Juda eski"), ["Sana yo‘l boshlanishidan oldin"]);
+  assert.deepEqual(reasons("9999 | Juda katta"), [`Raqam 1 dan ${anchor.number + 520} gacha bo‘lsin`]);
+  assert.deepEqual(reasons("247."), ["Kitob nomi yo‘q"]);
+  assert.deepEqual(reasons("247Nomi"), ["Raqamdan keyin nuqta, tire yoki bo‘shliq qo‘ying"]);
+  assert.deepEqual(reasons(`5 ${"x".repeat(161)}`), ["Nom 160 belgidan oshmasin"]);
+  assert.deepEqual(parseJourneyList("12. «O‘tkan kunlar» — Abdulla Qodiriy\n13 Sarlavha | ", anchor).rows.map((row) => [row.number, row.title, row.author]), [[12, "O‘tkan kunlar", "Abdulla Qodiriy"], [13, "Sarlavha", ""]], "Qo'shtirnoq olinadi, bo'sh muallif — bo'sh");
+  console.log("PASS: Ro'yxat matni: raqam yoki sana, nom va muallif o'qiladi; noto'g'ri qatorlar sababi bilan qaytariladi.");
+
+  // --- Admin o'tgan kitoblar nomini kiritadi ----------------------------------------
+  const linkedNumber = sessionNumberOf(anchor, past);
+  const oneUrl = (n) => `/api/v1/site/journey/${n}`;
+  const putOne = (who, n, body, expect = 200) => who.call(journeyOne.PUT, oneUrl(n), { method: "PUT", params: { number: String(n) }, body, expect });
+  const delOne = (who, n, expect = 200) => who.call(journeyOne.DELETE, oneUrl(n), { method: "DELETE", params: { number: String(n) }, expect });
+  await putOne(user, 200, { title: "Begona" }, 403);
+  const manual = (await putOne(admin, 200, { title: "  Eski kitob ", author: " Muallif " })).data.items.find((item) => item.number === 200);
+  assert.deepEqual(manual, { number: 200, discussedOn: sessionDateOf(anchor, 200), title: "Eski kitob", author: "Muallif", bookId: null });
+  assert.equal(saturdaySessionAt(manual.discussedOn) !== null, true, "Sana shanba");
+  const renamed = (await putOne(admin, 200, { title: "Yangi nom" })).data.items.filter((item) => item.number === 200);
+  assert.deepEqual(renamed.map((item) => [item.title, item.author]), [["Yangi nom", ""]], "Qayta yozilsa yangilanadi, takror qo'shilmaydi");
+  assert.equal((await user.call(journey.GET, "/api/v1/site/journey")).data.items.find((item) => item.number === 200).title, "Yangi nom", "Hamma ko'radi");
+  await putOne(admin, 200, { title: "   " }, 422);
+  await putOne(admin, 200, { title: "x".repeat(161) }, 422);
+  await putOne(admin, 0, { title: "Nol" }, 400);
+  await putOne(admin, anchor.number + 521, { title: "Juda uzoq" }, 400);
+  await putOne(admin, "abc", { title: "Harf" }, 400);
+  await putOne(admin, linkedNumber, { title: "Boshqa nom" }, 400);
+  await delOne(admin, linkedNumber, 400);
+  assert.deepEqual(ours(), [{ number: linkedNumber, discussedOn: past }], "Suhbatga bog'langan hafta tegilmadi");
+  await delOne(user, 200, 403);
+  await delOne(admin, 200);
+  await delOne(admin, 200, 404);
+  console.log("PASS: Bitta haftaning nomi: faqat admin yozadi va o'chiradi; sana raqamdan hisoblanadi; suhbatga bog'langan hafta o'zgarmaydi.");
+
+  // --- Ro'yxatni bir yo'la joylash --------------------------------------------------
+  const importItems = (who, items, expect = 200) => who.call(journeyImport.POST, "/api/v1/site/journey/import", { method: "POST", body: { items }, expect });
+  const rowsCount = () => sqlite.prepare("SELECT count(*) AS n FROM journey_books").get().n;
+  await importItems(user, [{ number: 10, title: "A" }], 403);
+  await importItems(admin, [], 422);
+  await importItems(admin, Array.from({ length: 501 }, (_, i) => ({ number: i + 1, title: "x" })), 422);
+  const countBefore = rowsCount();
+  const onAirBefore = (await weekBook()).activeBookId;
+  await importItems(admin, [{ number: 10, title: "A" }, { number: 5000, title: "Oraliqdan tashqari" }], 400);
+  assert.equal(rowsCount(), countBefore, "Bitta noto'g'ri raqam — hech narsa yozilmaydi");
+  const imported = (await importItems(admin, [
+    { number: 10, title: "A" },
+    { number: 11, title: " B ", author: "Muallif" },
+    { number: 10, title: "A2" },
+    { number: linkedNumber, title: "Bog'langan haftaga yozilmaydi" },
+  ])).data;
+  assert.deepEqual([imported.saved, imported.skipped], [2, [linkedNumber]]);
+  const byNumber = new Map(imported.items.map((item) => [item.number, item]));
+  assert.deepEqual([byNumber.get(10).title, byNumber.get(11).title, byNumber.get(11).author], ["A2", "B", "Muallif"], "Takror raqam — oxirgisi");
+  assert.equal(byNumber.get(10).discussedOn, sessionDateOf(anchor, 10));
+  assert.equal(byNumber.get(linkedNumber).bookId, id, "Bog'langan hafta o'zgarmadi");
+  assert.deepEqual(imported.items.map((item) => item.number), [...imported.items.map((item) => item.number)].sort((a, b) => a - b), "Raqam bo'yicha tartiblangan");
+  // Qayta joylash — eskisini almashtiradi, takror yozuv yaratmaydi.
+  const again = (await importItems(admin, [{ number: 10, title: "A3" }])).data;
+  assert.equal(again.items.filter((item) => item.number === 10).length, 1);
+  assert.equal(again.items.find((item) => item.number === 10).title, "A3");
+  assert.equal((await weekBook()).activeBookId, onAirBefore, "Qo'lda kiritilgan nomlar hafta kitobi e'loniga ta'sir qilmaydi");
+  console.log("PASS: Ro'yxatni joylash: faqat admin, hammasi yoki hech narsa, takror raqam — oxirgisi, bog'langan hafta o'tkazib yuboriladi.");
+
+  console.log("\nHAMMASI O'TDI: «Bir Ilm yo'li» ro'yxati va hafta kitobi muddati.");
+} finally {
+  if (createdTalks.length) sqlite.prepare(`DELETE FROM live_sessions WHERE id IN (${createdTalks.map(() => "?").join(",")})`).run(...createdTalks);
+  sqlite.prepare("DELETE FROM journey_books").run();
+  const restore = sqlite.prepare("INSERT INTO journey_books (number, discussed_on, title, author, book_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
+  for (const row of journeyBefore) restore.run(row.number, row.discussed_on, row.title, row.author, row.book_id, row.created_at, row.updated_at);
+  if (createdBooks.length) sqlite.prepare(`DELETE FROM books WHERE id IN (${createdBooks.map(() => "?").join(",")})`).run(...createdBooks);
+  for (const row of activeBefore) sqlite.prepare("UPDATE books SET active = 1, active_since = ? WHERE id = ?").run(row.active_since, row.id);
+  if (aboutBefore) sqlite.prepare("INSERT INTO site_settings (key, value) VALUES ('about', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(aboutBefore.value);
+  else sqlite.prepare("DELETE FROM site_settings WHERE key = 'about'").run();
+  const unique = [...new Set(createdUsers)];
+  if (unique.length) sqlite.prepare(`DELETE FROM users WHERE id IN (${unique.map(() => "?").join(",")})`).run(...unique);
+}

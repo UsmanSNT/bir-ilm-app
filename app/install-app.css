@@ -1,0 +1,24 @@
+/* Ilovani bosh ekranga o'rnatish: bosh sahifadagi karta va iPhone ko'rsatmasi. */
+.install-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px; margin: 14px 0 16px; padding: 12px 8px 12px 14px; border-radius: 18px; background: #fffaf0; box-shadow: inset 0 0 0 1.5px #e9d29a, 0 12px 26px -20px #1e2f6e80; }
+.install-card-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(150deg, var(--lojuvard-2), var(--lojuvard-3)); color: var(--tilla-2); }
+.install-card-copy { display: grid; gap: 2px; min-width: 0; }
+.install-card-copy strong { color: var(--siyoh); font: 600 15px/1.2 var(--f-display); }
+.install-card-copy small { color: var(--siyoh-3); font-size: 12px; line-height: 1.35; }
+.install-card-go { min-height: 38px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--lojuvard); color: #fff; font: 800 13px var(--f-ui); white-space: nowrap; cursor: pointer; }
+.install-card-go:hover { background: var(--lojuvard-2); }
+.install-card-x { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: none; color: var(--siyoh-3); cursor: pointer; }
+.install-card-x:hover { background: var(--qogoz); }
+.install-card :is(button):focus-visible { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
+@media (max-width: 400px) {
+  .install-card { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 10px; padding-right: 10px; }
+  .install-card-go { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  .install-card-x { grid-column: 3; grid-row: 1; }
+}
+
+.install-dialog { display: grid; gap: 14px; max-width: min(420px, calc(100% - 24px)); border-radius: var(--r-lg, 24px); background: var(--sahifa, #fffaf0); }
+.install-dialog [data-slot="dialog-title"] { margin: 0; color: var(--siyoh); font: 600 21px/1.2 var(--f-display); }
+.install-steps { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; color: var(--siyoh-2); font-size: 14.5px; line-height: 1.5; }
+.install-steps li { position: relative; padding-left: 36px; min-height: 26px; }
+.install-steps li span { position: absolute; left: 0; top: -1px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--lojuvard); color: #fff; font: 800 12px var(--f-ui); }
+.install-steps svg { display: inline-block; vertical-align: -3px; color: var(--lojuvard); }
+.install-dialog-ok { min-height: 44px; border: 0; border-radius: 999px; background: var(--lojuvard); color: #fff; font: 800 14px var(--f-ui); cursor: pointer; }

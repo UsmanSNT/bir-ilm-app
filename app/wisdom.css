@@ -1,0 +1,95 @@
+/*
+ * Kun hikmati: bosh sahifa kartasi (tugma), kirishdagi modal oyna va admin tahriri.
+ * naqsh.css dan keyin yuklanadi (qog'oz, tilla hoshiya, adras lentasi — kartadagi bilan bir xil).
+ */
+
+/* ───────── Bosh sahifa kartasi ───────── */
+.m-wisdom-wrap { position: relative; margin: 12px 0 0; }
+.m-wisdom-wrap > .m-wisdom {
+  width: 100%; margin: 0; color: inherit; font: inherit; cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.m-wisdom-wrap > .m-wisdom:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -18px #5c4618a6; }
+.m-wisdom-wrap > .m-wisdom:active { transform: translateY(0) scale(.995); }
+.m-wisdom-wrap > .m-wisdom:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 3px; }
+.m-wisdom-share {
+  position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; padding: 5px 12px;
+  border-radius: 999px; background: #fffbf3; color: var(--lojuvard); font: 800 12px/1 var(--f-ui);
+  box-shadow: inset 0 0 0 1px #e3cc98;
+}
+.m-wisdom-edit {
+  position: absolute; top: 14px; right: 14px; z-index: 2; display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
+  border: 1px solid #e3cc98; border-radius: 50%; background: #fffbf3; color: var(--lojuvard); cursor: pointer;
+}
+.m-wisdom-edit:hover { background: var(--tilla-och); }
+.m-wisdom-edit:focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
+
+/* ───────── Kirishdagi oyna ───────── */
+.wisdom-dialog {
+  justify-items: center; gap: 8px; width: min(390px, calc(100% - 28px)); max-width: 390px; padding: 40px 24px 18px;
+  overflow: hidden; border: 1px solid #e8d6ae; border-radius: 26px; text-align: center;
+  background: radial-gradient(circle at 12% 10%, #fff 0, transparent 45%), linear-gradient(160deg, #fffbf2, #fbf2df);
+  box-shadow: 0 30px 70px -30px #131f4ccc;
+}
+.wisdom-dialog::before { content: ""; position: absolute; inset: 8px; border: 1px solid #e3cc98; border-radius: 19px; pointer-events: none; }
+.wisdom-dialog::after { content: ""; position: absolute; inset: 12px; border: 1px dashed #efdfbb; border-radius: 15px; pointer-events: none; }
+.wisdom-dialog > * { position: relative; z-index: 1; }
+.wisdom-dialog:focus { outline: none; }
+.wisdom-band { position: absolute !important; top: 0; left: 50%; width: 132px; height: 12px; border-radius: 0 0 10px 10px; background: url("/assets/adras.png") center / auto 260% repeat-x; transform: translateX(-50%); box-shadow: 0 2px 6px #0000001f; }
+.wisdom-x {
+  position: absolute !important; top: 16px; right: 16px; z-index: 2 !important; display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
+  border: 1px solid #e3cc98; border-radius: 50%; background: #fffbf3; color: var(--siyoh-2); cursor: pointer;
+}
+.wisdom-x:hover { background: var(--tilla-och); }
+.wisdom-date { margin: 0; color: var(--siyoh-3); font: 700 12.5px/1 var(--f-ui); letter-spacing: .04em; }
+.wisdom-dialog .wisdom-eyebrow { display: inline-flex; align-items: center; gap: 7px; margin: 4px 0 0; color: #a5782a; font: 800 12px/1 var(--f-ui); letter-spacing: .18em; text-transform: uppercase; }
+.wisdom-eyebrow svg { color: var(--lojuvard); }
+.wisdom-quote { max-width: 30ch; margin: 10px 0 2px; padding: 0 18px; color: #161b3b; font: italic 600 clamp(22px, 6.4vw, 27px)/1.42 var(--f-display); text-wrap: balance; }
+.wisdom-quote::before, .wisdom-quote::after { position: absolute; color: #192558; font-size: 50px; font-style: normal; line-height: 1; opacity: .25; }
+.wisdom-quote::before { top: -14px; left: -10px; content: "“"; }
+.wisdom-quote::after { right: -10px; bottom: -32px; content: "”"; }
+.wisdom-author { margin: 0; color: #8a7a55; font: 650 14px/1.4 var(--f-ui); }
+.wisdom-actions { display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px; width: 100%; margin-top: 18px; }
+.wisdom-save, .wisdom-send {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 14px;
+  border-radius: 999px; font: 800 15px/1 var(--f-ui); cursor: pointer; transition: transform .12s, filter .15s;
+}
+.wisdom-save { border: 1.5px solid var(--tilla-2); background: #fffbf3; color: var(--lojuvard); }
+.wisdom-send { border: 0; background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 40%, var(--tilla)); color: var(--lojuvard-3); box-shadow: 0 1px 0 #fff8 inset, 0 10px 22px -12px #6b4a12; }
+.wisdom-save:hover:not(:disabled), .wisdom-send:hover:not(:disabled) { filter: brightness(1.05); }
+.wisdom-save:active:not(:disabled), .wisdom-send:active:not(:disabled) { transform: scale(.98); }
+.wisdom-save:disabled, .wisdom-send:disabled { opacity: .65; cursor: progress; }
+.wisdom-link { display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 0; color: var(--siyoh-3); font: 700 12.5px/1.3 var(--f-ui); }
+.wisdom-link svg { color: var(--firuza); }
+.wisdom-close { min-height: 40px; padding: 0 20px; border: 0; border-radius: 999px; background: none; color: var(--siyoh-2); font: 800 14px/1 var(--f-ui); cursor: pointer; }
+.wisdom-close:hover { background: #1e2f6e0d; }
+.wisdom-admin { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 0; background: none; color: var(--firuza); font: 800 12.5px/1 var(--f-ui); cursor: pointer; }
+:is(.wisdom-x, .wisdom-save, .wisdom-send, .wisdom-close, .wisdom-admin):focus-visible { outline: 3px solid var(--firuza-2); outline-offset: 2px; }
+
+/* ───────── Admin: hikmatlar ro'yxati ───────── */
+.wisdom-editor { width: min(540px, calc(100% - 24px)); max-width: 540px; max-height: min(86dvh, 760px); overflow-y: auto; border-radius: var(--r-lg); background: var(--sahifa); }
+.wisdom-editor [data-slot="dialog-title"] { font: 600 22px/1.2 var(--f-display); color: var(--siyoh); }
+.wisdom-form { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: var(--qogoz); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.wisdom-form label { display: grid; gap: 5px; color: var(--siyoh-2); font-size: 13px; font-weight: 700; }
+.wisdom-form textarea, .wisdom-form input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--chiziq); border-radius: 12px; background: #fff; color: var(--siyoh); font: 500 15px/1.45 var(--f-ui); resize: vertical; }
+.wisdom-form small { justify-self: end; color: var(--siyoh-3); font-size: 11.5px; }
+.wisdom-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.wisdom-form-actions .button { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; padding: 0 18px; }
+.wisdom-form-actions .ghost { min-height: 42px; padding: 0 16px; border: 1.5px solid var(--chiziq); border-radius: 999px; background: #fff; color: var(--lojuvard); font-weight: 750; }
+.wisdom-list { display: grid; gap: 8px; margin: 4px 0 0; padding: 0; list-style: none; }
+.wisdom-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 10px 10px 14px; border-radius: 14px; background: #fff; box-shadow: inset 0 0 0 1px var(--chiziq); }
+.wisdom-list li.is-today { background: linear-gradient(90deg, var(--tilla-och), #fff); box-shadow: inset 0 0 0 1.5px var(--tilla-2); }
+.wisdom-list p { margin: 0; color: var(--siyoh); font: italic 500 15px/1.4 var(--f-display); overflow-wrap: anywhere; }
+.wisdom-list small { display: block; margin-top: 3px; color: var(--siyoh-3); font: 600 11.5px/1.3 var(--f-ui); font-style: normal; }
+.wisdom-today { display: inline-block; margin-right: 6px; padding: 2px 8px; border-radius: 999px; background: var(--lojuvard); color: var(--tilla-2); font: 800 10px/1.4 var(--f-ui); font-style: normal; letter-spacing: .08em; text-transform: uppercase; vertical-align: 2px; }
+.wisdom-list li > div { display: flex; gap: 4px; }
+.wisdom-list button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--chiziq); border-radius: 50%; background: #fff; color: var(--lojuvard); cursor: pointer; }
+.wisdom-list button:hover:not(:disabled) { background: var(--tilla-och); }
+.wisdom-list button:disabled { opacity: .4; cursor: default; }
+.wisdom-list button.is-danger { color: var(--anor); }
+.wisdom-empty { color: var(--siyoh-3); font-size: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .m-wisdom-wrap > .m-wisdom, .wisdom-save, .wisdom-send { transition: none; }
+  .m-wisdom-wrap > .m-wisdom:hover { transform: none; }
+}
