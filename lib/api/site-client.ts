@@ -62,15 +62,16 @@ const items = (d: TeamList) => d.items;
 const memberPath = (id: string) => `/site/team/${encodeURIComponent(id)}`;
 
 const loadTeam = () => call<TeamList>("/site/team").then(items);
+const loadTeamAll = () => call<TeamList>("/site/team?all=1").then(items);
 const NO_TEAM: TeamMember[] = [];
 const loadAbout = () => call<AboutSettings>("/site/about");
 
-/** Saytdagi jamoa (faqat ko'rinadiganlar). */
-export const useTeam = () => useRemote(loadTeam, NO_TEAM);
+/** Saytdagi jamoa. `includeHidden` — admin uchun yashirinlari bilan (server ham faqat adminga beradi). */
+export const useTeam = (includeHidden = false) => useRemote(includeHidden ? loadTeamAll : loadTeam, NO_TEAM);
 /** Yuklanguncha standart qiymat: hisoblar darhol chiqadi, keyin kerak bo'lsa yangilanadi. */
 export const useAbout = () => useRemote(loadAbout, DEFAULT_ABOUT);
 
-export const fetchTeamAdmin = () => call<TeamList>("/site/team?all=1").then(items);
+export const fetchTeamAdmin = loadTeamAll;
 export const createTeamMember = (input: TeamMemberInput) => call<TeamList>("/site/team", { method: "POST", body: JSON.stringify(input) }).then(items);
 export const updateTeamMember = (id: string, input: TeamMemberInput) => call<TeamList>(memberPath(id), { method: "PUT", body: JSON.stringify(input) }).then(items);
 export const deleteTeamMember = (id: string) => call<TeamList>(memberPath(id), { method: "DELETE" }).then(items);

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, ChevronDown, Leaf, LibraryBig, Play, Radio, Sprout, TreeDeciduous, TreePine, Trees } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, ChevronDown, EyeOff, Leaf, LibraryBig, Pencil, Play, Radio, Sprout, TreeDeciduous, TreePine, Trees, UserPlus, X } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { absoluteUrl } from "@/lib/api/config";
+import { useViewer } from "@/lib/api/roles-client";
 import { useAbout, useTeam } from "@/lib/api/site-client";
 import { resolveAboutVideo, teamProfileUrl, videoEmbedUrl, videoThumbnail, type TeamMember } from "@/shared/contract";
 import {
@@ -15,6 +17,8 @@ import {
   type ShelfCell,
   type ShelfYear,
 } from "@/shared/journey";
+import AdminAbout from "./admin-about";
+import AdminTeam from "./admin-team";
 import { Instagram, Telegram } from "./brand-icons";
 import { StarMedal } from "./quiz-ui";
 import { useNow } from "./talk-format";
@@ -260,8 +264,9 @@ const initials = (name: string) =>
 function TeamCard({ member }: { member: TeamMember }) {
   const [broken, setBroken] = useState(false);
   return (
-    <li className="ab-member">
+    <li className={`ab-member${member.visible ? "" : " is-hidden"}`}>
       <div className="ab-member-media">
+        {!member.visible && <span className="ab-member-hidden" title="Saytda ko‘rinmaydi — faqat admin ko‘radi"><EyeOff size={13} /> Yashirin</span>}
         {member.photoUrl && !broken ? (
           <img src={absoluteUrl(member.photoUrl)} alt={member.name} loading="lazy" onError={() => setBroken(true)} />
         ) : (
@@ -294,14 +299,25 @@ function TeamCard({ member }: { member: TeamMember }) {
 /** «Biz haqimizda»: tanishtiruv, hisoblangan yo'l, haftalik jadval va jamoa. */
 export default function About({ onBack }: { onBack: () => void }) {
   const { journey, about, loading, now } = useJourney();
-  const { value: team } = useTeam();
+  const isAdmin = useViewer()?.role === "admin";
+  // Admin yashirin a'zolarni ham ko'radi va shu sahifadan tahrirlaydi.
+  const { value: team } = useTeam(isAdmin);
+  const [editing, setEditing] = useState<"team" | "about" | null>(null);
   const { completed, elapsed, next, live } = journey;
   const paragraphs = about.intro.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const localLine = localTimeLine(next.at);
 
   return (
     <div className="ab">
-      <button type="button" className="ab-back" onClick={onBack}><ArrowLeft size={17} /> Orqaga</button>
+      <div className="ab-toolbar">
+        <button type="button" className="ab-back" onClick={onBack}><ArrowLeft size={17} /> Orqaga</button>
+        {isAdmin && (
+          <span className="ab-admin-tools">
+            <button type="button" onClick={() => setEditing("about")}><Pencil size={15} /> Matn va video</button>
+            <button type="button" onClick={() => setEditing("team")}><Pencil size={15} /> Jamoa</button>
+          </span>
+        )}
+      </div>
 
       <section className="ab-hero">
         <div className="ab-hero-copy">
@@ -395,14 +411,43 @@ export default function About({ onBack }: { onBack: () => void }) {
         </p>
       </section>
 
-      {team.length > 0 && (
+      {(team.length > 0 || isAdmin) && (
         <section className="ab-team" aria-labelledby="ab-team-title">
-          <span className="ab-eyebrow">Jamoa</span>
-          <h3 id="ab-team-title">Loyihani yuritayotganlar</h3>
-          <ul className="ab-team-grid">
-            {team.map((member) => <TeamCard key={member.id} member={member} />)}
-          </ul>
+          <div className="ab-team-head">
+            <div>
+              <span className="ab-eyebrow">Jamoa</span>
+              <h3 id="ab-team-title">Loyihani yuritayotganlar</h3>
+            </div>
+            {isAdmin && <button type="button" className="ab-team-edit" onClick={() => setEditing("team")}><Pencil size={15} /> Tahrirlash</button>}
+          </div>
+          {isAdmin && team.some((member) => !member.visible) && (
+            <p className="ab-team-hint"><EyeOff size={14} /> «Yashirin» kartalarni faqat adminlar ko‘radi. Ko‘rsatish uchun «Tahrirlash» → kartani oching → «Saytda ko‘rinsin».</p>
+          )}
+          {team.length > 0 ? (
+            <ul className="ab-team-grid">
+              {team.map((member) => <TeamCard key={member.id} member={member} />)}
+            </ul>
+          ) : (
+            <button type="button" className="ab-team-empty" onClick={() => setEditing("team")}>
+              <UserPlus size={22} />
+              <strong>Hali jamoa a‘zosi qo‘shilmagan</strong>
+              <span>Birinchi kartani qo‘shing — u shu yerda ko‘rinadi.</span>
+            </button>
+          )}
         </section>
+      )}
+
+      {isAdmin && (
+        <Dialog open={editing !== null} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+          <DialogContent className="ab-edit-dialog" showCloseButton={false}>
+            <div className="ab-edit-head">
+              <DialogTitle>{editing === "about" ? "«Biz haqimizda» matni va videosi" : "Jamoa"}</DialogTitle>
+              <button type="button" className="ab-admin-icon" aria-label="Yopish" onClick={() => setEditing(null)}><X size={18} /></button>
+            </div>
+            <DialogDescription className="sr-only">O‘zgarishlar saqlangan zahoti sahifada ko‘rinadi.</DialogDescription>
+            {editing === "about" ? <AdminAbout /> : <AdminTeam />}
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

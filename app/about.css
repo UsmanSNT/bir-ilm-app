@@ -5,7 +5,11 @@
 .ab-eyebrow { display: inline-flex; align-items: center; gap: 7px; color: var(--tilla); font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .ab-eyebrow::before { content: ""; flex: none; width: 9px; height: 9px; background: currentColor; clip-path: var(--star); }
 
-.ab-back { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: 999px; background: var(--sahifa); color: var(--lojuvard); font: 700 13px var(--f-ui); cursor: pointer; box-shadow: inset 0 0 0 1px var(--chiziq); }
+.ab-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.ab-admin-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.ab-admin-tools button, .ab-team-edit { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: 999px; background: var(--tilla-och); color: var(--lojuvard-3); font: 800 13px var(--f-ui); cursor: pointer; box-shadow: inset 0 0 0 1px #e9d29a; }
+.ab-admin-tools button:hover, .ab-team-edit:hover { background: #f1dba6; }
+.ab-back { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: 999px; background: var(--sahifa); color: var(--lojuvard); font: 700 13px var(--f-ui); cursor: pointer; box-shadow: inset 0 0 0 1px var(--chiziq); }
 
 /* ── Hero: peshtoq koshini ustida matn va ravoq ichida video ── */
 .ab-hero {
@@ -169,6 +173,16 @@
 .ab-member-social a:hover { transform: translateY(-1px); }
 .ab-member-social a.is-telegram:hover { background: #229ed9; }
 .ab-member-social a.is-instagram:hover { background: linear-gradient(45deg, #f09433, #dc2743 55%, #bc1888); }
+.ab-team-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.ab-team-empty { display: grid; justify-items: center; gap: 6px; width: 100%; margin-top: 18px; padding: 28px 16px; border: 2px dashed var(--chiziq); border-radius: 20px; background: var(--qogoz); color: var(--siyoh-2); font: inherit; text-align: center; cursor: pointer; }
+.ab-team-empty svg { color: var(--firuza); }
+.ab-team-empty strong { color: var(--siyoh); font: 600 17px var(--f-display); }
+.ab-team-empty span { font-size: 13px; }
+.ab-team-empty:hover { border-color: var(--tilla-2); }
+.ab-member.is-hidden { opacity: .72; }
+.ab-member-hidden { position: absolute; z-index: 1; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; background: #1b1a2ecc; color: #fff; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.ab-team-hint { display: flex; gap: 8px; margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--tilla-och); color: var(--siyoh-2); font-size: 12.5px; line-height: 1.5; }
+.ab-team-hint svg { flex: none; margin-top: 2px; color: var(--tilla); }
 .ab-member-bio { margin: 0; padding: 14px 16px 18px; color: var(--siyoh-2); font-size: 14px; line-height: 1.6; }
 
 .ab-note { margin: 22px 0 0; padding: 12px 14px; border-radius: var(--r-sm); background: var(--qogoz); color: var(--siyoh-2); font-size: 12.5px; line-height: 1.6; }
@@ -223,7 +237,17 @@
   .ab-member-social { top: 8px; right: 8px; gap: 4px; }
   .ab-member-social a { width: 30px; height: 30px; }
   .ab-member-initials { font-size: 44px; }
-  .ab-member-bio { padding: 10px 12px 14px; font-size: 12.5px; line-height: 1.55; }
+  .ab-team-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.ab-team-empty { display: grid; justify-items: center; gap: 6px; width: 100%; margin-top: 18px; padding: 28px 16px; border: 2px dashed var(--chiziq); border-radius: 20px; background: var(--qogoz); color: var(--siyoh-2); font: inherit; text-align: center; cursor: pointer; }
+.ab-team-empty svg { color: var(--firuza); }
+.ab-team-empty strong { color: var(--siyoh); font: 600 17px var(--f-display); }
+.ab-team-empty span { font-size: 13px; }
+.ab-team-empty:hover { border-color: var(--tilla-2); }
+.ab-member.is-hidden { opacity: .72; }
+.ab-member-hidden { position: absolute; z-index: 1; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; background: #1b1a2ecc; color: #fff; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.ab-team-hint { display: flex; gap: 8px; margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--tilla-och); color: var(--siyoh-2); font-size: 12.5px; line-height: 1.5; }
+.ab-team-hint svg { flex: none; margin-top: 2px; color: var(--tilla); }
+.ab-member-bio { padding: 10px 12px 14px; font-size: 12.5px; line-height: 1.55; }
 }
 
 @media (max-width: 340px) {
@@ -237,6 +261,12 @@
   .ab-spine.next, .ab-spine.live, .ab-video.is-loading { animation: none; }
   .ab-shelf-books .ab-spine:not(.before):hover, .ab-member:hover, .ab-member:hover .ab-member-media img, .ab-entry:hover { transform: none; }
 }
+
+/* Admin tahrirlash oynasi («Biz haqimizda» sahifasidan ochiladi) */
+.ab-edit-dialog { --p-ink: var(--siyoh); --p-muted: var(--siyoh-3); width: min(640px, calc(100% - 24px)); max-width: 640px; max-height: min(88dvh, 860px); overflow-y: auto; gap: 14px; border-radius: var(--r-lg); background: var(--sahifa); }
+.ab-edit-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ab-edit-head [data-slot="dialog-title"] { margin: 0; color: var(--siyoh); font: 600 21px/1.2 var(--f-display); }
+.ab-edit-dialog .admin-panel { width: 100%; max-width: none; padding-bottom: 4px; }
 
 /* ── Admin: Jamoa va «Biz haqimizda» (Profil → Menyu → Boshqaruv) ── */
 .ab-admin { display: grid; gap: 14px; }
