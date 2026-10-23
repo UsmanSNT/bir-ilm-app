@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, ChevronDown, EyeOff, Globe, Leaf, LibraryBig, Pencil, Play, Radio, Sprout, TreeDeciduous, TreePine, Trees, UserPlus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Mic, ChevronDown, EyeOff, Globe, Leaf, LibraryBig, Pencil, Play, Radio, Sprout, TreeDeciduous, TreePine, Trees, UserPlus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { absoluteUrl } from "@/lib/api/config";
 import { useViewer } from "@/lib/api/roles-client";
@@ -13,6 +13,7 @@ import {
   computeJourney,
   formatCountdown,
   formatSpan,
+  splitCountdown,
   type Journey,
   type ShelfCell,
   type ShelfYear,
@@ -22,7 +23,7 @@ import AdminTeam from "./admin-team";
 import { Facebook, Instagram, Telegram, YouTube } from "./brand-icons";
 import { StarMedal } from "./quiz-ui";
 import { useNow } from "./talk-format";
-import { uzDateTashkent, uzDays } from "./uz-date";
+import { uzDateTashkent, uzDays, uzMonths } from "./uz-date";
 
 const groupDigits = (value: number) => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
@@ -101,7 +102,7 @@ function IntroVideo({ url, loading }: { url: string; loading: boolean }) {
 
 const STATE_TEXT: Record<ShelfCell["state"], string> = {
   before: "",
-  done: "muhokama qilingan · kitob nomi arxivga qo'shiladi",
+  done: "muhokama qilingan",
   live: "hozir efirda",
   next: "keyingi muhokama",
   future: "rejada",
@@ -120,7 +121,7 @@ function Shelf({ shelf }: { shelf: ShelfYear[] }) {
         <div className="ab-shelf-row" key={year.year}>
           <div className="ab-shelf-label">
             <strong>{year.year}</strong>
-            <span>{year.held} kitob{year.planned ? ` · ${year.planned} rejada` : ""}</span>
+            <span>{year.held} ta kitob{year.planned ? ` · yana ${year.planned} ta rejada` : ""}</span>
           </div>
           <div
             className="ab-shelf-books"
@@ -157,7 +158,7 @@ function Shelf({ shelf }: { shelf: ShelfYear[] }) {
             <strong>#{active.n}</strong> · {uzDateTashkent(active.at)} · {STATE_TEXT[active.state]}
           </>
         ) : (
-          "Har bir chiziq — bitta shanba va bitta kitob. Ustiga olib boring yoki bosing."
+          "Har bir chiziq — bitta shanba, bitta kitob. Sanasini ko‘rish uchun chiziq ustiga bosing."
         )}
       </p>
       {rows}
@@ -171,7 +172,7 @@ function localTimeLine(at: number): string | null {
   // Toshkent (UTC+5) va Seul (UTC+9) uchun takror ko'rsatilmaydi.
   if (offset === -300 || offset === -540) return null;
   const time = `${String(local.getHours()).padStart(2, "0")}:${String(local.getMinutes()).padStart(2, "0")}`;
-  return `Sizning vaqtingizda: ${uzDays[local.getDay()].toLowerCase()}, ${time}`;
+  return `Sizning vaqtingiz bilan: ${uzDays[local.getDay()].toLowerCase()}, soat ${time}`;
 }
 
 /** Element ekranga birinchi marta kirganda true bo'ladi (animatsiya bir marta o'ynaydi). */
@@ -227,7 +228,8 @@ function Growth({ journey }: { journey: Journey }) {
                   <span className="ab-step-bar" aria-hidden="true" />
                 </div>
                 <span className="ab-step-year">{year.year}</span>
-                <small className="ab-step-added">+{year.held} kitob{year.planned ? ` · ${year.planned} rejada` : ""}</small>
+                <small className="ab-step-added">+{year.held} kitob</small>
+                {year.planned > 0 && <small className="ab-step-planned">{year.planned} ta rejada</small>}
                 {year.marks.length > 0 && <em className="ab-step-marks">{year.marks.map(markLabel).join(" · ")}</em>}
                 <span className="sr-only">{`${year.year}-yil: ${year.held} ta kitob, jami ${year.total}`}</span>
               </li>
@@ -238,9 +240,9 @@ function Growth({ journey }: { journey: Journey }) {
 
       <div className="ab-jubilee">
         <div className="ab-jubilee-copy">
-          <span className="ab-eyebrow">Keyingi bosqich</span>
+          <span className="ab-eyebrow">Navbatdagi marra</span>
           <strong>{jubilee.n}-kitob</strong>
-          <small>{uzDateTashkent(jubilee.at)} · {jubilee.left} ta qoldi</small>
+          <small>{uzDateTashkent(jubilee.at)} · yana {jubilee.left} ta kitob</small>
         </div>
         <div
           className="ab-jubilee-track"
@@ -358,8 +360,56 @@ function TeamCarousel({ team }: { team: TeamMember[] }) {
   );
 }
 
+/**
+ * Haftalik muhokama chiptasi: chapda sana qirqimi (hafta kuni, kun, oy), o'ngda kitob raqami,
+ * ikki vaqt mintaqasi va boshlanishigacha qolgan vaqt (daqiqa aniqligida).
+ */
+function SessionTicket({ journey, now, onOpenTalks }: { journey: Journey; now: number; onOpenTalks: () => void }) {
+  const { live, next } = journey;
+  const at = live !== null ? next.at - 7 * 86_400_000 : next.at;
+  const day = new Date(at + 5 * 3_600_000);
+  const left = splitCountdown(next.at - now);
+  const localLine = localTimeLine(at);
+
+  return (
+    <section className={`ab-ticket${live !== null ? " is-live" : ""}`} aria-labelledby="ab-ticket-title">
+      <div className="ab-ticket-card">
+        <div className="ab-ticket-stub">
+          <span>{uzDays[day.getUTCDay()]}</span>
+          <strong>{day.getUTCDate()}</strong>
+          <span>{uzMonths[day.getUTCMonth()]}</span>
+        </div>
+        <div className="ab-ticket-body">
+          <span className="ab-eyebrow">Haftalik jonli muhokama</span>
+          <h3 id="ab-ticket-title">{live !== null ? `${live}-kitob muhokamasi efirda` : `${next.n}-kitob muhokamasi`}</h3>
+          <p>Har shanba bir hafta davomida o‘qilgan kitobni jonli suhbatda birgalikda tahlil qilamiz.</p>
+          <ul className="ab-zones" aria-label="Boshlanish vaqti">
+            <li><b>UZ</b><strong>{SESSION.uzTime}</strong><span>Toshkent</span></li>
+            <li><b>KR</b><strong>{SESSION.korTime}</strong><span>Seul</span></li>
+          </ul>
+          {localLine && <small className="ab-ticket-local">{localLine}</small>}
+          <div className="ab-ticket-foot">
+            {live !== null ? (
+              <span className="ab-live-badge"><i aria-hidden="true" /> Hozir efirda</span>
+            ) : (
+              <div className="ab-timer" role="timer" aria-label={`Boshlanishiga ${formatCountdown(next.at - now)} qoldi`}>
+                {([[left.days, "kun"], [left.hours, "soat"], [left.minutes, "daqiqa"]] as const).map(([value, unit]) => (
+                  <span key={unit}><strong>{String(value).padStart(2, "0")}</strong><small>{unit}</small></span>
+                ))}
+              </div>
+            )}
+            <button type="button" className="ab-ticket-go" onClick={onOpenTalks}>
+              <Mic size={16} /> {live !== null ? "Suhbatga qo‘shilish" : "Suhbatlar bo‘limi"} <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /** «Biz haqimizda»: tanishtiruv, hisoblangan yo'l, haftalik jadval va jamoa. */
-export default function About({ onBack }: { onBack: () => void }) {
+export default function About({ onBack, onOpenTalks }: { onBack: () => void; onOpenTalks: () => void }) {
   const { journey, about, loading, now } = useJourney();
   const isAdmin = useViewer()?.role === "admin";
   // Admin yashirin a'zolarni ham ko'radi va shu sahifadan tahrirlaydi.
@@ -367,7 +417,6 @@ export default function About({ onBack }: { onBack: () => void }) {
   const [editing, setEditing] = useState<"team" | "about" | null>(null);
   const { completed, elapsed, next, live } = journey;
   const paragraphs = about.intro.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
-  const localLine = localTimeLine(next.at);
 
   return (
     <div className="ab">
@@ -401,61 +450,40 @@ export default function About({ onBack }: { onBack: () => void }) {
 
       <dl className="ab-stats">
         <div>
-          <dt>kitob muhokama qilindi</dt>
+          <dt>Muhokama qilingan kitoblar</dt>
           <dd><CountUp value={completed} /></dd>
-          <small>1-kitobdan {completed}-kitobgacha</small>
+          <small>Har shanba — bitta kitob</small>
         </div>
         <div>
-          <dt>bosib o‘tilgan yo‘l</dt>
+          <dt>Birgalikdagi yo‘l</dt>
           <dd>
             {elapsed.years}<span className="ab-unit">yil</span> {elapsed.months}<span className="ab-unit">oy</span>
           </dd>
           <small>{groupDigits(elapsed.totalDays)} kun</small>
         </div>
         <div>
-          <dt>kitob — yiliga o‘rtacha</dt>
-          <dd>≈{journey.perYear}</dd>
-          <small>har hafta bittadan</small>
+          <dt>Yiliga o‘rtacha</dt>
+          <dd>{journey.perYear}</dd>
+          <small>ta kitob</small>
         </div>
         <div>
-          <dt>yildan beri</dt>
+          <dt>Ilk muhokama</dt>
           <dd>{new Date(journey.start).getUTCFullYear()}</dd>
-          <small>taxminan {uzDateTashkent(journey.start, false)}, shanba</small>
+          <small>{uzDateTashkent(journey.start, false)}, shanba</small>
         </div>
       </dl>
 
-      <section className="ab-schedule">
-        <div className="ab-schedule-copy">
-          <span className="ab-eyebrow">Haftalik muhokama</span>
-          <h3>Har shanba</h3>
-          <p>Hafta davomida o‘qilgan kitob shanba kuni jonli suhbatda birgalikda tahlil qilinadi.</p>
-        </div>
-        <div className="ab-clocks">
-          <div><span>UZB</span><strong>{SESSION.uzTime}</strong><small>Toshkent</small></div>
-          <div><span>KOR</span><strong>{SESSION.korTime}</strong><small>Seul</small></div>
-        </div>
-        <div className="ab-countdown">
-          {live !== null ? (
-            <strong className="is-live"><Radio size={18} /> Hozir efirda: {live}-kitob</strong>
-          ) : (
-            <>
-              <span>{next.n}-kitob muhokamasigacha</span>
-              <strong>{formatCountdown(next.at - now)}</strong>
-            </>
-          )}
-          {localLine && <small>{localLine}</small>}
-        </div>
-      </section>
+      <SessionTicket journey={journey} now={now} onOpenTalks={onOpenTalks} />
 
       <section className="ab-journey" aria-labelledby="ab-journey-title">
         <span className="ab-eyebrow">Bir Ilm yo‘li</span>
-        <h3 id="ab-journey-title">{completed} kitob · {formatSpan(elapsed)}</h3>
+        <h3 id="ab-journey-title">Yildan yilga o‘sib boryapmiz</h3>
         <Growth journey={journey} />
 
         <details className="ab-weeks">
           <summary>
             <span>Har bir haftani ko‘rish</span>
-            <small>{completed} ta muhokama{next.n > completed ? ` · keyingisi ${next.n}-kitob` : ""}</small>
+            <small>{completed} ta muhokama · navbatdagisi {next.n}-kitob</small>
             <ChevronDown size={18} aria-hidden="true" />
           </summary>
           <ul className="ab-legend" aria-label="Belgilar">
@@ -467,10 +495,6 @@ export default function About({ onBack }: { onBack: () => void }) {
           <Shelf shelf={journey.shelf} />
         </details>
 
-        <p className="ab-note">
-          Hisob taxminiy: birinchi muhokama {uzDateTashkent(journey.start)} deb va har shanba uzluksiz o‘tkazilgan deb olingan.
-          Aniq kitoblar ro‘yxati arxivga qo‘shilgach, har bir kitob o‘z nomi bilan ko‘rinadi.
-        </p>
       </section>
 
       {(team.length > 0 || isAdmin) && (
@@ -483,14 +507,14 @@ export default function About({ onBack }: { onBack: () => void }) {
             {isAdmin && <button type="button" className="ab-team-edit" onClick={() => setEditing("team")}><Pencil size={15} /> Tahrirlash</button>}
           </div>
           {isAdmin && team.some((member) => !member.visible) && (
-            <p className="ab-team-hint"><EyeOff size={14} /> «Yashirin» kartalarni faqat adminlar ko‘radi. Ko‘rsatish uchun «Tahrirlash» → kartani oching → «Saytda ko‘rinsin».</p>
+            <p className="ab-team-hint"><EyeOff size={14} /> «Yashirin» kartalarni faqat adminlar ko‘radi. Saytda ko‘rsatish uchun: «Tahrirlash» → karta → «Saytda ko‘rinsin».</p>
           )}
           {team.length > 0 ? (
             <TeamCarousel team={team} />
           ) : (
             <button type="button" className="ab-team-empty" onClick={() => setEditing("team")}>
               <UserPlus size={22} />
-              <strong>Hali jamoa a‘zosi qo‘shilmagan</strong>
+              <strong>Hali jamoa a’zosi qo‘shilmagan</strong>
               <span>Birinchi kartani qo‘shing — u shu yerda ko‘rinadi.</span>
             </button>
           )}

@@ -1,7 +1,7 @@
 /** «Bir Ilm yo'li» hisoblari (sof funksiyalar). `node --experimental-strip-types tests/journey.mjs` */
 import assert from "node:assert/strict";
 
-const { computeJourney, formatSpan, formatCountdown, nextSessionAfter, saturdaySessionAt } = await import("../shared/journey.ts");
+const { computeJourney, formatSpan, formatCountdown, splitCountdown, nextSessionAfter, saturdaySessionAt } = await import("../shared/journey.ts");
 const { uzDateTashkent: formatUzDate } = await import("../app/uz-date.ts");
 
 const anchor = { number: 248, date: "2026-10-24" };
@@ -70,5 +70,7 @@ assert.equal(saturdaySessionAt("2026-10-25"), null, "yakshanba rad etiladi");
 assert.equal(saturdaySessionAt("2026-02-30"), null, "mavjud bo'lmagan sana");
 assert.equal(formatCountdown(25 * 3_600_000 + 60_000), "1 kun 1 soat");
 assert.equal(formatCountdown(90 * 60_000), "1 soat 30 daqiqa");
+assert.deepEqual(splitCountdown((30 * 60 + 6 * 60 + 12) * 60_000 - 500), { days: 1, hours: 12, minutes: 12 }, "daqiqa yuqoriga yaxlitlanadi");
+assert.deepEqual(splitCountdown(-5), { days: 0, hours: 0, minutes: 0 });
 
 console.log("journey: barcha tekshiruvlar o'tdi");

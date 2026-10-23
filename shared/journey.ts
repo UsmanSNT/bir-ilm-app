@@ -169,11 +169,14 @@ export function formatSpan(span: { years: number; months: number; days: number }
 
 /** Qolgan vaqt: "1 kun 4 soat", "3 soat 12 daqiqa", "12 daqiqa". */
 export function formatCountdown(ms: number): string {
-  const minutes = Math.max(0, Math.ceil(ms / 60_000));
-  const days = Math.floor(minutes / 1440);
-  const hours = Math.floor((minutes % 1440) / 60);
-  const mins = minutes % 60;
+  const { days, hours, minutes } = splitCountdown(ms);
   if (days) return `${days} kun ${hours} soat`;
-  if (hours) return `${hours} soat ${mins} daqiqa`;
-  return `${mins} daqiqa`;
+  if (hours) return `${hours} soat ${minutes} daqiqa`;
+  return `${minutes} daqiqa`;
+}
+
+/** Qolgan vaqt bo'laklari; daqiqa yuqoriga yaxlitlanadi (0 ko'rsatib turib boshlanmagan bo'lmasin). */
+export function splitCountdown(ms: number): { days: number; hours: number; minutes: number } {
+  const total = Math.max(0, Math.ceil(ms / 60_000));
+  return { days: Math.floor(total / 1440), hours: Math.floor((total % 1440) / 60), minutes: total % 60 };
 }

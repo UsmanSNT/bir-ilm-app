@@ -49,21 +49,38 @@
 .ab-stats dt { margin-top: 8px; color: var(--siyoh); font-size: 14px; font-weight: 800; }
 .ab-stats small { margin-top: 3px; color: var(--siyoh-3); font-size: 12px; }
 
-/* ── Jadval ── */
-.ab-schedule { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.2fr) auto minmax(0, 1fr); gap: 26px; align-items: center; padding: 26px 30px; border-radius: var(--r-lg); background: var(--tilla-och); box-shadow: inset 0 0 0 1px #e9d29a; }
-.ab-schedule::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--girih) center / 64px; opacity: .35; -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000); mask-image: linear-gradient(90deg, transparent 30%, #000); }
-.ab-schedule h3 { margin: 8px 0 6px; color: var(--lojuvard-3); font: 600 30px/1.1 var(--f-display); }
-.ab-schedule p { margin: 0; color: var(--siyoh-2); font-size: 14px; line-height: 1.65; }
-.ab-clocks { display: flex; gap: 12px; }
-.ab-clocks > div { display: flex; flex-direction: column; align-items: center; min-width: 108px; padding: 14px 16px 12px; border-radius: 999px 999px 16px 16px; background: var(--sahifa); box-shadow: inset 0 0 0 1px #e9d29a, var(--soya-1); }
-.ab-clocks span { color: var(--tilla); font-size: 11px; font-weight: 800; letter-spacing: .14em; }
-.ab-clocks strong { color: var(--lojuvard); font: 600 30px/1.2 var(--f-display); font-variant-numeric: lining-nums tabular-nums; }
-.ab-clocks small { color: var(--siyoh-3); font-size: 12px; }
-.ab-countdown { display: grid; gap: 4px; }
-.ab-countdown span { color: var(--siyoh-2); font-size: 13px; font-weight: 700; }
-.ab-countdown strong { color: var(--lojuvard-3); font: 600 24px/1.2 var(--f-display); }
-.ab-countdown strong.is-live { display: inline-flex; align-items: center; gap: 8px; color: var(--anor); }
-.ab-countdown small { color: var(--siyoh-3); font-size: 12px; }
+
+/* ── Haftalik muhokama: chipta ── */
+.ab-ticket { --stub: 136px; --notch: 12px; filter: drop-shadow(0 1px 2px #1b1a2e14) drop-shadow(0 16px 26px #1e2f6e24); }
+.ab-ticket-card {
+  display: grid; grid-template-columns: var(--stub) minmax(0, 1fr); overflow: hidden; border-radius: var(--r-lg); background: var(--sahifa);
+  -webkit-mask: radial-gradient(circle var(--notch) at var(--stub) 0, #0000 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle var(--notch) at var(--stub) 100%, #0000 98%, #000) bottom / 100% 51% no-repeat;
+  mask: radial-gradient(circle var(--notch) at var(--stub) 0, #0000 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle var(--notch) at var(--stub) 100%, #0000 98%, #000) bottom / 100% 51% no-repeat;
+}
+.ab-ticket-stub { position: relative; display: grid; place-content: center; justify-items: center; gap: 2px; padding: 18px 8px; background: var(--peshtoq-fon); color: var(--tilla-och); text-align: center; }
+.ab-ticket-stub::after { content: ""; position: absolute; top: calc(var(--notch) + 6px); bottom: calc(var(--notch) + 6px); right: -1px; border-right: 2px dashed #e2b65c80; }
+.ab-ticket-stub span { color: var(--tilla-2); font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.ab-ticket-stub strong { color: #fff; font: 600 56px/1 var(--f-display); font-variant-numeric: lining-nums; }
+.ab-ticket-body { display: grid; align-content: start; gap: 10px; padding: 22px 24px 22px 28px; }
+.ab-ticket-body h3 { margin: 0; color: var(--siyoh); font: 600 clamp(21px, 2.4vw, 26px)/1.15 var(--f-display); }
+.ab-ticket-body > p { margin: 0; color: var(--siyoh-2); font-size: 14px; line-height: 1.6; }
+.ab-zones { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 0; padding: 0; list-style: none; }
+.ab-zones li { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 6px; border-radius: 999px; background: var(--qogoz); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.ab-zones b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--lojuvard); color: var(--tilla-2); font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.ab-zones strong { color: var(--lojuvard-3); font: 600 21px/1 var(--f-display); font-variant-numeric: lining-nums tabular-nums; }
+.ab-zones span { color: var(--siyoh-3); font-size: 12.5px; font-weight: 700; }
+.ab-ticket-local { color: var(--siyoh-3); font-size: 12px; }
+.ab-ticket-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; padding-top: 14px; border-top: 1px dashed var(--chiziq); }
+.ab-timer { display: flex; gap: 6px; }
+.ab-timer span { display: grid; justify-items: center; min-width: 58px; padding: 7px 6px 6px; border-radius: 12px; background: var(--qogoz); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.ab-timer strong { color: var(--lojuvard); font: 600 24px/1.05 var(--f-display); font-variant-numeric: lining-nums tabular-nums; }
+.ab-timer small { color: var(--siyoh-3); font-size: 10.5px; font-weight: 800; letter-spacing: .06em; }
+.ab-ticket-go { display: inline-flex; align-items: center; gap: 7px; padding: 11px 18px; border: 0; border-radius: 999px; background: linear-gradient(180deg, #f0cf83, var(--tilla-2) 40%, var(--tilla)); color: var(--lojuvard-3); font: 800 14px var(--f-ui); cursor: pointer; box-shadow: 0 1px 0 #fff8 inset, 0 10px 18px -10px #8a5f12; transition: transform .18s ease, box-shadow .18s ease; }
+.ab-ticket-go:hover { transform: translateY(-1px); box-shadow: 0 1px 0 #fff8 inset, 0 14px 22px -10px #8a5f12; }
+.ab-live-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--anor); color: #fff; font-size: 14px; font-weight: 800; }
+.ab-live-badge i { width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: ab-live 1.4s ease-out infinite; }
+.ab-ticket.is-live .ab-ticket-stub { background: linear-gradient(160deg, #d0493d, var(--anor) 60%, #8f2a21); }
+@keyframes ab-live { 0% { box-shadow: 0 0 0 0 #ffffffb3; } 100% { box-shadow: 0 0 0 10px #fff0; } }
 
 /* ── Bir Ilm yo'li: yillar javoni ── */
 .ab-journey, .ab-team { padding: 28px 30px; border-radius: var(--r-lg); background: var(--sahifa); box-shadow: inset 0 0 0 1px var(--chiziq), var(--soya-1); }
@@ -118,6 +135,7 @@
 .ab-growth.is-visible .ab-step-head { opacity: 1; translate: 0 0; }
 .ab-step-year { margin-top: 8px; color: var(--siyoh); font: 600 17px var(--f-display); font-variant-numeric: lining-nums; }
 .ab-step-added { color: var(--siyoh-3); font-size: 12px; font-weight: 600; }
+.ab-step-planned { color: var(--tilla); font-size: 11.5px; font-weight: 700; }
 .ab-step-marks { margin-top: 2px; color: var(--tilla); font-size: 11.5px; font-style: normal; font-weight: 800; line-height: 1.35; }
 
 /* Soddadan mukammalga: har bosqichda rang chuqurlashadi, belgi kattalashadi */
@@ -196,7 +214,6 @@
 .ab-team-dots button:focus-visible { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
 .ab-member-bio { margin: 0; padding: 14px 16px 18px; color: var(--siyoh-2); font-size: 14px; line-height: 1.6; }
 
-.ab-note { margin: 22px 0 0; padding: 12px 14px; border-radius: var(--r-sm); background: var(--qogoz); color: var(--siyoh-2); font-size: 12.5px; line-height: 1.6; }
 
 /* ── Bosh sahifadagi ixcham karta ── */
 .ab-entry { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 12px 16px; border: 0; border-radius: var(--r-md); background: var(--sahifa); color: var(--siyoh); font: inherit; text-align: left; cursor: pointer; box-shadow: inset 0 0 0 1px var(--chiziq), var(--soya-1); transition: transform .18s ease, box-shadow .18s ease; }
@@ -214,8 +231,6 @@
 
 @media (max-width: 1100px) {
   .ab-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ab-schedule { grid-template-columns: 1fr auto; }
-  .ab-countdown { grid-column: 1 / -1; }
 }
 
 @media (max-width: 760px) {
@@ -223,9 +238,19 @@
   .ab-hero { grid-template-columns: 1fr; gap: 26px; padding: 28px 20px 36px; border-radius: var(--r-md); }
   .ab-video { max-width: 260px; }
   .ab-stats { gap: 10px; }
+  .ab-ticket { --stub: 92px; --notch: 10px; }
+  .ab-ticket-card { border-radius: var(--r-md); }
+  .ab-ticket-stub strong { font-size: 40px; }
+  .ab-ticket-stub span { font-size: 9.5px; letter-spacing: .1em; }
+  .ab-ticket-body { gap: 8px; padding: 18px 16px 18px 20px; }
+  .ab-ticket-body > p { font-size: 13px; }
+  .ab-zones li { padding-right: 11px; }
+  .ab-zones strong { font-size: 18px; }
+  .ab-zones span { font-size: 11.5px; }
+  .ab-timer span { min-width: 50px; }
+  .ab-timer strong { font-size: 21px; }
+  .ab-ticket-go { width: 100%; justify-content: center; }
   .ab-stats > div { padding: 16px; }
-  .ab-schedule { grid-template-columns: 1fr; padding: 22px 20px; border-radius: var(--r-md); }
-  .ab-clocks > div { flex: 1; min-width: 0; }
   .ab-journey, .ab-team { padding: 22px 16px; border-radius: var(--r-md); }
   .ab-shelf-row { grid-template-columns: 1fr; gap: 6px; }
   .ab-shelf-label { display: flex; align-items: baseline; gap: 10px; padding-bottom: 0; }
@@ -236,6 +261,7 @@
   .ab-step-head strong { font-size: 17px; }
   .ab-step-year { font-size: 14px; }
   .ab-step-added { font-size: 10.5px; }
+  .ab-step-planned { font-size: 10px; }
   .ab-step-marks { font-size: 10px; }
   .ab-step.is-current .ab-step-year::after { content: none; }
   .ab-jubilee { grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; padding: 16px; }
@@ -261,7 +287,7 @@
 @media (prefers-reduced-motion: reduce) {
   .ab-spine, .ab-video-cover img, .ab-video-play, .ab-member, .ab-member-media img, .ab-entry, .ab-step-bar, .ab-step-ghost, .ab-step-head, .ab-jubilee-track span { transition: none !important; }
   .ab-growth-line { transition: none !important; }
-  .ab-spine.next, .ab-spine.live, .ab-video.is-loading { animation: none; }
+  .ab-spine.next, .ab-spine.live, .ab-video.is-loading, .ab-live-badge i { animation: none; }
   .ab-shelf-books .ab-spine:not(.before):hover, .ab-member:hover, .ab-member:hover .ab-member-media img, .ab-entry:hover { transform: none; }
 }
 

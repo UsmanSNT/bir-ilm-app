@@ -738,7 +738,7 @@ export default function App() {
                 <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={streak} rank={myRank} points={activityFromState(data).score} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} onOpenPost={openPost} />
               </TabsContent>
               <TabsContent value="about">
-                <About onBack={() => go(aboutReturn.current)} />
+                <About onBack={() => go(aboutReturn.current)} onOpenTalks={() => go("talks")} />
               </TabsContent>
               <TabsContent value="leaders">
                 <button className="text-btn profile-ranking" onClick={() => go("profile")}>Profilga qaytish</button>
