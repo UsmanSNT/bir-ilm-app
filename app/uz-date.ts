@@ -11,3 +11,9 @@ export function uzDateTimeTashkent(ms: number) {
   const hh = String(t.getUTCHours()).padStart(2, "0"), mm = String(t.getUTCMinutes()).padStart(2, "0");
   return `${uzDays[t.getUTCDay()]}, ${t.getUTCDate()}-${uzMonths[t.getUTCMonth()]} · ${hh}:${mm}`;
 }
+
+/** Toshkent sanasi: "24-oktabr, 2026" (yilsiz — "24-oktabr"). */
+export function uzDateTashkent(ms: number, withYear = true) {
+  const t = new Date(ms + 5 * 3600_000);
+  return `${t.getUTCDate()}-${uzMonths[t.getUTCMonth()]}${withYear ? `, ${t.getUTCFullYear()}` : ""}`;
+}

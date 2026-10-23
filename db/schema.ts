@@ -635,3 +635,27 @@ export const quizResults = sqliteTable("quiz_results", {
   score: integer("score").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [index("idx_quiz_results_session").on(t.sessionId), index("idx_quiz_results_user").on(t.userId)]);
+
+/** Loyiha jamoasi («Biz haqimizda» sahifasidagi kartalar). `sort_order` — saytdagi tartib, admin o'zgartiradi. */
+export const teamMembers = sqliteTable("team_members", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  role: text("role").notNull().default(""),
+  bio: text("bio").notNull().default(""),
+  /** `/media/team/<fayl>` yoki null. */
+  photoUrl: text("photo_url"),
+  telegram: text("telegram").notNull().default(""),
+  instagram: text("instagram").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  visible: integer("visible", { mode: "boolean" }).notNull().default(true),
+  createdBy: text("created_by"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [index("idx_team_members_order").on(t.sortOrder)]);
+
+/** Kalit-qiymat sozlamalar (masalan, `about` — «Biz haqimizda» JSON). */
+export const siteSettings = sqliteTable("site_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

@@ -12,6 +12,8 @@ import AdminPanel from "./admin-panel";
 import DeviceSettings from "./device-settings";
 import AdminSite from "./admin-site";
 import AdminQuizzes from "./admin-quizzes";
+import AdminTeam from "./admin-team";
+import AdminAbout from "./admin-about";
 import SocialLinks from "./social-links";
 import { ChangePasswordForm } from "./password-auth";
 import { LoginDialog } from "./login-dialog";
@@ -32,7 +34,7 @@ import ScrollIcon from "./scroll-icon";
 export type ProfileScreensProps = { name: string; page: number; total: number; shelfCount: number; streak: number; rank: number; points: number; onNavigate: (tab: string) => void; onRename: (name: string) => void; onNotifications: () => void; onOpenPost: (postId: string, replyId?: string | null) => void };
 type ProfileTab = "reading" | "posts" | "activity";
 const PROFILE_TABS: [ProfileTab, string][] = [["posts", "Postlar"], ["reading", "Mutolaa"], ["activity", "Faollik"]];
-type Screen = "profile" | "activity" | "settings" | "posts" | "privacy" | "faq" | "about" | "admin" | "site" | "quizzes" | "devices" | "password" | "account" | "twofactor";
+type Screen = "profile" | "activity" | "settings" | "posts" | "privacy" | "faq" | "admin" | "site" | "team" | "aboutAdmin" | "quizzes" | "devices" | "password" | "account" | "twofactor";
 
 function Cover({ small = false, book }: { small?: boolean; book: Book | null }) {
   if (book?.coverUrl) return <span className={`p-book p-book-image ${small ? "p-book-small" : ""}`} aria-hidden="true"><img src={book.coverUrl} alt="" /></span>;
@@ -90,7 +92,7 @@ export default function ProfileScreens(p: ProfileScreensProps) {
   }, [tab, activity, reactionsRetry]);
   // Postlaringizga boshqalar yozgan izohlar (ism emas, foydalanuvchi ID si bo'yicha — bir xil ismlilar ham to'g'ri ajraladi).
   const replies = (social?.posts ?? []).flatMap(post => post.replies.filter(reply => reply.userId !== social?.userId).map(reply => ({ ...reply, book: post.book }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Menyu", posts: "Mening postlarim", privacy: "Maxfiylik va xavfsizlik", account: "Shaxsiy ma’lumotlar", twofactor: "Ikki bosqichli himoya", faq: "Ko‘p so‘raladigan savollar", about: "Bir Ilm haqida", admin: "Boshqaruv paneli", quizzes: "Viktorinalar", site: "Ijtimoiy tarmoqlar", devices: "Kamera va mikrofon", password: "Parol" };
+  const titles: Record<Screen, string> = { profile: "Shaxsiy sahifa", activity: "Faollik", settings: "Menyu", posts: "Mening postlarim", privacy: "Maxfiylik va xavfsizlik", account: "Shaxsiy ma’lumotlar", twofactor: "Ikki bosqichli himoya", faq: "Ko‘p so‘raladigan savollar", admin: "Boshqaruv paneli", quizzes: "Viktorinalar", site: "Ijtimoiy tarmoqlar", team: "Jamoa", aboutAdmin: "Biz haqimizda tahriri", devices: "Kamera va mikrofon", password: "Parol" };
   const count = (value: number | undefined) => status === "ready" ? value ?? 0 : "—";
 
   const empty = (icon: ReactNode, title: string, text: string) => <div className="p-empty">{icon}<h2>{title}</h2><p>{text}</p><button className="p-primary" onClick={() => p.onNavigate("community")}>Hamjamiyatga o‘tish <ArrowRight size={16} /></button></div>;
@@ -131,6 +133,8 @@ export default function ProfileScreens(p: ProfileScreensProps) {
     ? [
         { id: "admin", title: "Boshqaruv paneli", icon: Crown, tone: "tilla", value: "Rollar", onClick: () => open("admin") },
         { id: "site", title: "Ijtimoiy tarmoqlar", icon: Globe, tone: "firuza", value: "Havolalar", onClick: () => open("site") },
+        { id: "team", title: "Jamoa", icon: Users, tone: "yashil", value: "A‘zolar", onClick: () => open("team") },
+        { id: "aboutAdmin", title: "Biz haqimizda tahriri", icon: Info, tone: "lojuvard", value: "Video, hisob", onClick: () => open("aboutAdmin") },
       ]
     : [];
   if (canModerate(role)) adminItems.push({ id: "quizzes", title: "Viktorinalar", icon: ListChecks, tone: "binafsha", value: "Savollar", onClick: () => open("quizzes") });
@@ -146,7 +150,7 @@ export default function ProfileScreens(p: ProfileScreensProps) {
     ...(adminItems.length ? [{ id: "admin", title: "Boshqaruv", items: adminItems }] : []),
     { id: "help", title: "Yordam", items: [
       { id: "faq", title: "Ko‘p so‘raladigan savollar", icon: CircleHelp, tone: "lojuvard", onClick: () => open("faq") },
-      { id: "about", title: "Loyiha haqida", icon: Info, tone: "pushti", onClick: () => open("about") },
+      { id: "about", title: "Biz haqimizda", icon: Info, tone: "pushti", value: "Jamoa, video", onClick: () => p.onNavigate("about") },
       { id: "support", title: "Biz bilan bog‘lanish", icon: MessageCircle, tone: "yashil", onClick: () => p.onNavigate("store:messages") },
     ] },
     ...(viewer && viewer.accounts.length > 0 ? [{ id: "exit", title: "Chiqish", items: [{ id: "signout", title: "Hisobdan chiqish", icon: LogOut, tone: "anor", danger: true, onClick: signOut } satisfies MenuItem] }] : []),
@@ -219,9 +223,10 @@ export default function ProfileScreens(p: ProfileScreensProps) {
     {screen === "quizzes" && (canModerate(role) ? <AdminQuizzes /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "devices" && <DeviceSettings />}
     {screen === "site" && (role === "admin" ? <AdminSite /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
+    {screen === "team" && (role === "admin" ? <AdminTeam /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
+    {screen === "aboutAdmin" && (role === "admin" ? <AdminAbout /> : <div className="p-empty"><ShieldCheck /><h2>Ruxsat yo‘q</h2><p>Bu bo‘lim faqat adminlar uchun.</p></div>)}
     {screen === "posts" && <ReadingDashboard mode="profile" name={p.name} pages={p.page} shelfCount={p.shelfCount} streak={p.streak} />}
     {screen === "privacy" && <div className="p-info"><ShieldCheck /><h2>Ma’lumotlaringiz haqida</h2><p>Mutolaa jarayoni va ilova sozlamalari ushbu brauzerda saqlanadi. Postlar, javoblar va obunalar xizmat bazasida saqlanadi.</p><p>Postlaringizni “Mening postlarim” bo‘limida boshqarishingiz mumkin. Brauzer ma’lumotlarini o‘chirish qurilmada saqlangan jarayonga kirishni yo‘qotishi mumkin.</p></div>}
     {screen === "faq" && <div className="p-faq">{[["Mutolaa jarayonini qanday yangilayman?", "Shaxsiy sahifadagi «Hozirgi mutolaa» kartasini bosing va o‘qilgan sahifa sonini kiriting."], ["Kitobni qanday saqlayman?", "Javonim bo‘limida kitobni tanlab, javonga qo‘shish tugmasini bosing."], ["Suhbatga qanday qo‘shilaman?", "Suhbatlar bo‘limini oching. U yerda jonli suhbat va muhokamalarni topasiz."]].map(([question, answer]) => <details key={question}><summary>{question}</summary><p>{answer}</p></details>)}</div>}
-    {screen === "about" && <div className="p-info"><BookOpen /><h2>Bir kitob atrofida birlashamiz.</h2><p>Bir Ilm — mutolaani kundalik odatga aylantirish, fikr almashish va birga o‘sish uchun kitobxonlar hamjamiyati.</p><p>Har hafta bitta kitob. Har kuni yangi fikr.</p></div>}
   </section>;
 }

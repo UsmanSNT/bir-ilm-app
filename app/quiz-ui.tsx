@@ -32,7 +32,7 @@ export type QuizMode = "live" | "solo";
 
 const CODE_LENGTH = 6;
 /** Sakkiz qirrali yulduz medalyoni (rub el-hizb): tashqi qatlam tilla, ichkisi lojuvard. */
-function StarMedal({ children, size = "md" }: { children: ReactNode; size?: "sm" | "md" }) {
+export function StarMedal({ children, size = "md" }: { children: ReactNode; size?: "sm" | "md" }) {
   return (
     <span className={`qz-medal qz-medal-${size}`} aria-hidden="true">
       <span>

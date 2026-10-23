@@ -42,6 +42,7 @@ import {
 import QuizPlay, { type SoloResult } from "./quiz-play";
 import { useWisdom } from "@/lib/api/site-client";
 import { WisdomCard, WisdomDialog, WisdomEditor, useWisdomPrompt } from "./wisdom";
+import { JourneyEntry } from "./about";
 import QuizLive from "./quiz-live";
 import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
@@ -183,6 +184,7 @@ export default function MobileScreens({
   onContinue,
   onOpenNotifications,
   onOpenTalks,
+  onOpenAbout,
   onOpenBook,
   onAddReminder,
 }: {
@@ -195,6 +197,8 @@ export default function MobileScreens({
   onOpenNotifications: () => void;
   /** «Suhbatlar» bo'limiga o'tish. */
   onOpenTalks: () => void;
+  /** «Biz haqimizda» sahifasi (Bir Ilm yo'li, video, jamoa). */
+  onOpenAbout: () => void;
   onOpenBook: (book: Book) => void;
   onAddReminder: () => void;
 }) {
@@ -568,6 +572,7 @@ export default function MobileScreens({
               live={nextLive ? { open: nextLive.status === "open", when: whenText(nextLive.session.startsAt) } : null}
               onOpen={openQuizzes}
             />
+            <JourneyEntry onOpen={onOpenAbout} />
           </div>
 
           <div className="m-section-head">
@@ -743,7 +748,7 @@ export default function MobileScreens({
                 <CountBoxes days={days} hours={hours} />
               </div>
               <p className="m-when">
-                <Clock size={16} /> Yakshanba, 18:00
+                <Clock size={16} /> Shanba, 18:00 (UZB) · 22:00 (KOR)
               </p>
             </div>
             <button

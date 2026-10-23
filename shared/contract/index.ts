@@ -12,3 +12,5 @@ export * from "./quiz";
 export * from "./quiz-game";
 export * from "./audio-link";
 export * from "./ebook";
+export * from "./team";
+export * from "./about";

@@ -126,6 +126,12 @@ o'zgartirish ilovani buzmaydi.
 | `GET` / `PUT` | `/api/v1/media/{id}` | Bo'laklab yuklash (`X-Upload-Offset`) va davom ettirish |
 | `GET` | `/media/posts/{fayl}` | Post rasmi/videosi (Range bilan) |
 | `GET` | `/p/{id}` | Ulashiladigan havola: Open Graph preview, so'ng `/?post={id}` |
+| `GET` / `POST` | `/api/v1/site/team` | Loyiha jamoasi: ko'rinadiganlar hammaga; `?all=1` va qo'shish — admin (yangi a'zo oxiriga) |
+| `PUT` / `DELETE` | `/api/v1/site/team/{id}` | A'zoni tahrirlash / o'chirish (admin) |
+| `POST` | `/api/v1/site/team/{id}/move` | Tartib: `{ direction: "up" \| "down" }` (admin) |
+| `POST` / `DELETE` | `/api/v1/site/team/{id}/photo` | Rasm: xom tana, JPG/PNG/WebP, 3 MB gacha (admin) |
+| `GET` | `/media/team/{fayl}` | Jamoa rasmi |
+| `GET` / `PUT` | `/api/v1/site/about` | «Biz haqimizda»: matn, video, hisob nuqtasi (o'zgartirish — admin) |
 
 ### Community
 

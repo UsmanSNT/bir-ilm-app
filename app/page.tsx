@@ -39,6 +39,8 @@ import ScrollIcon from "./scroll-icon";
 import MobileLibrary from "./mobile-library";
 import EbookReader from "./ebook-reader";
 import ProfileScreens from "./profile-screens";
+import About from "./about";
+import { nextSessionAfter } from "@/shared/journey";
 import { requestAudio } from "./library-store";
 import { type CommunityComment, type LeaderboardMember } from "./app-data";
 import { RESET_TOKEN_PATTERN, type Book } from "@/shared/contract";
@@ -134,14 +136,6 @@ function yesterdayKey() {
   const date = new Date();
   date.setDate(date.getDate() - 1);
   return date.toISOString().slice(0, 10);
-}
-
-function nextSession() {
-  const date = new Date();
-  date.setHours(18, 0, 0, 0);
-  date.setDate(date.getDate() + ((7 - date.getDay()) % 7));
-  if (date.getTime() <= Date.now()) date.setDate(date.getDate() + 7);
-  return date.getTime();
 }
 
 function normalizeSavedState(
@@ -251,6 +245,7 @@ export default function App() {
   const [data, setData] = useState<State>(initial);
   const [ready, setReady] = useState(false);
   const [tab, setTab] = useState("home");
+  const aboutReturn = useRef("home");
   const [now, setNow] = useState(0);
   const [session, setSession] = useState(0);
   const [modal, setModal] = useState("");
@@ -402,6 +397,8 @@ export default function App() {
       openStoreAccount(value.slice("store:".length) as AccountTab);
       return;
     }
+    // «Biz haqimizda»dan «Orqaga» — qaysi bo'limdan ochilgan bo'lsa, o'shanga.
+    if (value === "about" && tab !== "about") aboutReturn.current = tab;
     setTab(value);
     window.scrollTo({ top: 0 });
   };
@@ -475,7 +472,7 @@ export default function App() {
       setData(getInitialState());
       setReady(true);
       setNow(Date.now());
-      setSession(nextSession());
+      setSession(nextSessionAfter(Date.now()));
     });
 
     // Ism server bilan bir xil bo'lsin (Telegram/Google bilan kirganda ism o'sha yerdan keladi).
@@ -520,7 +517,7 @@ export default function App() {
     // Soat har 30 soniyada yangilanadi: ekranda faqat kun/soat/daqiqa ko'rsatiladi.
     const tick = setInterval(() => {
       setNow(Date.now());
-      setSession(nextSession());
+      setSession(nextSessionAfter(Date.now()));
     }, 30_000);
 
     return () => clearInterval(tick);
@@ -643,7 +640,7 @@ export default function App() {
                   <h1>
                     {tab === "home"
                       ? <>Assalomu alaykum, <em>{data.name}</em></>
-                      : tab === "leaders" ? "Faollar" : nav.find((item) => item[0] === tab)?.[1]}
+                      : tab === "leaders" ? "Faollar" : tab === "about" ? "Biz haqimizda" : nav.find((item) => item[0] === tab)?.[1]}
                   </h1>
                 </div>
                 <div className="heading-actions">
@@ -669,6 +666,7 @@ export default function App() {
                   }}
                   onOpenNotifications={() => setModal("notifications")}
                   onOpenTalks={() => go("talks")}
+                  onOpenAbout={() => go("about")}
                   onOpenBook={(book) => {
                     setSelected(book);
                     setModal("book");
@@ -677,7 +675,7 @@ export default function App() {
                     if (data.talk) toast("Eslatma allaqachon yoqilgan");
                     else {
                       update({ talk: true });
-                      toast.success("Yakshanba, 18:00 uchun eslatma qo‘shildi");
+                      toast.success("Shanba, 18:00 (UZB) uchun eslatma qo‘shildi");
                     }
                   }}
                 />
@@ -710,6 +708,9 @@ export default function App() {
 
               <TabsContent value="profile">
                 <ProfileScreens name={data.name} page={data.page} total={data.total} shelfCount={data.shelf.length} streak={streak} rank={myRank} points={activityFromState(data).score} onNavigate={go} onRename={(name) => setData((value) => ({ ...value, name }))} onNotifications={() => setModal("notifications")} onOpenPost={openPost} />
+              </TabsContent>
+              <TabsContent value="about">
+                <About onBack={() => go(aboutReturn.current)} />
               </TabsContent>
               <TabsContent value="leaders">
                 <button className="text-btn profile-ranking" onClick={() => go("profile")}>Profilga qaytish</button>
