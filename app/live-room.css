@@ -117,6 +117,8 @@
 .live-overlay .live-controls.is-typing .live-control-actions { display: none; }
 /* Izoh yozilayotganda (klaviatura ochiq) sahna qisqaradi, video va izoh maydoni birga ko'rinadi. */
 .live-overlay .live-window:has(.live-controls.is-typing) .live-stage { height: 180px; max-height: 180px; }
+/* Izoh yozilayotganda suzuvchi izohlar zonasi yopiladi: video va izoh maydoni orasida bo'sh joy qolmaydi. */
+.live-overlay .live-window:has(.live-controls.is-typing) .live-float { flex: 0 0 0; height: 0; min-height: 0; }
 .live-overlay .live-window:has(.live-controls.is-typing) .live-stage .live-cams { height: 100%; }
 .live-overlay .live-window:has(.live-controls.is-typing) .live-stage .live-video-tile { height: 100%; }
 .live-overlay .live-window:has(.live-controls.is-typing) .live-stage video { height: 100%; width: 100%; object-fit: cover; }
