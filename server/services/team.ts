@@ -26,6 +26,9 @@ const toMember = (row: typeof teamMembers.$inferSelect): TeamMember => ({
   photoUrl: row.photoUrl,
   telegram: row.telegram,
   instagram: row.instagram,
+  youtube: row.youtube,
+  facebook: row.facebook,
+  website: row.website,
   visible: row.visible,
   sortOrder: row.sortOrder,
 });

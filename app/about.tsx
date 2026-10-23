@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, ChevronDown, EyeOff, Leaf, LibraryBig, Pencil, Play, Radio, Sprout, TreeDeciduous, TreePine, Trees, UserPlus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, ChevronDown, EyeOff, Globe, Leaf, LibraryBig, Pencil, Play, Radio, Sprout, TreeDeciduous, TreePine, Trees, UserPlus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { absoluteUrl } from "@/lib/api/config";
 import { useViewer } from "@/lib/api/roles-client";
 import { useAbout, useTeam } from "@/lib/api/site-client";
-import { resolveAboutVideo, teamProfileUrl, videoEmbedUrl, videoThumbnail, type TeamMember } from "@/shared/contract";
+import { resolveAboutVideo, teamProfileUrl, videoEmbedUrl, videoThumbnail, websiteLabel, type TeamMember } from "@/shared/contract";
 import {
   SESSION,
   JUBILEE_STEP,
@@ -19,7 +19,7 @@ import {
 } from "@/shared/journey";
 import AdminAbout from "./admin-about";
 import AdminTeam from "./admin-team";
-import { Instagram, Telegram } from "./brand-icons";
+import { Facebook, Instagram, Telegram, YouTube } from "./brand-icons";
 import { StarMedal } from "./quiz-ui";
 import { useNow } from "./talk-format";
 import { uzDateTashkent, uzDays } from "./uz-date";
@@ -261,6 +261,31 @@ function Growth({ journey }: { journey: Journey }) {
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase()).join("") || "B";
 
+/** Ijtimoiy tarmoqlar (belgi) va shaxsiy veb-sayt (domen nomi bilan). Havolalar serverda tekshirilgan, faqat https. */
+function MemberLinks({ member }: { member: TeamMember }) {
+  const socials = [
+    member.telegram && { key: "telegram", label: "Telegram", href: teamProfileUrl("telegram", member.telegram), Icon: Telegram },
+    member.instagram && { key: "instagram", label: "Instagram", href: teamProfileUrl("instagram", member.instagram), Icon: Instagram },
+    member.youtube && { key: "youtube", label: "YouTube", href: member.youtube, Icon: YouTube },
+    member.facebook && { key: "facebook", label: "Facebook", href: member.facebook, Icon: Facebook },
+  ].filter((item) => !!item);
+  if (!socials.length && !member.website) return null;
+  return (
+    <div className="ab-member-links">
+      {socials.map(({ key, label, href, Icon }) => (
+        <a key={key} className={`is-${key}`} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} — ${label}`} title={label}>
+          <Icon size={17} />
+        </a>
+      ))}
+      {member.website && (
+        <a className="is-website" href={member.website} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} — veb-sayt: ${websiteLabel(member.website)}`}>
+          <Globe size={15} /> <span>{websiteLabel(member.website)}</span> <ArrowUpRight size={14} />
+        </a>
+      )}
+    </div>
+  );
+}
+
 function TeamCard({ member }: { member: TeamMember }) {
   const [broken, setBroken] = useState(false);
   return (
@@ -272,26 +297,13 @@ function TeamCard({ member }: { member: TeamMember }) {
         ) : (
           <span className="ab-member-initials" aria-hidden="true">{initials(member.name)}</span>
         )}
-        {(member.telegram || member.instagram) && (
-          <div className="ab-member-social">
-            {member.telegram && (
-              <a className="is-telegram" href={teamProfileUrl("telegram", member.telegram)} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} — Telegram`} title="Telegram">
-                <Telegram size={16} />
-              </a>
-            )}
-            {member.instagram && (
-              <a className="is-instagram" href={teamProfileUrl("instagram", member.instagram)} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} — Instagram`} title="Instagram">
-                <Instagram size={16} />
-              </a>
-            )}
-          </div>
-        )}
         <div className="ab-member-caption">
           <h3>{member.name}</h3>
           {member.role && <span>{member.role}</span>}
         </div>
       </div>
       {member.bio && <p className="ab-member-bio">{member.bio}</p>}
+      <MemberLinks member={member} />
     </li>
   );
 }

@@ -17,10 +17,10 @@ import {
 } from "@/lib/api/site-client";
 import { TEAM_LIMITS, type TeamMember } from "@/shared/contract";
 
-type Draft = { id: string | null; name: string; role: string; bio: string; telegram: string; instagram: string; visible: boolean };
+type Draft = Pick<TeamMember, "name" | "role" | "bio" | "telegram" | "instagram" | "youtube" | "facebook" | "website" | "visible"> & { id: string | null };
 
-const EMPTY: Draft = { id: null, name: "", role: "", bio: "", telegram: "", instagram: "", visible: true };
-const toDraft = ({ id, name, role, bio, telegram, instagram, visible }: TeamMember): Draft => ({ id, name, role, bio, telegram, instagram, visible });
+const EMPTY: Draft = { id: null, name: "", role: "", bio: "", telegram: "", instagram: "", youtube: "", facebook: "", website: "", visible: true };
+const toDraft = ({ id, name, role, bio, telegram, instagram, youtube, facebook, website, visible }: TeamMember): Draft => ({ id, name, role, bio, telegram, instagram, youtube, facebook, website, visible });
 
 /** Admin: «Biz haqimizda» sahifasidagi jamoa kartalari. Saytda shu ro'yxat tartibida ko'rinadi. */
 export default function AdminTeam() {
@@ -133,7 +133,19 @@ export default function AdminTeam() {
             <span>Instagram</span>
             <input placeholder="@nom yoki instagram.com/nom" autoComplete="off" value={draft.instagram} onChange={(e) => set("instagram", e.target.value)} />
           </label>
+          <label className="ab-admin-field">
+            <span>YouTube</span>
+            <input inputMode="url" placeholder="youtube.com/@kanal" autoComplete="off" maxLength={TEAM_LIMITS.url} value={draft.youtube} onChange={(e) => set("youtube", e.target.value)} />
+          </label>
+          <label className="ab-admin-field">
+            <span>Facebook</span>
+            <input inputMode="url" placeholder="facebook.com/sahifa" autoComplete="off" maxLength={TEAM_LIMITS.url} value={draft.facebook} onChange={(e) => set("facebook", e.target.value)} />
+          </label>
         </div>
+        <label className="ab-admin-field">
+          <span>Veb-sayt <small>shaxsiy sahifa, blog yoki portfolio</small></span>
+          <input inputMode="url" placeholder="masalan: avrangzeb.uz" autoComplete="off" maxLength={TEAM_LIMITS.url} value={draft.website} onChange={(e) => set("website", e.target.value)} />
+        </label>
         <label className="ab-admin-check">
           <input type="checkbox" checked={draft.visible} onChange={(e) => set("visible", e.target.checked)} />
           {draft.visible ? <Eye size={16} /> : <EyeOff size={16} />} Saytda ko‘rinsin

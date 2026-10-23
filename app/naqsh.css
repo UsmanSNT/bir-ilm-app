@@ -110,6 +110,9 @@ h1 em, h2 em { color: var(--firuza); font-weight: 500; font-style: italic; }
 .brand-mark { display: grid; place-items: center; width: 50px; height: 50px; flex: none; overflow: hidden; border-radius: 50%; box-shadow: 0 0 0 2px var(--tilla-2), 0 6px 14px -6px var(--lojuvard); background: var(--sahifa); }
 .brand-mark img { width: 90%; height: 90%; object-fit: contain; }
 .brand-text { display: grid; line-height: 1.05; min-width: 0; }
+.brand-home { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 999px; }
+.brand-home:focus-visible { outline: 2px solid var(--tilla-2); outline-offset: 4px; }
+.brand-home:active .brand-mark { transform: scale(.96); }
 .brand .wordmark { font: 700 24px/1 var(--f-display); letter-spacing: -.02em; color: var(--lojuvard); font-variation-settings: "opsz" 144, "SOFT" 50; }
 .brand .brand-tag { margin-top: 4px; color: var(--tilla); font-size: 10.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
 

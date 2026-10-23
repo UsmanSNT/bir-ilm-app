@@ -646,6 +646,10 @@ export const teamMembers = sqliteTable("team_members", {
   photoUrl: text("photo_url"),
   telegram: text("telegram").notNull().default(""),
   instagram: text("instagram").notNull().default(""),
+  /** To'liq https havolalar (YouTube/Facebook sahifasi, shaxsiy veb-sayt). Bo'sh — ko'rsatilmaydi. */
+  youtube: text("youtube").notNull().default(""),
+  facebook: text("facebook").notNull().default(""),
+  website: text("website").notNull().default(""),
   sortOrder: integer("sort_order").notNull().default(0),
   visible: integer("visible", { mode: "boolean" }).notNull().default(true),
   createdBy: text("created_by"),

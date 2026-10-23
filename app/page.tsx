@@ -180,16 +180,21 @@ function currentStreak({ streak, lastActiveDate }: Pick<State, "streak" | "lastA
   return lastActiveDate === todayKey() || lastActiveDate === yesterdayKey() ? streak : 0;
 }
 
-function Brand() {
-  return (
-    <div className="brand">
-      <span className="brand-mark"><Image src="/assets/bir-ilm-mark.webp" alt="" width={52} height={52} priority /></span>
+/** Logo: `onHome` berilsa, logo va nom bosilganda bosh sahifaga qaytadi. */
+function Brand({ onHome }: { onHome?: () => void }) {
+  // Asl fayl to'g'ridan-to'g'ri: optimizator 128px/q75 ga qayta siqib, mayda barglarni xiralashtirardi.
+  const content = (
+    <>
+      <span className="brand-mark"><Image src="/assets/bir-ilm-mark.webp" alt="" width={52} height={52} priority unoptimized /></span>
       <span className="brand-text">
         <span className="wordmark">Bir Ilm</span>
         <span className="brand-tag">Sinang · qo‘llang · ulashing</span>
       </span>
-    </div>
+    </>
   );
+  return onHome
+    ? <button type="button" className="brand brand-home" onClick={onHome} aria-label="Bir Ilm — bosh sahifa">{content}</button>
+    : <div className="brand">{content}</div>;
 }
 
 function activityFromState(data: State) {
@@ -622,7 +627,7 @@ export default function App() {
 
         <main className="app-main">
           <header ref={headerRef} className={`app-header${scrolled ? " is-scrolled" : ""}`}>
-            <Brand />
+            <Brand onHome={() => go("home")} />
             <div className="header-actions">
               <span className="topbar-status" title="Ma'lumotlar qayerda saqlanmoqda"><Wifi size={15} />{backendLabel}</span>
               <button type="button" className="streak-chip" data-active={streak > 0} title="Kunlik streak" aria-label={`Kunlik streak: ${streak} kun. Faollar reytingini ochish`} onClick={() => go("leaders")}>

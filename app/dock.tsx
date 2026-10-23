@@ -22,13 +22,13 @@ export default function Dock({ mode, label, left, right, center }: {
     </button>
   );
   return <nav className="dock" data-mode={mode} aria-label={label}>
-    <span className="dock-logo" aria-hidden="true"><Image src="/assets/bir-ilm-mark.webp" alt="" width={56} height={56} /></span>
+    <span className="dock-logo" aria-hidden="true"><Image src="/assets/bir-ilm-mark.webp" alt="" width={56} height={56} unoptimized /></span>
     <div className="dock-items">
       {left.map(item)}
       <button type="button" className="dock-star" onClick={center.onClick} aria-label={center.ariaLabel}>
         <span className="dock-star-shape">
           {Star === "brand"
-            ? <span className="dock-star-inner is-brand"><Image src="/assets/bir-ilm-mark.webp" alt="" width={34} height={34} /></span>
+            ? <span className="dock-star-inner is-brand"><Image src="/assets/bir-ilm-mark.webp" alt="" width={34} height={34} unoptimized /></span>
             : <span className="dock-star-inner"><Star size={24} strokeWidth={1.8} /></span>}
         </span>
         <span className="dock-label">{center.label}</span>

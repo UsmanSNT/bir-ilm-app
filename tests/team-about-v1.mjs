@@ -64,7 +64,7 @@ const move = await load("app/api/v1/site/team/[id]/move/route.ts");
 const photo = await load("app/api/v1/site/team/[id]/photo/route.ts");
 const media = await load("app/media/team/[file]/route.ts");
 const about = await load("app/api/v1/site/about/route.ts");
-const { normalizeHandle, resolveAboutVideo, readStoredAbout, DEFAULT_ABOUT } = await load("shared/contract/index.ts");
+const { normalizeHandle, normalizeWebsite, resolveAboutVideo, readStoredAbout, DEFAULT_ABOUT } = await load("shared/contract/index.ts");
 
 const ORIGIN = "http://127.0.0.1:8787";
 const createdUsers = [];
@@ -100,7 +100,11 @@ try {
   for (const [kind, bad] of [["telegram", "abc"], ["telegram", "https://evil.example/bir_ilm"], ["telegram", "javascript:alert(1)"], ["instagram", "bir ilm"], ["instagram", "https://t.me/birilm"]]) {
     assert.equal(normalizeHandle(kind, bad), null, `${kind}: ${bad}`);
   }
-  console.log("PASS: Telegram/Instagram: @nom, nom va havola bitta nomga keltiriladi, begona domen rad etiladi.");
+  assert.equal(normalizeWebsite("birilm.uz/jamoa"), "https://birilm.uz/jamoa");
+  assert.equal(normalizeWebsite("http://example.com"), "https://example.com/");
+  assert.equal(normalizeWebsite(""), "");
+  for (const bad of ["javascript:alert(1)", "https://user:pw@example.com", "localhost", "ftp://example.com", "https://example."]) assert.equal(normalizeWebsite(bad), null, bad);
+  console.log("PASS: Telegram/Instagram: @nom, nom va havola bitta nomga keltiriladi; veb-sayt faqat https, begona va xavfli havolalar rad etiladi.");
 
   // --- «Biz haqimizda» videosi ------------------------------------------------
   assert.equal(resolveAboutVideo("").kind, "file", "Bo'sh — ilova bilan kelgan video");
@@ -122,9 +126,11 @@ try {
   await user.call(team.POST, "/api/v1/site/team", { method: "POST", body: { name: "Begona" }, expect: 403 });
   await admin.call(team.POST, "/api/v1/site/team", { method: "POST", body: { name: "" }, expect: 422 });
   await admin.call(team.POST, "/api/v1/site/team", { method: "POST", body: { name: "X", telegram: "https://evil.example/x" }, expect: 422 });
+  await admin.call(team.POST, "/api/v1/site/team", { method: "POST", body: { name: "X", youtube: "https://evil.example/@x" }, expect: 422 });
+  await admin.call(team.POST, "/api/v1/site/team", { method: "POST", body: { name: "X", website: "javascript:alert(1)" }, expect: 422 });
 
   // --- Qo'shish: oxiriga tushadi ---------------------------------------------
-  for (const [name, extra] of [["Test Birinchi", { telegram: "@test_birinchi", instagram: "instagram.com/test.birinchi" }], ["Test Ikkinchi", {}], ["Test Uchinchi", { visible: false }]]) {
+  for (const [name, extra] of [["Test Birinchi", { telegram: "@test_birinchi", instagram: "instagram.com/test.birinchi", youtube: "youtube.com/@birilm", facebook: "facebook.com/birilm", website: "birilm.uz" }], ["Test Ikkinchi", {}], ["Test Uchinchi", { visible: false }]]) {
     const items = (await admin.call(team.POST, "/api/v1/site/team", { method: "POST", body: { name, role: "Sinov", ...extra }, expect: 201 })).data.items;
     createdMembers.push(items.at(-1).id);
     assert.equal(items.at(-1).name, name, "Yangi a'zo ro'yxat oxirida");
@@ -134,6 +140,10 @@ try {
   assert.deepEqual(names(all), ["Test Birinchi", "Test Ikkinchi", "Test Uchinchi"]);
   assert.equal(all.find((m) => m.id === first).telegram, "test_birinchi");
   assert.equal(all.find((m) => m.id === first).instagram, "test.birinchi");
+  assert.equal(all.find((m) => m.id === first).youtube, "https://youtube.com/@birilm");
+  assert.equal(all.find((m) => m.id === first).facebook, "https://facebook.com/birilm");
+  assert.equal(all.find((m) => m.id === first).website, "https://birilm.uz/");
+  assert.equal(all.find((m) => m.id === second).website, "", "Yuborilmagan havola bo'sh qoladi");
   assert.ok(!(await user.call(team.GET, "/api/v1/site/team")).data.items.some((m) => m.id === third), "Yashirin a'zo ommaga ko'rinmaydi");
 
   // --- Tartiblash ---------------------------------------------------------------

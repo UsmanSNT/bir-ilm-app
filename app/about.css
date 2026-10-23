@@ -168,11 +168,18 @@
 .ab-member-caption { position: absolute; z-index: 1; left: 16px; right: 16px; bottom: 14px; display: grid; justify-items: start; gap: 6px; }
 .ab-member-caption h3 { margin: 0; color: #fff; font: 600 21px/1.15 var(--f-display); text-shadow: 0 1px 12px #0006; }
 .ab-member-caption span { padding: 4px 10px; border-radius: 999px; background: #ffffff26; color: #fff; font-size: 12px; font-weight: 700; box-shadow: inset 0 0 0 1px #ffffff40; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
-.ab-member-social { position: absolute; z-index: 1; top: 12px; right: 12px; display: flex; gap: 6px; }
-.ab-member-social a { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #0b123159; color: #fff; box-shadow: inset 0 0 0 1px #ffffff33; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: background .2s ease, transform .2s ease; }
-.ab-member-social a:hover { transform: translateY(-1px); }
-.ab-member-social a.is-telegram:hover { background: #229ed9; }
-.ab-member-social a.is-instagram:hover { background: linear-gradient(45deg, #f09433, #dc2743 55%, #bc1888); }
+/* Ijtimoiy tarmoqlar va veb-sayt: kartaning pastki qismida */
+.ab-member-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding: 0 16px 16px; }
+.ab-member-links a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 38px; height: 38px; border-radius: 999px; background: var(--qogoz); color: var(--lojuvard); text-decoration: none; box-shadow: inset 0 0 0 1px var(--chiziq); transition: background .2s ease, color .2s ease, transform .2s ease, box-shadow .2s ease; }
+.ab-member-links a:hover { transform: translateY(-1px); color: #fff; box-shadow: none; }
+.ab-member-links a.is-telegram:hover { background: #229ed9; }
+.ab-member-links a.is-instagram:hover { background: linear-gradient(45deg, #f09433, #dc2743 55%, #bc1888); }
+.ab-member-links a.is-youtube:hover { background: #ff0033; }
+.ab-member-links a.is-facebook:hover { background: #1877f2; }
+.ab-member-links a.is-website { max-width: 100%; padding: 0 12px; font-size: 13px; font-weight: 800; }
+.ab-member-links a.is-website span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-member-links a.is-website:hover { background: var(--lojuvard); }
+.ab-member-links a:focus-visible { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
 .ab-team-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
 .ab-team-empty { display: grid; justify-items: center; gap: 6px; width: 100%; margin-top: 18px; padding: 28px 16px; border: 2px dashed var(--chiziq); border-radius: 20px; background: var(--qogoz); color: var(--siyoh-2); font: inherit; text-align: center; cursor: pointer; }
 .ab-team-empty svg { color: var(--firuza); }
@@ -242,8 +249,8 @@
   .ab-member-caption { left: 16px; right: 16px; bottom: 16px; gap: 7px; }
   .ab-member-caption h3 { font-size: 24px; }
   .ab-member-caption span { padding: 4px 11px; font-size: 12.5px; }
-  .ab-member-social { top: 14px; right: 14px; gap: 8px; }
-  .ab-member-social a { width: 40px; height: 40px; }
+  .ab-member-links { gap: 10px; padding: 0 18px 20px; }
+  .ab-member-links a { min-width: 42px; height: 42px; }
   .ab-member-initials { font-size: 76px; }
   .ab-member-bio { padding: 14px 18px 20px; font-size: 14.5px; line-height: 1.6; }
   .ab-team-dots { display: flex; }
