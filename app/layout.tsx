@@ -1,4 +1,5 @@
 import PwaRegister from "./pwa-register";
+import { InstallHelp } from "./install-app";
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/fraunces";
 import "@fontsource-variable/fraunces/wght-italic.css";
@@ -20,6 +21,7 @@ import "./profile-v2.css";
 import "./live-room.css";
 import "./ebook.css";
 import "./about.css";
+import "./install-app.css";
 
 export const metadata: Metadata = {
   title: "Bir Ilm — kitobxonlik ilovasi",
@@ -56,7 +58,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="uz">
-      <body className="antialiased">{children}<PwaRegister /></body>
+      <body className="antialiased">{children}<PwaRegister /><InstallHelp /></body>
     </html>
   );
 }

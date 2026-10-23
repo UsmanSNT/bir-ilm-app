@@ -44,6 +44,7 @@ import QuizPlay, { type SoloResult } from "./quiz-play";
 import { useJourneyBooks, useWisdom } from "@/lib/api/site-client";
 import { WisdomCard, WisdomDialog, WisdomEditor, useWisdomPrompt } from "./wisdom";
 import { JourneyEntry } from "./about";
+import { InstallCard } from "./install-app";
 import QuizLive from "./quiz-live";
 import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
@@ -427,6 +428,8 @@ export default function MobileScreens({
           <div className="m-greeting-row m-hero">
             <div><h1 className="m-hello">Assalomu alaykum, <em>{name}</em></h1><p className="m-sub">Bugun ham bir sahifa oldinga.</p></div>
           </div>
+
+          <InstallCard />
 
           <section className="m-card m-week">
             <div className="m-week-head">

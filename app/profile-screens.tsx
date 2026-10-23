@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Activity, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camera, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Crown, ListChecks, Globe, Heart, Info, KeyRound, Languages, LogOut, Mail, MessageCircle, ShieldCheck, ShoppingBag, Smartphone, Lock, UserRound, Users } from "lucide-react";
+import { Activity, ArrowRight, Bell, BookOpen, Bookmark, CalendarDays, Camera, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, CircleHelp, Crown, Download, ListChecks, Globe, Heart, Info, KeyRound, Languages, LogOut, Mail, MessageCircle, ShieldCheck, ShoppingBag, Smartphone, Lock, UserRound, Users } from "lucide-react";
 import { useViewer } from "@/lib/api/roles-client";
 import { refreshAdminAttention } from "@/lib/api/admin-attention";
 import { useCatalog } from "@/lib/api/books-client";
@@ -26,6 +26,7 @@ import { formatDate } from "./community/post-card";
 import type { SocialData } from "./social-types";
 import ProfileHero from "./profile-hero";
 import ProfileMenu, { type MenuGroup, type MenuItem } from "./profile-menu";
+import { requestInstall, useInstallAvailable } from "./pwa-install";
 import { LinkDeviceDialog } from "./device-link";
 import ScrollIcon from "./scroll-icon";
 
@@ -62,6 +63,7 @@ export default function ProfileScreens(p: ProfileScreensProps) {
   const [reactionsFailed, setReactionsFailed] = useState(false);
   const [reactionsRetry, setReactionsRetry] = useState(0);
   const viewer = useViewer();
+  const installable = useInstallAvailable();
   const featured = useCatalog().active;
   const role = viewer?.role ?? "user";
   const signOut = () => void signOutViewer();
@@ -144,6 +146,7 @@ export default function ProfileScreens(p: ProfileScreensProps) {
       { id: "notifications", title: "Bildirishnomalar", icon: ScrollIcon, tone: "binafsha", onClick: p.onNotifications },
       { id: "language", title: "Ilova tili", icon: Languages, tone: "lojuvard", value: "O‘zbekcha" },
       { id: "devices", title: "Kamera va mikrofon", icon: Camera, tone: "pushti", onClick: () => open("devices") },
+      ...(installable ? [{ id: "install", title: "Ilovani o‘rnatish", icon: Download, tone: "firuza", value: "Bosh ekranga", onClick: () => void requestInstall() } satisfies MenuItem] : []),
       ...(viewer?.signedIn ? [{ id: "link", title: "Boshqa qurilmani ulash", icon: Smartphone, tone: "yashil", onClick: () => setLinkOpen(true) } satisfies MenuItem] : []),
     ] },
     { id: "security", title: "Xavfsizlik", items: securityItems },
