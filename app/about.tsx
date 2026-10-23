@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, LibraryBig, Play, Radio } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, ChevronDown, Leaf, LibraryBig, Play, Radio, Sprout, TreeDeciduous, TreePine, Trees } from "lucide-react";
 import { absoluteUrl } from "@/lib/api/config";
 import { useAbout, useTeam } from "@/lib/api/site-client";
 import { resolveAboutVideo, teamProfileUrl, videoEmbedUrl, videoThumbnail, type TeamMember } from "@/shared/contract";
 import {
   SESSION,
+  JUBILEE_STEP,
   computeJourney,
   formatCountdown,
   formatSpan,
@@ -169,6 +170,90 @@ function localTimeLine(at: number): string | null {
   return `Sizning vaqtingizda: ${uzDays[local.getDay()].toLowerCase()}, ${time}`;
 }
 
+/** Element ekranga birinchi marta kirganda true bo'ladi (animatsiya bir marta o'ynaydi). */
+function useInView<T extends Element>() {
+  const ref = useRef<T>(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || seen) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setSeen(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.2 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [seen]);
+  return [ref, seen] as const;
+}
+
+/** O'sish bosqichlari: nihol → barg → daraxt → qarag'ay → bog'. */
+const STAGE_ICONS = [Sprout, Leaf, TreeDeciduous, TreePine, Trees] as const;
+const markLabel = (n: number) => (n === 1 ? "Ilk kitob" : `${n}-kitob`);
+
+/** Yillar pog'onasi: har yil oxiridagi jami kitoblar, rang va belgi yildan-yilga boyib boradi. */
+function Growth({ journey }: { journey: Journey }) {
+  const [ref, seen] = useInView<HTMLDivElement>();
+  const { growth, jubilee } = journey;
+  const peak = Math.max(1, ...growth.map((year) => year.total + year.planned));
+  const points = growth.map((year, index) => `${((index + 0.5) / growth.length) * 100},${100 - (year.total / peak) * 100}`).join(" ");
+  const percent = Math.round(jubilee.progress * 100);
+
+  return (
+    <div ref={ref} className={`ab-growth${seen ? " is-visible" : ""}`}>
+      <div className="ab-growth-chart">
+        <svg className="ab-growth-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <polyline points={points} />
+        </svg>
+        <ol className="ab-steps" aria-label="Yillar bo‘yicha o‘sish">
+          {growth.map((year, index) => {
+            const Icon = STAGE_ICONS[year.stage];
+            const current = index === growth.length - 1 && year.planned > 0;
+            const vars = { "--f": year.total / peak, "--g": year.planned / peak, "--i": index } as CSSProperties;
+            return (
+              <li key={year.year} className={`ab-step stage-${year.stage}${current ? " is-current" : ""}`} style={vars}>
+                <div className="ab-step-plot">
+                  <span className="ab-step-head">
+                    <span className="ab-step-icon" aria-hidden="true"><Icon size={14 + year.stage * 2} /></span>
+                    <strong>{year.total}</strong>
+                  </span>
+                  {year.planned > 0 && <span className="ab-step-ghost" aria-hidden="true" />}
+                  <span className="ab-step-bar" aria-hidden="true" />
+                </div>
+                <span className="ab-step-year">{year.year}</span>
+                <small className="ab-step-added">+{year.held} kitob{year.planned ? ` · ${year.planned} rejada` : ""}</small>
+                {year.marks.length > 0 && <em className="ab-step-marks">{year.marks.map(markLabel).join(" · ")}</em>}
+                <span className="sr-only">{`${year.year}-yil: ${year.held} ta kitob, jami ${year.total}`}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      <div className="ab-jubilee">
+        <div className="ab-jubilee-copy">
+          <span className="ab-eyebrow">Keyingi bosqich</span>
+          <strong>{jubilee.n}-kitob</strong>
+          <small>{uzDateTashkent(jubilee.at)} · {jubilee.left} ta qoldi</small>
+        </div>
+        <div
+          className="ab-jubilee-track"
+          role="progressbar"
+          aria-label={`${jubilee.n}-kitobgacha`}
+          aria-valuemin={0}
+          aria-valuemax={JUBILEE_STEP}
+          aria-valuenow={JUBILEE_STEP - jubilee.left}
+        >
+          <span style={{ "--p": jubilee.progress } as CSSProperties} />
+        </div>
+        <b>{percent}%</b>
+      </div>
+    </div>
+  );
+}
+
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase()).join("") || "B";
 
@@ -176,32 +261,32 @@ function TeamCard({ member }: { member: TeamMember }) {
   const [broken, setBroken] = useState(false);
   return (
     <li className="ab-member">
-      <div className="ab-member-photo">
+      <div className="ab-member-media">
         {member.photoUrl && !broken ? (
           <img src={absoluteUrl(member.photoUrl)} alt={member.name} loading="lazy" onError={() => setBroken(true)} />
         ) : (
-          <span aria-hidden="true">{initials(member.name)}</span>
+          <span className="ab-member-initials" aria-hidden="true">{initials(member.name)}</span>
         )}
-      </div>
-      <div className="ab-member-body">
-        <h3>{member.name}</h3>
-        {member.role && <span className="ab-member-role">{member.role}</span>}
-        {member.bio && <p>{member.bio}</p>}
         {(member.telegram || member.instagram) && (
-          <div className="ab-member-links">
+          <div className="ab-member-social">
             {member.telegram && (
-              <a className="is-telegram" href={teamProfileUrl("telegram", member.telegram)} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} — Telegram`}>
-                <Telegram size={16} /> Telegram
+              <a className="is-telegram" href={teamProfileUrl("telegram", member.telegram)} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} — Telegram`} title="Telegram">
+                <Telegram size={16} />
               </a>
             )}
             {member.instagram && (
-              <a className="is-instagram" href={teamProfileUrl("instagram", member.instagram)} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} — Instagram`}>
-                <Instagram size={16} /> Instagram
+              <a className="is-instagram" href={teamProfileUrl("instagram", member.instagram)} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} — Instagram`} title="Instagram">
+                <Instagram size={16} />
               </a>
             )}
           </div>
         )}
+        <div className="ab-member-caption">
+          <h3>{member.name}</h3>
+          {member.role && <span>{member.role}</span>}
+        </div>
       </div>
+      {member.bio && <p className="ab-member-bio">{member.bio}</p>}
     </li>
   );
 }
@@ -287,26 +372,22 @@ export default function About({ onBack }: { onBack: () => void }) {
       <section className="ab-journey" aria-labelledby="ab-journey-title">
         <span className="ab-eyebrow">Bir Ilm yo‘li</span>
         <h3 id="ab-journey-title">{completed} kitob · {formatSpan(elapsed)}</h3>
-        <ul className="ab-legend" aria-label="Belgilar">
-          <li><i className="ab-spine done tone-1" />Muhokama qilingan</li>
-          <li><i className="ab-spine done milestone" />Har 50-kitob</li>
-          <li><i className="ab-spine next" />Keyingi</li>
-          <li><i className="ab-spine future" />Rejada</li>
-        </ul>
-        <Shelf shelf={journey.shelf} />
+        <Growth journey={journey} />
 
-        <ol className="ab-milestones">
-          {journey.milestones.map((milestone) => (
-            <li className={milestone.state} key={milestone.n}>
-              <span className="ab-star" aria-hidden="true" />
-              <strong>{milestone.n === 1 ? "Ilk kitob" : `${milestone.n}-kitob`}</strong>
-              <small>{uzDateTashkent(milestone.at)}</small>
-              {milestone.state !== "done" && (
-                <em>{milestone.state === "live" ? "Hozir efirda" : milestone.state === "next" ? "Keyingi muhokama" : "Oldinda"}</em>
-              )}
-            </li>
-          ))}
-        </ol>
+        <details className="ab-weeks">
+          <summary>
+            <span>Har bir haftani ko‘rish</span>
+            <small>{completed} ta muhokama{next.n > completed ? ` · keyingisi ${next.n}-kitob` : ""}</small>
+            <ChevronDown size={18} aria-hidden="true" />
+          </summary>
+          <ul className="ab-legend" aria-label="Belgilar">
+            <li><i className="ab-spine done tone-1" />Muhokama qilingan</li>
+            <li><i className="ab-spine done milestone" />Har 50-kitob</li>
+            <li><i className="ab-spine next" />Keyingi</li>
+            <li><i className="ab-spine future" />Rejada</li>
+          </ul>
+          <Shelf shelf={journey.shelf} />
+        </details>
 
         <p className="ab-note">
           Hisob taxminiy: birinchi muhokama {uzDateTashkent(journey.start)} deb va har shanba uzluksiz o‘tkazilgan deb olingan.

@@ -29,7 +29,14 @@ export type ShelfCell = { n: number | null; at: number; state: CellState };
 
 export type ShelfYear = { year: number; cells: ShelfCell[]; held: number; planned: number };
 
-export type Milestone = { n: number; at: number; state: "done" | "live" | "next" | "future" };
+/** Bir yillik pog'ona: shu yili qo'shilgani, shu yil oxirigacha jami, erishilgan yubileylar va o'sish bosqichi (0–4). */
+export type GrowthYear = { year: number; held: number; planned: number; total: number; marks: number[]; stage: number };
+
+/** Keyingi yubiley (har 50-kitob): qancha qoldi va oraliqning qancha qismi bosib o'tildi (0–1). */
+export type Jubilee = { n: number; at: number; left: number; progress: number };
+
+/** Yubiley qadami: har 50-kitob. */
+export const JUBILEE_STEP = 50;
 
 export type Journey = {
   start: number;
@@ -39,7 +46,8 @@ export type Journey = {
   elapsed: { years: number; months: number; days: number; totalDays: number };
   perYear: number;
   shelf: ShelfYear[];
-  milestones: Milestone[];
+  growth: GrowthYear[];
+  jubilee: Jubilee;
 };
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -132,20 +140,22 @@ export function computeJourney(anchor: Anchor, now: number): Journey {
     shelf.push({ year, cells, held, planned });
   }
 
-  const marks = new Set<number>([1]);
-  for (let n = 50; n <= completed; n += 50) marks.add(n);
-  if (live !== null) marks.add(live);
-  marks.add(next.n);
-  marks.add(Math.ceil((next.n + 1) / 50) * 50);
-  const milestones = [...marks]
-    .sort((a, b) => a - b)
-    .map((n) => ({ n, at: sessionAt(n), state: stateOf(n) }));
+  let running = 0;
+  const lastIndex = shelf.length - 1;
+  const growth = shelf.map((year, index): GrowthYear => {
+    running += year.held;
+    const marks = year.cells.flatMap((cell) => (cell.state === "done" && cell.n !== null && (cell.n === 1 || cell.n % JUBILEE_STEP === 0) ? [cell.n] : []));
+    return { year: year.year, held: year.held, planned: year.planned, total: running, marks, stage: lastIndex > 0 ? Math.round((index / lastIndex) * 4) : 4 };
+  });
+
+  const target = (Math.floor(completed / JUBILEE_STEP) + 1) * JUBILEE_STEP;
+  const jubilee: Jubilee = { n: target, at: sessionAt(target), left: target - completed, progress: (completed - (target - JUBILEE_STEP)) / JUBILEE_STEP };
 
   const elapsed = calendarDiff(start, Math.max(start, now));
   const yearsFloat = elapsed.totalDays / 365.2425;
   const perYear = yearsFloat >= 1 ? Math.round(completed / yearsFloat) : completed;
 
-  return { start, completed, live, next, elapsed, perYear, shelf, milestones };
+  return { start, completed, live, next, elapsed, perYear, shelf, growth, jubilee };
 }
 
 /** "4 yil 8 oy" kabi qisqa davomiylik. */

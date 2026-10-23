@@ -23,7 +23,10 @@ const utc = (iso) => Date.parse(iso);
   assert.deepEqual(j.elapsed, { years: 4, months: 8, days: 24, totalDays: 1728 });
   assert.equal(formatSpan(j.elapsed), "4 yil 8 oy");
   assert.equal(j.perYear, 52);
-  assert.deepEqual(j.milestones.map((m) => [m.n, m.state]), [[1, "done"], [50, "done"], [100, "done"], [150, "done"], [200, "done"], [248, "next"], [250, "future"]]);
+  assert.deepEqual(j.growth.map((y) => [y.year, y.held, y.total, y.stage]), [[2022, 49, 49, 0], [2023, 52, 101, 1], [2024, 52, 153, 2], [2025, 52, 205, 3], [2026, 42, 247, 4]]);
+  assert.deepEqual(j.growth.map((y) => y.marks), [[1], [50, 100], [150], [200], []]);
+  assert.equal(j.growth.at(-1).planned, 10);
+  assert.deepEqual(j.jubilee, { n: 250, at: utc("2026-11-07T13:00:00Z"), left: 3, progress: 47 / 50 });
   for (const year of j.shelf) for (const cell of year.cells) assert.equal(new Date(cell.at).getUTCDay(), 6);
 }
 
@@ -49,6 +52,15 @@ const utc = (iso) => Date.parse(iso);
   const j = computeJourney(anchor, utc("2021-12-01T00:00:00Z"));
   assert.equal(j.completed, 0);
   assert.equal(j.next.n, 1);
+  assert.deepEqual(j.jubilee, { n: 50, at: j.start + 49 * 7 * 86_400_000, left: 50, progress: 0 });
+}
+
+// Aynan 250-kitobdan keyin keyingi yubiley — 300.
+{
+  const j = computeJourney(anchor, utc("2026-11-07T16:00:00Z"));
+  assert.equal(j.completed, 250);
+  assert.deepEqual([j.jubilee.n, j.jubilee.left, j.jubilee.progress], [300, 50, 0]);
+  assert.deepEqual(j.growth.at(-1).marks, [250]);
 }
 
 assert.equal(nextSessionAfter(utc("2026-10-23T12:00:00Z")), utc("2026-10-24T13:00:00Z"));
