@@ -89,14 +89,15 @@
 .ab-legend li { display: inline-flex; align-items: center; gap: 7px; }
 .ab-legend .ab-spine { display: inline-block; width: 7px; height: 16px; }
 
-.ab-shelf { display: grid; gap: 16px; margin-top: 8px; touch-action: manipulation; }
-.ab-shelf-readout { min-height: 22px; margin: 0; color: var(--siyoh-2); font-size: 13px; }
+.ab-shelf { display: grid; gap: 16px; margin-top: 8px; }
+/* Balandligi qat'iy: nom uzun yoki qisqa bo'lishidan qat'i nazar qatorlar siljimaydi (aks holda chiziq barmoq/sichqoncha ostidan qochardi). */
+.ab-shelf-readout { --lines: 2; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lines); height: calc(var(--lines) * 1.45em); margin: 0; overflow: hidden; color: var(--siyoh-2); font-size: 13px; line-height: 1.45; }
 .ab-shelf-readout strong { color: var(--lojuvard); }
 .ab-shelf-row { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; align-items: end; }
 .ab-shelf-label { display: grid; padding-bottom: 8px; }
 .ab-shelf-label strong { color: var(--siyoh); font: 600 20px/1.1 var(--f-display); font-variant-numeric: lining-nums; }
 .ab-shelf-label span { color: var(--siyoh-3); font-size: 12px; }
-.ab-shelf-books { display: grid; grid-template-columns: repeat(53, minmax(0, 1fr)); gap: 2px; align-items: end; height: 48px; padding: 0 3px; border-bottom: 5px solid; border-image: linear-gradient(180deg, var(--tilla-2), var(--tilla)) 1; }
+.ab-shelf-books { display: grid; grid-template-columns: repeat(53, minmax(0, 1fr)); gap: 2px; align-items: end; height: 48px; padding: 0 3px; cursor: pointer; touch-action: pan-y; user-select: none; -webkit-user-select: none; border-bottom: 5px solid; border-image: linear-gradient(180deg, var(--tilla-2), var(--tilla)) 1; }
 
 .ab-spine { display: block; height: var(--h, 80%); border-radius: 2px 2px 1px 1px; background: var(--lojuvard); transition: transform .15s ease, filter .15s ease; }
 .ab-spine.before { visibility: hidden; }
@@ -109,6 +110,7 @@
 .ab-spine.next { height: 100%; background: var(--tilla-och); box-shadow: 0 0 0 2px var(--tilla); animation: ab-pulse 1.8s ease-in-out infinite; }
 .ab-spine.live { height: 100%; background: var(--anor); animation: ab-pulse 1.2s ease-in-out infinite; }
 .ab-shelf-books .ab-spine:not(.before):hover { transform: translateY(-4px); filter: brightness(1.15); }
+.ab-shelf-books .ab-spine.is-active { transform: translateY(-4px); filter: brightness(1.2); box-shadow: 0 0 0 1.5px var(--tilla); }
 
 /* ── O'sish: yillar pog'onasi ── */
 .ab-growth { --plot: 230px; --head: 58px; display: grid; gap: 18px; margin-top: 22px; }
@@ -213,13 +215,16 @@
 .ab-team-dots button[aria-current="true"] { width: 24px; background: var(--lojuvard); }
 .ab-team-dots button:focus-visible { outline: 2px solid var(--tilla-2); outline-offset: 2px; }
 .ab-member-bio { margin: 0; padding: 14px 16px 18px; color: var(--siyoh-2); font-size: 14px; line-height: 1.6; }
-.ab-member-avatar { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ab-member-avatar { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; }
+/* Tayyor avatar: kvadrat kichik belgilarda 4:5 rasmning yuqori qismi (bosh va yelka) kattalashtirib ko'rsatiladi. */
+.team-avatar-img { display: block; user-select: none; -webkit-user-drag: none; }
+.ab-alumnus-photo .team-avatar-img, .ab-admin-avatar:not(.large) .team-avatar-img { object-position: center top; transform: scale(1.3); transform-origin: 50% 8%; }
 .ab-alumni-lead { margin: 12px 0 0; color: var(--siyoh-2); font-size: 14px; line-height: 1.6; }
 .ab-alumni-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; margin: 18px 0 0; padding: 0; list-style: none; }
 .ab-alumnus { display: flex; gap: 14px; min-width: 0; padding: 16px; border-radius: 20px; background: var(--qogoz); box-shadow: inset 0 0 0 1px var(--chiziq); }
 .ab-alumnus.is-hidden { opacity: .72; }
 .ab-alumnus-photo { position: relative; flex: none; display: grid; place-items: center; overflow: hidden; width: 72px; height: 72px; border-radius: 22px; background: radial-gradient(120% 90% at 0% 0%, var(--firuza-2) 0%, transparent 55%), linear-gradient(150deg, var(--lojuvard-2), var(--lojuvard-3)); color: #ffffffd9; font: 600 26px var(--f-display); }
-.ab-alumnus-photo img, .ab-alumnus-photo svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ab-alumnus-photo img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .ab-alumnus-photo img { object-fit: cover; object-position: center 25%; }
 .ab-alumnus-body { min-width: 0; display: grid; align-content: start; gap: 5px; }
 .ab-alumnus-body h4 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; color: var(--siyoh); font: 600 18px/1.2 var(--f-display); }
@@ -303,7 +308,7 @@
   .ab-spine, .ab-video-cover img, .ab-video-play, .ab-member, .ab-member-media img, .ab-entry, .ab-step-bar, .ab-step-ghost, .ab-step-head, .ab-jubilee-track span { transition: none !important; }
   .ab-growth-line { transition: none !important; }
   .ab-spine.next, .ab-spine.live, .ab-video.is-loading, .ab-live-badge i { animation: none; }
-  .ab-shelf-books .ab-spine:not(.before):hover, .ab-member:hover, .ab-member:hover .ab-member-media img, .ab-entry:hover { transform: none; }
+  .ab-shelf-books .ab-spine:not(.before):hover, .ab-shelf-books .ab-spine.is-active, .ab-member:hover, .ab-member:hover .ab-member-media img, .ab-entry:hover { transform: none; }
 }
 
 /* Admin tahrirlash oynasi («Biz haqimizda» sahifasidan ochiladi) */
@@ -358,7 +363,7 @@
 .ab-admin-back { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px 7px 10px; border: 0; border-radius: 999px; background: var(--qogoz); color: var(--lojuvard); font: 700 13px var(--f-ui); cursor: pointer; box-shadow: inset 0 0 0 1px var(--chiziq); }
 .ab-admin-back:hover { background: #f1e9d2; }
 .ab-admin-title { margin: 0; color: var(--siyoh); font: 600 22px/1.2 var(--f-display); }
-.ab-admin-avatar svg, .ab-avatar-tile svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ab-admin-avatar .team-avatar-img, .ab-avatar-tile .team-avatar-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 .ab-admin-group { display: grid; gap: 10px; }
 .ab-admin-group-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .ab-admin-group-head h3 { margin: 0; color: var(--siyoh); font: 600 17px var(--f-display); }
@@ -377,6 +382,7 @@
 .ab-segment label { position: relative; display: grid; place-items: center; min-height: 44px; padding: 8px 10px; border-radius: 12px; background: #fff; box-shadow: inset 0 0 0 1.5px #e2d4af; color: var(--siyoh-2); font-size: 13.5px; font-weight: 700; text-align: center; cursor: pointer; }
 .ab-segment label.is-on { background: var(--lojuvard); box-shadow: none; color: #fff; }
 @media (max-width: 520px) {
+  .ab-shelf-readout { --lines: 3; }
   .ab-admin-two { grid-template-columns: 1fr; }
   .ab-admin-list li { flex-wrap: wrap; }
   .ab-segment { grid-template-columns: 1fr; }

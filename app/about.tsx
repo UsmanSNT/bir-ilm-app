@@ -113,46 +113,63 @@ const STATE_TEXT: Record<ShelfCell["state"], string> = {
 const spineStyle = (n: number) => ({ "--h": `${64 + ((n * 37) % 37)}%` }) as CSSProperties;
 const isMilestone = (n: number | null) => n !== null && (n === 1 || n % 50 === 0);
 
+/** `.ab-shelf-books` to'ridagi ustunlar soni (about.css bilan bir xil). */
+const SHELF_COLUMNS = 53;
+
+type ShelfPick = { year: number; cell: number };
+
 function Shelf({ shelf, titles }: { shelf: ShelfYear[]; titles: ReadonlyMap<number, JourneyBook> }) {
-  const [active, setActive] = useState<ShelfCell | null>(null);
+  const [picked, setPicked] = useState<ShelfPick | null>(null);
+  const active = picked ? shelf[picked.year]?.cells[picked.cell] ?? null : null;
 
-  const rows = useMemo(
-    () =>
-      shelf.map((year, yearIndex) => (
-        <div className="ab-shelf-row" key={year.year}>
-          <div className="ab-shelf-label">
-            <strong>{year.year}</strong>
-            <span>{year.held} ta kitob{year.planned ? ` · yana ${year.planned} ta rejada` : ""}</span>
-          </div>
-          <div
-            className="ab-shelf-books"
-            role="img"
-            aria-label={`${year.year}-yil: ${year.held} ta kitob muhokama qilingan${year.planned ? `, ${year.planned} ta rejada` : ""}`}
-          >
-            {year.cells.map((cell, cellIndex) => (
-              <span
-                key={cell.at}
-                data-k={`${yearIndex}:${cellIndex}`}
-                className={`ab-spine ${cell.state}${isMilestone(cell.n) ? " milestone" : ""}${cell.n !== null ? ` tone-${cell.n % 4}` : ""}`}
-                style={cell.n !== null ? spineStyle(cell.n) : undefined}
-              />
-            ))}
-          </div>
-        </div>
-      )),
-    [shelf],
-  );
-
-  const pick = (event: PointerEvent<HTMLDivElement>) => {
-    const key = (event.target as HTMLElement).dataset.k;
-    if (!key) return;
-    const [yearIndex, cellIndex] = key.split(":").map(Number);
-    const cell = shelf[yearIndex]?.cells[cellIndex];
-    if (cell && cell.n !== null) setActive(cell);
+  /**
+   * Chiziq ingichka (~4 px), barmoq esa keng: bosilgan joyga eng yaqin chiziq tanlanadi. Tanlov
+   * qatordagi gorizontal o'rindan hisoblanadi, shuning uchun oraliqqa tegib ketish xato bermaydi.
+   */
+  const select = (yearIndex: number, event: PointerEvent<HTMLDivElement>) => {
+    const row = event.currentTarget;
+    const rect = row.getBoundingClientRect();
+    const style = getComputedStyle(row);
+    const left = parseFloat(style.paddingLeft) || 0;
+    const inner = rect.width - left - (parseFloat(style.paddingRight) || 0);
+    if (inner <= 0) return;
+    const cells = shelf[yearIndex]?.cells ?? [];
+    const slot = Math.floor(((event.clientX - rect.left - left) / inner) * SHELF_COLUMNS);
+    let cell = Math.min(Math.max(slot, 0), cells.length - 1);
+    // Yil boshidagi «hali boshlanmagan» o'rinlar tanlanmaydi: birinchi haqiqiy chiziqqa o'tadi.
+    while (cell < cells.length && cells[cell].n === null) cell += 1;
+    if (cell >= cells.length) return;
+    setPicked((current) => (current?.year === yearIndex && current.cell === cell ? current : { year: yearIndex, cell }));
   };
 
+  const rows = shelf.map((year, yearIndex) => (
+    <div className="ab-shelf-row" key={year.year}>
+      <div className="ab-shelf-label">
+        <strong>{year.year}</strong>
+        <span>{year.held} ta kitob{year.planned ? ` · yana ${year.planned} ta rejada` : ""}</span>
+      </div>
+      <div
+        className="ab-shelf-books"
+        role="img"
+        aria-label={`${year.year}-yil: ${year.held} ta kitob muhokama qilingan${year.planned ? `, ${year.planned} ta rejada` : ""}`}
+        onPointerDown={(event) => select(yearIndex, event)}
+        // Sichqoncha — ustidan o'tganda; barmoq — bosib, gorizontal surganda. Vertikal surish sahifani aylantiradi.
+        onPointerMove={(event) => { if (event.pointerType === "mouse" || event.buttons) select(yearIndex, event); }}
+      >
+        {year.cells.map((cell, cellIndex) => (
+          <span
+            key={cell.at}
+            className={`ab-spine ${cell.state}${isMilestone(cell.n) ? " milestone" : ""}${cell.n !== null ? ` tone-${cell.n % 4}` : ""}${picked?.year === yearIndex && picked.cell === cellIndex ? " is-active" : ""}`}
+            style={cell.n !== null ? spineStyle(cell.n) : undefined}
+          />
+        ))}
+      </div>
+    </div>
+  ));
+
   return (
-    <div className="ab-shelf" onPointerOver={pick} onPointerDown={pick} onPointerLeave={() => setActive(null)}>
+    // Tanlov barmoq ko'tarilganda saqlanadi (aks holda telefonda nom darhol yo'qolardi); faqat sichqoncha chiqib ketsa tozalanadi.
+    <div className="ab-shelf" onPointerLeave={(event) => { if (event.pointerType === "mouse") setPicked(null); }}>
       <p className="ab-shelf-readout" aria-live="polite">
         {active && active.n !== null ? (
           <>
