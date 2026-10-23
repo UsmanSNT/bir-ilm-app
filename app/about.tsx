@@ -177,7 +177,8 @@ function Shelf({ shelf, titles }: { shelf: ShelfYear[]; titles: ReadonlyMap<numb
             {titles.get(active.n) && <> · «{titles.get(active.n)?.title}»</>} · {uzDateTashkent(active.at)} · {STATE_TEXT[active.state]}
           </>
         ) : (
-          "Har bir chiziq — bitta shanba, bitta kitob. Kitob nomi va sanasini ko‘rish uchun chiziq ustiga bosing."
+          // Kitob nomlari faqat suhbat vaqti belgilangan haftalar uchun yoziladi; hali bitta ham yozilmagan bo'lsa, nom va'da qilinmaydi.
+          `Har bir chiziq — bitta shanba, bitta kitob. ${titles.size > 0 ? "Kitob nomi va sanasini" : "Sanasini"} ko‘rish uchun chiziq ustiga bosing.`
         )}
       </p>
       {rows}
