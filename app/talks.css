@@ -552,3 +552,9 @@ button.tb-wave:disabled { cursor: default; }
 .tb-comments > span { display: grid; flex: 1; min-width: 0; gap: 2px; }
 .tb-comments strong { color: var(--siyoh); font-size: 14px; }
 .tb-comments small { color: var(--siyoh-3); font-size: 12px; }
+
+.tb-free { display: grid; gap: 12px; margin-top: 14px; padding: 16px; border-radius: 14px; background: var(--qogoz); box-shadow: inset 0 0 0 1px var(--chiziq); }
+.tb-free label { display: flex; align-items: flex-start; gap: 10px; color: var(--siyoh); font-weight: 600; }
+.tb-free label input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--tilla); }
+.tb-free label small { display: block; color: var(--siyoh-3); font-size: 13px; font-weight: 400; }
+.tb-free-error { margin: 0; color: #a33131; font-size: 14px; }

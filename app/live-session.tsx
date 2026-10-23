@@ -190,6 +190,9 @@ export default function LiveSession({
   /** O'zim yuborgan izohlar vaqti — server chegarasiga yetmasdan oldin yozilgan matn yo'qolmasin. */
   const sentAtRef = useRef<number[]>([]);
   const [draft, setDraft] = useState("");
+  // Izoh yozilayotganda (klaviatura ochiq) boshqaruv tugmalari yashiriladi, faqat matn maydoni qoladi.
+  const [typing, setTyping] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<LiveParticipant | null>(null);
   const [notice, setNotice] = useState("");
   const [media, setMedia] = useState<LiveMedia | null>(null);
@@ -621,13 +624,31 @@ export default function LiveSession({
       root.style.overflow = previous;
     };
   }, [overlayShown]);
+  // Klaviatura ochilganda brauzer ekrani qisqarmasa ham xona ko'rinadigan qism bilan birga siljiydi.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv || !overlayShown) return;
+    const sync = () => {
+      const el = overlayRef.current;
+      if (!el) return;
+      el.style.height = `${vv.height}px`;
+      el.style.top = `${vv.offsetTop}px`;
+    };
+    sync();
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+    return () => {
+      vv.removeEventListener("resize", sync);
+      vv.removeEventListener("scroll", sync);
+    };
+  }, [overlayShown]);
   let overlay: React.ReactNode = null;
   if (overlayShown) {
     const bookTitle = sessionData?.bookTitle ?? "Yuklanmoqda...";
     const sessionTitle = sessionData?.title ?? "";
 
     overlay = createPortal(
-      <div className="live-overlay" role="dialog" aria-modal="true" aria-label={`${bookTitle} jonli suhbat`}>
+      <div ref={overlayRef} className="live-overlay" role="dialog" aria-modal="true" aria-label={`${bookTitle} jonli suhbat`}>
         <div className="live-window">
           <header className="live-topbar">
             <div className="live-topbar-main">
@@ -825,19 +846,6 @@ export default function LiveSession({
                   onGone={(id) => setFloating((prev) => prev.filter((m) => m.id !== id))}
                   onDelete={(id) => clientRef.current?.deleteMessage(id)}
                 />
-                <form className="live-float-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
-                  <input
-                    aria-label="Izoh yozing"
-                    placeholder="Izoh yozing…"
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    maxLength={LIMITS_LIVE.messageBody}
-                    enterKeyHint="send"
-                  />
-                  <button aria-label="Izoh yuborish" disabled={!draft.trim()}>
-                    <Send size={17} />
-                  </button>
-                </form>
               </>
             )}
 
@@ -878,7 +886,26 @@ export default function LiveSession({
           </div>
 
           {/* ── Boshqaruv paneli ── */}
-          <footer className="live-controls">
+          <footer className={`live-controls${typing ? " is-typing" : ""}`}>
+            {connState === "joined" && status === "live" && commentsOn && (
+              <form className="live-float-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
+                <input
+                  aria-label="Izoh yozing"
+                  placeholder="Izoh yozing…"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  // Ixcham maket faqat ekran klaviaturasi bo'lgan (sensorli) qurilmada: kompyuterda boshqaruv tugmalari yashirinmaydi.
+                  onFocus={() => setTyping(window.matchMedia("(pointer: coarse)").matches)}
+                  onBlur={() => setTyping(false)}
+                  maxLength={LIMITS_LIVE.messageBody}
+                  enterKeyHint="send"
+                />
+                {/* Tugma bosilganda maydon fokusni yo'qotmasin: aks holda maket o'zgarib, tugma bosish tugamasdan siljib ketadi va izoh yuborilmaydi. */}
+                <button aria-label="Izoh yuborish" disabled={!draft.trim()} onMouseDown={(e) => e.preventDefault()}>
+                  <Send size={17} />
+                </button>
+              </form>
+            )}
             <div className="live-control-actions">
               {controls.map(({ label, icon: Icon, active, disabled, pending, action, hint }) => (
                 <button

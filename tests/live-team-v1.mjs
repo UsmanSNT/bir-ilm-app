@@ -113,6 +113,7 @@ try {
   const announcement = { title: "Yangi suhbat", body: "Qo'shiling" };
   const announced = await create(admin, body({ title: "E'longa", announcement }));
   assert.equal(announced.audience, "public", "E'lon bilan ochilgan suhbat — hamma uchun");
+  await create(moderator, body({ title: "Moderator e'loni", announcement }), 403);
   await create(admin, body({ audience: "team", announcement }), 422);
   await create(admin, body({ audience: "boshqa" }), 422);
   const team = await create(moderator, body({ title: "Jamoa yig'ilishi", audience: "team" }));
@@ -126,7 +127,7 @@ try {
   assert.equal((await moderator.call(liveOne.GET, `/api/v1/live/${team.id}`, { params: { id: team.id } })).data.session.audience, "team");
   assert.equal((await user.call(liveOne.GET, `/api/v1/live/${open.id}`, { params: { id: open.id } })).data.session.id, open.id);
   assert.deepEqual([liveSessionVisibleTo({ audience: "team" }, false), liveSessionVisibleTo({ audience: "team" }, true), liveSessionVisibleTo({ audience: "public" }, false)], [false, true, true]);
-  console.log("PASS: Jamoa suhbati faqat admin va moderatorga ko'rinadi (ro'yxatda ham, alohida ham); e'lon bilan birga ochib bo'lmaydi.");
+  console.log("PASS: Jamoa suhbati faqat admin va moderatorga ko'rinadi (ro'yxatda ham, alohida ham); e'lonni faqat admin joylaydi, jamoa suhbati e'lon qilinmaydi.");
 
   // --- Kim boshlaydi -----------------------------------------------------------------
   const startPath = (talk) => `/api/v1/live/${talk.id}/start`;

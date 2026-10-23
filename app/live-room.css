@@ -10,6 +10,7 @@
   background: linear-gradient(180deg, #17235c 0%, #0f1842 46%, #0a1030 100%);
   border: 1px solid #e2b65c3d; box-shadow: 0 30px 80px -24px #000c, inset 0 1px 0 #ffffff14;
 }
+.live-overlay .live-window { height: min(850px, 100%); }
 .live-overlay .live-window::before { content: ""; position: absolute; inset: 0; z-index: 0; background: var(--girih) center / 64px; opacity: .1; pointer-events: none; }
 .live-overlay .live-window > * { position: relative; z-index: 1; }
 
@@ -111,7 +112,19 @@
 
 /* ───────── Pastki boshqaruv ───────── */
 
-.live-overlay .live-controls { border-top: 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); }
+.live-overlay .live-controls { border-top: 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
+.live-overlay .live-controls.is-typing { padding-top: 8px; padding-bottom: 8px; }
+.live-overlay .live-controls.is-typing .live-control-actions { display: none; }
+/* Izoh yozilayotganda (klaviatura ochiq) sahna qisqaradi, video va izoh maydoni birga ko'rinadi. */
+.live-overlay .live-window:has(.live-controls.is-typing) .live-stage { height: 180px; max-height: 180px; }
+/* Izoh yozilayotganda yuqoridagi holat qatori (LIVE, yozib olish, tugatish) yashiriladi. */
+.live-overlay .live-window:has(.live-controls.is-typing) .live-status-row { display: none; }
+/* Izoh yozilayotganda suzuvchi izohlar zonasi yopiladi: video va izoh maydoni orasida bo'sh joy qolmaydi. */
+.live-overlay .live-window:has(.live-controls.is-typing) .live-float { flex: 0 0 0; height: 0; min-height: 0; }
+.live-overlay .live-window:has(.live-controls.is-typing) .live-stage .live-cams { height: 100%; }
+.live-overlay .live-window:has(.live-controls.is-typing) .live-stage .live-video-tile { height: 100%; }
+.live-overlay .live-window:has(.live-controls.is-typing) .live-stage video { height: 100%; width: 100%; object-fit: cover; }
+.live-overlay .live-controls .live-float-form { margin: 0; }
 .live-overlay .live-control-actions { align-items: flex-end; justify-content: space-between; gap: 2px; padding: 10px 8px 9px; border-radius: 30px; background: #ffffff14; box-shadow: inset 0 0 0 1px #e2b65c3d, 0 14px 30px -16px #000; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .live-overlay .live-control-actions button { gap: 6px; color: #e9ecff; }
 .live-overlay .live-control-actions button span { width: 48px; height: 48px; background: #ffffff1a; color: #fff; box-shadow: inset 0 0 0 1px #ffffff14; transition: background .15s, transform .12s; }
@@ -146,7 +159,9 @@
 }
 @media (max-width: 500px) {
   .live-overlay { padding: 0; }
-  .live-overlay .live-window { width: 100%; border: 0; border-radius: 0; }
+  /* Telefonda xona ekrandagi ko'rinadigan balandlikka to'liq sig'adi; footer doim pastda qoladi. */
+  .live-overlay { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; }
+  .live-overlay .live-window { width: 100%; height: auto; flex: 1 1 0; min-height: 0; max-height: none; border: 0; border-radius: 0; }
   .live-overlay .live-room-title strong { font-size: 19px; }
   .live-overlay .live-speakers { grid-template-columns: repeat(3, 1fr); }
 }
