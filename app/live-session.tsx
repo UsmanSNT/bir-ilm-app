@@ -190,6 +190,8 @@ export default function LiveSession({
   /** O'zim yuborgan izohlar vaqti — server chegarasiga yetmasdan oldin yozilgan matn yo'qolmasin. */
   const sentAtRef = useRef<number[]>([]);
   const [draft, setDraft] = useState("");
+  // Izoh yozilayotganda (klaviatura ochiq) boshqaruv tugmalari yashiriladi, faqat matn maydoni qoladi.
+  const [typing, setTyping] = useState(false);
   const [selected, setSelected] = useState<LiveParticipant | null>(null);
   const [notice, setNotice] = useState("");
   const [media, setMedia] = useState<LiveMedia | null>(null);
@@ -825,19 +827,6 @@ export default function LiveSession({
                   onGone={(id) => setFloating((prev) => prev.filter((m) => m.id !== id))}
                   onDelete={(id) => clientRef.current?.deleteMessage(id)}
                 />
-                <form className="live-float-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
-                  <input
-                    aria-label="Izoh yozing"
-                    placeholder="Izoh yozing…"
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    maxLength={LIMITS_LIVE.messageBody}
-                    enterKeyHint="send"
-                  />
-                  <button aria-label="Izoh yuborish" disabled={!draft.trim()}>
-                    <Send size={17} />
-                  </button>
-                </form>
               </>
             )}
 
@@ -878,7 +867,24 @@ export default function LiveSession({
           </div>
 
           {/* ── Boshqaruv paneli ── */}
-          <footer className="live-controls">
+          <footer className={`live-controls${typing ? " is-typing" : ""}`}>
+            {connState === "joined" && status === "live" && commentsOn && (
+              <form className="live-float-form" onSubmit={(e) => { e.preventDefault(); sendComment(); }}>
+                <input
+                  aria-label="Izoh yozing"
+                  placeholder="Izoh yozing…"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onFocus={() => setTyping(true)}
+                  onBlur={() => setTyping(false)}
+                  maxLength={LIMITS_LIVE.messageBody}
+                  enterKeyHint="send"
+                />
+                <button aria-label="Izoh yuborish" disabled={!draft.trim()}>
+                  <Send size={17} />
+                </button>
+              </form>
+            )}
             <div className="live-control-actions">
               {controls.map(({ label, icon: Icon, active, disabled, pending, action, hint }) => (
                 <button

@@ -111,7 +111,10 @@
 
 /* ───────── Pastki boshqaruv ───────── */
 
-.live-overlay .live-controls { border-top: 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); }
+.live-overlay .live-controls { border-top: 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
+.live-overlay .live-controls.is-typing { padding-top: 8px; padding-bottom: 8px; }
+.live-overlay .live-controls.is-typing .live-control-actions { display: none; }
+.live-overlay .live-controls .live-float-form { margin: 0; }
 .live-overlay .live-control-actions { align-items: flex-end; justify-content: space-between; gap: 2px; padding: 10px 8px 9px; border-radius: 30px; background: #ffffff14; box-shadow: inset 0 0 0 1px #e2b65c3d, 0 14px 30px -16px #000; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .live-overlay .live-control-actions button { gap: 6px; color: #e9ecff; }
 .live-overlay .live-control-actions button span { width: 48px; height: 48px; background: #ffffff1a; color: #fff; box-shadow: inset 0 0 0 1px #ffffff14; transition: background .15s, transform .12s; }

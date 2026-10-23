@@ -48,6 +48,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Klaviatura ochilganda sahifa qisqaradi, pastki panel (izoh) klaviatura ustida qoladi.
+  interactiveWidget: "resizes-content",
   themeColor: "#f7f1e4",
 };
 
