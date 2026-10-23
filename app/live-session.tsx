@@ -192,6 +192,7 @@ export default function LiveSession({
   const [draft, setDraft] = useState("");
   // Izoh yozilayotganda (klaviatura ochiq) boshqaruv tugmalari yashiriladi, faqat matn maydoni qoladi.
   const [typing, setTyping] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<LiveParticipant | null>(null);
   const [notice, setNotice] = useState("");
   const [media, setMedia] = useState<LiveMedia | null>(null);
@@ -623,13 +624,31 @@ export default function LiveSession({
       root.style.overflow = previous;
     };
   }, [overlayShown]);
+  // Klaviatura ochilganda brauzer ekrani qisqarmasa ham xona ko'rinadigan qism bilan birga siljiydi.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv || !overlayShown) return;
+    const sync = () => {
+      const el = overlayRef.current;
+      if (!el) return;
+      el.style.height = `${vv.height}px`;
+      el.style.top = `${vv.offsetTop}px`;
+    };
+    sync();
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+    return () => {
+      vv.removeEventListener("resize", sync);
+      vv.removeEventListener("scroll", sync);
+    };
+  }, [overlayShown]);
   let overlay: React.ReactNode = null;
   if (overlayShown) {
     const bookTitle = sessionData?.bookTitle ?? "Yuklanmoqda...";
     const sessionTitle = sessionData?.title ?? "";
 
     overlay = createPortal(
-      <div className="live-overlay" role="dialog" aria-modal="true" aria-label={`${bookTitle} jonli suhbat`}>
+      <div ref={overlayRef} className="live-overlay" role="dialog" aria-modal="true" aria-label={`${bookTitle} jonli suhbat`}>
         <div className="live-window">
           <header className="live-topbar">
             <div className="live-topbar-main">
