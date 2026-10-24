@@ -12,7 +12,8 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],
     prefer_related_applications: false,
-    background_color: "#f7f1e4",
+    // Android ochilish ekrani shu rangda: ochilish animatsiyasining foni (public/assets/bir-ilm-splash.mp4) bilan bir xil.
+    background_color: "#f4fafe",
     theme_color: "#172351",
     icons: [
       { src: "/assets/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

@@ -1,5 +1,7 @@
 import PwaRegister from "./pwa-register";
 import { InstallHelp } from "./install-app";
+import IntroSplash from "./intro-splash";
+import { INTRO_HEAD_SCRIPT, INTRO_START_SCRIPT } from "./intro-script";
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/fraunces";
 import "@fontsource-variable/fraunces/wght-italic.css";
@@ -22,6 +24,7 @@ import "./live-room.css";
 import "./ebook.css";
 import "./about.css";
 import "./install-app.css";
+import "./intro-splash.css";
 
 export const metadata: Metadata = {
   title: "Bir Ilm — kitobxonlik ilovasi",
@@ -40,7 +43,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: "/assets/bir-ilm-logo.jpg", type: "image/jpeg" }],
     shortcut: "/assets/bir-ilm-logo.jpg",
-    apple: "/assets/icon-192.png",
+    apple: "/assets/apple-touch-icon.png",
   },
 };
 
@@ -59,8 +62,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="uz">
-      <body className="antialiased">{children}<PwaRegister /><InstallHelp /></body>
+    // `show-intro` sinfini <head> skripti React'dan oldin qo'shadi (ilova sifatida ochilganda ochilish animatsiyasi uchun).
+    <html lang="uz" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: INTRO_HEAD_SCRIPT }} />
+      </head>
+      <body className="antialiased"><IntroSplash /><script dangerouslySetInnerHTML={{ __html: INTRO_START_SCRIPT }} />{children}<PwaRegister /><InstallHelp /></body>
     </html>
   );
 }

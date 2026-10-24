@@ -1,0 +1,10 @@
+/* Ilova ochilish animatsiyasi (app/intro-splash.tsx). Faqat <html class="show-intro"> bo'lganda ko'rinadi. */
+#bir-intro { display: none; position: fixed; inset: 0; z-index: 2147483000; background: #f4fafe; transition: opacity .45s ease; }
+/* `pointer-events: auto`: ochiq oyna (Radix) sahifaga `pointer-events: none` qo'yadi — qatlam shundan meros olsa, bosib o'tkazib bo'lmasdi. */
+html.show-intro #bir-intro { display: block; pointer-events: auto; }
+/* contain: ekran nisbati qanday bo'lmasin, belgi kesilmaydi; bo'sh joy videoning o'z fon rangi. */
+#bir-intro video { display: block; width: 100%; height: 100%; object-fit: contain; background: #f4fafe; }
+#bir-intro.is-done, html.show-intro #bir-intro.is-done { opacity: 0; pointer-events: none; }
+/* Animatsiya paytida sahifa orqada aylanmasin. */
+html.show-intro, html.show-intro body { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { #bir-intro { transition: none; } }
