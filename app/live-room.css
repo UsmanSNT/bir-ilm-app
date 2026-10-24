@@ -237,9 +237,6 @@
 /* Sahna: taqdimot (ekran) yoki kameralar. Balandligi — pastdagi «yon panel» bo'limida. */
 .live-overlay .live-stage { flex: none; margin: 8px 12px 0; overflow: hidden; border-radius: 18px; background: #070b22; box-shadow: inset 0 0 0 1px #e2b65c33; }
 .live-overlay .live-stage-screen { display: flex; flex-direction: column; height: auto; }
-.live-overlay .live-stage-screen .live-share-banner { height: 36px; gap: 7px; padding: 0 12px; background: #0f1842; font-size: 12px; font-weight: 700; }
-.live-overlay .live-stage-screen .live-share-banner .live-avatar-circle { width: 22px; font-size: 10px; outline: 0; }
-.live-overlay .live-stage-screen .live-shared-screen { flex: none; }
 .live-overlay .live-stage-screen .live-camera-strip { height: 76px; padding: 4px; gap: 4px; background: #070b22; }
 .live-overlay .live-stage-screen .live-camera-strip .live-video-tile { flex: 0 0 104px; border-radius: 10px; }
 .live-cams { display: grid; gap: 4px; padding: 4px; }
@@ -258,6 +255,70 @@
 .live-overlay .live-room.has-stage > .live-stage { flex: 1 1 0; min-height: 0; max-height: 560px; }
 .live-overlay .live-stage.live-cams { grid-template-rows: minmax(0, 1fr); }
 .live-overlay .live-stage-screen .live-shared-screen { flex: 1 1 0; min-height: 0; }
+
+/* ───────── Ulashilgan ekran ─────────
+ * Tasvir ko'rinish maydoniga nisbati saqlangan holda sig'adi (`cq` birliklari: konteyner o'lchami); kattalashtirilganda
+ * konteyner ichida suriladi. Ulashuvchi nomi va tugmalar tasvir ustida — alohida qator joy olmaydi.
+ */
+.live-shared-screen { position: relative; overflow: hidden; background: #000; }
+.live-shared-view {
+  position: absolute; inset: 0; display: flex; overflow: auto; container-type: size;
+  scrollbar-width: thin; scrollbar-color: #ffffff55 transparent; overscroll-behavior: contain; touch-action: pan-x pan-y;
+}
+.live-shared-screen[data-zoomed] .live-shared-view { cursor: grab; }
+.live-shared-screen[data-zoomed] .live-shared-view:active { cursor: grabbing; }
+/* margin: auto — tasvir kichik bo'lsa o'rtada turadi, katta bo'lsa chetlari kesilmay surib ko'riladi. */
+.live-shared-video {
+  display: block; flex: none; margin: auto; max-width: none; max-height: none; background: #0d0f21; user-select: none; -webkit-user-select: none;
+  width: calc(min(100cqw, 100cqh * var(--ratio)) * var(--zoom)); aspect-ratio: var(--ratio); object-fit: contain;
+}
+@supports not (width: 1cqw) {
+  .live-shared-video { width: 100%; height: 100%; aspect-ratio: auto; }
+}
+.live-share-badge {
+  position: absolute; top: 8px; left: 8px; z-index: 1; display: flex; align-items: center; gap: 6px; max-width: calc(100% - 172px);
+  height: 28px; padding: 0 10px 0 8px; border-radius: 999px; background: #070b22b3; color: #eceaff; font-size: 11.5px; font-weight: 700;
+  box-shadow: inset 0 0 0 1px #e2b65c40; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); pointer-events: none;
+}
+.live-share-badge, .live-share-tools { transition: opacity .25s ease; }
+.live-shared-screen.is-idle .live-share-badge, .live-shared-screen.is-idle .live-share-tools { opacity: 0; pointer-events: none; }
+.live-share-badge > svg { flex: none; color: var(--tilla-2); }
+.live-share-badge .live-avatar-circle { width: 18px; height: 18px; flex: none; font-size: 9px; outline: 0; box-shadow: none; }
+.live-share-badge span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-share-tools {
+  position: absolute; top: 8px; right: 8px; z-index: 1; display: flex; align-items: center; gap: 2px; height: 32px; padding: 0 3px;
+  border-radius: 999px; background: #070b22bf; color: #eceaff; box-shadow: inset 0 0 0 1px #e2b65c40;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.live-share-tools button {
+  display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%;
+  background: none; color: inherit; cursor: pointer; touch-action: manipulation;
+}
+.live-share-tools button:hover:not(:disabled) { background: #ffffff26; }
+.live-share-tools button:focus-visible { outline: 2px solid var(--tilla-2); outline-offset: 1px; }
+.live-share-tools button:disabled { opacity: .35; cursor: default; }
+.live-share-tools output { min-width: 24px; font: 800 11px/1 var(--f-ui); text-align: center; font-variant-numeric: tabular-nums; }
+/* To'liq ekran: brauzerning o'zi butun ekranni beradi; iPhone kabilarda `is-expanded` sahifa ustini to'ldiradi. */
+.live-shared-screen:fullscreen { border-radius: 0; }
+.live-shared-screen.is-expanded { position: fixed; inset: 0; z-index: 60; border-radius: 0; }
+.live-shared-screen:fullscreen .live-share-badge, .live-shared-screen.is-expanded .live-share-badge { top: max(10px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); }
+.live-shared-screen:fullscreen .live-share-tools, .live-shared-screen.is-expanded .live-share-tools { top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); }
+/* Kengaytirilgan ekran pastdagi boshqaruv va izoh maydoni ustida turishi kerak (ular ham `.live-window > *` qatlamida). */
+.live-overlay .live-window:has(.live-shared-screen.is-expanded) > .live-main { z-index: 5; }
+
+/* Kompyuterda ulashilgan ekran 430px oynaga sig'sa matn o'qilmaydi: ekran ulashilganda oyna kengayadi, boshqaruv esa
+ * avvalgi eni va o'rtada qoladi. */
+@media (min-width: 760px) {
+  .live-overlay .live-window:has(.live-stage-screen) { width: min(100%, 1180px); height: min(940px, 100%); }
+  .live-overlay .live-window:has(.live-stage-screen) .live-controls { width: min(100%, 460px); align-self: center; padding-inline: 0; }
+  .live-overlay .live-room.has-stage > .live-stage-screen { max-height: none; }
+}
+/* Keng oynada efir izohlari ekranning pastidan joy olmaydi: yonda ustun bo'lib turadi, tasvir to'liq balandlikni oladi. */
+@media (min-width: 980px) {
+  .live-overlay .live-window:has(.live-stage-screen):has(.live-float) .live-main { display: grid; grid-template-columns: minmax(0, 1fr) 280px; grid-template-rows: minmax(0, 1fr); }
+  .live-overlay .live-window:has(.live-stage-screen):has(.live-float) .live-main > .live-room { grid-area: 1 / 1; }
+  .live-overlay .live-window:has(.live-stage-screen):has(.live-float) .live-main > .live-float { grid-area: 1 / 2; flex: none; min-height: 0; margin: 0 12px 0 0; }
+}
 .live-people-scrim { position: absolute; inset: 0; z-index: 4; background: #070b2266; }
 .live-people-dock {
   position: absolute; top: 0; right: 0; bottom: 0; z-index: 4; width: min(300px, 80%);

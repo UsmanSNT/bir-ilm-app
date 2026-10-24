@@ -95,6 +95,18 @@ function trackOf(p: Participant, source: Track.Source): Track | undefined {
   return found;
 }
 
+/**
+ * Ekran ulashish: matn va interfeys uchun aniqlik muhim, shuning uchun 1080p/30 kadr tasvirga olinadi (ramka tezligi
+ * tarmoq yetmasa avtomatik kamayadi, aniqlik emas — `contentHint: "detail"`). Uch qatlam yuboriladi: 360p (tor oyna,
+ * sust internet), 720p va 1080p (kattalashtirilganda/to'liq ekranda). Tomoshabin faqat kerakli qatlamni oladi,
+ * hech kim olmaydigan qatlamni `dynacast` yubormaydi — ulashuvchi uchun qo'shimcha yuk deyarli yo'q.
+ */
+const SCREEN_CAPTURE = ScreenSharePresets.h1080fps30;
+const SCREEN_PUBLISH = {
+  screenShareEncoding: SCREEN_CAPTURE.encoding,
+  screenShareSimulcastLayers: [ScreenSharePresets.h360fps15, ScreenSharePresets.h720fps15],
+};
+
 class TimeoutError extends Error {
   constructor() {
     super("Ekran ulashish ulanmadi: media serveri javob bermadi. Qayta urinib ko'ring (LiveKit serveri yangi versiyada bo'lishi kerak).");
@@ -144,7 +156,8 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
     document.body.appendChild(host);
 
     const room = new Room({
-      adaptiveStream: true,
+      // Qatlam tanlashda ekranning piksel zichligi hisobga olinadi: ulashilgan ekrandagi mayda matn xira chiqmaydi.
+      adaptiveStream: { pixelDensity: "screen" },
       dynacast: true,
       audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 48_000 },
       // Standart nutq sifati (~24 kbit/s) kitob muhokamasi uchun past: ovoz "g'ijirlab" eshitiladi.
@@ -310,14 +323,14 @@ export function useLiveMedia(media: LiveMedia | null, onError: (message: string)
       }
       const lp = r.localParticipant;
       if (lp.isScreenShareEnabled) return lp.setScreenShareEnabled(false);
-      const options = { audio: true, contentHint: "detail" as const, resolution: ScreenSharePresets.h1080fps15.resolution };
+      const options = { audio: true, contentHint: "detail" as const, resolution: SCREEN_CAPTURE.resolution };
       try {
-        await withTimeout(lp.setScreenShareEnabled(true, options), 25_000);
+        await withTimeout(lp.setScreenShareEnabled(true, options, SCREEN_PUBLISH), 25_000);
       } catch (error) {
         const name = error instanceof Error ? error.name : "";
         if (name === "NotAllowedError" || name === "AbortError" || error instanceof TimeoutError) throw error;
         // Ba'zi brauzerlar ekran bilan birga ovoz so'ralsa rad etadi — faqat tasvir bilan qayta urinamiz.
-        await withTimeout(lp.setScreenShareEnabled(true, { ...options, audio: false }), 25_000);
+        await withTimeout(lp.setScreenShareEnabled(true, { ...options, audio: false }, SCREEN_PUBLISH), 25_000);
       }
     }, true),
     startAudio: () => run("audio", (r) => r.startAudio()),

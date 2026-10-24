@@ -37,6 +37,7 @@ import { RoomRecorder, recordingSupported, saveRecordingFile } from "@/lib/api/l
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { LoginDialog } from "./login-dialog";
 import { Avatar } from "./live-avatar";
+import SharedScreen from "./live-shared-screen";
 import TalkComments from "./talk-comments";
 import TalksBoard from "./talks-board";
 import { TALKS_CHANGED } from "./talk-format";
@@ -119,7 +120,7 @@ function FloatingComments({ items, myId, canDelete, onGone, onDelete }: {
   );
 }
 
-function VideoTrackView({ track, mirror = false, fit = "cover" }: { track: Track; mirror?: boolean; fit?: "cover" | "contain" }) {
+function VideoTrackView({ track, mirror = false }: { track: Track; mirror?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -136,7 +137,7 @@ function VideoTrackView({ track, mirror = false, fit = "cover" }: { track: Track
       autoPlay
       playsInline
       muted
-      style={{ objectFit: fit, transform: mirror ? "scaleX(-1)" : undefined }}
+      style={{ objectFit: "cover", transform: mirror ? "scaleX(-1)" : undefined }}
     />
   );
 }
@@ -741,14 +742,7 @@ export default function LiveSession({
               <div className={`live-room${stage ? " has-stage" : ""}`}>
                 {stage === "screen" && av.screenSharer && (
                   <section className="live-stage live-stage-screen">
-                    <div className="live-share-banner">
-                      <MonitorUp size={17} />
-                      {sharerName && <Avatar name={sharerName} />}
-                      {sharerName} ekranini ulashmoqda
-                    </div>
-                    <div className="live-shared-screen">
-                      <VideoTrackView track={av.screenSharer.track} fit="contain" />
-                    </div>
+                    <SharedScreen key={av.screenSharer.userId} track={av.screenSharer.track} sharerName={sharerName} />
                     {cameraPeople.length > 0 && (
                       <div className="live-camera-strip">
                         {cameraPeople.map(cameraTile)}
