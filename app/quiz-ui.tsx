@@ -7,7 +7,9 @@
  */
 import { useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Link2 } from "lucide-react";
+import { Copy, Link2, MessageCircle, Share2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Facebook, Telegram } from "./brand-icons";
 import { OTPInput, REGEXP_ONLY_DIGITS } from "input-otp";
 import {
   ArrowRight,
@@ -158,25 +160,68 @@ export function QuizHero({
 }
 
 /** Eng yaqin jonli viktorina: holat belgisi, vaqt, ishtirokchilar va qo'shilish tugmasi. */
-/** Viktorina havolasi (`?viktorina=ID`): ochgan odam kirgandan keyin yakka o'ynaydi. */
-export function ShareQuizButton({ quizId, title }: { quizId: string; title: string }) {
-  async function share() {
-    const url = `${window.location.origin}/?viktorina=${quizId}`;
+/** Viktorinaning qisqa havolasi: `https://birilm.uz/q/<id>` (oldindan ko'rinish bilan). */
+export function quizShortUrl(quizId: string): string {
+  return `${window.location.origin}/q/${quizId.replace(/^qz_/, "")}`;
+}
+
+/** Ulashish oynasi: Telegram, WhatsApp, Facebook, nusxalash va (telefonda) boshqa ilovalar. */
+export function ShareSheet({ open, onOpenChange, title, url }: { open: boolean; onOpenChange: (open: boolean) => void; title: string; url: string }) {
+  const text = `«${title}» viktorinasi — Bir Ilm`;
+  const enc = encodeURIComponent;
+  const targets = [
+    { id: "tg", name: "Telegram", href: `https://t.me/share/url?url=${enc(url)}&text=${enc(text)}`, icon: <Telegram size={22} /> },
+    { id: "wa", name: "WhatsApp", href: `https://wa.me/?text=${enc(`${text}\n${url}`)}`, icon: <MessageCircle size={22} /> },
+    { id: "fb", name: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}`, icon: <Facebook size={22} /> },
+  ];
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+
+  async function copy() {
     try {
-      if (navigator.share) {
-        await navigator.share({ title, url });
-        return;
-      }
       await navigator.clipboard.writeText(url);
       toast.success("Havola nusxalandi");
     } catch {
-      // Foydalanuvchi ulashishni bekor qildi yoki nusxalash ruxsat etilmagan.
+      toast.error("Nusxalab bo‘lmadi — havolani qo‘lda belgilang");
     }
   }
+
+  async function more() {
+    try {
+      await navigator.share({ title: text, url });
+    } catch {
+      // Foydalanuvchi bekor qildi.
+    }
+  }
+
   return (
-    <button type="button" className="qz-share" onClick={share}>
-      <Link2 size={15} aria-hidden="true" /> Havolani ulashish
-    </button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="qz-sheet">
+        <DialogTitle>Ulashish</DialogTitle>
+        <DialogDescription>{title}</DialogDescription>
+        <div className="qz-sheet-targets">
+          {targets.map((target) => (
+            <a key={target.id} className={`qz-sheet-target is-${target.id}`} href={target.href} target="_blank" rel="noopener noreferrer">
+              <span className="qz-sheet-icon" aria-hidden="true">{target.icon}</span>
+              {target.name}
+            </a>
+          ))}
+          <button type="button" className="qz-sheet-target is-copy" onClick={copy}>
+            <span className="qz-sheet-icon" aria-hidden="true"><Link2 size={22} /></span>
+            Nusxalash
+          </button>
+          {canShare && (
+            <button type="button" className="qz-sheet-target is-more" onClick={more}>
+              <span className="qz-sheet-icon" aria-hidden="true"><Share2 size={22} /></span>
+              Boshqa
+            </button>
+          )}
+        </div>
+        <div className="qz-sheet-link">
+          <span>{url.replace(/^https?:\/\//, "")}</span>
+          <button type="button" onClick={copy} aria-label="Havolani nusxalash"><Copy size={16} /></button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -350,6 +395,7 @@ export function QuizCard({
   best,
   onStart,
   onEdit,
+  onShare,
 }: {
   cover: ReactNode;
   title: string;
@@ -359,9 +405,12 @@ export function QuizCard({
   best: number | null;
   onStart: () => void;
   onEdit?: () => void;
+  /** Ulashish oynasini ochadi (ikonka kartaning yuqori o'ng burchagida). */
+  onShare?: () => void;
 }) {
+  const actions = Number(Boolean(onEdit)) + Number(Boolean(onShare));
   return (
-    <div className={`qz-card-wrap${onEdit ? " has-edit" : ""}`}>
+    <div className={`qz-card-wrap${actions ? " has-edit" : ""}${actions === 2 ? " has-two" : ""}`}>
       <button className="qz-card" type="button" onClick={onStart}>
         {cover}
         <span className="qz-card-body">
@@ -381,10 +430,19 @@ export function QuizCard({
         </span>
         <span className="qz-card-go" aria-hidden="true"><Play size={14} /></span>
       </button>
-      {onEdit && (
-        <button className="qz-card-edit" type="button" aria-label={`${title} viktorinasini tahrirlash`} onClick={onEdit}>
-          <Pencil size={15} />
-        </button>
+      {actions > 0 && (
+        <span className="qz-card-actions">
+          {onShare && (
+            <button className="qz-card-edit" type="button" aria-label={`${title} viktorinasini ulashish`} onClick={onShare}>
+              <Share2 size={15} />
+            </button>
+          )}
+          {onEdit && (
+            <button className="qz-card-edit" type="button" aria-label={`${title} viktorinasini tahrirlash`} onClick={onEdit}>
+              <Pencil size={15} />
+            </button>
+          )}
+        </span>
       )}
     </div>
   );

@@ -437,3 +437,30 @@
 }
 
 .qz-share { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 12px; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 0.9rem; cursor: pointer; }
+
+/* Karta ikonkalari: ulashish va tahrirlash yuqori o'ng burchakda yonma-yon. */
+.qz-card-actions { position: absolute; top: 10px; right: 18px; display: flex; gap: 6px; }
+.qz-card-actions .qz-card-edit { position: static; }
+.qz-card-wrap.has-two .qz-card-body > strong { padding-right: 40px; }
+
+/* Ulashish oynasi. */
+.qz-sheet { max-width: 420px; }
+.qz-sheet-targets { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 12px; margin-top: 14px; }
+.qz-sheet-target {
+  display: grid; justify-items: center; gap: 6px; padding: 6px 0; border: 0; background: none;
+  color: var(--lojuvard, #1f2a44); font: 600 12px/1.2 var(--f-ui, inherit); text-decoration: none; cursor: pointer;
+}
+.qz-sheet-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; color: #fff; transition: transform .15s; }
+.qz-sheet-target:hover .qz-sheet-icon, .qz-sheet-target:focus-visible .qz-sheet-icon { transform: translateY(-2px); }
+.qz-sheet-target:focus-visible { outline: 3px solid var(--firuza-2, #0f4f45); outline-offset: 3px; border-radius: 12px; }
+.is-tg .qz-sheet-icon { background: #229ed9; }
+.is-wa .qz-sheet-icon { background: #25d366; }
+.is-fb .qz-sheet-icon { background: #1877f2; }
+.is-copy .qz-sheet-icon { background: var(--tilla-2, #c8962e); }
+.is-more .qz-sheet-icon { background: var(--lojuvard, #1f2a44); }
+.qz-sheet-link {
+  display: flex; align-items: center; gap: 8px; margin-top: 16px; padding: 8px 8px 8px 12px;
+  border: 1px solid var(--chiziq, #d9cfbb); border-radius: 10px; background: var(--qogoz-2, #f6efe2);
+}
+.qz-sheet-link span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.qz-sheet-link button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: #fff; color: inherit; cursor: pointer; }

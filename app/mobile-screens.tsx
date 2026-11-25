@@ -31,7 +31,8 @@ import {
   QuizAddButton,
   QuizCard,
   QuizCardSkeleton,
-  ShareQuizButton,
+  ShareSheet,
+  quizShortUrl,
   QuizCodeForm,
   QuizEmpty,
   QuizEntry,
@@ -240,6 +241,7 @@ export default function MobileScreens({
   const [showQuizzes, setShowQuizzes] = useState(false);
   // Kirish oynasi va havoladan kelgan viktorina (`?viktorina=ID`): kirgandan keyin shu viktorina ochiladi.
   const [loginOpen, setLoginOpen] = useState(false);
+  const [sharing, setSharing] = useState<Quiz | null>(null);
   const [pendingQuizId, setPendingQuizId] = useState<string | null>(quizIdFromLink);
   const [showLeaders, setShowLeaders] = useState(false);
   const [active, setActive] = useState<Quiz | null>(null);
@@ -734,7 +736,6 @@ export default function MobileScreens({
               </>
             )}
             {visibleQuizzes.map((quiz) => (
-              <div key={quiz.id} className="qz-item">
               <QuizCard
                 key={quiz.id}
                 cover={<BookCover title={quiz.title} author={quiz.author} tone={quiz.tone} size="sm" image={quiz.image} color={quiz.color} />}
@@ -745,10 +746,10 @@ export default function MobileScreens({
                 best={save.scores[quiz.id] ?? null}
                 onStart={() => startQuiz(quiz)}
                 onEdit={editor ? () => setQuizEditing({ quiz: serverQuizzes.items.find((x) => x.id === quiz.id) ?? null }) : undefined}
+                onShare={() => setSharing(quiz)}
               />
-              <ShareQuizButton quizId={quiz.id} title={quiz.title} />
-              </div>
             ))}
+            {sharing && <ShareSheet open onOpenChange={(open) => !open && setSharing(null)} title={sharing.title} url={quizShortUrl(sharing.id)} />}
             {viewer && <LoginDialog viewer={viewer} open={loginOpen} onOpenChange={setLoginOpen} />}
           </div>
 
