@@ -5,7 +5,9 @@
  * ravoq tokcha va koshin chizig'i. Bu fayldagi komponentlar faqat ko'rinish: holat va amallar
  * `mobile-screens.tsx` da qoladi, bu yerga tayyor qiymatlar va callback'lar uzatiladi.
  */
-import { useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { notifyQuizzesChanged } from "@/lib/api/quiz-client";
+import { WEEKDAYS, clock, countdown, countdownParts, dayMonth, useNow } from "./talk-format";
 import { toast } from "sonner";
 import { Copy, Link2, MessageCircle, Share2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -16,19 +18,16 @@ import {
   CalendarClock,
   ChevronLeft,
   Clock,
-  Flame,
   KeyRound,
   ListChecks,
   Pencil,
   Play,
   Plus,
   Radio,
-  Shuffle,
   Star,
   Trophy,
   UserRound,
   Users,
-  Zap,
 } from "lucide-react";
 import { QUIZ_SESSION_OPENS_BEFORE_MIN } from "@/shared/contract";
 
@@ -491,6 +490,36 @@ export function QuizLeaders({ rows }: { rows: QuizLeader[] }) {
 }
 
 /** Boshlash oynasi: ravoq tokchadagi muqova, savol/vaqt/rekord va qoidalar. */
+/** Belgilangan vaqtgacha qolgan vaqt: katta raqamli hisoblagich (kun ko'rsatiladi, agar bo'lsa). */
+function StartCountdown({ startsAt }: { startsAt: string }) {
+  const now = useNow(1000);
+  const parts = countdownParts(startsAt, now);
+  const at = new Date(startsAt);
+  const two = (n: number) => String(n).padStart(2, "0");
+  const cells = [
+    ...(parts.days > 0 ? [{ value: String(parts.days), label: "kun" }] : []),
+    { value: two(parts.hours), label: "soat" },
+    { value: two(parts.minutes), label: "daqiqa" },
+    { value: two(parts.seconds), label: "soniya" },
+  ];
+  return (
+    <div className="qz-wait">
+      <span className="qz-wait-label">Boshlanishiga qoldi</span>
+      <div className="qz-wait-clock" role="timer" aria-label={`Boshlanishiga ${countdown(startsAt, now)}`}>
+        {cells.map((cell) => (
+          <span key={cell.label} className="qz-wait-cell">
+            <b>{cell.value}</b>
+            <small>{cell.label}</small>
+          </span>
+        ))}
+      </div>
+      <span className="qz-wait-when">
+        <CalendarClock size={15} aria-hidden="true" /> {dayMonth(at)}, {WEEKDAYS[at.getDay()]}, soat {clock(at)}
+      </span>
+    </div>
+  );
+}
+
 export function QuizIntro({
   cover,
   title,
@@ -499,6 +528,8 @@ export function QuizIntro({
   minutes,
   best,
   live,
+  sessions = [],
+  onStartNow,
   onStart,
 }: {
   cover: ReactNode;
@@ -508,8 +539,25 @@ export function QuizIntro({
   minutes: number;
   best: number | null;
   live: boolean;
+  /** Belgilangan vaqtlar: eng yaqin kelajakdagisigacha hisoblagich, vaqt kelmaguncha boshlash yopiq. */
+  sessions?: { id: string; startsAt: string }[];
+  /** Admin/moderator: kutilayotgan vaqtni hamma uchun hozirga ko'chirish. */
+  onStartNow?: (sessionId: string) => void;
   onStart: () => void;
 }) {
+  const now = useNow(1000);
+  const upcoming = sessions
+    .filter((session) => Date.parse(session.startsAt) > now)
+    .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0] ?? null;
+
+  // Kutayotganlar ro'yxatni vaqti-vaqti bilan yangilaydi: admin «Hozir boshlash» ni bossa, hamma ko'radi.
+  const upcomingId = upcoming?.id ?? null;
+  useEffect(() => {
+    if (!upcomingId) return;
+    const timer = window.setInterval(notifyQuizzesChanged, 30_000);
+    return () => window.clearInterval(timer);
+  }, [upcomingId]);
+
   return (
     <section className="qz-stage qz-intro" aria-labelledby="qz-intro-title">
       <span className="qz-eyebrow">{live ? "Jonli viktorina" : "Mustaqil viktorina"}</span>
@@ -521,14 +569,20 @@ export function QuizIntro({
         <li><Clock size={18} /><b>~{minutes}</b><span>daqiqa</span></li>
         <li><Trophy size={18} /><b>{best ?? "—"}</b><span>eng yaxshi</span></li>
       </ul>
-      <ul className="qz-rules">
-        <li><Zap size={15} /> To‘g‘ri javob 500–1000 ball: qanchalik tez, shuncha ko‘p</li>
-        <li><Flame size={15} /> Ketma-ket to‘g‘ri javoblar bonus beradi (+50 … +250)</li>
-        <li><Shuffle size={15} /> Savollar tartibi har safar aralashadi</li>
-      </ul>
-      <button type="button" className="qz-gold qz-start" onClick={onStart}>
-        <Play size={18} /> Boshlash
-      </button>
+      {upcoming && <StartCountdown startsAt={upcoming.startsAt} />}
+      {!upcoming ? (
+        <button type="button" className="qz-gold qz-start" onClick={onStart}>
+          <Play size={18} /> Boshlash
+        </button>
+      ) : onStartNow ? (
+        <button type="button" className="qz-gold qz-start" onClick={() => onStartNow(upcoming.id)}>
+          <Play size={18} /> Hozir boshlash
+        </button>
+      ) : (
+        <button type="button" className="qz-gold qz-start" disabled>
+          <Clock size={18} /> Boshlanish vaqti kutilmoqda
+        </button>
+      )}
     </section>
   );
 }

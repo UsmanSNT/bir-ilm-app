@@ -48,6 +48,9 @@ export const addQuizSession = (quizId: string, startsAt: string) =>
   call<Quiz>(`/quizzes/${encodeURIComponent(quizId)}/sessions`, { method: "POST", body: JSON.stringify({ startsAt }) });
 export const removeQuizSession = (quizId: string, sessionId: string) =>
   call<Quiz>(`/quizzes/${encodeURIComponent(quizId)}/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+/** Admin/moderator: rejadagi vaqtni hozirga ko'chiradi — viktorina hamma uchun darhol ochiladi. */
+export const startQuizSessionNow = (quizId: string, sessionId: string) =>
+  call<Quiz>(`/quizzes/${encodeURIComponent(quizId)}/sessions/${encodeURIComponent(sessionId)}/start`, { method: "POST" });
 export const joinQuizByCode = (code: string) =>
   call<QuizJoin>("/quizzes/join", { method: "POST", body: JSON.stringify({ code }) });
 export const saveQuizResult = (input: { quizId: string; sessionId: string | null; correct: number; total: number; score?: number }) =>

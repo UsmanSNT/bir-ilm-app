@@ -59,6 +59,7 @@ const quizzes = await load("app/api/v1/quizzes/route.ts");
 const quiz = await load("app/api/v1/quizzes/[id]/route.ts");
 const sessionsRoute = await load("app/api/v1/quizzes/[id]/sessions/route.ts");
 const sessionRoute = await load("app/api/v1/quizzes/[id]/sessions/[sid]/route.ts");
+const startNowRoute = await load("app/api/v1/quizzes/[id]/sessions/[sid]/start/route.ts");
 const joinRoute = await load("app/api/v1/quizzes/join/route.ts");
 const resultsRoute = await load("app/api/v1/quizzes/results/route.ts");
 
@@ -166,6 +167,16 @@ try {
   await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: new Date(Date.now() - 3600_000).toISOString() }, expect: 400 });
   const withOne = (await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: soon }, expect: 201 })).payload.data;
   const withTwo = (await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: admin.cookie, params: { id: made.id }, body: { startsAt: later }, expect: 201 })).payload.data;
+  // «Hozir boshlash»: oddiy foydalanuvchi — 403; admin — rejadagi vaqt hozirga ko'chadi (server soati).
+  const laterSession = withTwo.sessions.find((x) => x.startsAt === new Date(later).toISOString());
+  await call(startNowRoute.POST, `/api/v1/quizzes/${made.id}/sessions/${laterSession.id}/start`, { method: "POST", cookie: user.cookie, params: { id: made.id, sid: laterSession.id }, expect: 403 });
+  const before = Date.now();
+  const startedNow = (await call(startNowRoute.POST, `/api/v1/quizzes/${made.id}/sessions/${laterSession.id}/start`, { method: "POST", cookie: admin.cookie, params: { id: made.id, sid: laterSession.id } })).payload.data;
+  const moved = startedNow.sessions.find((x) => x.id === laterSession.id);
+  assert.ok(Date.parse(moved.startsAt) >= before - 1000 && Date.parse(moved.startsAt) <= Date.now() + 1000, "Vaqt hozirga ko'chdi");
+  // Keyingi testlar uchun asl vaqtni qaytaramiz.
+  sqlite.prepare("UPDATE quiz_sessions SET starts_at = ? WHERE id = ?").run(laterSession.startsAt, laterSession.id);
+  console.log("PASS: «Hozir boshlash»: faqat admin/moderator, rejadagi vaqt hozirga ko'chadi.");
   assert.equal(withTwo.sessions.length, 2);
   const [s1, s2] = withTwo.sessions;
   assert.match(s1.code, /^\d{6}$/);

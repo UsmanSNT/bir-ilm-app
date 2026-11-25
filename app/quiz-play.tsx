@@ -9,6 +9,8 @@
  */
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowRight, BookOpen, Check, Flame, RotateCcw, Sparkles, X, Zap } from "lucide-react";
+import { toast } from "sonner";
+import { notifyQuizzesChanged, startQuizSessionNow } from "@/lib/api/quiz-client";
 import { questionPoints, type QuestionPoints } from "@/shared/contract";
 import type { Quiz, QuizQuestion } from "./quiz-data";
 import { PointsMeter, QuizChoices, formatPoints, verdictFor, type ChoiceState } from "./quiz-parts";
@@ -48,10 +50,13 @@ export default function QuizPlay({
   cover,
   best,
   live,
+  staff = false,
   onFinish,
   onBack,
 }: {
   quiz: Quiz;
+  /** Admin/moderator: rejadagi viktorinani hamma uchun «Hozir boshlash» mumkin. */
+  staff?: boolean;
   cover: ReactNode;
   /** Shu qurilmadagi eng yaxshi ball. */
   best: number | null;
@@ -129,6 +134,17 @@ export default function QuizPlay({
     onFinish(done);
   }
 
+  async function startNow(sessionId: string) {
+    if (!window.confirm("Viktorina hamma uchun hozir boshlansinmi? Belgilangan vaqt hozirga o‘zgaradi.")) return;
+    try {
+      await startQuizSessionNow(quiz.id, sessionId);
+      notifyQuizzesChanged();
+      toast.success("Viktorina boshlandi");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Boshlab bo‘lmadi.");
+    }
+  }
+
   if (stage === "intro") {
     return (
       <QuizIntro
@@ -139,6 +155,8 @@ export default function QuizPlay({
         minutes={quiz.minutes}
         best={best}
         live={live}
+        sessions={live ? [] : quiz.sessions ?? []}
+        onStartNow={staff ? (sessionId) => void startNow(sessionId) : undefined}
         onStart={() => begin(questions)}
       />
     );

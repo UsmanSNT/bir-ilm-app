@@ -325,6 +325,7 @@ export default function MobileScreens({
       color: linked?.color,
       playMode: q.playMode,
       timeSeconds: q.timeSeconds,
+      sessions: q.sessions.map((session) => ({ id: session.id, startsAt: session.startsAt })),
       questions: q.questions.map((qq) => ({ prompt: qq.prompt, choices: qq.choices.map((text, i) => ({ id: String(i), text })), answer: String(qq.answer) })),
     };
   }), [serverQuizzes.items, catalog.items]);
@@ -770,7 +771,8 @@ export default function MobileScreens({
           <Subhead title={active.title} onBack={() => { setScreen("quizzes"); setActive(null); }} />
           <QuizPlay
             key={active.id}
-            quiz={active}
+            quiz={quizzes.find((q) => q.id === active.id) ?? active}
+            staff={editor}
             cover={<BookCover title={active.title} author={active.author} tone={active.tone} image={active.image} color={active.color} />}
             best={save.scores[active.id] ?? null}
             live={activeSession != null}

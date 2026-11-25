@@ -464,3 +464,13 @@
 }
 .qz-sheet-link span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .qz-sheet-link button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: #fff; color: inherit; cursor: pointer; }
+
+/* Kirish ekrani: belgilangan vaqtgacha hisoblagich. */
+.qz-wait { display: grid; justify-items: center; gap: 10px; margin: 4px 0 18px; padding: 16px 12px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 18px; background: rgba(255, 255, 255, .06); }
+.qz-wait-label { font: 800 11px/1 var(--f-ui); letter-spacing: .16em; text-transform: uppercase; color: var(--tilla-2, #e2b85c); }
+.qz-wait-clock { display: flex; gap: 8px; }
+.qz-wait-cell { display: grid; justify-items: center; min-width: 58px; padding: 10px 6px 8px; border-radius: 12px; background: rgba(0, 0, 0, .22); }
+.qz-wait-cell b { font: 700 28px/1 var(--f-ui); font-variant-numeric: tabular-nums; color: #fff; }
+.qz-wait-cell small { margin-top: 4px; font-size: 11px; color: rgba(255, 255, 255, .7); }
+.qz-wait-when { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(255, 255, 255, .85); }
+.qz-start:disabled { opacity: .6; cursor: not-allowed; }

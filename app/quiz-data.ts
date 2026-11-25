@@ -22,6 +22,8 @@ export type Quiz = {
   playMode?: "group" | "group_solo";
   /** Har bir savolga javob vaqti (soniya). */
   timeSeconds?: number;
+  /** Belgilangan boshlanish vaqtlari (ISO). Kelajakdagisi bo'lsa — kirish ekranida hisoblagich. */
+  sessions?: { id: string; startsAt: string }[];
   questions: QuizQuestion[];
 };
 
