@@ -435,3 +435,5 @@
   .qz-entry:hover, .qz-entry:hover .qz-entry-go, .qz-card:hover, .qz-card:hover .qz-card-go, .qz-card:hover .qz-card-go svg { transform: none; }
   .qz-badge i, .qz-entry-live.is-open i, .qz-caret, .qz-question, .qz-ring, .qz-sparks i, .qz-card-skeleton > span, .qz-card-skeleton i { animation: none; }
 }
+
+.qz-share { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 12px; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 0.9rem; cursor: pointer; }

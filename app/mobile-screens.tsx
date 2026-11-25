@@ -185,6 +185,13 @@ const dayOfMonth = (date: string) => {
   return `${day}-${uzMonths[month - 1]}`;
 };
 
+/** Havola orqali kelgan 6 xonali xona kodi (`?xona=`); bo'lmasa — bo'sh satr. */
+function roomCodeFromLink(): string {
+  if (typeof window === "undefined") return "";
+  const fromLink = new URLSearchParams(window.location.search).get("xona");
+  return fromLink && /^\d{6}$/.test(fromLink) ? fromLink : "";
+}
+
 export default function MobileScreens({
   name,
   session,
@@ -220,7 +227,8 @@ export default function MobileScreens({
   const saveRaw = useSyncExternalStore(subscribeSave, readSaveSnapshot, () => "");
   const save = useMemo(() => parseSave(saveRaw), [saveRaw]);
   const [mode, setMode] = useState<QuizMode>("live");
-  const [code, setCode] = useState("");
+  // Havoladan kirish (`?xona=123456`): kod oldindan to'ldiriladi, o'yinchi «Qo‘shilish» ni bosadi.
+  const [code, setCode] = useState(roomCodeFromLink);
   const [showQuizzes, setShowQuizzes] = useState(false);
   const [showLeaders, setShowLeaders] = useState(false);
   const [active, setActive] = useState<Quiz | null>(null);
