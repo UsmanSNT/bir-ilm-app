@@ -503,17 +503,17 @@ function StartCountdown({ startsAt }: { startsAt: string }) {
     { value: two(parts.seconds), label: "soniya" },
   ];
   return (
-    <div className="qz-wait">
-      <span className="qz-wait-label">Boshlanishiga qoldi</span>
-      <div className="qz-wait-clock" role="timer" aria-label={`Boshlanishiga ${countdown(startsAt, now)}`}>
+    <div className="qz-countdown">
+      <span className="qz-countdown-label">Boshlanishiga qoldi</span>
+      <div className="qz-countdown-clock" role="timer" aria-label={`Boshlanishiga ${countdown(startsAt, now)}`}>
         {cells.map((cell) => (
-          <span key={cell.label} className="qz-wait-cell">
+          <span key={cell.label} className="qz-countdown-cell">
             <b>{cell.value}</b>
             <small>{cell.label}</small>
           </span>
         ))}
       </div>
-      <span className="qz-wait-when">
+      <span className="qz-countdown-when">
         <CalendarClock size={15} aria-hidden="true" /> {dayMonth(at)}, {WEEKDAYS[at.getDay()]}, soat {clock(at)}
       </span>
     </div>
