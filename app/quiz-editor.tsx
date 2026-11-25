@@ -70,7 +70,8 @@ export default function QuizEditor({ quiz, bookId, onClose }: { quiz: Quiz | nul
   const [error, setError] = useState("");
   // Jonli vaqtlar: har birining o'z kirish kodi bor. Ro'yxat serverdan kelgan javob bilan yangilanadi.
   const [sessions, setSessions] = useState(quiz?.sessions ?? []);
-  const [newWhen, setNewWhen] = useState("");
+  // Yangi (hali saqlanmagan) viktorina uchun tanlangan vaqtlar: «Saqlash» da viktorina bilan birga yoziladi.
+  const [pendingWhens, setPendingWhens] = useState<string[]>([]);
 
   // Qoralama faqat foydalanuvchi o'zgartirgandan keyin yoziladi (ochilganda eski holatni ustiga yozmaslik uchun).
   const edited = useRef(false);
@@ -91,14 +92,19 @@ export default function QuizEditor({ quiz, bookId, onClose }: { quiz: Quiz | nul
     setRestored(false);
   }
 
-  async function addSession() {
-    if (!quiz || !newWhen) return;
+  /** Vaqt tanlangan zahoti saqlanadi (alohida tugmasiz). Yangi viktorinada — saqlashgacha ro'yxatda turadi. */
+  async function addSession(when: string) {
+    if (!when) return;
+    if (!quiz) {
+      setPendingWhens((list) => (list.includes(when) ? list : [...list, when].sort()));
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      const updated = await addQuizSession(quiz.id, new Date(newWhen).toISOString());
+      const updated = await addQuizSession(quiz.id, new Date(when).toISOString());
       setSessions(updated.sessions);
-      setNewWhen("");
+      toast.success(`Vaqt qo‘shildi: ${formatWhen(when)}`);
       notifyQuizzesChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Vaqt qo‘shilmadi.");
@@ -169,7 +175,11 @@ export default function QuizEditor({ quiz, bookId, onClose }: { quiz: Quiz | nul
     };
     try {
       if (quiz) await updateQuiz(quiz.id, input);
-      else await createQuiz(input);
+      else {
+        const created = await createQuiz(input);
+        // Yangi viktorina uchun tanlangan vaqtlar endi yoziladi (viktorina id'si kerak edi).
+        for (const when of pendingWhens) await addQuizSession(created.id, new Date(when).toISOString());
+      }
       clearQuizDraft(draftKey);
       notifyQuizzesChanged();
       toast.success(quiz ? "Viktorina saqlandi." : "Viktorina qo‘shildi.");
@@ -286,8 +296,14 @@ export default function QuizEditor({ quiz, bookId, onClose }: { quiz: Quiz | nul
 
         <fieldset className="book-editor-talk qe-sessions" disabled={busy}>
           <legend><CalendarClock size={16} /> Jonli o‘tkazish vaqtlari</legend>
-          {!quiz && <p className="book-editor-talk-note">Avval viktorinani saqlang, keyin uni tahrirlab, vaqt va kirish kodi qo‘shasiz.</p>}
+          {!quiz && pendingWhens.length === 0 && <p className="book-editor-talk-note">Vaqt qo‘shilmagan. Tanlagan vaqtingiz «Saqlash» bosilganda viktorina bilan birga saqlanadi.</p>}
           {quiz && sessions.length === 0 && <p className="book-editor-talk-note">Vaqt qo‘shilmagan: viktorina faqat mustaqil rejimda yechiladi.</p>}
+          {pendingWhens.map((when) => (
+            <div key={when} className="qe-session">
+              <span><b>{formatWhen(when)}</b><small>Saqlashda qo‘shiladi</small></span>
+              <button type="button" aria-label="Vaqtni olib tashlash" onClick={() => setPendingWhens((list) => list.filter((x) => x !== when))}><Trash2 size={15} /></button>
+            </div>
+          ))}
           {sessions.map((s) => (
             <div key={s.id} className="qe-session">
               <span><b>{formatWhen(localInput(new Date(s.startsAt)))}</b><small>{s.participants} ishtirokchi</small></span>
@@ -295,12 +311,7 @@ export default function QuizEditor({ quiz, bookId, onClose }: { quiz: Quiz | nul
               <button type="button" aria-label="Vaqtni o‘chirish" onClick={() => void dropSession(s.id)}><Trash2 size={15} /></button>
             </div>
           ))}
-          {quiz && (
-            <>
-              <DateTimeField label="Yangi vaqt" value={newWhen} onChange={setNewWhen} min={localInput(new Date())} placeholder="Yangi vaqt qo‘shish" />
-              {newWhen && <button type="button" className="qe-add" onClick={() => void addSession()}><Plus size={16} /> Vaqt va kod qo‘shish</button>}
-            </>
-          )}
+          <DateTimeField label="Yangi vaqt" value="" onChange={(when) => void addSession(when)} min={localInput(new Date())} placeholder="Yangi vaqt qo‘shish" />
         </fieldset>
 
         {error && <p className="admin-error" role="alert">{error}</p>}
