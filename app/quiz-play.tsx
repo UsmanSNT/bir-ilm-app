@@ -51,10 +51,16 @@ export default function QuizPlay({
   best,
   live,
   staff = false,
+  onJoinLive,
+  onShare,
   onFinish,
   onBack,
 }: {
   quiz: Quiz;
+  /** Jonli xonaga kirish (vaqt ochiq bo'lsa). */
+  onJoinLive?: (sessionId: string) => void;
+  /** Ulashish oynasini ochadi. */
+  onShare?: () => void;
   /** Admin/moderator: rejadagi viktorinani hamma uchun «Hozir boshlash» mumkin. */
   staff?: boolean;
   cover: ReactNode;
@@ -156,6 +162,10 @@ export default function QuizPlay({
         best={best}
         live={live}
         sessions={live ? [] : quiz.sessions ?? []}
+        soloAllowed={live || quiz.playMode !== "group"}
+        staff={staff}
+        onJoinLive={onJoinLive}
+        onShare={onShare}
         onStartNow={staff ? (sessionId) => void startNow(sessionId) : undefined}
         onStart={() => begin(questions)}
       />

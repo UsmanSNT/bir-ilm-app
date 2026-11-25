@@ -9,6 +9,9 @@ export type QuizQuestion = {
   answer: string;
 };
 
+/** Viktorina vaqti: kod faqat admin/moderatorga keladi (boshqalarga null). */
+export type QuizSessionRef = { id: string; startsAt: string; code?: string | null; participants?: number };
+
 export type Quiz = {
   id: string;
   title: string;
@@ -23,7 +26,7 @@ export type Quiz = {
   /** Har bir savolga javob vaqti (soniya). */
   timeSeconds?: number;
   /** Belgilangan boshlanish vaqtlari (ISO). Kelajakdagisi bo'lsa — kirish ekranida hisoblagich. */
-  sessions?: { id: string; startsAt: string }[];
+  sessions?: QuizSessionRef[];
   questions: QuizQuestion[];
 };
 

@@ -29,7 +29,8 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { QUIZ_SESSION_OPENS_BEFORE_MIN } from "@/shared/contract";
+import { QUIZ_SESSION_OPENS_BEFORE_MIN, quizSessionStatus } from "@/shared/contract";
+import type { QuizSessionRef } from "./quiz-data";
 
 export type QuizMode = "live" | "solo";
 
@@ -529,6 +530,10 @@ export function QuizIntro({
   best,
   live,
   sessions = [],
+  soloAllowed = true,
+  staff = false,
+  onJoinLive,
+  onShare,
   onStartNow,
   onStart,
 }: {
@@ -539,16 +544,24 @@ export function QuizIntro({
   minutes: number;
   best: number | null;
   live: boolean;
-  /** Belgilangan vaqtlar: eng yaqin kelajakdagisigacha hisoblagich, vaqt kelmaguncha boshlash yopiq. */
-  sessions?: { id: string; startsAt: string }[];
+  /** Belgilangan vaqtlar: eng yaqin kelajakdagisigacha hisoblagich, vaqt kelmaguncha mustaqil boshlash yopiq. */
+  sessions?: QuizSessionRef[];
+  /** «Jamoaviy va yakka» viktorina — mustaqil boshlash mumkin; faqat jamoaviyda — faqat xona. */
+  soloAllowed?: boolean;
+  staff?: boolean;
+  /** Jonli xonaga kirish (vaqt ochiq bo'lganda). */
+  onJoinLive?: (sessionId: string) => void;
+  onShare?: () => void;
   /** Admin/moderator: kutilayotgan vaqtni hamma uchun hozirga ko'chirish. */
   onStartNow?: (sessionId: string) => void;
   onStart: () => void;
 }) {
   const now = useNow(1000);
-  const upcoming = sessions
-    .filter((session) => Date.parse(session.startsAt) > now)
-    .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0] ?? null;
+  const byStart = [...sessions].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+  const upcoming = byStart.find((session) => Date.parse(session.startsAt) > now) ?? null;
+  // Xona boshlanishdan 10 daqiqa oldin ochiladi va bir necha soat ochiq turadi.
+  const openRoom = byStart.find((session) => quizSessionStatus(session.startsAt, now) === "open") ?? null;
+  const shown = openRoom ?? upcoming;
 
   // Kutayotganlar ro'yxatni vaqti-vaqti bilan yangilaydi: admin «Hozir boshlash» ni bossa, hamma ko'radi.
   const upcomingId = upcoming?.id ?? null;
@@ -558,9 +571,20 @@ export function QuizIntro({
     return () => window.clearInterval(timer);
   }, [upcomingId]);
 
+  const soloButton = soloAllowed && !upcoming && (
+    <button type="button" className={openRoom ? "qz-ghost qz-start" : "qz-gold qz-start"} onClick={onStart}>
+      <Play size={18} /> {openRoom ? "Mustaqil yechish" : "Boshlash"}
+    </button>
+  );
+
   return (
     <section className="qz-stage qz-intro" aria-labelledby="qz-intro-title">
-      <span className="qz-eyebrow">{live ? "Jonli viktorina" : "Mustaqil viktorina"}</span>
+      {onShare && (
+        <button type="button" className="qz-intro-share" onClick={onShare} aria-label={`${title} viktorinasini ulashish`}>
+          <Share2 size={17} />
+        </button>
+      )}
+      <span className="qz-eyebrow">{live ? "Jonli viktorina" : soloAllowed ? "Mustaqil viktorina" : "Jamoaviy viktorina"}</span>
       <div className="qz-niche">{cover}</div>
       <h2 id="qz-intro-title">{title}</h2>
       {author && <p className="qz-stage-sub">{author}</p>}
@@ -570,11 +594,20 @@ export function QuizIntro({
         <li><Trophy size={18} /><b>{best ?? "—"}</b><span>eng yaxshi</span></li>
       </ul>
       {upcoming && <StartCountdown startsAt={upcoming.startsAt} />}
-      {!upcoming ? (
-        <button type="button" className="qz-gold qz-start" onClick={onStart}>
-          <Play size={18} /> Boshlash
+      {staff && shown?.code && (
+        <p className="qz-room-code qz-intro-code">
+          <KeyRound size={15} /> Xona kodi
+          <code aria-hidden="true">{shown.code}</code>
+          <span className="sr-only">{shown.code.split("").join(" ")}</span>
+          <span className="qz-intro-people"><Users size={14} /> {shown.participants ?? 0}</span>
+        </p>
+      )}
+      {openRoom && onJoinLive && (
+        <button type="button" className="qz-gold qz-start" onClick={() => onJoinLive(openRoom.id)}>
+          <Radio size={18} /> {staff ? "Boshlovchi sifatida kirish" : "Jonli xonaga qo‘shilish"}
         </button>
-      ) : onStartNow ? (
+      )}
+      {upcoming && !openRoom && (onStartNow ? (
         <button type="button" className="qz-gold qz-start" onClick={() => onStartNow(upcoming.id)}>
           <Play size={18} /> Hozir boshlash
         </button>
@@ -582,7 +615,9 @@ export function QuizIntro({
         <button type="button" className="qz-gold qz-start" disabled>
           <Clock size={18} /> Boshlanish vaqti kutilmoqda
         </button>
-      )}
+      ))}
+      {soloButton}
+      {!soloAllowed && !shown && <p className="qz-stage-sub">Jonli vaqt hali belgilanmagan.</p>}
     </section>
   );
 }

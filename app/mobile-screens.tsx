@@ -9,7 +9,6 @@ import {
   BellRing,
   BookOpen,
   Calendar,
-  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -38,7 +37,6 @@ import {
   QuizEntry,
   QuizHero,
   QuizLeaders,
-  QuizLiveCard,
   type QuizLeader,
   type QuizMode,
 } from "./quiz-ui";
@@ -325,13 +323,12 @@ export default function MobileScreens({
       color: linked?.color,
       playMode: q.playMode,
       timeSeconds: q.timeSeconds,
-      sessions: q.sessions.map((session) => ({ id: session.id, startsAt: session.startsAt })),
+      sessions: q.sessions.map((session) => ({ id: session.id, startsAt: session.startsAt, code: session.code, participants: session.participants })),
       questions: q.questions.map((qq) => ({ prompt: qq.prompt, choices: qq.choices.map((text, i) => ({ id: String(i), text })), answer: String(qq.answer) })),
     };
   }), [serverQuizzes.items, catalog.items]);
-  // Yakka o'ynash faqat «Jamoaviy va yakka» viktorinalarda. Jamoaviy-only viktorina faqat xona kodi bilan.
-  const soloQuizzes = useMemo(() => quizzes.filter((quiz) => quiz.playMode === "group_solo"), [quizzes]);
-  const visibleQuizzes = showQuizzes ? soloQuizzes : soloQuizzes.slice(0, 2);
+  // Hamma viktorinalar ro'yxatda: sahifasida jamoaviy (xona) va — «Jamoaviy va yakka» bo'lsa — mustaqil boshlash.
+  const visibleQuizzes = showQuizzes ? quizzes : quizzes.slice(0, 2);
   // Eng yaqin (yoki hozir ochiq) jonli viktorina vaqti.
   const nextLive = useMemo(() => {
     const rows = serverQuizzes.items.flatMap((q) => q.sessions.map((session) => ({ q, session, status: quizSessionStatus(session.startsAt, now) })))
@@ -683,26 +680,6 @@ export default function MobileScreens({
           <div className="qz-panel" role="tabpanel" id="qz-panel" aria-labelledby={`qz-tab-${mode}`}>
             {mode === "live" ? (
               <>
-                {nextLive ? (
-                  <QuizLiveCard
-                    cover={<BookCover title={nextLive.quiz.title} author={nextLive.quiz.author} tone="cream" image={nextLive.quiz.image} color={nextLive.quiz.color} />}
-                    title={nextLive.quiz.title}
-                    author={nextLive.quiz.author}
-                    when={whenText(nextLive.session.startsAt)}
-                    participants={nextLive.session.participants}
-                    open={nextLive.status === "open"}
-                    countdown={countdown(nextLive.session.startsAt, now)}
-                    code={editor ? nextLive.session.code : null}
-                    staff={editor}
-                    onJoin={() => openRoom(nextLive.quiz, nextLive.session.id)}
-                  />
-                ) : (
-                  <QuizEmpty
-                    icon={<CalendarClock size={18} />}
-                    title="Hozircha jonli viktorina belgilanmagan"
-                    text={editor ? "Viktorinani tahrirlab, unga vaqt va kirish kodini qo‘shing." : "Jonli viktorina vaqti e’lon qilinganda shu yerda ko‘rinadi."}
-                  />
-                )}
                 <QuizCodeForm code={code} busy={joining} onCode={setCode} onSubmit={joinRoom} />
               </>
             ) : (
@@ -715,14 +692,14 @@ export default function MobileScreens({
 
           <div className="m-section-head">
             <h2>O‘zingizni sinang</h2>
-            {soloQuizzes.length > 2 && (
+            {quizzes.length > 2 && (
               <button type="button" onClick={() => setShowQuizzes((value) => !value)}>
                 {showQuizzes ? "Yig‘ish" : "Barchasi"} <ChevronRight size={16} />
               </button>
             )}
           </div>
           {editor && <QuizAddButton onClick={() => setQuizEditing({ quiz: null })} />}
-          {!serverQuizzes.loading && soloQuizzes.length === 0 && (
+          {!serverQuizzes.loading && quizzes.length === 0 && (
             <QuizEmpty
               icon={<BookOpen size={18} />}
               title="Hozircha viktorina yo‘q"
@@ -730,7 +707,7 @@ export default function MobileScreens({
             />
           )}
           <div className="qz-list">
-            {serverQuizzes.loading && soloQuizzes.length === 0 && (
+            {serverQuizzes.loading && quizzes.length === 0 && (
               <>
                 <QuizCardSkeleton />
                 <QuizCardSkeleton />
@@ -750,8 +727,6 @@ export default function MobileScreens({
                 onShare={() => setSharing(quiz)}
               />
             ))}
-            {sharing && <ShareSheet open onOpenChange={(open) => !open && setSharing(null)} title={sharing.title} url={quizShortUrl(sharing.id)} />}
-            {viewer && <LoginDialog viewer={viewer} open={loginOpen} onOpenChange={setLoginOpen} />}
           </div>
 
           <div className="m-section-head">
@@ -773,6 +748,8 @@ export default function MobileScreens({
             key={active.id}
             quiz={quizzes.find((q) => q.id === active.id) ?? active}
             staff={editor}
+            onJoinLive={(sessionId) => openRoom(quizzes.find((q) => q.id === active.id) ?? active, sessionId)}
+            onShare={() => setSharing(active)}
             cover={<BookCover title={active.title} author={active.author} tone={active.tone} image={active.image} color={active.color} />}
             best={save.scores[active.id] ?? null}
             live={activeSession != null}
@@ -849,6 +826,8 @@ export default function MobileScreens({
           </div>
         </div>
       )}
+      {sharing && <ShareSheet open onOpenChange={(open) => !open && setSharing(null)} title={sharing.title} url={quizShortUrl(sharing.id)} />}
+      {viewer && <LoginDialog viewer={viewer} open={loginOpen} onOpenChange={setLoginOpen} />}
     </div>
   );
 }
