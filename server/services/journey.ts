@@ -3,7 +3,7 @@
  *
  * Hafta kitobiga suhbat vaqti belgilanganda (yoki o'zgartirilganda) kitob nomi va shu haftaning shanbasi
  * ro'yxatga yoziladi: tartib raqami «Biz haqimizda» tayanch nuqtasidan hisoblanadi (masalan, 248-kitob).
- * Shu shanba soat 22:00 (Seul) o'tgach hafta kitobi e'londan tushadi — suhbat jonli yoki hali oldinda bo'lsa, qoladi.
+ * Shanba kuni soat 24:00 (Seul, yakshanba 00:00) o'tgach hafta kitobi e'londan tushadi — suhbat holatidan qat'i nazar.
  * Hafta tugagach admin o'sha kitobni qayta tanlasa, u yangi suhbat vaqti belgilanguncha e'londa turadi.
  */
 import { and, asc, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
@@ -117,26 +117,29 @@ export async function recordJourneyBook(db: Database, bookTitle: string, schedul
     .where(and(eq(journeyBooks.bookId, book.id), ne(journeyBooks.number, number), gte(journeyBooks.discussedOn, saturdayOnOrAfter(now))));
 }
 
+/** Hafta tugashi: muhokama shanbasi 13:00 UTC dan 2 soat keyin = yakshanba 00:00 Seul (KST). */
+const WEEK_END_AFTER_SESSION_MS = 2 * 3_600_000;
+
 /**
- * Hafta kitobi hali e'lon qilinadimi: yo'l ro'yxatidagi shanbasi soat 22:00 (Seul) gacha — ha; undan keyin faqat
- * shu kitob suhbati hozir jonli yoki hali boshlanmagan (masalan, o'sha kuni kechroqqa surilgan) bo'lsa, yoki
- * admin kitobni hafta tugagandan keyin qayta tanlagan bo'lsa (yangi suhbat vaqti belgilanguncha).
- * Suhbat vaqti hali belgilanmagan kitob muddatsiz turadi.
+ * Hafta kitobi hali e'londami. Qoida: hafta har shanba 24:00 (Seul) da, ya'ni yakshanba 00:00 da tugaydi —
+ * suhbat holatidan (jonli, tugagan, belgilanmagan) qat'i nazar.
+ *
+ * Muddat yo'l ro'yxatidagi kitob shanbasidan olinadi; ro'yxatda bo'lmasa — kitob tanlangan haftaning shanbasidan.
+ * Hafta tugagach kitob faqat admin uni qayta tanlagan bo'lsa (activeSince tugashdan keyin) e'londa qoladi —
+ * yangi suhbat sanasi belgilanguncha.
  */
 export async function weekBookOnAir(db: Database, bookId: string, now = Date.now()): Promise<boolean> {
+  const book = await db.query.books.findFirst({ where: eq(books.id, bookId), columns: { activeSince: true } });
+  if (!book) return false;
   const latest = await db.query.journeyBooks.findFirst({
     where: eq(journeyBooks.bookId, bookId),
     orderBy: desc(journeyBooks.number),
     columns: { discussedOn: true },
   });
-  const endsAt = latest ? saturdaySessionAt(latest.discussedOn) : null;
-  if (endsAt === null || now < endsAt) return true;
-  const book = await db.query.books.findFirst({ where: eq(books.id, bookId), columns: { title: true, activeSince: true } });
-  if (!book) return false;
-  if (book.activeSince && Date.parse(book.activeSince) >= endsAt) return true;
-  const talks = await db.query.liveSessions.findMany({
-    where: and(ne(liveSessions.status, "ended"), eq(liveSessions.audience, "public"), sql`lower(trim(${liveSessions.bookTitle})) = ${book.title.trim().toLowerCase()}`),
-    columns: { status: true, scheduledAt: true },
-  });
-  return talks.some((talk) => talk.status === "live" || Date.parse(talk.scheduledAt) > now);
+  const sessionDay = latest?.discussedOn ?? (book.activeSince ? saturdayOnOrAfter(Date.parse(book.activeSince)) : null);
+  const session = sessionDay ? saturdaySessionAt(sessionDay) : null;
+  if (session === null) return true;
+  const endsAt = session + WEEK_END_AFTER_SESSION_MS;
+  if (now < endsAt) return true;
+  return Boolean(book.activeSince && Date.parse(book.activeSince) >= endsAt);
 }

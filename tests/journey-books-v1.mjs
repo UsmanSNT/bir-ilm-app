@@ -138,7 +138,7 @@ try {
   assert.deepEqual(ours(), [{ number: sessionNumberOf(anchor, plusWeek(later)), discussedOn: plusWeek(later) }]);
   console.log("PASS: Suhbat boshqa haftaga ko'chirilsa, ro'yxatda faqat yangi shanba qoladi.");
 
-  // --- Shanba 22:00 (Seul) o'tgach e'lon tushadi ----------------------------------
+  // --- Shanba 24:00 (Seul) o'tgach e'lon tushadi ----------------------------------
   const past = saturdayOnOrAfter(Date.now() - 14 * DAY);
   await admin.call(talk.PATCH, `/api/v1/live/${talkId}`, { method: "PATCH", params: { id: talkId }, body: { scheduledAt: at(past) } });
   assert.deepEqual(ours(), [{ number: sessionNumberOf(anchor, past), discussedOn: past }], "O'tgan suhbat ham ro'yxatda qoladi, kelajakdagisi o'chadi");
@@ -149,29 +149,30 @@ try {
     assert.equal(expired.activeBookId, null, "Hafta tugadi — e'lon yo'q (hamma uchun)");
     assert.equal(expired.items.find((b) => b.id === id).active, false);
   }
-  console.log("PASS: Muhokama shanbasi soat 22:00 (Seul) o'tgach hafta kitobi e'londan tushadi.");
+  console.log("PASS: Shanba 24:00 (Seul) o'tgach hafta kitobi e'londan tushadi (bazada ham).");
 
-  // --- Suhbat jonli bo'lsa, tugaguncha qoladi -----------------------------------
+  // --- Kelgusi shanbaga ko'chsa, kitob yana e'londa; suhbat holati hafta muddatiga ta'sir qilmaydi ---
+  await admin.call(book.PATCH, `/api/v1/books/${id}`, { method: "PATCH", params: { id }, body: { active: true } });
+  await admin.call(talk.PATCH, `/api/v1/live/${talkId}`, { method: "PATCH", params: { id: talkId }, body: { scheduledAt: at(later) } });
+  assert.equal((await weekBook()).activeBookId, id, "Kelgusi shanbaga belgilangan — kitob e'londa");
   await admin.call(start.POST, `/api/v1/live/${talkId}/start`, { method: "POST", params: { id: talkId } });
-  assert.equal((await weekBook()).activeBookId, id, "Jonli suhbat paytida kitob turadi");
+  assert.equal((await weekBook()).activeBookId, id, "Jonli suhbat ham hafta tugaguncha kitobni ushlaydi");
   sqlite.prepare("UPDATE live_sessions SET status = 'ended', ended_at = ? WHERE id = ?").run(new Date().toISOString(), talkId);
-  assert.equal((await weekBook()).activeBookId, null, "Suhbat tugagach tushadi");
-  // O'sha kuni kechroqqa surilgan (hali boshlanmagan) suhbat ham kitobni ushlab turadi.
-  const soon = (await admin.call(live.POST, "/api/v1/live", { method: "POST", body: { bookTitle: title, title: "Kechroq", scheduledAt: new Date(Date.now() + 3_600_000).toISOString() }, expect: 201 })).data;
-  createdTalks.push(soon.id);
-  // Ro'yxatda faqat o'tgan shanba qolsin: kitobni endi faqat kelayotgan suhbat ushlab turadi.
-  sqlite.prepare("DELETE FROM journey_books WHERE book_id = ? AND discussed_on <> ?").run(id, past);
-  assert.equal((await weekBook()).activeBookId, id, "Kelayotgan suhbat bor — kitob turadi");
-  sqlite.prepare("UPDATE live_sessions SET scheduled_at = ? WHERE id = ?").run(new Date(Date.now() - 60_000).toISOString(), soon.id);
-  assert.equal((await weekBook()).activeBookId, null, "Vaqti o'tgan, boshlanmagan suhbat ushlab turmaydi");
-  sqlite.prepare("DELETE FROM live_sessions WHERE id = ?").run(soon.id);
-  console.log("PASS: Suhbat jonli yoki hali oldinda bo'lsa, kitob e'londa qoladi; tugagach tushadi.");
+  assert.equal((await weekBook()).activeBookId, id, "Suhbat tugasa ham — hafta shanba 24:00 gacha");
+  console.log("PASS: Hafta shanba 24:00 (Seul) gacha e'londa; suhbat holati unga ta'sir qilmaydi.");
 
   // --- Hafta tugagach qayta tanlansa, yangi suhbat vaqtigacha turadi ------------
   await user.call(book.PATCH, `/api/v1/books/${id}`, { method: "PATCH", params: { id }, body: { active: true }, expect: 403 });
   await admin.call(book.PATCH, `/api/v1/books/${id}`, { method: "PATCH", params: { id }, body: { active: true } });
   assert.equal((await weekBook()).activeBookId, id);
-  assert.deepEqual(ours(), [{ number: sessionNumberOf(anchor, past), discussedOn: past }], "Tarix o'zgarmaydi");
+  assert.deepEqual(
+    ours(),
+    [
+      { number: sessionNumberOf(anchor, past), discussedOn: past },
+      { number: sessionNumberOf(anchor, later), discussedOn: later },
+    ],
+    "Tarix o'zgarmaydi: o'tgan hafta ham, kelgusi hafta ham ro'yxatda",
+  );
   const since = sqlite.prepare("SELECT active_since FROM books WHERE id = ?").get(id).active_since;
   await admin.call(book.PATCH, `/api/v1/books/${id}`, { method: "PATCH", params: { id }, body: { active: true, summary: "Tahrir" } });
   assert.equal(sqlite.prepare("SELECT active_since FROM books WHERE id = ?").get(id).active_since, since, "E'londagi kitobni tahrirlash muddatni yangilamaydi");
@@ -239,7 +240,14 @@ try {
   await putOne(admin, "abc", { title: "Harf" }, 400);
   await putOne(admin, linkedNumber, { title: "Boshqa nom" }, 400);
   await delOne(admin, linkedNumber, 400);
-  assert.deepEqual(ours(), [{ number: linkedNumber, discussedOn: past }], "Suhbatga bog'langan hafta tegilmadi");
+  assert.deepEqual(
+    ours(),
+    [
+      { number: linkedNumber, discussedOn: past },
+      { number: sessionNumberOf(anchor, later), discussedOn: later },
+    ],
+    "Suhbatga bog'langan hafta tegilmadi",
+  );
   await delOne(user, 200, 403);
   await delOne(admin, 200);
   await delOne(admin, 200, 404);

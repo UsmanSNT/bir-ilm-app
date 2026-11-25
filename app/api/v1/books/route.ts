@@ -4,7 +4,9 @@
  * Katalog bazadan keladi, shuning uchun uni o'zgartirish uchun Android/iOS
  * ilovasini qayta chiqarish shart emas. Qo'shish — admin va moderator.
  */
+import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { schema } from "@/server/db/client";
 import { defineRoute } from "@/server/http/handler";
 import { createBook, listCatalog } from "@/server/services/books";
 import { weekBookOnAir } from "@/server/services/journey";
@@ -16,7 +18,7 @@ export const runtime = "edge";
 
 type BooksResponse = {
   items: Book[];
-  /** Shu haftaning kitobi. Muhokama shanbasi soat 22:00 (Seul) o'tgach — null (suhbat jonli yoki hali oldinda bo'lsa, qoladi). */
+  /** Shu haftaning kitobi. Shanba 24:00 (Seul) o'tgach — null (suhbat holatiga bog'liq emas). */
   activeBookId: string | null;
 };
 
@@ -35,7 +37,8 @@ export const GET = defineRoute<Query, BooksResponse>({
     const items = await listBooks(db);
     const active = items.find((book) => book.active) ?? null;
     if (!active || (await weekBookOnAir(db, active.id))) return { items, activeBookId: active?.id ?? null };
-    // Hafta tugadi: e'lon tushadi, admin yangi hafta kitobini joylaydi.
+    // Hafta tugadi (shanba 24:00 Seul): e'lon bazada ham tushadi, admin yangi hafta kitobini joylaguncha bo'sh turadi.
+    await db.update(schema.books).set({ active: false }).where(eq(schema.books.id, active.id));
     return { items: items.map((book) => (book.id === active.id ? { ...book, active: false } : book)), activeBookId: null };
   },
 });

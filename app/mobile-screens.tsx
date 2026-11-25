@@ -273,7 +273,7 @@ export default function MobileScreens({
     window.addEventListener(TALKS_CHANGED, load);
     return () => window.removeEventListener(TALKS_CHANGED, load);
   }, []);
-  // Hafta kitobi e'londan tushgan bo'lsa (shanba 22:00 Seuldan keyin), o'sha kitobning suhbati ham ko'rsatilmaydi.
+  // Hafta kitobi e'londan tushgan bo'lsa (shanba 24:00 Seuldan keyin), o'sha kitobning suhbati ham ko'rsatilmaydi.
   const talk = featured ? nextTalk(talks, featured.title) : null;
   const journeyBooks = useJourneyBooks().value;
   const journeyEntry = featured ? journeyBooks.filter((entry) => entry.bookId === featured.id).at(-1) ?? null : null;
