@@ -6,7 +6,15 @@
 const PREFIX = "bir-ilm-quiz-draft-v1:";
 
 export type QuizDraftQuestion = { prompt: string; choices: string[]; answer: number };
-export type QuizDraft = { title: string; bookId: string; image: string | null; questions: QuizDraftQuestion[] };
+export type QuizDraft = {
+  title: string;
+  bookId: string;
+  image: string | null;
+  /** Qoralamalar eski versiyada bu maydonlarsiz saqlangan bo'lishi mumkin — ular ixtiyoriy. */
+  timeSeconds?: number;
+  playMode?: "group" | "group_solo";
+  questions: QuizDraftQuestion[];
+};
 
 function isDraft(value: unknown): value is QuizDraft {
   if (!value || typeof value !== "object") return false;

@@ -25,9 +25,9 @@ const newId = (prefix: string) =>
   `${prefix}_${Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join("")}`;
 
 /** Server tomonida savol va to'g'ri javoblar (mijozga yuborilmaydi). */
-export async function loadQuestions(db: Database, quizId: string): Promise<{ title: string; questions: GameQuestion[] }> {
+export async function loadQuestions(db: Database, quizId: string): Promise<{ title: string; timeSeconds: number; questions: GameQuestion[] }> {
   const quiz = await getQuiz(db, quizId, false);
-  return { title: quiz.title, questions: quiz.questions.map((q) => ({ prompt: q.prompt, choices: q.choices, answer: q.answer })) };
+  return { title: quiz.title, timeSeconds: quiz.timeSeconds, questions: quiz.questions.map((q) => ({ prompt: q.prompt, choices: q.choices, answer: q.answer })) };
 }
 
 function sweep(now = Date.now()) {

@@ -288,6 +288,13 @@
       "when": 1795584311652,
       "tag": "0040_journey_slots",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1795595124414,
+      "tag": "0041_quiz_time_mode",
+      "breakpoints": true
     }
   ]
 }

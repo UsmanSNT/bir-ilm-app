@@ -61,12 +61,21 @@ export const QUIZ_IMAGE_MAX_BYTES = 6 * 1024 * 1024;
 /** Viktorina muqovasi: quiz-media endpoint qaytargan yo'l. */
 export const QUIZ_IMAGE_PATTERN = /^\/media\/quiz\/[a-z0-9]{16,32}\.(jpg|png|webp)$/;
 
+/** Javob vaqti tanlovi (soniya). */
+export const QUIZ_TIME_OPTIONS = [5, 10, 20, 30, 40, 50, 60] as const;
+export const QUIZ_PLAY_MODES = ["group", "group_solo"] as const;
+export type QuizPlayMode = (typeof QUIZ_PLAY_MODES)[number];
+
 export const quizInputSchema = z.object({
   title: z.string().trim().min(1, "Viktorina nomini yozing.").max(QUIZ_LIMITS.title),
   /** Bog'langan kitob (ixtiyoriy). */
   bookId: z.string().trim().min(1).max(96).nullable().default(null),
   /** Muqova rasmi (ixtiyoriy). */
   image: z.string().regex(QUIZ_IMAGE_PATTERN, "Rasm noto‘g‘ri.").nullable().default(null),
+  /** Har bir savolga javob vaqti (soniya): 5…60, faqat shu qiymatlardan biri. */
+  timeSeconds: z.number().int().refine((v) => (QUIZ_TIME_OPTIONS as readonly number[]).includes(v), "Vaqtni ro‘yxatdan tanlang.").default(20),
+  /** Kim o'ynaydi: faqat jamoaviy, yoki jamoaviy va yakka. */
+  playMode: z.enum(QUIZ_PLAY_MODES).default("group"),
   questions: z.array(quizQuestionSchema).min(1, "Kamida bitta savol kerak.").max(QUIZ_LIMITS.maxQuestions, `${QUIZ_LIMITS.maxQuestions} tadan ko'p savol bo'lmasin.`),
 });
 export type QuizInput = z.infer<typeof quizInputSchema>;
@@ -116,6 +125,10 @@ export type Quiz = {
   title: string;
   bookId: string | null;
   image: string | null;
+  /** Har bir savolga javob vaqti (soniya). */
+  timeSeconds: number;
+  /** Kim o'ynaydi. */
+  playMode: QuizPlayMode;
   /** Taxminiy vaqt (daqiqa): savol soniga qarab. */
   minutes: number;
   questions: QuizQuestionInput[];

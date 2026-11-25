@@ -6,12 +6,14 @@ import { toast } from "sonner";
 import { useCatalog } from "@/lib/api/books-client";
 import { addQuizSession, createQuiz, deleteQuiz, notifyQuizzesChanged, removeQuizSession, updateQuiz, uploadQuizImage } from "@/lib/api/quiz-client";
 import { clearQuizDraft, readQuizDraft, writeQuizDraft, type QuizDraft } from "@/lib/api/quiz-draft";
-import { QUIZ_IMAGE_MAX_BYTES, QUIZ_LIMITS, type Quiz } from "@/shared/contract";
+import { QUIZ_IMAGE_MAX_BYTES, QUIZ_LIMITS, QUIZ_PLAY_MODES, QUIZ_TIME_OPTIONS, type Quiz, type QuizPlayMode } from "@/shared/contract";
 import DateTimeField, { formatWhen } from "./datetime-field";
 import { localInput } from "./talk-format";
 
 type Question = { key: string; prompt: string; choices: string[]; answer: number };
-type Form = { title: string; bookId: string; image: string | null; questions: Question[] };
+type Form = { title: string; bookId: string; image: string | null; timeSeconds: number; playMode: QuizPlayMode; questions: Question[] };
+
+const PLAY_MODE_LABEL: Record<QuizPlayMode, string> = { group: "Faqat jamoaviy", group_solo: "Jamoaviy va yakka" };
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const blank = (): Question => ({ key: crypto.randomUUID(), prompt: "", choices: ["", ""], answer: 0 });
@@ -21,6 +23,8 @@ function formFrom(quiz: Quiz | null, bookId: string | null | undefined): Form {
     title: quiz?.title ?? "",
     bookId: quiz?.bookId ?? bookId ?? "",
     image: quiz?.image ?? null,
+    timeSeconds: quiz?.timeSeconds ?? 20,
+    playMode: quiz?.playMode ?? "group",
     questions: quiz ? quiz.questions.map((q) => ({ key: crypto.randomUUID(), prompt: q.prompt, choices: [...q.choices], answer: q.answer })) : [blank()],
   };
 }
@@ -29,6 +33,8 @@ const toDraft = (form: Form): QuizDraft => ({
   title: form.title,
   bookId: form.bookId,
   image: form.image,
+  timeSeconds: form.timeSeconds,
+  playMode: form.playMode,
   questions: form.questions.map(({ prompt, choices, answer }) => ({ prompt, choices, answer })),
 });
 
@@ -37,6 +43,8 @@ function formFromDraft(draft: QuizDraft): Form {
     title: draft.title,
     bookId: draft.bookId,
     image: draft.image,
+    timeSeconds: draft.timeSeconds ?? 20,
+    playMode: draft.playMode ?? "group",
     questions: draft.questions.length
       ? draft.questions.map((q) => ({ key: crypto.randomUUID(), prompt: String(q.prompt ?? ""), choices: [...q.choices], answer: q.answer }))
       : [blank()],
@@ -155,6 +163,8 @@ export default function QuizEditor({ quiz, bookId, onClose }: { quiz: Quiz | nul
       title: form.title.trim(),
       bookId: form.bookId || null,
       image: form.image,
+      timeSeconds: form.timeSeconds,
+      playMode: form.playMode,
       questions: form.questions.map((q) => ({ prompt: q.prompt.trim(), choices: q.choices.map((c) => c.trim()), answer: q.answer })),
     };
     try {
@@ -229,6 +239,19 @@ export default function QuizEditor({ quiz, bookId, onClose }: { quiz: Quiz | nul
           </select>
         </label>
         <input aria-label="Viktorina nomi" placeholder="Viktorina nomi" maxLength={QUIZ_LIMITS.title} value={form.title} disabled={busy} onChange={(e) => update((f) => ({ ...f, title: e.target.value }))} required />
+
+        <label className="qe-field">
+          <span>O‘yin turi</span>
+          <select aria-label="O‘yin turi" value={form.playMode} disabled={busy} onChange={(e) => update((f) => ({ ...f, playMode: e.target.value as QuizPlayMode }))}>
+            {QUIZ_PLAY_MODES.map((mode) => <option key={mode} value={mode}>{PLAY_MODE_LABEL[mode]}</option>)}
+          </select>
+        </label>
+        <label className="qe-field">
+          <span>Har bir savolga javob vaqti</span>
+          <select aria-label="Javob vaqti" value={form.timeSeconds} disabled={busy} onChange={(e) => update((f) => ({ ...f, timeSeconds: Number(e.target.value) }))}>
+            {QUIZ_TIME_OPTIONS.map((seconds) => <option key={seconds} value={seconds}>{seconds} soniya</option>)}
+          </select>
+        </label>
 
         <ol className="qe-list">
           {form.questions.map((q, index) => (

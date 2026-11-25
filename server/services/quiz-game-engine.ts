@@ -81,6 +81,8 @@ export class QuizGame {
   lastActivity: number;
 
   private questions: GameQuestion[] = [];
+  /** Shu viktorinaning javob vaqti (ms): boshlovchi tanlagan, butun viktorina uchun bir xil. */
+  private limitMs: number = QUIZ_POINTS.limitMs;
   private index = -1;
   private startedAt = 0;
   private endsAt = 0;
@@ -143,12 +145,13 @@ export class QuizGame {
 
   // ── Boshlovchi buyruqlari ───────────────────────────────────────
 
-  start(host: boolean, quiz: { title: string; questions: GameQuestion[] }): void {
+  start(host: boolean, quiz: { title: string; questions: GameQuestion[]; timeSeconds?: number }): void {
     this.requireHost(host);
     if (this.phase !== "lobby") throw new GameError("O'yin allaqachon boshlangan.");
     if (this.onlineCount() < 1) throw new GameError("Boshlash uchun kamida bitta o'yinchi kerak.");
     if (quiz.questions.length < 1) throw new GameError("Viktorinada savol yo'q.");
     this.questions = quiz.questions;
+    this.limitMs = (quiz.timeSeconds ?? QUIZ_POINTS.limitMs / 1000) * 1000;
     this.info.title = quiz.title;
     this.info.total = quiz.questions.length;
     this.openQuestion(0);
@@ -205,7 +208,7 @@ export class QuizGame {
     if (now > this.endsAt + GAME_GRACE_MS) throw new GameError("Vaqt tugadi.");
     this.touch();
     player.choice = choice;
-    player.elapsedMs = Math.min(QUIZ_POINTS.limitMs, Math.max(0, now - this.startedAt));
+    player.elapsedMs = Math.min(this.limitMs, Math.max(0, now - this.startedAt));
     this.hooks.onProgress();
     if (this.allAnswered()) this.revealNow();
     return true;
@@ -249,7 +252,7 @@ export class QuizGame {
       players: this.phase === "lobby" ? this.lobbyList() : [],
       now: this.clock.now(),
       question: q
-        ? { index: this.index, prompt: q.prompt, choices: q.choices, startedAt: this.startedAt, endsAt: this.endsAt, limitMs: QUIZ_POINTS.limitMs }
+        ? { index: this.index, prompt: q.prompt, choices: q.choices, startedAt: this.startedAt, endsAt: this.endsAt, limitMs: this.limitMs }
         : null,
       answered: showQuestion ? this.answeredCount() : 0,
       you,
@@ -315,7 +318,7 @@ export class QuizGame {
     this.clearTimer();
     this.index = index;
     this.startedAt = this.clock.now();
-    this.endsAt = this.startedAt + QUIZ_POINTS.limitMs;
+    this.endsAt = this.startedAt + this.limitMs;
     this.reveal = null;
     for (const p of this.players.values()) {
       p.choice = null;
@@ -323,7 +326,7 @@ export class QuizGame {
       p.outcome = null;
     }
     this.phase = "question";
-    this.timer = this.clock.setTimeout(() => this.revealNow(), QUIZ_POINTS.limitMs + GAME_GRACE_MS);
+    this.timer = this.clock.setTimeout(() => this.revealNow(), this.limitMs + GAME_GRACE_MS);
     this.touch();
     this.hooks.onPhase();
   }
@@ -350,11 +353,11 @@ export class QuizGame {
       if (p.choice === q.answer) {
         p.streak++;
         p.correct++;
-        const points = questionPoints(true, p.elapsedMs ?? QUIZ_POINTS.limitMs, p.streak);
+        const points = questionPoints(true, p.elapsedMs ?? this.limitMs, p.streak, this.limitMs);
         p.score += points.total;
         p.outcome = { correct: true, points };
         correctCount++;
-        fastest.push({ userId: p.userId, name: p.name, points: points.total, elapsedMs: p.elapsedMs ?? QUIZ_POINTS.limitMs });
+        fastest.push({ userId: p.userId, name: p.name, points: points.total, elapsedMs: p.elapsedMs ?? this.limitMs });
       } else {
         p.streak = 0;
         p.outcome = { correct: false, points: NO_POINTS };

@@ -51,7 +51,7 @@ async function withQuestions(db: Database, rows: Array<typeof quizzes.$inferSele
     const own = questions
       .filter((q) => q.quizId === row.id)
       .map((q) => ({ prompt: q.prompt, choices: parseChoices(q.choices), answer: q.answer }));
-    return { id: row.id, title: row.title, bookId: row.bookId, image: row.image ?? null, minutes: quizMinutes(own.length), questions: own, sessions: sessions.get(row.id) ?? [], updatedAt: row.updatedAt };
+    return { id: row.id, title: row.title, bookId: row.bookId, image: row.image ?? null, timeSeconds: row.timeSeconds, playMode: row.playMode, minutes: quizMinutes(own.length), questions: own, sessions: sessions.get(row.id) ?? [], updatedAt: row.updatedAt };
   });
 }
 
@@ -87,7 +87,7 @@ export async function createQuiz(db: Database, userId: string, input: QuizInput)
   await checkBook(db, input.bookId);
   const id = newId("qz");
   await db.batch([
-    db.insert(quizzes).values({ id, bookId: input.bookId, title: input.title, image: input.image, createdBy: userId }),
+    db.insert(quizzes).values({ id, bookId: input.bookId, title: input.title, image: input.image, timeSeconds: input.timeSeconds, playMode: input.playMode, createdBy: userId }),
     db.insert(quizQuestions).values(questionRows(id, input)),
   ]);
   return getQuiz(db, id);
@@ -98,7 +98,7 @@ export async function updateQuiz(db: Database, id: string, input: QuizInput): Pr
   const before = await getQuiz(db, id);
   await checkBook(db, input.bookId);
   await db.batch([
-    db.update(quizzes).set({ bookId: input.bookId, title: input.title, image: input.image, updatedAt: new Date().toISOString() }).where(eq(quizzes.id, id)),
+    db.update(quizzes).set({ bookId: input.bookId, title: input.title, image: input.image, timeSeconds: input.timeSeconds, playMode: input.playMode, updatedAt: new Date().toISOString() }).where(eq(quizzes.id, id)),
     db.delete(quizQuestions).where(eq(quizQuestions.quizId, id)),
     db.insert(quizQuestions).values(questionRows(id, input)),
   ]);

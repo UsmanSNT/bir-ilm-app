@@ -605,6 +605,10 @@ export const quizzes = sqliteTable("quizzes", {
   title: text("title").notNull(),
   /** Muqova rasmi: `/media/quiz/<fayl>` (ixtiyoriy). */
   image: text("image"),
+  /** Har bir savolga javob berish vaqti (soniya), butun viktorina uchun bir xil: 5…60. */
+  timeSeconds: integer("time_seconds").notNull().default(20),
+  /** `group` — faqat jamoaviy (xona kodi); `group_solo` — jamoaviy va yakka (havola). */
+  playMode: text("play_mode", { enum: ["group", "group_solo"] }).notNull().default("group"),
   createdBy: text("created_by").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
