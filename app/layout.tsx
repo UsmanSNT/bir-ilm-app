@@ -9,6 +9,7 @@ import "@fontsource-variable/caveat";
 import "@fontsource-variable/manrope";
 import "./globals.css";
 import "./discovery.css";
+import "./journey-shelf.css";
 import "./mobile-screens.css";
 import "./mobile-library.css";
 import "./profile-screens.css";

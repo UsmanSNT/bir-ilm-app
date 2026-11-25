@@ -64,7 +64,7 @@ export function saturdaySessionAt(date: string): number | null {
 }
 
 /** «Yo'l» kitoblari nomlarini kiritish chegaralari. `weeksAhead` — tayanch raqamdan necha hafta keyingisigacha nom yozish mumkin. */
-export const JOURNEY_LIMITS = { title: 160, author: 120, importRows: 500, weeksAhead: 520 } as const;
+export const JOURNEY_LIMITS = { title: 160, author: 120, summary: 1200, moderator: 120, importRows: 500, weeksAhead: 520 } as const;
 
 export function isValidAnchor(anchor: Anchor): boolean {
   return Number.isInteger(anchor.number) && anchor.number >= 1 && anchor.number <= 10_000 && saturdaySessionAt(anchor.date) !== null;

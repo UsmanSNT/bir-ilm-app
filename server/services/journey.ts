@@ -10,7 +10,7 @@ import { and, asc, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { badRequest, notFound } from "@/server/http/errors";
-import type { JourneyBook, JourneyImportData, JourneyTitleData } from "@/shared/contract";
+import type { JourneyBook, JourneyDetailsData, JourneyImportData, JourneySlot, JourneyTitleData } from "@/shared/contract";
 import { JOURNEY_LIMITS, journeyNumberInRange, saturdayOnOrAfter, saturdaySessionAt, sessionDateOf, sessionNumberOf, type Anchor } from "@/shared/journey";
 import { getAbout } from "./about";
 
@@ -142,4 +142,59 @@ export async function weekBookOnAir(db: Database, bookId: string, now = Date.now
   const endsAt = session + WEEK_END_AFTER_SESSION_MS;
   if (now < endsAt) return true;
   return Boolean(book.activeSince && Date.parse(book.activeSince) >= endsAt);
+}
+
+type JourneyRow = typeof journeyBooks.$inferSelect;
+
+const toSlot = (number: number, discussedOn: string, row: JourneyRow | undefined): JourneySlot => ({
+  number,
+  discussedOn,
+  title: row?.title ?? "",
+  author: row?.author ?? "",
+  summary: row?.summary ?? "",
+  moderator: row?.moderator ?? "",
+  bookId: row?.bookId ?? null,
+  coverUrl: null,
+});
+
+/**
+ * Javon uchun barcha yacheykalar: 1 dan joriy haftagacha (va yozilgan eng katta raqamgacha). Bo'sh haftalar ham
+ * ro'yxatda bo'ladi — ularga keyin kitob joylanadi. Qaytarilish tartibi: eng birinchi (1) yuqorida.
+ */
+export async function listJourneySlots(db: Database, now = Date.now()): Promise<JourneySlot[]> {
+  const { anchor } = await getAbout(db);
+  const rows = await db.select().from(journeyBooks);
+  const byNumber = new Map(rows.map((row) => [row.number, row]));
+  const current = sessionNumberOf(anchor, saturdayOnOrAfter(now)) ?? 1;
+  const last = Math.max(current, ...rows.map((row) => row.number));
+  const slots: JourneySlot[] = [];
+  for (let number = 1; number <= last; number++) {
+    const discussedOn = sessionDateOf(anchor, number);
+    if (discussedOn) slots.push(toSlot(number, discussedOn, byNumber.get(number)));
+  }
+  return slots;
+}
+
+/**
+ * Yacheykani to'ldiradi yoki yangilaydi. Kutubxona kitobiga bog'langan hafta nomi/muallifini o'zgartirmaydi
+ * (nomi kitobning o'zidan keladi); matn va moderator nomi har doim tahrirlanadi.
+ */
+export async function updateJourneySlot(db: Database, number: number, input: JourneyDetailsData, now = Date.now()): Promise<JourneySlot> {
+  const { anchor } = await getAbout(db);
+  const discussedOn = dateOfNumber(anchor, number);
+  const existing = await db.query.journeyBooks.findFirst({ where: eq(journeyBooks.number, number) });
+  const linked = Boolean(existing?.bookId);
+  const title = linked ? existing?.title ?? "" : input.title;
+  const author = linked ? existing?.author ?? "" : input.author;
+  const stamp = new Date(now).toISOString();
+  const values = { number, discussedOn, title, author, summary: input.summary, moderator: input.moderator, bookId: existing?.bookId ?? null, createdAt: stamp, updatedAt: stamp };
+  await db
+    .insert(journeyBooks)
+    .values(values)
+    .onConflictDoUpdate({
+      target: journeyBooks.number,
+      set: { title, author, summary: input.summary, moderator: input.moderator, updatedAt: stamp },
+    });
+  const row = await db.query.journeyBooks.findFirst({ where: eq(journeyBooks.number, number) });
+  return toSlot(number, discussedOn, row);
 }

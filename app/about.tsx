@@ -19,6 +19,7 @@ import {
   type ShelfYear,
 } from "@/shared/journey";
 import AdminAbout from "./admin-about";
+import JourneyShelfPage from "./journey-shelf";
 import { JourneyImportForm, JourneyTitleForm } from "./admin-journey";
 import AdminTeam from "./admin-team";
 import { Facebook, Instagram, Telegram, YouTube } from "./brand-icons";
@@ -484,6 +485,7 @@ function SessionTicket({ journey, now, onOpenTalks }: { journey: Journey; now: n
 export default function About({ onBack, onOpenTalks }: { onBack: () => void; onOpenTalks: () => void }) {
   const { journey, about, loading, now } = useJourney();
   const isAdmin = useViewer()?.role === "admin";
+  const [shelfOpen, setShelfOpen] = useState(false);
   // Admin yashirin a'zolarni ham ko'radi va shu sahifadan tahrirlaydi.
   const { value: everyone } = useTeam(isAdmin);
   const team = useMemo(() => everyone.filter((member) => !member.former), [everyone]);
@@ -494,6 +496,7 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
   const { completed, elapsed, next, live } = journey;
   const paragraphs = about.intro.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
 
+  if (shelfOpen) return <JourneyShelfPage onBack={() => setShelfOpen(false)} />;
   return (
     <div className="ab">
       <div className="ab-toolbar">
@@ -570,6 +573,7 @@ export default function About({ onBack, onOpenTalks }: { onBack: () => void; onO
             <li><i className="ab-spine future" />Rejada</li>
           </ul>
           <Shelf shelf={journey.shelf} titles={titles} admin={isAdmin} onEdit={(cell) => cell.n !== null && setEditing({ week: cell.n, at: cell.at })} onImport={() => setEditing("journey")} />
+          <button type="button" className="ab-weeks-all" onClick={() => setShelfOpen(true)}>Barchasini ko‘rish</button>
         </details>
 
       </section>

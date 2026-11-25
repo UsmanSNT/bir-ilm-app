@@ -281,6 +281,13 @@
       "when": 1792755544019,
       "tag": "0039_live_audience",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1795584311652,
+      "tag": "0040_journey_slots",
+      "breakpoints": true
     }
   ]
 }

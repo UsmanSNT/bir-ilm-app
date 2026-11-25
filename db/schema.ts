@@ -687,8 +687,14 @@ export const siteSettings = sqliteTable("site_settings", {
 export const journeyBooks = sqliteTable("journey_books", {
   number: integer("number").primaryKey(),
   discussedOn: text("discussed_on").notNull(),
-  title: text("title").notNull(),
+  title: text("title").notNull().default(""),
   author: text("author").notNull().default(""),
+  /** Kitob haqida qisqacha matn; bo'sh bo'lishi mumkin. */
+  summary: text("summary").notNull().default(""),
+  /** Moderator nomi (ixtiyoriy). */
+  moderator: text("moderator").notNull().default(""),
+  /** Muqova fayli nomi (media/journey papkasida); yo'q bo'lsa — oq sahifa ikonkasi. */
+  coverFile: text("cover_file"),
   bookId: text("book_id").references(() => books.id, { onDelete: "set null" }),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),

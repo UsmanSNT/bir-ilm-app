@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_ABOUT } from "@/shared/contract/about";
-import type { AboutSettings, JourneyBook, JourneyImportInput, JourneyImportResult, JourneyTitleInput, SiteLinks, SiteLinksInput, SiteVideo, TeamMember, TeamMemberInput, Wisdom, WisdomInput, WisdomToday, WisdomUpdate } from "@/shared/contract";
+import type { AboutSettings, JourneyBook, JourneyDetailsInput, JourneyImportInput, JourneyImportResult, JourneySlot, JourneyTitleInput, SiteLinks, SiteLinksInput, SiteVideo, TeamMember, TeamMemberInput, Wisdom, WisdomInput, WisdomToday, WisdomUpdate } from "@/shared/contract";
 import { API_PREFIX } from "./config";
 
 type Envelope<T> = { data?: T; error?: { message?: string; fields?: Record<string, string[]> } };
@@ -83,6 +83,14 @@ export const useJourneyBooks = () => useRemote(loadJourneyBooks, NO_JOURNEY_BOOK
 /** Admin: bitta haftaning kitob nomini yozish/olib tashlash va ro'yxatni bir yo'la joylash. Javob — yangilangan to'liq ro'yxat. */
 export const saveJourneyTitle = (number: number, input: JourneyTitleInput) =>
   call<{ items: JourneyBook[] }>(`/site/journey/${number}`, { method: "PUT", body: JSON.stringify(input) }).then(items);
+const loadJourneySlots = () => call<{ items: JourneySlot[] }>("/site/journey/slots").then(items);
+const NO_JOURNEY_SLOTS: JourneySlot[] = [];
+/** «Bir Ilm yo'li» javoni: har bir hafta yacheykasi (bo'sh ham). Suhbat yoki kitob o'zgarganda yangilanadi. */
+export const useJourneySlots = () => useRemote(loadJourneySlots, NO_JOURNEY_SLOTS, JOURNEY_EVENTS);
+
+/** Admin yoki moderator: yacheykani (nom, muallif, matn, moderator) saqlaydi. Javob — yangilangan yacheyka. */
+export const saveJourneySlot = (number: number, input: JourneyDetailsInput) =>
+  call<{ item: JourneySlot }>(`/site/journey/slots/${number}`, { method: "PUT", body: JSON.stringify(input) }).then((d) => d.item);
 export const removeJourneyTitle = (number: number) => call<{ items: JourneyBook[] }>(`/site/journey/${number}`, { method: "DELETE" }).then(items);
 export const importJourneyTitles = (rows: JourneyImportInput["items"]) =>
   call<JourneyImportResult>("/site/journey/import", { method: "POST", body: JSON.stringify({ items: rows }) });

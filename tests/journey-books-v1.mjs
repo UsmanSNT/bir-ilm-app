@@ -282,7 +282,26 @@ try {
   assert.equal((await weekBook()).activeBookId, onAirBefore, "Qo'lda kiritilgan nomlar hafta kitobi e'loniga ta'sir qilmaydi");
   console.log("PASS: Ro'yxatni joylash: faqat admin, hammasi yoki hech narsa, takror raqam — oxirgisi, bog'langan hafta o'tkazib yuboriladi.");
 
-  console.log("\nHAMMASI O'TDI: «Bir Ilm yo'li» ro'yxati va hafta kitobi muddati.");
+  
+  // --- Javon: yacheykalar raqam bo'yicha, muqova yo'q, tahrir faqat staff ----------
+  const slotsRoute = await load("app/api/v1/site/journey/slots/route.ts");
+  const slotRoute = await load("app/api/v1/site/journey/slots/[number]/route.ts");
+  const slotList = (await user.call(slotsRoute.GET, "/api/v1/site/journey/slots")).data.items;
+  const nums = slotList.map((s) => s.number);
+  assert.equal(nums[0], 1, "Javon 1-haftadan boshlanadi");
+  assert.deepEqual(nums, [...nums].sort((a, b) => a - b), "Yacheykalar raqam bo'yicha tartibda");
+  assert.ok(slotList.every((s) => s.coverUrl === null), "Muqova hali yuklanmagan");
+  // Kutubxona kitobiga bog'langan yacheykaning nomi kitobdan keladi — sinov uchun bog'lanmagani olinadi.
+  const last = [...slotList].reverse().find((s) => s.bookId === null).number;
+  await user.call(slotRoute.PUT, `/api/v1/site/journey/slots/${last}`, { method: "PUT", params: { number: String(last) }, body: { summary: "x" }, expect: 403 });
+  const saved = (await admin.call(slotRoute.PUT, `/api/v1/site/journey/slots/${last}`, { method: "PUT", params: { number: String(last) }, body: { title: "Javon sinovi", author: "Muallif", summary: "Matn", moderator: "Mod" } })).data.item;
+  assert.equal(saved.number, last);
+  assert.equal(saved.title, "Javon sinovi");
+  assert.equal(saved.summary, "Matn");
+  const after = (await user.call(slotsRoute.GET, "/api/v1/site/journey/slots")).data.items.find((s) => s.number === last);
+  assert.equal(after.moderator, "Mod", "Tahrir ro'yxatda ko'rinadi");
+  console.log("PASS: Javon yacheykalari raqam bo'yicha; tahrir faqat admin yoki moderatorga ruxsat.");
+console.log("\nHAMMASI O'TDI: «Bir Ilm yo'li» ro'yxati va hafta kitobi muddati.");
 } finally {
   if (createdTalks.length) sqlite.prepare(`DELETE FROM live_sessions WHERE id IN (${createdTalks.map(() => "?").join(",")})`).run(...createdTalks);
   sqlite.prepare("DELETE FROM journey_books").run();

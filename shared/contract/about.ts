@@ -99,6 +99,27 @@ export const journeyTitleSchema = z.object({
 export type JourneyTitleInput = z.input<typeof journeyTitleSchema>;
 export type JourneyTitleData = z.output<typeof journeyTitleSchema>;
 
+/** Hafta yacheykasining to'liq ma'lumoti: hammasi ixtiyoriy (bo'sh joy ham saqlanishi mumkin). */
+export const journeyDetailsSchema = z.object({
+  title: z.string().trim().max(JOURNEY_LIMITS.title, `Nom ${JOURNEY_LIMITS.title} belgidan oshmasin.`).default(""),
+  author: z.string().trim().max(JOURNEY_LIMITS.author, `Muallif ${JOURNEY_LIMITS.author} belgidan oshmasin.`).default(""),
+  summary: z.string().trim().max(JOURNEY_LIMITS.summary, `Matn ${JOURNEY_LIMITS.summary} belgidan oshmasin.`).default(""),
+  moderator: z.string().trim().max(JOURNEY_LIMITS.moderator, `Moderator nomi ${JOURNEY_LIMITS.moderator} belgidan oshmasin.`).default(""),
+});
+export type JourneyDetailsInput = z.input<typeof journeyDetailsSchema>;
+export type JourneyDetailsData = z.output<typeof journeyDetailsSchema>;
+
+/** «Bir Ilm yo'li» javoni uchun yacheyka: bo'sh bo'lsa ham bor (raqam va sana har doim bor). */
+export type JourneySlot = JourneyDetailsData & {
+  number: number;
+  /** Muhokama sanasi (shanba), YYYY-MM-DD. */
+  discussedOn: string;
+  /** Kutubxonadagi kitob bog'langan bo'lsa, uning id'si. */
+  bookId: string | null;
+  /** Muqova rasmi; yuklanmagan bo'lsa — null (oq sahifa ikonkasi ko'rsatiladi). */
+  coverUrl: string | null;
+};
+
 /** Ro'yxatni bir yo'la joylash: har bir qator `parseJourneyList` dan o'tgan bo'ladi. */
 export const journeyImportSchema = z.object({
   items: z

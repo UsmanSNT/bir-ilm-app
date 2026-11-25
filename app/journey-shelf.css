@@ -1,0 +1,28 @@
+/* «Bir Ilm yo'li» — javon ko'rinishi: mobil birinchi, keng ekranda ko'proq ustun. */
+.jshelf { min-height: 100dvh; padding: 16px; background: #f6efe2; color: #1f2a44; }
+.jshelf-head h1 { font-family: Georgia, "Times New Roman", serif; font-size: 1.6rem; margin: 8px 0 4px; }
+.jshelf-head p { margin: 0; color: #6b5e4b; font-size: 0.9rem; }
+.jshelf-back { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; color: #1f2a44; font-size: 0.95rem; padding: 6px 0; cursor: pointer; }
+.jshelf-grid { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 18px 14px; }
+.jshelf-card { width: 100%; display: flex; flex-direction: column; gap: 4px; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; }
+.jshelf-card:focus-visible { outline: 2px solid #0f4f45; outline-offset: 4px; border-radius: 4px; }
+.jshelf-cover { position: relative; display: block; aspect-ratio: 2 / 3; background: #fffdf8; border: 1px solid #d9cfbb; border-radius: 3px 6px 6px 3px; box-shadow: 0 6px 14px rgba(31, 42, 68, 0.12); overflow: hidden; }
+.jshelf-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.jshelf-blank { position: absolute; inset: 0; display: grid; place-items: center; color: #b9ab92; }
+.jshelf-badge { position: absolute; top: 6px; left: 6px; background: #c8962e; color: #fff; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; }
+.jshelf-num { font-size: 0.8rem; color: #0f4f45; font-weight: 600; }
+.jshelf-title { font-size: 0.92rem; line-height: 1.25; font-weight: 600; }
+.jshelf-author { font-size: 0.8rem; color: #6b5e4b; }
+.jshelf-date { font-size: 0.75rem; color: #8a7d66; }
+.jshelf-empty { margin-top: 40px; text-align: center; color: #6b5e4b; }
+.jshelf-dialog { max-width: 520px; }
+.jshelf-detail h2 { font-family: Georgia, serif; font-size: 1.3rem; margin: 12px 0 4px; }
+.jshelf-summary { white-space: pre-line; line-height: 1.6; }
+.jshelf-muted { color: #8a7d66; font-size: 0.9rem; }
+.jshelf-edit { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 8px 12px; border: 1px solid #0f4f45; border-radius: 6px; background: #fff; color: #0f4f45; cursor: pointer; }
+.jshelf-form { display: grid; gap: 12px; margin-top: 12px; }
+.jshelf-form label { display: grid; gap: 4px; font-size: 0.9rem; }
+.jshelf-form input, .jshelf-form textarea { padding: 8px; border: 1px solid #cbbfa6; border-radius: 6px; font: inherit; background: #fff; }
+.jshelf-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.jshelf-actions button { padding: 8px 14px; border-radius: 6px; border: 1px solid #0f4f45; background: #0f4f45; color: #fff; cursor: pointer; }
+.jshelf-actions button:first-child { background: #fff; color: #0f4f45; }
