@@ -106,7 +106,7 @@ export function CountdownRing({ endsAt, limitMs, offset }: { endsAt: number; lim
  * Mustaqil rejim: «hozir javob bersangiz» necha ball olasiz — vaqt o'tgan sari 1000 dan 500 gacha kamayadi.
  * `answeredAfter` berilsa (javob berildi), ko'rsatkich aynan javob vaqtidagi qiymatda to'xtaydi.
  */
-export function PointsMeter({ startedAt, answeredAfter }: { startedAt: number; answeredAfter: number | null }) {
+export function PointsMeter({ startedAt, answeredAfter, limitMs = QUIZ_POINTS.limitMs }: { startedAt: number; answeredAfter: number | null; limitMs?: number }) {
   const frozen = answeredAfter !== null;
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -114,7 +114,7 @@ export function PointsMeter({ startedAt, answeredAfter }: { startedAt: number; a
     const id = setInterval(() => setNow(Date.now()), 120);
     return () => clearInterval(id);
   }, [frozen]);
-  const potential = questionPoints(true, answeredAfter ?? now - startedAt, 1).base;
+  const potential = questionPoints(true, answeredAfter ?? now - startedAt, 1, limitMs).base;
   const share = ((potential - QUIZ_POINTS.min) / (QUIZ_POINTS.max - QUIZ_POINTS.min)) * 100;
   return (
     <div className={`qz-meter${frozen ? " is-frozen" : ""}`}>

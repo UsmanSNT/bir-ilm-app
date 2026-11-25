@@ -40,6 +40,9 @@ function speedWord(ms: number): string {
   return "To‘g‘ri!";
 }
 
+/** Savol vaqti (ms): viktorinaning o'z sozlamasi; eski yozuvlarda — standart. */
+const quizLimitMs = (quiz: Quiz) => (quiz.timeSeconds ?? 20) * 1000;
+
 export default function QuizPlay({
   quiz,
   cover,
@@ -58,6 +61,7 @@ export default function QuizPlay({
   onFinish: (result: SoloResult) => void;
   onBack: () => void;
 }) {
+  const limitMs = quizLimitMs(quiz);
   const [stage, setStage] = useState<"intro" | "play" | "result">("intro");
   const [questions, setQuestions] = useState(() => shuffled(quiz.questions));
   const [step, setStep] = useState(0);
@@ -98,7 +102,7 @@ export default function QuizPlay({
     const answer = Number(questions[step].answer);
     const correct = index === answer;
     const elapsedMs = Date.now() - startedAt;
-    const points = questionPoints(correct, elapsedMs, correct ? trailingStreak(rows) + 1 : 0);
+    const points = questionPoints(correct, elapsedMs, correct ? trailingStreak(rows) + 1 : 0, limitMs);
     setPicked(index);
     setRows((list) => [...list, { correct, points, elapsedMs }]);
   }
@@ -184,7 +188,7 @@ export default function QuizPlay({
 
       <div key={step} className="qz-question">
         <h2 id="qz-question-text">{question.prompt}</h2>
-        <PointsMeter key={step} startedAt={startedAt} answeredAfter={last ? last.elapsedMs : null} />
+        <PointsMeter key={step} startedAt={startedAt} answeredAfter={last ? last.elapsedMs : null} limitMs={limitMs} />
         <QuizChoices
           label={question.prompt}
           choices={question.choices.map((choice) => choice.text)}

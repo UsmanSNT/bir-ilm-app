@@ -18,6 +18,10 @@ export type Quiz = {
   /** Bog'langan kitobning muqovasi yoki rangi (bo'lsa). */
   image?: string | null;
   color?: string;
+  /** Kim o'ynaydi: faqat jamoaviy yoki jamoaviy va yakka. */
+  playMode?: "group" | "group_solo";
+  /** Har bir savolga javob vaqti (soniya). */
+  timeSeconds?: number;
   questions: QuizQuestion[];
 };
 

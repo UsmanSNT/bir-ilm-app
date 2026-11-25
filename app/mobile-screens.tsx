@@ -31,6 +31,7 @@ import {
   QuizAddButton,
   QuizCard,
   QuizCardSkeleton,
+  ShareQuizButton,
   QuizCodeForm,
   QuizEmpty,
   QuizEntry,
@@ -46,6 +47,7 @@ import { WisdomCard, WisdomDialog, WisdomEditor, useWisdomPrompt } from "./wisdo
 import { JourneyEntry } from "./about";
 import { InstallCard } from "./install-app";
 import QuizLive from "./quiz-live";
+import { LoginDialog } from "./login-dialog";
 import { notifyCatalogChanged, updateBook, useCatalog } from "@/lib/api/books-client";
 import { useViewer } from "@/lib/api/roles-client";
 import { canModerate } from "@/shared/contract/roles";
@@ -192,6 +194,12 @@ function roomCodeFromLink(): string {
   return fromLink && /^\d{6}$/.test(fromLink) ? fromLink : "";
 }
 
+/** Havola orqali kelgan viktorina id'si (`?viktorina=`); bo'lmasa — null. */
+function quizIdFromLink(): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get("viktorina");
+}
+
 export default function MobileScreens({
   name,
   session,
@@ -230,6 +238,9 @@ export default function MobileScreens({
   // Havoladan kirish (`?xona=123456`): kod oldindan to'ldiriladi, o'yinchi «Qo‘shilish» ni bosadi.
   const [code, setCode] = useState(roomCodeFromLink);
   const [showQuizzes, setShowQuizzes] = useState(false);
+  // Kirish oynasi va havoladan kelgan viktorina (`?viktorina=ID`): kirgandan keyin shu viktorina ochiladi.
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [pendingQuizId, setPendingQuizId] = useState<string | null>(quizIdFromLink);
   const [showLeaders, setShowLeaders] = useState(false);
   const [active, setActive] = useState<Quiz | null>(null);
   // Jonli xona: boshlovchi boshqaradigan o'yin (Kahoot uslubida).
@@ -310,10 +321,14 @@ export default function MobileScreens({
       tone: "cream",
       image: q.image ?? linked?.coverUrl ?? null,
       color: linked?.color,
+      playMode: q.playMode,
+      timeSeconds: q.timeSeconds,
       questions: q.questions.map((qq) => ({ prompt: qq.prompt, choices: qq.choices.map((text, i) => ({ id: String(i), text })), answer: String(qq.answer) })),
     };
   }), [serverQuizzes.items, catalog.items]);
-  const visibleQuizzes = showQuizzes ? quizzes : quizzes.slice(0, 2);
+  // Yakka o'ynash faqat «Jamoaviy va yakka» viktorinalarda. Jamoaviy-only viktorina faqat xona kodi bilan.
+  const soloQuizzes = useMemo(() => quizzes.filter((quiz) => quiz.playMode === "group_solo"), [quizzes]);
+  const visibleQuizzes = showQuizzes ? soloQuizzes : soloQuizzes.slice(0, 2);
   // Eng yaqin (yoki hozir ochiq) jonli viktorina vaqti.
   const nextLive = useMemo(() => {
     const rows = serverQuizzes.items.flatMap((q) => q.sessions.map((session) => ({ q, session, status: quizSessionStatus(session.startsAt, now) })))
@@ -362,11 +377,35 @@ export default function MobileScreens({
 
   /** Mustaqil rejim (yoki jonli vaqt oynasida, lekin boshlovchisiz — `sessionId` bilan). */
   function startQuiz(quiz: Quiz, sessionId: string | null = null) {
+    // Yakka o'yin uchun hisobga kirish shart; kirmagan bo'lsa — kirish oynasi, kirgandan keyin shu viktorina.
+    if (sessionId === null && !viewer?.signedIn) {
+      setPendingQuizId(quiz.id);
+      setLoginOpen(true);
+      return;
+    }
     setActive(quiz);
     setActiveSession(sessionId);
     setScreen("play");
     window.scrollTo({ top: 0 });
   }
+
+  // Kirish tugagach yoki havola orqali kelganda kutilayotgan viktorina ochiladi.
+  useEffect(() => {
+    if (!pendingQuizId || viewer === null) return;
+    const quiz = quizzes.find((q) => q.id === pendingQuizId);
+    if (!quiz) return;
+    // Holat yangilanishi effect'dan keyin, navbatda bajariladi (effect ichida darhol setState yo'q).
+    queueMicrotask(() => {
+      if (!viewer.signedIn) {
+        setLoginOpen(true);
+        return;
+      }
+      setPendingQuizId(null);
+      window.history.replaceState(null, "", window.location.pathname);
+      startQuiz(quiz);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingQuizId, quizzes, viewer]);
 
   /** Jonli xona: boshlovchi boshqaradi, hamma bir vaqtda javob beradi. */
   function openRoom(quiz: Quiz, sessionId: string) {
@@ -673,14 +712,14 @@ export default function MobileScreens({
 
           <div className="m-section-head">
             <h2>O‘zingizni sinang</h2>
-            {quizzes.length > 2 && (
+            {soloQuizzes.length > 2 && (
               <button type="button" onClick={() => setShowQuizzes((value) => !value)}>
                 {showQuizzes ? "Yig‘ish" : "Barchasi"} <ChevronRight size={16} />
               </button>
             )}
           </div>
           {editor && <QuizAddButton onClick={() => setQuizEditing({ quiz: null })} />}
-          {!serverQuizzes.loading && quizzes.length === 0 && (
+          {!serverQuizzes.loading && soloQuizzes.length === 0 && (
             <QuizEmpty
               icon={<BookOpen size={18} />}
               title="Hozircha viktorina yo‘q"
@@ -688,13 +727,14 @@ export default function MobileScreens({
             />
           )}
           <div className="qz-list">
-            {serverQuizzes.loading && quizzes.length === 0 && (
+            {serverQuizzes.loading && soloQuizzes.length === 0 && (
               <>
                 <QuizCardSkeleton />
                 <QuizCardSkeleton />
               </>
             )}
             {visibleQuizzes.map((quiz) => (
+              <div key={quiz.id} className="qz-item">
               <QuizCard
                 key={quiz.id}
                 cover={<BookCover title={quiz.title} author={quiz.author} tone={quiz.tone} size="sm" image={quiz.image} color={quiz.color} />}
@@ -706,7 +746,10 @@ export default function MobileScreens({
                 onStart={() => startQuiz(quiz)}
                 onEdit={editor ? () => setQuizEditing({ quiz: serverQuizzes.items.find((x) => x.id === quiz.id) ?? null }) : undefined}
               />
+              <ShareQuizButton quizId={quiz.id} title={quiz.title} />
+              </div>
             ))}
+            {viewer && <LoginDialog viewer={viewer} open={loginOpen} onOpenChange={setLoginOpen} />}
           </div>
 
           <div className="m-section-head">

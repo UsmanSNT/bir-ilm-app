@@ -158,6 +158,28 @@ export function QuizHero({
 }
 
 /** Eng yaqin jonli viktorina: holat belgisi, vaqt, ishtirokchilar va qo'shilish tugmasi. */
+/** Viktorina havolasi (`?viktorina=ID`): ochgan odam kirgandan keyin yakka o'ynaydi. */
+export function ShareQuizButton({ quizId, title }: { quizId: string; title: string }) {
+  async function share() {
+    const url = `${window.location.origin}/?viktorina=${quizId}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toast.success("Havola nusxalandi");
+    } catch {
+      // Foydalanuvchi ulashishni bekor qildi yoki nusxalash ruxsat etilmagan.
+    }
+  }
+  return (
+    <button type="button" className="qz-share" onClick={share}>
+      <Link2 size={15} aria-hidden="true" /> Havolani ulashish
+    </button>
+  );
+}
+
 /** Xona havolasi: `?xona=КОД` — ochgan o'yinchi kodni avtomatik oladi. Telefonda ulashish oynasi, aks holda nusxalanadi. */
 function ShareRoomLink({ code }: { code: string }) {
   async function share() {
