@@ -74,7 +74,8 @@ export const useTeam = (includeHidden = false) => useRemote(includeHidden ? load
 export const useAbout = () => useRemote(loadAbout, DEFAULT_ABOUT);
 
 /** Suhbat vaqti belgilanganda ro'yxatga yoziladi: app/talk-format.ts dagi TALKS_CHANGED hodisasi bilan bir xil nom. */
-const JOURNEY_EVENTS = [SITE_CHANGED, "bir-talks-changed"] as const;
+// Kitob saqlanganda ham («Suhbat raqami» o'zgargan bo'lishi mumkin): books-client dagi hodisa nomi bilan bir xil.
+const JOURNEY_EVENTS = [SITE_CHANGED, "bir-talks-changed", "bir-catalog-changed"] as const;
 const loadJourneyBooks = () => call<{ items: JourneyBook[] }>("/site/journey").then(items);
 const NO_JOURNEY_BOOKS: JourneyBook[] = [];
 /** «Bir Ilm yo'li»: suhbat vaqti belgilangan hafta kitoblari (tartib raqami bilan). Suhbat o'zgarganda yangilanadi. */

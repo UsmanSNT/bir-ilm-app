@@ -19,7 +19,7 @@ export const PUT = defineRoute<JourneyDetailsData, { item: JourneySlot }>({
   source: "body",
   handler: async ({ db, identity, input, params }) => {
     await requireRole(db, identity.userId, ["admin", "moderator"], STAFF_ONLY);
-    return { item: await updateJourneySlot(db, numberOf(params.number), input) };
+    return { item: await updateJourneySlot(db, numberOf(params.number), input, identity.userId) };
   },
 });
 

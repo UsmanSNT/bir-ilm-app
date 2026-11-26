@@ -51,6 +51,8 @@ export type Book = {
   category: string;
   /** Elektron kitob (matn rejimi); null — yuklanmagan. */
   ebook: EbookInfo | null;
+  /** «Bir Ilm yo'li» dagi suhbat raqami (shu kitob muhokama qilingan hafta); null — bog'lanmagan. */
+  journeyNumber: number | null;
 };
 
 export type BookTrack = {
@@ -102,6 +104,8 @@ export const createBookSchema = z.object({
     }),
   price: z.coerce.number().int("Narx butun wonda bo'lsin.").min(0).max(10_000_000).default(0),
   category: z.string().trim().max(40).default(""),
+  /** Suhbat raqami («Bir Ilm yo'li» haftasi); null — bog'lanmasin. Faqat kutubxona kitobi uchun. */
+  journeyNumber: z.number().int("Suhbat raqami butun son bo'lsin.").min(1, "Suhbat raqami 1 dan boshlanadi.").max(100_000).nullable().optional(),
 });
 export type CreateBookInput = z.infer<typeof createBookSchema>;
 

@@ -9,6 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { audioDuration, createBook, deleteBook, deleteEbook, deleteTrack, fetchEbook, notifyCatalogChanged, saveEbook, saveEbookSource, saveTracks, updateBook, uploadBookMedia } from "@/lib/api/books-client";
 import { createLiveSession, fetchLiveSessions, updateLiveSession } from "@/lib/api/live-client";
 import { useViewer } from "@/lib/api/roles-client";
+import { useAbout } from "@/lib/api/site-client";
+import { saturdaySessionAt, sessionDateOf } from "@/shared/journey";
+import { uzDateTashkent } from "./uz-date";
 import { BOOK_LIMITS, EBOOK_LIMITS, ebookSourceLabel, STORE_CATEGORIES, STORE_LIMITS, describeAudioLink, normalizeAudioLink, type Book, type LiveSession } from "@/shared/contract";
 import { ebookTextLength, tidyEbookSource } from "@/shared/ebook-markup";
 import EbookReader from "./ebook-reader";
@@ -62,6 +65,15 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
   const [price, setPrice] = useState(book?.price ? String(book.price) : "");
   // Bo'sh qoldirilsa 0 saqlanadi va hech qayerda ko'rsatilmaydi.
   const [pages, setPages] = useState(book?.pages ? String(book.pages) : "");
+  // «Bir Ilm yo'li» dagi suhbat raqami: berilsa, kitob o'sha haftada ham ko'rinadi (alohida kiritish shart emas).
+  const [journeyNumber, setJourneyNumber] = useState(book?.journeyNumber ? String(book.journeyNumber) : "");
+  const { value: about } = useAbout();
+  const journeyDate = useMemo(() => {
+    const n = Number(journeyNumber);
+    const date = journeyNumber && Number.isInteger(n) && n >= 1 ? sessionDateOf(about.anchor, n) : null;
+    const at = date ? saturdaySessionAt(date) : null;
+    return at === null ? null : uzDateTashkent(at);
+  }, [journeyNumber, about.anchor]);
   const [audioLink, setAudioLink] = useState(book?.audioLink ?? "");
   const [category, setCategory] = useState(book?.category ?? "");
   const [active, setActive] = useState(store ? false : book?.active ?? asWeekBook);
@@ -202,7 +214,9 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
       if (!store && linkValue && !normalizeAudioLink(linkValue)) throw new Error("Audio havolasi noto‘g‘ri. Masalan: https://youtu.be/… yoki https://t.me/…");
       const base = { title: title.trim(), author: author.trim(), summary: stripMarkdown(summary), color, pages: pagesValue };
       // Do'kon mahsuloti: narx va janr bor, audio/hafta kitobi yo'q. Kutubxona kitobida aksincha.
-      const fields = store ? { ...base, price: priceValue, category: category.trim() } : { ...base, audioLink: linkValue };
+      const journeyValue = journeyNumber.trim() ? Number(journeyNumber) : null;
+      if (!store && journeyValue !== null && (!Number.isInteger(journeyValue) || journeyValue < 1)) throw new Error("Suhbat raqami 1 dan boshlanadigan butun son bo‘lsin (yoki bo‘sh qoldiring).");
+      const fields = store ? { ...base, price: priceValue, category: category.trim() } : { ...base, audioLink: linkValue, journeyNumber: journeyValue };
       let saved = book ? await updateBook(book.id, store ? fields : { ...fields, active }) : await createBook({ ...fields, kind });
       if (!book && active && !store) saved = await updateBook(saved.id, { active: true });
 
@@ -524,6 +538,13 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
             <span>Sahifalar soni <small>ixtiyoriy</small></span>
             <input inputMode="numeric" pattern="[0-9]*" placeholder="—" aria-label="Sahifalar soni (ixtiyoriy)" value={pages} disabled={busy} onChange={(e) => setPages(e.target.value.replace(/\D/g, "").slice(0, 4))} />
           </label>
+          {!store && (
+            <label className="book-editor-pages">
+              <span>Suhbat raqami <small>ixtiyoriy · «Bir Ilm yo‘li»</small></span>
+              <input inputMode="numeric" pattern="[0-9]*" placeholder="—" aria-label="Suhbat raqami (ixtiyoriy)" value={journeyNumber} disabled={busy} onChange={(e) => setJourneyNumber(e.target.value.replace(/\D/g, "").slice(0, 5))} />
+              {journeyDate && <small className="book-editor-journey-date">{journeyNumber}-suhbat · {journeyDate}, shanba</small>}
+            </label>
+          )}
 
           {!store && <label className="book-editor-active">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />

@@ -5,6 +5,7 @@ import { ArrowLeft, BookOpen, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useViewer } from "@/lib/api/roles-client";
+import { notifyCatalogChanged, uploadBookMedia } from "@/lib/api/books-client";
 import { notifySiteChanged, saveJourneySlot, useJourneySlots } from "@/lib/api/site-client";
 import type { JourneySlot } from "@/shared/contract";
 import { JOURNEY_LIMITS, saturdaySessionAt } from "@/shared/journey";
@@ -90,15 +91,27 @@ function SlotDialog({ slot, canEdit, onClose, onSaved }: { slot: JourneySlot; ca
   const [author, setAuthor] = useState(slot.author);
   const [summary, setSummary] = useState(slot.summary);
   const [moderator, setModerator] = useState(slot.moderator);
+  const [cover, setCover] = useState<File | null>(null);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (cover && !title.trim() && !slot.bookId) {
+      toast.error("Rasm yuklash uchun avval kitob nomini yozing.");
+      return;
+    }
     setBusy(true);
     try {
-      const item = await saveJourneySlot(slot.number, { title, author, summary, moderator });
+      let item = await saveJourneySlot(slot.number, { title, author, summary, moderator });
+      // Muqova kitobning o'zida saqlanadi — kutubxona javonida ham shu rasm ko'rinadi.
+      if (cover && item.bookId) {
+        const book = await uploadBookMedia(item.bookId, "cover", cover, () => {});
+        item = { ...item, coverUrl: book.coverUrl };
+      }
       toast.success("Saqlandi");
       notifySiteChanged();
+      notifyCatalogChanged();
       onSaved(item);
+      setCover(null);
       setEditing(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Saqlanmadi.");
@@ -128,6 +141,10 @@ function SlotDialog({ slot, canEdit, onClose, onSaved }: { slot: JourneySlot; ca
               <textarea rows={6} value={summary} maxLength={JOURNEY_LIMITS.summary} onChange={(e) => setSummary(e.target.value)} />
             </label>
             <label>
+              Muqova rasmi {slot.coverUrl ? "(almashtirish)" : "(ixtiyoriy)"}
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
+            </label>
+            <label>
               Moderator (ixtiyoriy)
               <input value={moderator} maxLength={JOURNEY_LIMITS.moderator} onChange={(e) => setModerator(e.target.value)} />
             </label>
@@ -138,6 +155,10 @@ function SlotDialog({ slot, canEdit, onClose, onSaved }: { slot: JourneySlot; ca
           </form>
         ) : (
           <div className="jshelf-detail">
+            {slot.coverUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="jshelf-detail-cover" src={slot.coverUrl} alt={`${slot.title} muqovasi`} />
+            )}
             <h2>{slot.title || "Nomi yozilmagan"}</h2>
             {slot.author && <p className="jshelf-author">{slot.author}</p>}
             {slot.summary ? <p className="jshelf-summary">{slot.summary}</p> : <p className="jshelf-muted">Kitob haqida ma’lumot hali kiritilmagan.</p>}

@@ -26,3 +26,5 @@
 .jshelf-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .jshelf-actions button { padding: 8px 14px; border-radius: 6px; border: 1px solid #0f4f45; background: #0f4f45; color: #fff; cursor: pointer; }
 .jshelf-actions button:first-child { background: #fff; color: #0f4f45; }
+.jshelf-detail-cover { display: block; width: 120px; aspect-ratio: 2 / 3; object-fit: cover; margin: 12px auto 4px; border-radius: 3px 6px 6px 3px; box-shadow: 0 6px 14px rgba(31, 42, 68, 0.18); }
+.jshelf-form input[type="file"] { padding: 6px; background: #fffdf8; }

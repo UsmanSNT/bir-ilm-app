@@ -301,6 +301,32 @@ try {
   const after = (await user.call(slotsRoute.GET, "/api/v1/site/journey/slots")).data.items.find((s) => s.number === last);
   assert.equal(after.moderator, "Mod", "Tahrir ro'yxatda ko'rinadi");
   console.log("PASS: Javon yacheykalari raqam bo'yicha; tahrir faqat admin yoki moderatorga ruxsat.");
+  // --- Kitob ↔ «Bir Ilm yo'li»: bitta manba ---------------------------------------
+  const slotsNow = async () => (await user.call(slotsRoute.GET, "/api/v1/site/journey/slots")).data.items;
+  const freeNumbers = (await slotsNow()).filter((x) => x.bookId === null).map((x) => x.number);
+  const [n1, n2] = freeNumbers.slice(-2);
+  const linkedTitle = `Bog'langan ${crypto.randomUUID().slice(0, 6)}`;
+  const linked = (await admin.call(books.POST, "/api/v1/books", { method: "POST", body: { title: linkedTitle, author: "Muallif", summary: "Kitob haqida", journeyNumber: n1 }, expect: 201 })).data;
+  assert.equal(linked.journeyNumber, n1, "Yaratishda suhbat raqami saqlandi");
+  let slot = (await slotsNow()).find((x) => x.number === n1);
+  assert.equal(slot.bookId, linked.id, "Hafta kitobga bog'landi");
+  assert.equal(slot.title, linkedTitle, "Haftada kitob nomi ko'rinadi — alohida kiritish shart emas");
+  const rival = (await admin.call(books.POST, "/api/v1/books", { method: "POST", body: { title: `Boshqa ${crypto.randomUUID().slice(0, 6)}`, author: "M" }, expect: 201 })).data;
+  await admin.call(book.PATCH, `/api/v1/books/${rival.id}`, { method: "PATCH", params: { id: rival.id }, body: { journeyNumber: n1 }, expect: 400 });
+  await admin.call(slotRoute.PUT, `/api/v1/site/journey/slots/${n1}`, { method: "PUT", params: { number: String(n1) }, body: { title: `${linkedTitle} (yangi)`, author: "Muallif", summary: "Yangi matn", moderator: "M" } });
+  const afterEdit = (await user.call(books.GET, "/api/v1/books")).data.items.find((b) => b.id === linked.id);
+  assert.equal(afterEdit.title, `${linkedTitle} (yangi)`, "Haftadagi tahrir kitobga yozildi");
+  assert.equal(afterEdit.summary, "Yangi matn");
+  await admin.call(book.PATCH, `/api/v1/books/${linked.id}`, { method: "PATCH", params: { id: linked.id }, body: { journeyNumber: n2 } });
+  slot = (await slotsNow()).find((x) => x.number === n1);
+  assert.equal(slot.bookId, null, "Eski hafta endi bog'lanmagan");
+  assert.equal((await slotsNow()).find((x) => x.number === n2).bookId, linked.id);
+  await admin.call(book.PATCH, `/api/v1/books/${linked.id}`, { method: "PATCH", params: { id: linked.id }, body: { journeyNumber: null } });
+  assert.equal((await slotsNow()).find((x) => x.number === n2).bookId, null, "Bog'lanish olib tashlandi");
+  const fresh = (await admin.call(slotRoute.PUT, `/api/v1/site/journey/slots/${n1}`, { method: "PUT", params: { number: String(n1) }, body: { title: "Haftadan kitob", author: "A", summary: "", moderator: "" } })).data.item;
+  assert.ok(fresh.bookId, "Haftadan kitob yaratildi");
+  assert.ok((await user.call(books.GET, "/api/v1/books")).data.items.some((b) => b.id === fresh.bookId && b.journeyNumber === n1), "Yangi kitob javonda, raqami bilan");
+  console.log("PASS: Kitob ↔ «Bir Ilm yo'li»: raqam bilan bog'lanadi, to'qnashuv rad etiladi, tahrir va kitob yaratish bitta manbada.");
 console.log("\nHAMMASI O'TDI: «Bir Ilm yo'li» ro'yxati va hafta kitobi muddati.");
 } finally {
   if (createdTalks.length) sqlite.prepare(`DELETE FROM live_sessions WHERE id IN (${createdTalks.map(() => "?").join(",")})`).run(...createdTalks);

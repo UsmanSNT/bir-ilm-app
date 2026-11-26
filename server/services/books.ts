@@ -6,14 +6,26 @@
  */
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
-import { and, desc, eq, getTableColumns, ne } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, inArray, ne, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { notFound } from "@/server/http/errors";
-import { weekBookOnAir } from "./journey";
+import { setBookJourneyNumber, weekBookOnAir } from "./journey";
 import { ebookAccessFor, ebookSourceOf, type Book, type BookTrack, type CreateBookInput, type ReorderTracksInput, type UpdateBookInput } from "@/shared/contract";
 
-const { books, bookTracks, bookEbooks } = schema;
+const { books, bookTracks, bookEbooks, journeyBooks } = schema;
+
+/** «Bir Ilm yo'li» dagi suhbat raqamini kitoblarga qo'shadi (bir nechta bo'lsa — eng oxirgisi). */
+async function withJourneyNumbers(db: Database, list: Book[]): Promise<Book[]> {
+  if (list.length === 0) return list;
+  const rows = await db
+    .select({ bookId: journeyBooks.bookId, number: sql<number>`max(${journeyBooks.number})` })
+    .from(journeyBooks)
+    .where(inArray(journeyBooks.bookId, list.map((book) => book.id)))
+    .groupBy(journeyBooks.bookId);
+  const byBook = new Map(rows.map((row) => [row.bookId, Number(row.number)]));
+  return list.map((book) => ({ ...book, journeyNumber: byBook.get(book.id) ?? null }));
+}
 type BookRow = typeof books.$inferSelect;
 type TrackRow = typeof bookTracks.$inferSelect;
 /** E-kitobning yengil ma'lumoti (matnning o'zisiz). */
@@ -66,6 +78,7 @@ function buildBook(row: BookRow, trackRows: TrackRow[], ebook: EbookMeta | undef
     price: row.price,
     category: row.category,
     ebook: ebook ? { access: ebookAccessFor(row.kind), chars: ebook.chars, updatedAt: ebook.updatedAt, source: ebookSourceOf(ebook.sourceName, ebook.sourceUrl) } : null,
+    journeyNumber: null,
   };
 }
 
@@ -108,7 +121,7 @@ export async function listCatalog(db: Database, kind: "library" | "store" = "lib
     .from(bookEbooks)
     .innerJoin(books, eq(bookEbooks.bookId, books.id))
     .where(eq(books.kind, kind));
-  return toBooks(rows, tracks, ebooks);
+  return withJourneyNumbers(db, toBooks(rows, tracks, ebooks));
 }
 
 export async function getBookRow(db: Database, id: string): Promise<BookRow> {
@@ -122,7 +135,7 @@ export async function getBook(db: Database, id: string): Promise<Book> {
   const row = await getBookRow(db, id);
   const tracks = await db.select().from(bookTracks).where(eq(bookTracks.bookId, id));
   const ebooks = await db.select(ebookMetaColumns).from(bookEbooks).where(eq(bookEbooks.bookId, id));
-  return toBook(row, tracks, ebooks);
+  return (await withJourneyNumbers(db, [toBook(row, tracks, ebooks)]))[0];
 }
 
 // ── Audiokitob qismlari ─────────────────────────────────────────────
@@ -181,16 +194,27 @@ const now = () => new Date().toISOString();
 export async function createBook(db: Database, userId: string, input: CreateBookInput): Promise<Book> {
   const id = newBookId();
   const stamp = now();
+  const { journeyNumber, ...rest } = input;
   // Ikki ro'yxat aralashmaydi: kutubxona kitobida narx/janr yo'q, do'kon mahsuloti haftaning kitobi bo'lmaydi.
-  const fields = input.kind === "store" ? { ...input, audioLink: "" } : { ...input, price: 0, category: "" };
+  const fields = rest.kind === "store" ? { ...rest, audioLink: "" } : { ...rest, price: 0, category: "" };
   await db.insert(books).values({ id, ...fields, createdBy: userId, createdAt: stamp, updatedAt: stamp });
+  // Suhbat raqami berilsa — kitob «Bir Ilm yo'li» dagi o'sha haftaga bog'lanadi (alohida kiritish shart emas).
+  if (rest.kind !== "store" && journeyNumber != null) await setBookJourneyNumber(db, id, journeyNumber);
   return getBook(db, id);
+}
+
+/** «Bir Ilm yo'li» haftasidan kutubxona kitobi: nom, muallif va matn bilan (qolgani — standart). */
+export async function createLibraryBookFromJourney(db: Database, userId: string, input: { title: string; author: string; summary: string }): Promise<string> {
+  const id = newBookId();
+  const stamp = now();
+  await db.insert(books).values({ id, kind: "library", title: input.title, author: input.author, summary: input.summary, createdBy: userId, createdAt: stamp, updatedAt: stamp });
+  return id;
 }
 
 export async function updateBook(db: Database, id: string, input: UpdateBookInput): Promise<Book> {
   const row = await getBookRow(db, id);
   const store = row.kind === "store";
-  const { active, price, category, audioLink, ...common } = input;
+  const { active, price, category, audioLink, journeyNumber, ...common } = input;
   const patch: Partial<typeof books.$inferInsert> = store ? { ...common, price, category } : { ...common, active, audioLink };
   // Haftaning kitobi bitta bo'ladi (faqat kutubxona kitoblari orasida).
   if (!store && active) {
@@ -199,6 +223,8 @@ export async function updateBook(db: Database, id: string, input: UpdateBookInpu
     if (!row.active || !(await weekBookOnAir(db, id))) patch.activeSince = now();
   }
   await db.update(books).set({ ...patch, updatedAt: now() }).where(eq(books.id, id));
+  // `journeyNumber` yuborilgan bo'lsa (null — bog'lanishni olib tashlash) — «Bir Ilm yo'li» yangilanadi.
+  if (!store && journeyNumber !== undefined) await setBookJourneyNumber(db, id, journeyNumber);
   return getBook(db, id);
 }
 

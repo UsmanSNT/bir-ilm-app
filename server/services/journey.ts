@@ -10,9 +10,10 @@ import { and, asc, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { badRequest, notFound } from "@/server/http/errors";
-import type { JourneyBook, JourneyDetailsData, JourneyImportData, JourneySlot, JourneyTitleData } from "@/shared/contract";
+import type { Book, JourneyBook, JourneyDetailsData, JourneyImportData, JourneySlot, JourneyTitleData } from "@/shared/contract";
 import { JOURNEY_LIMITS, journeyNumberInRange, saturdayOnOrAfter, saturdaySessionAt, sessionDateOf, sessionNumberOf, type Anchor } from "@/shared/journey";
 import { getAbout } from "./about";
+import { createLibraryBookFromJourney, listCatalog } from "./books";
 
 const { books, journeyBooks, liveSessions } = schema;
 
@@ -145,16 +146,18 @@ export async function weekBookOnAir(db: Database, bookId: string, now = Date.now
 }
 
 type JourneyRow = typeof journeyBooks.$inferSelect;
+type LinkedBook = Pick<Book, "id" | "title" | "author" | "summary" | "coverUrl">;
 
-const toSlot = (number: number, discussedOn: string, row: JourneyRow | undefined): JourneySlot => ({
+/** Yacheyka: kitobga bog'langan bo'lsa — nom, muallif, matn va muqova kitobdan (bitta manba). */
+const toSlot = (number: number, discussedOn: string, row: JourneyRow | undefined, book: LinkedBook | undefined): JourneySlot => ({
   number,
   discussedOn,
-  title: row?.title ?? "",
-  author: row?.author ?? "",
-  summary: row?.summary ?? "",
+  title: book?.title ?? row?.title ?? "",
+  author: book?.author ?? row?.author ?? "",
+  summary: (book?.summary || row?.summary) ?? "",
   moderator: row?.moderator ?? "",
-  bookId: row?.bookId ?? null,
-  coverUrl: null,
+  bookId: book?.id ?? null,
+  coverUrl: book?.coverUrl ?? null,
 });
 
 /**
@@ -164,37 +167,79 @@ const toSlot = (number: number, discussedOn: string, row: JourneyRow | undefined
 export async function listJourneySlots(db: Database, now = Date.now()): Promise<JourneySlot[]> {
   const { anchor } = await getAbout(db);
   const rows = await db.select().from(journeyBooks);
+  const catalog = new Map((await listCatalog(db)).map((book) => [book.id, book]));
   const byNumber = new Map(rows.map((row) => [row.number, row]));
   const current = sessionNumberOf(anchor, saturdayOnOrAfter(now)) ?? 1;
   const last = Math.max(current, ...rows.map((row) => row.number));
   const slots: JourneySlot[] = [];
   for (let number = 1; number <= last; number++) {
     const discussedOn = sessionDateOf(anchor, number);
-    if (discussedOn) slots.push(toSlot(number, discussedOn, byNumber.get(number)));
+    if (!discussedOn) continue;
+    const row = byNumber.get(number);
+    slots.push(toSlot(number, discussedOn, row, row?.bookId ? catalog.get(row.bookId) : undefined));
   }
   return slots;
 }
 
+async function slotOf(db: Database, number: number, discussedOn: string): Promise<JourneySlot> {
+  const row = await db.query.journeyBooks.findFirst({ where: eq(journeyBooks.number, number) });
+  const book = row?.bookId ? (await listCatalog(db)).find((b) => b.id === row.bookId) : undefined;
+  return toSlot(number, discussedOn, row, book);
+}
+
 /**
- * Yacheykani to'ldiradi yoki yangilaydi. Kutubxona kitobiga bog'langan hafta nomi/muallifini o'zgartirmaydi
- * (nomi kitobning o'zidan keladi); matn va moderator nomi har doim tahrirlanadi.
+ * Kutubxona kitobini «Bir Ilm yo'li» haftasiga bog'laydi (kitob qo'shish/tahrirlash oynasidagi «Suhbat raqami»).
+ * Kitob bitta haftada turadi: boshqa haftalardagi bog'lanishi olib tashlanadi (yozilgan nom qoladi).
+ * Hafta boshqa kitobga bog'langan bo'lsa — rad etiladi. `null` — bog'lanishni olib tashlash.
  */
-export async function updateJourneySlot(db: Database, number: number, input: JourneyDetailsData, now = Date.now()): Promise<JourneySlot> {
+export async function setBookJourneyNumber(db: Database, bookId: string, number: number | null, now = Date.now()): Promise<void> {
+  const stamp = new Date(now).toISOString();
+  if (number === null) {
+    await db.update(journeyBooks).set({ bookId: null, updatedAt: stamp }).where(eq(journeyBooks.bookId, bookId));
+    return;
+  }
+  const { anchor } = await getAbout(db);
+  const discussedOn = dateOfNumber(anchor, number);
+  const book = await db.query.books.findFirst({ where: eq(books.id, bookId), columns: { title: true, author: true } });
+  if (!book) throw notFound("Kitob topilmadi.");
+  const existing = await db.query.journeyBooks.findFirst({ where: eq(journeyBooks.number, number) });
+  if (existing?.bookId && existing.bookId !== bookId) {
+    throw badRequest(`${number}-suhbat boshqa kitobga («${existing.title}») bog‘langan. Avval o‘sha kitobdan raqamni olib tashlang.`);
+  }
+  await db
+    .update(journeyBooks)
+    .set({ bookId: null, updatedAt: stamp })
+    .where(and(eq(journeyBooks.bookId, bookId), ne(journeyBooks.number, number)));
+  await db
+    .insert(journeyBooks)
+    .values({ number, discussedOn, title: book.title, author: book.author, bookId, createdAt: stamp, updatedAt: stamp })
+    .onConflictDoUpdate({ target: journeyBooks.number, set: { title: book.title, author: book.author, bookId, updatedAt: stamp } });
+}
+
+/**
+ * Yacheykani to'ldiradi yoki yangilaydi. Kitob ma'lumoti bitta joyda — kutubxona kitobida:
+ *  - hafta kitobga bog'langan bo'lsa, nom/muallif/matn kitobning o'zida yangilanadi (javonda ham ko'rinadi);
+ *  - bog'lanmagan va nomi yozilgan bo'lsa, kutubxonada kitob yaratiladi va haftaga bog'lanadi.
+ * Moderator nomi faqat haftaga tegishli.
+ */
+export async function updateJourneySlot(db: Database, number: number, input: JourneyDetailsData, userId: string, now = Date.now()): Promise<JourneySlot> {
   const { anchor } = await getAbout(db);
   const discussedOn = dateOfNumber(anchor, number);
   const existing = await db.query.journeyBooks.findFirst({ where: eq(journeyBooks.number, number) });
-  const linked = Boolean(existing?.bookId);
-  const title = linked ? existing?.title ?? "" : input.title;
-  const author = linked ? existing?.author ?? "" : input.author;
   const stamp = new Date(now).toISOString();
-  const values = { number, discussedOn, title, author, summary: input.summary, moderator: input.moderator, bookId: existing?.bookId ?? null, createdAt: stamp, updatedAt: stamp };
+  let bookId = existing?.bookId ?? null;
+  if (bookId) {
+    await db.update(books).set({ title: input.title || existing?.title || "", author: input.author, summary: input.summary, updatedAt: stamp }).where(eq(books.id, bookId));
+  } else if (input.title) {
+    bookId = await createLibraryBookFromJourney(db, userId, { title: input.title, author: input.author, summary: input.summary });
+  }
+  const values = { number, discussedOn, title: input.title, author: input.author, summary: input.summary, moderator: input.moderator, bookId, createdAt: stamp, updatedAt: stamp };
   await db
     .insert(journeyBooks)
     .values(values)
     .onConflictDoUpdate({
       target: journeyBooks.number,
-      set: { title, author, summary: input.summary, moderator: input.moderator, updatedAt: stamp },
+      set: { title: input.title, author: input.author, summary: input.summary, moderator: input.moderator, bookId, updatedAt: stamp },
     });
-  const row = await db.query.journeyBooks.findFirst({ where: eq(journeyBooks.number, number) });
-  return toSlot(number, discussedOn, row);
+  return slotOf(db, number, discussedOn);
 }
