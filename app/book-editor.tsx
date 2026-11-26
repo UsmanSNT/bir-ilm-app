@@ -557,7 +557,6 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
               {existingTalk && !existingPlanned && <p className="book-editor-talk-note">Suhbat boshlangan — vaqti o‘zgarmaydi.</p>}
               <DateTimeField
                 label="Suhbat sanasi va vaqti"
-                min={localInput(new Date())}
                 disabled={Boolean(existingTalk && !existingPlanned)}
                 value={talkWhen}
                 onChange={setTalkWhen}
