@@ -121,7 +121,9 @@ export async function listCatalog(db: Database, kind: "library" | "store" = "lib
     .from(bookEbooks)
     .innerJoin(books, eq(bookEbooks.bookId, books.id))
     .where(eq(books.kind, kind));
-  return withJourneyNumbers(db, toBooks(rows, tracks, ebooks));
+  // Javon tartibi: eng so'nggi suhbat raqami yuqorida (pastdan yuqoriga raqamlar o'sadi); raqamsizlar oxirida.
+  const list = await withJourneyNumbers(db, toBooks(rows, tracks, ebooks));
+  return list.sort((a, b) => (b.journeyNumber ?? -1) - (a.journeyNumber ?? -1));
 }
 
 export async function getBookRow(db: Database, id: string): Promise<BookRow> {
