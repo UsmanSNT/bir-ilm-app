@@ -172,8 +172,10 @@ export async function listJourneySlots(db: Database, now = Date.now()): Promise<
   const holidays = await db.select().from(journeyHolidays);
   const current = sessionNumberOf(anchor, saturdayOnOrAfter(now)) ?? 1;
   const last = Math.max(current, ...rows.map((row) => row.number));
+  // Javon ma'lumot bor birinchi haftadan boshlanadi: undan oldingi raqamlar (ma'lumoti yo'q) ko'rsatilmaydi.
+  const first = rows.length ? Math.min(...rows.map((row) => row.number)) : 1;
   const slots: JourneySlot[] = [];
-  for (let number = 1; number <= last; number++) {
+  for (let number = first; number <= last; number++) {
     // Saqlangan sana (suhbat sanasi) ustun turadi; yo'q bo'lsa — tayanch bo'yicha hisoblanadi.
     const row = byNumber.get(number);
     const discussedOn = row?.discussedOn ?? sessionDateOf(anchor, number);

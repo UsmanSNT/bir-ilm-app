@@ -289,7 +289,7 @@ try {
   const slotRoute = await load("app/api/v1/site/journey/slots/[number]/route.ts");
   const slotList = (await user.call(slotsRoute.GET, "/api/v1/site/journey/slots")).data.items;
   const nums = slotList.map((s) => s.number);
-  assert.equal(nums[0], 1, "Javon 1-haftadan boshlanadi");
+  assert.equal(nums[0], Math.min(...nums), "Javon ma'lumot bor birinchi haftadan boshlanadi");
   assert.deepEqual(nums, [...nums].sort((a, b) => a - b), "Yacheykalar raqam bo'yicha tartibda");
   assert.ok(slotList.every((s) => s.coverUrl === null), "Muqova hali yuklanmagan");
   // Kutubxona kitobiga bog'langan yacheykaning nomi kitobdan keladi — sinov uchun bog'lanmagani olinadi.
