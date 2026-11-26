@@ -199,10 +199,6 @@ function EditorDialog({ book, onClose, asWeekBook, kind }: { book: Book | null; 
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    if (isAdmin && active && talkWhen && whenChanged && !talkCreated.current && new Date(talkWhen).getTime() <= Date.now()) {
-      toast.error("Suhbat vaqti kelajakda bo‘lsin.");
-      return;
-    }
     setBusy(true);
     abortRef.current = new AbortController();
     try {

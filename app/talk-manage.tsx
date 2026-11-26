@@ -50,7 +50,6 @@ export default function TalkManage({
     const title = talkTitle.trim();
     if (!title) return toast.error("Sarlavhani yozing.");
     const at = new Date(when);
-    if (whenChanged && at.getTime() <= Date.now()) return toast.error("Suhbat vaqti kelajakda bo‘lsin.");
     if (!whenChanged && title === session.title) return toast("O‘zgarish yo‘q.");
     setBusy(true);
     const result = await updateLiveSession(session.id, {
