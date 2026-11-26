@@ -20,7 +20,8 @@ export const DEFAULT_ABOUT: AboutSettings = {
     "Bir Ilm — har hafta bitta kitobni birga o‘qib, shanba kuni jonli suhbatda muhokama qiladigan kitobxonlar jamoasi.\n\n" +
     "Maqsadimiz oddiy: o‘qishni odatga aylantirish, o‘qiganlarimizni fikr almashish orqali chuqurroq anglash va bir-birimizni ilm yo‘lida qo‘llab-quvvatlash.",
   videoUrl: "",
-  anchor: { number: 248, date: "2026-10-24" },
+  // Telegram e'lonlari bilan mos: 252-kitob — 28-noyabr 2026 (shanba).
+  anchor: { number: 252, date: "2026-11-28" },
 };
 
 export type AboutVideo = { kind: "file"; src: string; poster: string | null } | ({ kind: "embed" } & ParsedVideo);

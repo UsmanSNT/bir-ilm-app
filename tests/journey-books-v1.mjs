@@ -93,7 +93,7 @@ const at = (saturday) => new Date(saturdaySessionAt(saturday)).toISOString();
 const plusWeek = (saturday) => new Date(Date.parse(`${saturday}T00:00:00Z`) + 7 * DAY).toISOString().slice(0, 10);
 
 try {
-  // Tayanch nuqta standart: 248-kitob — 2026-10-24.
+  // Tayanch nuqta standart (DEFAULT_ABOUT): 252-kitob — 2026-11-28.
   sqlite.prepare("DELETE FROM site_settings WHERE key = 'about'").run();
   const anchor = DEFAULT_ABOUT.anchor;
   const admin = await client();
@@ -198,7 +198,8 @@ try {
     "5\tBeshinchi\tMuallif",
     "246 Qayta yozildi",
   ].join("\r\n");
-  const parsed = parseJourneyList(listText, anchor);
+  // Parser testi standart tayanchga bog'liq bo'lmasin: misoldagi sanalar shu tayanch bo'yicha yozilgan.
+  const parsed = parseJourneyList(listText, { number: 248, date: "2026-10-24" });
   assert.deepEqual(parsed.issues, []);
   assert.equal(parsed.duplicates, 1, "246 takrorlandi — oxirgisi qoladi");
   assert.deepEqual(parsed.rows, [
