@@ -688,6 +688,12 @@ export const siteSettings = sqliteTable("site_settings", {
  * «Bir Ilm yo'li» kitoblar ro'yxati: har shanba (tartib raqami bo'yicha) muhokama qilingan yoki qilinadigan kitob.
  * Hafta kitobiga suhbat vaqti belgilanganda yoziladi; kitob o'chirilsa nomi saqlanib qoladi.
  */
+/** Dam olish kunlari: suhbat bo'lmagan shanbalar. Javonda raqamsiz, o'sha sanada «Dam olish» ko'rinadi. */
+export const journeyHolidays = sqliteTable("journey_holidays", {
+  discussedOn: text("discussed_on").primaryKey(),
+  note: text("note").notNull().default(""),
+});
+
 export const journeyBooks = sqliteTable("journey_books", {
   number: integer("number").primaryKey(),
   discussedOn: text("discussed_on").notNull(),

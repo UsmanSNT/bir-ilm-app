@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { ArrowLeft, BookOpen, Pencil } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useViewer } from "@/lib/api/roles-client";
@@ -29,8 +29,8 @@ export default function JourneyShelfPage({ onBack }: { onBack: () => void }) {
   const role = useViewer()?.role;
   const canEdit = role === "admin" || role === "moderator";
   const [selected, setSelected] = useState<JourneySlot | null>(null);
-  // Yangilari yuqorida: eng birinchi kitob pastda.
-  const ordered = useMemo(() => [...slots].sort((a, b) => b.number - a.number), [slots]);
+  // Yangi sana yuqorida: eng birinchi hafta pastda (raqamsiz dam olish kunlari ham o'z sanasida).
+  const ordered = useMemo(() => [...slots].sort((a, b) => b.discussedOn.localeCompare(a.discussedOn)), [slots]);
   const now = useNow(60_000);
 
   return (
@@ -47,7 +47,20 @@ export default function JourneyShelfPage({ onBack }: { onBack: () => void }) {
         <p className="jshelf-empty">Yuklanmoqda…</p>
       ) : (
         <ul className="jshelf-grid">
-          {ordered.map((slot) => (
+          {ordered.map((slot) =>
+            slot.holiday ? (
+              <li key={`holiday-${slot.discussedOn}`}>
+                <div className="jshelf-card jshelf-holiday" aria-label={`${dateLabel(slot.discussedOn)} — dam olish`}>
+                  <span className="jshelf-cover">
+                    <span className="jshelf-blank" aria-hidden="true">
+                      <CalendarOff size={24} />
+                    </span>
+                  </span>
+                  <span className="jshelf-title">Dam olish</span>
+                  <span className="jshelf-date">{dateLabel(slot.discussedOn)}</span>
+                </div>
+              </li>
+            ) : (
             <li key={slot.number}>
               <button type="button" className="jshelf-card" onClick={() => setSelected(slot)} aria-label={`${slot.number}-kitob: ${slot.title || "nomi yozilmagan"}`}>
                 <span className="jshelf-cover">
@@ -67,7 +80,8 @@ export default function JourneyShelfPage({ onBack }: { onBack: () => void }) {
                 <span className="jshelf-date">{dateLabel(slot.discussedOn)}</span>
               </button>
             </li>
-          ))}
+            ),
+          )}
         </ul>
       )}
 

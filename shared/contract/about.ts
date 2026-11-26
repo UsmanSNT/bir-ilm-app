@@ -112,6 +112,8 @@ export type JourneyDetailsData = z.output<typeof journeyDetailsSchema>;
 
 /** «Bir Ilm yo'li» javoni uchun yacheyka: bo'sh bo'lsa ham bor (raqam va sana har doim bor). */
 export type JourneySlot = JourneyDetailsData & {
+  /** Dam olish shanbasi: raqamsiz, faqat sanasi ko'rinadi. */
+  holiday?: boolean;
   number: number;
   /** Muhokama sanasi (shanba), YYYY-MM-DD. */
   discussedOn: string;

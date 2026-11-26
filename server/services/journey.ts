@@ -15,7 +15,7 @@ import { JOURNEY_LIMITS, journeyNumberInRange, saturdayOnOrAfter, saturdaySessio
 import { getAbout } from "./about";
 import { createLibraryBookFromJourney, listCatalog } from "./books";
 
-const { books, journeyBooks, liveSessions } = schema;
+const { books, journeyBooks, journeyHolidays, liveSessions } = schema;
 
 const toJourneyBook = (row: typeof journeyBooks.$inferSelect): JourneyBook => ({
   number: row.number,
@@ -169,16 +169,22 @@ export async function listJourneySlots(db: Database, now = Date.now()): Promise<
   const rows = await db.select().from(journeyBooks);
   const catalog = new Map((await listCatalog(db)).map((book) => [book.id, book]));
   const byNumber = new Map(rows.map((row) => [row.number, row]));
+  const holidays = await db.select().from(journeyHolidays);
   const current = sessionNumberOf(anchor, saturdayOnOrAfter(now)) ?? 1;
   const last = Math.max(current, ...rows.map((row) => row.number));
   const slots: JourneySlot[] = [];
   for (let number = 1; number <= last; number++) {
-    const discussedOn = sessionDateOf(anchor, number);
-    if (!discussedOn) continue;
+    // Saqlangan sana (suhbat sanasi) ustun turadi; yo'q bo'lsa — tayanch bo'yicha hisoblanadi.
     const row = byNumber.get(number);
+    const discussedOn = row?.discussedOn ?? sessionDateOf(anchor, number);
+    if (!discussedOn) continue;
     slots.push(toSlot(number, discussedOn, row, row?.bookId ? catalog.get(row.bookId) : undefined));
   }
-  return slots;
+  // Dam olish shanbalari raqamsiz, o'z sanasida qo'shiladi.
+  for (const holiday of holidays) {
+    slots.push({ ...toSlot(0, holiday.discussedOn, undefined, undefined), holiday: true });
+  }
+  return slots.sort((a, b) => a.discussedOn.localeCompare(b.discussedOn));
 }
 
 async function slotOf(db: Database, number: number, discussedOn: string): Promise<JourneySlot> {

@@ -28,3 +28,5 @@
 .jshelf-actions button:first-child { background: #fff; color: #0f4f45; }
 .jshelf-detail-cover { display: block; width: 120px; aspect-ratio: 2 / 3; object-fit: cover; margin: 12px auto 4px; border-radius: 3px 6px 6px 3px; box-shadow: 0 6px 14px rgba(31, 42, 68, 0.18); }
 .jshelf-form input[type="file"] { padding: 6px; background: #fffdf8; }
+.jshelf-holiday { cursor: default; }
+.jshelf-holiday .jshelf-cover { background: repeating-linear-gradient(135deg, #f1e8d4 0 6px, #fffdf8 6px 12px); border-style: dashed; }
