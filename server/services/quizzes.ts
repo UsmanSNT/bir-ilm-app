@@ -146,9 +146,8 @@ export async function removeQuizSession(db: Database, quizId: string, sessionId:
 export async function startQuizSessionNow(db: Database, quizId: string, sessionId: string, now = Date.now()): Promise<Quiz> {
   const row = await db.query.quizSessions.findFirst({ where: and(eq(quizSessions.id, sessionId), eq(quizSessions.quizId, quizId)) });
   if (!row) throw notFound("Viktorina vaqti topilmadi.");
-  if (Date.parse(row.startsAt) > now) {
-    await db.update(quizSessions).set({ startsAt: new Date(now).toISOString() }).where(eq(quizSessions.id, sessionId));
-  }
+  // Qayta ochish: boshlanish vaqti hozirga o'tadi (kutilayotgan yoki tugagan xona ham qayta ochiladi).
+  await db.update(quizSessions).set({ startsAt: new Date(now).toISOString() }).where(eq(quizSessions.id, sessionId));
   return getQuiz(db, quizId);
 }
 

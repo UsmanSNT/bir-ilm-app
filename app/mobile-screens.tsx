@@ -750,6 +750,7 @@ export default function MobileScreens({
             staff={editor}
             onJoinLive={(sessionId) => openRoom(quizzes.find((q) => q.id === active.id) ?? active, sessionId)}
             onShare={() => setSharing(active)}
+            onEdit={editor ? () => { setQuizEditing({ quiz: serverQuizzes.items.find((x) => x.id === active.id) ?? null }); setScreen("quizzes"); setActive(null); } : undefined}
             cover={<BookCover title={active.title} author={active.author} tone={active.tone} image={active.image} color={active.color} />}
             best={save.scores[active.id] ?? null}
             live={activeSession != null}

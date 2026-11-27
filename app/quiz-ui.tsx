@@ -535,6 +535,7 @@ export function QuizIntro({
   onJoinLive,
   onShare,
   onStartNow,
+  onEdit,
   onStart,
 }: {
   cover: ReactNode;
@@ -554,6 +555,8 @@ export function QuizIntro({
   onShare?: () => void;
   /** Admin/moderator: kutilayotgan vaqtni hamma uchun hozirga ko'chirish. */
   onStartNow?: (sessionId: string) => void;
+  /** Admin/moderator: viktorinani tahrirlash oynasi. */
+  onEdit?: () => void;
   onStart: () => void;
 }) {
   const now = useNow(1000);
@@ -562,6 +565,7 @@ export function QuizIntro({
   // Xona boshlanishdan 10 daqiqa oldin ochiladi va bir necha soat ochiq turadi.
   const openRoom = byStart.find((session) => quizSessionStatus(session.startsAt, now) === "open") ?? null;
   const shown = openRoom ?? upcoming;
+  const latest = byStart.at(-1) ?? null;
 
   // Kutayotganlar ro'yxatni vaqti-vaqti bilan yangilaydi: admin «Hozir boshlash» ni bossa, hamma ko'radi.
   const upcomingId = upcoming?.id ?? null;
@@ -616,6 +620,16 @@ export function QuizIntro({
           <Clock size={18} /> Boshlanish vaqti kutilmoqda
         </button>
       ))}
+      {staff && latest && !upcoming && onStartNow && (
+        <button type="button" className="qz-ghost qz-start" onClick={() => onStartNow(latest.id)}>
+          <Radio size={18} /> Qayta boshlash
+        </button>
+      )}
+      {staff && onEdit && (
+        <button type="button" className="qz-ghost qz-start" onClick={onEdit}>
+          <Pencil size={18} /> Tuzatish
+        </button>
+      )}
       {soloButton}
       {!soloAllowed && !shown && <p className="qz-stage-sub">Jonli vaqt hali belgilanmagan.</p>}
     </section>

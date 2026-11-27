@@ -53,6 +53,7 @@ export default function QuizPlay({
   staff = false,
   onJoinLive,
   onShare,
+  onEdit,
   onFinish,
   onBack,
 }: {
@@ -61,6 +62,8 @@ export default function QuizPlay({
   onJoinLive?: (sessionId: string) => void;
   /** Ulashish oynasini ochadi. */
   onShare?: () => void;
+  /** Tahrirlash oynasini ochadi (admin/moderator). */
+  onEdit?: () => void;
   /** Admin/moderator: rejadagi viktorinani hamma uchun «Hozir boshlash» mumkin. */
   staff?: boolean;
   cover: ReactNode;
@@ -166,6 +169,7 @@ export default function QuizPlay({
         staff={staff}
         onJoinLive={onJoinLive}
         onShare={onShare}
+        onEdit={onEdit}
         onStartNow={staff ? (sessionId) => void startNow(sessionId) : undefined}
         onStart={() => begin(questions)}
       />
