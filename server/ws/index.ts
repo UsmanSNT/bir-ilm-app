@@ -16,6 +16,7 @@ import { closeMediaRoom, issueMediaToken, mediaEnabled, removeFromMedia, syncMed
 import { ApiException } from "@/server/http/errors";
 import { GameError, type QuizGame } from "@/server/services/quiz-game-engine";
 import { loadQuestions, openGame } from "@/server/services/quiz-game";
+import { canManageSession } from "@/server/services/quizzes";
 import { LIMITS_LIVE, type WsClientMessage, type WsServerMessage, type LiveRole } from "@/shared/contract/live";
 import type { GameClientMessage, GameServerMessage } from "@/shared/contract/quiz-game";
 import { canModerate } from "@/shared/contract/roles";
@@ -403,8 +404,9 @@ async function handleQuizMessage(db: Database, client: Client, msg: GameClientMe
         const { schema } = await import("@/server/db/client");
         const { eq } = await import("drizzle-orm");
         const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) });
-        const host = canModerate(user?.role ?? "user");
         const sessionId = String(msg.sessionId);
+        // Boshlovchi: admin, yoki viktorinani o'zi yaratgan moderator (boshqalarning viktorinasini boshqara olmaydi).
+        const host = await canManageSession(db, userId, sessionId);
         let game: QuizGame;
         try {
           game = await openGame(db, sessionId, {
@@ -453,7 +455,8 @@ async function handleQuizMessage(db: Database, client: Client, msg: GameClientMe
         const quiz = client.quiz;
         if (!quiz) return fail("Avval viktorina xonasiga kiring.");
         // Rol har buyruqda bazadan o'qiladi: admin rolni olib qo'ysa darhol kuchga kiradi.
-        const host = canModerate(await getUserRole(db, client.userId));
+        // Boshlovchi huquqi har buyruqda qayta tekshiriladi: viktorina egasi yoki admin.
+        const host = await canManageSession(db, client.userId, quiz.game.info.sessionId);
         if (msg.type === "qz:start") quiz.game.start(host, await loadQuestions(db, quiz.game.info.quizId));
         else if (msg.type === "qz:reveal") quiz.game.revealByHost(host);
         else if (msg.type === "qz:next") quiz.game.next(host);

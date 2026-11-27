@@ -152,9 +152,25 @@ try {
   assert.equal((await call(quizzes.GET, "/api/v1/quizzes", { cookie: g0.cookie })).payload.data.items.find((x) => x.id === made.id).image, null);
   console.log("PASS: Muqova rasmi: faqat /media/quiz/ yo'li qabul qilinadi, olib tashlash saqlanadi.");
 
-  // Moderator ham boshqaradi; kitob o'chirilsa viktorina qoladi
+  // Moderator faqat o'zi yaratgan viktorinani boshqaradi: boshqasinikini tahrirlay olmaydi
   const moderator = await makeUser("mod", "moderator");
-  await call(quiz.PUT, `/api/v1/quizzes/${made.id}`, { method: "PUT", cookie: moderator.cookie, params: { id: made.id }, body: { ...valid, bookId } });
+  await call(quiz.PUT, `/api/v1/quizzes/${made.id}`, { method: "PUT", cookie: moderator.cookie, params: { id: made.id }, body: { ...valid, bookId }, expect: 403 });
+  const ownQuiz = (await call(quizzes.POST, "/api/v1/quizzes", { method: "POST", cookie: moderator.cookie, body: { ...valid, title: "Moderator viktorinasi" }, expect: 201 })).payload.data;
+  const ownEdit = (await call(quiz.PUT, `/api/v1/quizzes/${ownQuiz.id}`, { method: "PUT", cookie: moderator.cookie, params: { id: ownQuiz.id }, body: { ...valid, title: "Moderator viktorinasi", bookId } })).payload.data;
+  assert.equal(ownEdit.bookId, bookId, "O'z viktorinasini tahrirlaydi");
+  const modList = (await call(quizzes.GET, "/api/v1/quizzes", { cookie: moderator.cookie })).payload.data.items;
+  assert.equal(modList.find((x) => x.id === ownQuiz.id).canManage, true, "O'z viktorinasida canManage=true");
+  assert.equal(modList.find((x) => x.id === made.id).canManage, false, "Boshqasinikida canManage=false");
+  const adminList = (await call(quizzes.GET, "/api/v1/quizzes", { cookie: admin.cookie })).payload.data.items;
+  assert.ok(adminList.every((x) => x.canManage === true), "Admin hammasini boshqaradi");
+  await call(sessionsRoute.POST, `/api/v1/quizzes/${made.id}/sessions`, { method: "POST", cookie: moderator.cookie, params: { id: made.id }, body: { startsAt: new Date(Date.now() + 3600_000).toISOString() }, expect: 403 });
+  // Jonli xona boshlovchisi shu qoidaga bo'ysunadi (WebSocket: canManageSession).
+  const { canManageQuizOf } = await import(new URL("server/services/quizzes.ts", projectRoot).href);
+  assert.equal(canManageQuizOf("admin", "x", "y"), true);
+  assert.equal(canManageQuizOf("moderator", "x", "x"), true);
+  assert.equal(canManageQuizOf("moderator", "x", "y"), false, "Moderator boshqasining xonasini boshqara olmaydi");
+  assert.equal(canManageQuizOf("user", "x", "x"), false);
+  console.log("PASS: Moderator faqat o'z viktorinasini boshqaradi; boshqasinikini tahrirlash va sessiya qo'shish 403.");
   sqlite.prepare("DELETE FROM books WHERE id=?").run(bookId);
   const afterBook = (await call(quizzes.GET, "/api/v1/quizzes")).payload.data.items.find((x) => x.id === made.id);
   assert.ok(afterBook && afterBook.bookId === null, "Kitob o'chirilsa, viktorina qoladi (kitobsiz)");

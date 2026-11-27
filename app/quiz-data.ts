@@ -27,6 +27,8 @@ export type Quiz = {
   timeSeconds?: number;
   /** Belgilangan boshlanish vaqtlari (ISO). Kelajakdagisi bo'lsa — kirish ekranida hisoblagich. */
   sessions?: QuizSessionRef[];
+  /** Joriy foydalanuvchi shu viktorinani boshqara oladi (admin, yoki o'zi yaratgan moderator). */
+  canManage?: boolean;
   questions: QuizQuestion[];
 };
 

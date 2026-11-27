@@ -2,9 +2,10 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
-import { ApiException, badRequest, notFound } from "@/server/http/errors";
-import { quizMinutes, quizScoreBounds, quizSessionStatus, type Quiz, type QuizInput, type QuizJoin, type QuizRankRow, type QuizResultInput, type QuizResultsHistory, type QuizSession } from "@/shared/contract";
+import { ApiException, badRequest, forbidden, notFound } from "@/server/http/errors";
+import { quizMinutes, quizScoreBounds, quizSessionStatus, type Quiz, type UserRole, type QuizInput, type QuizJoin, type QuizRankRow, type QuizResultInput, type QuizResultsHistory, type QuizSession } from "@/shared/contract";
 import { removeQuizImage } from "./quiz-media";
+import { getUserRole } from "./roles";
 
 const { quizzes, quizQuestions, quizSessions, quizResults, books, users } = schema;
 
@@ -53,6 +54,39 @@ async function withQuestions(db: Database, rows: Array<typeof quizzes.$inferSele
       .map((q) => ({ prompt: q.prompt, choices: parseChoices(q.choices), answer: q.answer }));
     return { id: row.id, title: row.title, bookId: row.bookId, image: row.image ?? null, timeSeconds: row.timeSeconds, playMode: row.playMode, minutes: quizMinutes(own.length), questions: own, sessions: sessions.get(row.id) ?? [], updatedAt: row.updatedAt };
   });
+}
+
+/**
+ * Viktorinani boshqarish huquqi: admin — hammasini; moderator — faqat o'zi yaratganini.
+ * Ro'yxat, tahrirlash, sessiya qo'shish/o'chirish, boshlash/to'xtatish va jonli xona boshlovchisi shu qoidaga bo'ysunadi.
+ */
+export function canManageQuizOf(role: UserRole, userId: string, createdBy: string): boolean {
+  return role === "admin" || (role === "moderator" && createdBy === userId);
+}
+
+export async function requireQuizManager(db: Database, userId: string, quizId: string, message: string): Promise<void> {
+  const quiz = await db.query.quizzes.findFirst({ where: eq(quizzes.id, quizId), columns: { createdBy: true } });
+  if (!quiz) throw notFound("Viktorina topilmadi.");
+  if (!canManageQuizOf(await getUserRole(db, userId), userId, quiz.createdBy)) throw forbidden(message);
+}
+
+/** Jonli xona (sessiya) bo'yicha boshqarish huquqi — WebSocket boshlovchisi shu orqali aniqlanadi. */
+export async function canManageSession(db: Database, userId: string, sessionId: string): Promise<boolean> {
+  const session = await db.query.quizSessions.findFirst({ where: eq(quizSessions.id, sessionId), columns: { quizId: true } });
+  if (!session) return false;
+  const quiz = await db.query.quizzes.findFirst({ where: eq(quizzes.id, session.quizId), columns: { createdBy: true } });
+  if (!quiz) return false;
+  return canManageQuizOf(await getUserRole(db, userId), userId, quiz.createdBy);
+}
+
+/** Ro'yxat: har bir viktorinaga viewer uchun `canManage` belgisi qo'yiladi. */
+export async function listQuizzesFor(db: Database, userId: string): Promise<Quiz[]> {
+  const role = await getUserRole(db, userId);
+  const items = await listQuizzes(db, role === "admin" || role === "moderator");
+  if (role === "admin") return items.map((q) => ({ ...q, canManage: true }));
+  const own = await db.select({ id: quizzes.id }).from(quizzes).where(eq(quizzes.createdBy, userId));
+  const ownIds = new Set(own.map((r) => r.id));
+  return items.map((q) => ({ ...q, canManage: role === "moderator" && ownIds.has(q.id) }));
 }
 
 export async function listQuizzes(db: Database, staff = false): Promise<Quiz[]> {

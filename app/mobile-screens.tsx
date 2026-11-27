@@ -324,6 +324,7 @@ export default function MobileScreens({
       playMode: q.playMode,
       timeSeconds: q.timeSeconds,
       sessions: q.sessions.map((session) => ({ id: session.id, startsAt: session.startsAt, endedAt: session.endedAt, code: session.code, participants: session.participants })),
+      canManage: q.canManage,
       questions: q.questions.map((qq) => ({ prompt: qq.prompt, choices: qq.choices.map((text, i) => ({ id: String(i), text })), answer: String(qq.answer) })),
     };
   }), [serverQuizzes.items, catalog.items]);
@@ -723,7 +724,7 @@ export default function MobileScreens({
                 minutes={quiz.minutes}
                 best={save.scores[quiz.id] ?? null}
                 onStart={() => startQuiz(quiz)}
-                onEdit={editor ? () => setQuizEditing({ quiz: serverQuizzes.items.find((x) => x.id === quiz.id) ?? null }) : undefined}
+                onEdit={quiz.canManage ? () => setQuizEditing({ quiz: serverQuizzes.items.find((x) => x.id === quiz.id) ?? null }) : undefined}
                 onShare={() => setSharing(quiz)}
               />
             ))}
@@ -747,10 +748,10 @@ export default function MobileScreens({
           <QuizPlay
             key={active.id}
             quiz={quizzes.find((q) => q.id === active.id) ?? active}
-            staff={editor}
+            staff={active.canManage === true}
             onJoinLive={(sessionId) => openRoom(quizzes.find((q) => q.id === active.id) ?? active, sessionId)}
             onShare={() => setSharing(active)}
-            onEdit={editor ? () => { setQuizEditing({ quiz: serverQuizzes.items.find((x) => x.id === active.id) ?? null }); setScreen("quizzes"); setActive(null); } : undefined}
+            onEdit={active.canManage ? () => { setQuizEditing({ quiz: serverQuizzes.items.find((x) => x.id === active.id) ?? null }); setScreen("quizzes"); setActive(null); } : undefined}
             cover={<BookCover title={active.title} author={active.author} tone={active.tone} image={active.image} color={active.color} />}
             best={save.scores[active.id] ?? null}
             live={activeSession != null}

@@ -144,6 +144,8 @@ export type Quiz = {
   questions: QuizQuestionInput[];
   /** Jonli o'tkazish vaqtlari (boshlanish bo'yicha tartiblangan). */
   sessions: QuizSession[];
+  /** Joriy foydalanuvchi shu viktorinani boshqara oladimi (admin — hammasi; moderator — o'zinikini). Ro'yxatda qo'yiladi. */
+  canManage?: boolean;
   updatedAt: string;
 };
 
