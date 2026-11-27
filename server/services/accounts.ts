@@ -1,5 +1,5 @@
 /** Google / Telegram hisoblarini foydalanuvchiga bog'lash. */
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import type { ProviderProfile } from "@/server/auth/providers";
@@ -44,7 +44,23 @@ export async function signInWithProvider(
   const sameProvider = await db.query.authAccounts.findFirst({
     where: and(eq(authAccounts.userId, currentUserId), eq(authAccounts.provider, profile.provider)),
   });
-  const userId = sameProvider ? newUserId() : currentUserId;
+  // Mehmon (hech qanday hisobga kirmagan) bo'lsa va bu email boshqa hisobda bo'lsa — o'sha hisobga ulanamiz,
+  // shunda bir kishi uchun takroriy hisob ochilmaydi.
+  let userId = sameProvider ? newUserId() : currentUserId;
+  const email = profile.email?.trim().toLowerCase();
+  if (email && !(await isSignedIn(db, currentUserId))) {
+    const match = await db.query.authAccounts.findFirst({
+      where: sql`lower(trim(${authAccounts.email})) = ${email}`,
+      columns: { userId: true },
+    });
+    if (match) {
+      const clash = await db.query.authAccounts.findFirst({
+        where: and(eq(authAccounts.userId, match.userId), eq(authAccounts.provider, profile.provider)),
+        columns: { id: true },
+      });
+      if (!clash) userId = match.userId;
+    }
+  }
   await ensureUser(db, userId);
   await db.insert(authAccounts).values({
     provider: profile.provider,
