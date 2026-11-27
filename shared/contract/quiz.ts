@@ -106,14 +106,20 @@ export type QuizSession = {
   id: string;
   quizId: string;
   startsAt: string;
+  /** Admin to'xtatgan vaqt; bo'lmasa `null`. */
+  endedAt: string | null;
   code: string | null;
   participants: number;
 };
 
 export type QuizJoin = { quizId: string; sessionId: string; startsAt: string; status: "upcoming" | "open" | "closed" };
 
-/** Vaqt holati: kirish ochilishidan oldin / ochiq / tugagan. */
-export function quizSessionStatus(startsAt: string, now = Date.now()): QuizJoin["status"] {
+/**
+ * Holat: kirish ochilishidan oldin / ochiq / tugagan. Admin to'xtatgan (`endedAt`) sessiya darhol yopiq;
+ * to'xtatilgandan keyin vaqt oynasi qayta ochilmaydi (qayta boshlash `endedAt` ni tozalaydi).
+ */
+export function quizSessionStatus(startsAt: string, now = Date.now(), endedAt: string | null = null): QuizJoin["status"] {
+  if (endedAt && now >= Date.parse(endedAt)) return "closed";
   const start = Date.parse(startsAt);
   if (now < start - QUIZ_SESSION_OPENS_BEFORE_MIN * 60_000) return "upcoming";
   if (now > start + QUIZ_SESSION_OPEN_FOR_MIN * 60_000) return "closed";

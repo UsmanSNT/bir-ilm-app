@@ -323,7 +323,7 @@ export default function MobileScreens({
       color: linked?.color,
       playMode: q.playMode,
       timeSeconds: q.timeSeconds,
-      sessions: q.sessions.map((session) => ({ id: session.id, startsAt: session.startsAt, code: session.code, participants: session.participants })),
+      sessions: q.sessions.map((session) => ({ id: session.id, startsAt: session.startsAt, endedAt: session.endedAt, code: session.code, participants: session.participants })),
       questions: q.questions.map((qq) => ({ prompt: qq.prompt, choices: qq.choices.map((text, i) => ({ id: String(i), text })), answer: String(qq.answer) })),
     };
   }), [serverQuizzes.items, catalog.items]);
@@ -331,7 +331,7 @@ export default function MobileScreens({
   const visibleQuizzes = showQuizzes ? quizzes : quizzes.slice(0, 2);
   // Eng yaqin (yoki hozir ochiq) jonli viktorina vaqti.
   const nextLive = useMemo(() => {
-    const rows = serverQuizzes.items.flatMap((q) => q.sessions.map((session) => ({ q, session, status: quizSessionStatus(session.startsAt, now) })))
+    const rows = serverQuizzes.items.flatMap((q) => q.sessions.map((session) => ({ q, session, status: quizSessionStatus(session.startsAt, now, session.endedAt) })))
       .filter((r) => r.status !== "closed")
       .sort((a, b) => a.session.startsAt.localeCompare(b.session.startsAt));
     const row = rows[0];

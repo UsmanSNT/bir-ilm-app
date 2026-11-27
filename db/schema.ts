@@ -633,6 +633,8 @@ export const quizSessions = sqliteTable("quiz_sessions", {
   id: text("id").primaryKey(),
   quizId: text("quiz_id").notNull().references(() => quizzes.id, { onDelete: "cascade" }),
   startsAt: text("starts_at").notNull(),
+  /** Admin/moderator jonli sessiyani to'xtatgan vaqt (ISO). Bo'lsa — sessiya yopiq hisoblanadi. */
+  endedAt: text("ended_at"),
   code: text("code").notNull(),
   createdBy: text("created_by").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),

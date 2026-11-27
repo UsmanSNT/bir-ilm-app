@@ -1,0 +1,39 @@
+/* Sahifadan chiqish tasdig'i (app/exit-guard.tsx). */
+.exit-guard {
+  display: grid;
+  gap: 12px;
+  max-width: min(92vw, 360px);
+  padding: 22px 20px 18px;
+}
+
+.exit-guard-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.exit-guard-actions button {
+  min-height: 44px;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.exit-guard-stay {
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+}
+
+.exit-guard-leave {
+  border: 0;
+  background: var(--primary, #1d234c);
+  color: #fff;
+}
+
+.exit-guard-actions button:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}

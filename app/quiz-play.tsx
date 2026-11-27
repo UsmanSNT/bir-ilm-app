@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowRight, BookOpen, Check, Flame, RotateCcw, Sparkles, X, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { notifyQuizzesChanged, startQuizSessionNow } from "@/lib/api/quiz-client";
+import { endQuizSession, notifyQuizzesChanged, startQuizSessionNow } from "@/lib/api/quiz-client";
 import { questionPoints, type QuestionPoints } from "@/shared/contract";
 import type { Quiz, QuizQuestion } from "./quiz-data";
 import { PointsMeter, QuizChoices, formatPoints, verdictFor, type ChoiceState } from "./quiz-parts";
@@ -143,6 +143,17 @@ export default function QuizPlay({
     onFinish(done);
   }
 
+  async function endLive(sessionId: string) {
+    if (!window.confirm("Jonli viktorina to‘xtatilsinmi? Yangi kirishlar darhol yopiladi.")) return;
+    try {
+      await endQuizSession(quiz.id, sessionId);
+      notifyQuizzesChanged();
+      toast.success("Jonli viktorina to‘xtatildi");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "To‘xtatib bo‘lmadi.");
+    }
+  }
+
   async function startNow(sessionId: string) {
     if (!window.confirm("Viktorina hamma uchun hozir boshlansinmi? Belgilangan vaqt hozirga o‘zgaradi.")) return;
     try {
@@ -171,6 +182,7 @@ export default function QuizPlay({
         onShare={onShare}
         onEdit={onEdit}
         onStartNow={staff ? (sessionId) => void startNow(sessionId) : undefined}
+        onEndLive={staff ? (sessionId) => void endLive(sessionId) : undefined}
         onStart={() => begin(questions)}
       />
     );

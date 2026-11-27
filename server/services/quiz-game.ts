@@ -53,7 +53,7 @@ export async function openGame(db: Database, sessionId: string, hooks: Omit<Game
   const promise = (async () => {
     const session = await db.query.quizSessions.findFirst({ where: eq(quizSessions.id, sessionId) });
     if (!session) throw notFound("Viktorina vaqti topilmadi.");
-    const status = quizSessionStatus(session.startsAt);
+    const status = quizSessionStatus(session.startsAt, Date.now(), session.endedAt);
     if (status === "upcoming") throw badRequest(`Hali boshlanmadi. Kirish ${QUIZ_SESSION_OPENS_BEFORE_MIN} daqiqa oldin ochiladi.`);
     if (status === "closed") throw badRequest("Bu viktorinaning vaqti o'tib ketgan.");
     const quiz = await loadQuestions(db, session.quizId);

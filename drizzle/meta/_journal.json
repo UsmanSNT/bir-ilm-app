@@ -302,6 +302,13 @@
       "when": 1795673835509,
       "tag": "0042_journey_holidays",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1795791039780,
+      "tag": "0043_quiz_session_end",
+      "breakpoints": true
     }
   ]
 }

@@ -33,7 +33,7 @@ async function sessionsFor(db: Database, quizIds: string[], staff: boolean): Pro
   for (const r of rows) {
     const list = map.get(r.quizId) ?? [];
     // Kod faqat admin/moderatorga: oddiy foydalanuvchi uni ro'yxatdan ko'ra olmasin.
-    list.push({ id: r.id, quizId: r.quizId, startsAt: r.startsAt, code: staff ? r.code : null, participants: byId.get(r.id) ?? 0 });
+    list.push({ id: r.id, quizId: r.quizId, startsAt: r.startsAt, endedAt: r.endedAt ?? null, code: staff ? r.code : null, participants: byId.get(r.id) ?? 0 });
     map.set(r.quizId, list);
   }
   return map;
@@ -147,7 +147,21 @@ export async function startQuizSessionNow(db: Database, quizId: string, sessionI
   const row = await db.query.quizSessions.findFirst({ where: and(eq(quizSessions.id, sessionId), eq(quizSessions.quizId, quizId)) });
   if (!row) throw notFound("Viktorina vaqti topilmadi.");
   // Qayta ochish: boshlanish vaqti hozirga o'tadi (kutilayotgan yoki tugagan xona ham qayta ochiladi).
-  await db.update(quizSessions).set({ startsAt: new Date(now).toISOString() }).where(eq(quizSessions.id, sessionId));
+  await db.update(quizSessions).set({ startsAt: new Date(now).toISOString(), endedAt: null }).where(eq(quizSessions.id, sessionId));
+  return getQuiz(db, quizId);
+}
+
+/**
+ * Jonli sessiyani admin/moderator to'xtatadi: yangi kirish darhol yopiladi. Allaqachon to'xtatilgan sessiya
+ * o'zgarmaydi (idempotent). Ochiq xonada davom etayotgan o'yin (xotiradagi `quiz-game`) bu chaqiruvga
+ * bog'liq emas: u o'z oqimida tugaydi, faqat yangi ulanishlar rad etiladi.
+ */
+export async function endQuizSession(db: Database, quizId: string, sessionId: string, now = Date.now()): Promise<Quiz> {
+  const row = await db.query.quizSessions.findFirst({ where: and(eq(quizSessions.id, sessionId), eq(quizSessions.quizId, quizId)) });
+  if (!row) throw notFound("Viktorina vaqti topilmadi.");
+  if (!row.endedAt) {
+    await db.update(quizSessions).set({ endedAt: new Date(now).toISOString() }).where(eq(quizSessions.id, sessionId));
+  }
   return getQuiz(db, quizId);
 }
 
@@ -155,7 +169,7 @@ export async function startQuizSessionNow(db: Database, quizId: string, sessionI
 export async function joinByCode(db: Database, code: string): Promise<QuizJoin> {
   const row = await db.query.quizSessions.findFirst({ where: eq(quizSessions.code, code) });
   if (!row) throw notFound("Bunday xona topilmadi.");
-  return { quizId: row.quizId, sessionId: row.id, startsAt: row.startsAt, status: quizSessionStatus(row.startsAt) };
+  return { quizId: row.quizId, sessionId: row.id, startsAt: row.startsAt, status: quizSessionStatus(row.startsAt, Date.now(), row.endedAt) };
 }
 
 /**

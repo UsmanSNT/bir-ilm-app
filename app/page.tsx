@@ -53,6 +53,7 @@ import { useAdminAttention } from "@/lib/api/admin-attention";
 import { useStoreInbox } from "@/lib/api/store-client";
 import { markNotificationsRead, refreshNotifications, useNotifications } from "@/lib/api/notifications-client";
 import { absoluteUrl } from "@/lib/api/config";
+import { ExitGuard } from "./exit-guard";
 
 type BackendMode = "local" | "server" | "seed";
 
@@ -623,6 +624,7 @@ export default function App() {
 
   return (
     <>
+      <ExitGuard />
       <Toaster richColors position="top-center" />
       {store && (
         <BookStore

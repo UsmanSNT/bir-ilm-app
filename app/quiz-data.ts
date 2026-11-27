@@ -10,7 +10,7 @@ export type QuizQuestion = {
 };
 
 /** Viktorina vaqti: kod faqat admin/moderatorga keladi (boshqalarga null). */
-export type QuizSessionRef = { id: string; startsAt: string; code?: string | null; participants?: number };
+export type QuizSessionRef = { id: string; startsAt: string; endedAt?: string | null; code?: string | null; participants?: number };
 
 export type Quiz = {
   id: string;

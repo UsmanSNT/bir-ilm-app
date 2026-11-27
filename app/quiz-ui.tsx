@@ -24,6 +24,7 @@ import {
   Play,
   Plus,
   Radio,
+  Square,
   Star,
   Trophy,
   UserRound,
@@ -535,6 +536,7 @@ export function QuizIntro({
   onJoinLive,
   onShare,
   onStartNow,
+  onEndLive,
   onEdit,
   onStart,
 }: {
@@ -555,6 +557,8 @@ export function QuizIntro({
   onShare?: () => void;
   /** Admin/moderator: kutilayotgan vaqtni hamma uchun hozirga ko'chirish. */
   onStartNow?: (sessionId: string) => void;
+  /** Admin/moderator: ochiq jonli sessiyani to'xtatish — kirish darhol yopiladi. */
+  onEndLive?: (sessionId: string) => void;
   /** Admin/moderator: viktorinani tahrirlash oynasi. */
   onEdit?: () => void;
   onStart: () => void;
@@ -563,7 +567,7 @@ export function QuizIntro({
   const byStart = [...sessions].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
   const upcoming = byStart.find((session) => Date.parse(session.startsAt) > now) ?? null;
   // Xona boshlanishdan 10 daqiqa oldin ochiladi va bir necha soat ochiq turadi.
-  const openRoom = byStart.find((session) => quizSessionStatus(session.startsAt, now) === "open") ?? null;
+  const openRoom = byStart.find((session) => quizSessionStatus(session.startsAt, now, session.endedAt) === "open") ?? null;
   const shown = openRoom ?? upcoming;
   const latest = byStart.at(-1) ?? null;
 
@@ -609,6 +613,11 @@ export function QuizIntro({
       {openRoom && onJoinLive && (
         <button type="button" className="qz-gold qz-start" onClick={() => onJoinLive(openRoom.id)}>
           <Radio size={18} /> {staff ? "Boshlovchi sifatida kirish" : "Jonli xonaga qo‘shilish"}
+        </button>
+      )}
+      {staff && openRoom && onEndLive && (
+        <button type="button" className="qz-ghost qz-start" onClick={() => onEndLive(openRoom.id)}>
+          <Square size={18} /> Jonlini to‘xtatish
         </button>
       )}
       {upcoming && !openRoom && (onStartNow ? (

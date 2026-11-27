@@ -1,0 +1,1 @@
+ALTER TABLE `quiz_sessions` ADD `ended_at` text;
