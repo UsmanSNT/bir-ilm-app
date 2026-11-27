@@ -283,4 +283,34 @@ const L = QUIZ_POINTS.limitMs;
   console.log("PASS: Xona 300 o'yinchi bilan cheklangan; teng ball bir xil o'rin (1, 1, 3).");
 }
 
+// ── Admin to'xtatishi: o'yin tugaydi, natija bir marta saqlanadi ──
+{
+  const log = [];
+  const clock = makeClock();
+  const game = new QuizGame(
+    { sessionId: "qs_stop", quizId: "qz_stop", title: "To'xtatish", code: "654321", total: 3 },
+    {
+      onPhase: () => log.push("phase"),
+      onRoster: () => {},
+      onProgress: () => {},
+      onResults: (results, total) => log.push({ results, total }),
+    },
+    clock,
+  );
+  game.join("host", "Boshlovchi", true);
+  game.join("ali", "Ali", false);
+  game.start(true, quiz);
+  game.answer("ali", 0, 1);
+  game.finishNow(true);
+  const saved = log.filter((x) => typeof x === "object");
+  assert.equal(saved.length, 1, "Natija bir marta saqlanadi");
+  assert.equal(saved[0].total, 3);
+  assert.equal(saved[0].results.find((r) => r.userId === "ali").correct, 1, "Ali to'g'ri javobini natijada ko'radi");
+  assert.equal(game.view("ali", false).phase, "ended");
+  game.finishNow(true);
+  assert.equal(log.filter((x) => typeof x === "object").length, 1, "Ikkinchi to'xtatish natijani qayta yozmaydi");
+  throwsGame(() => game.finishNow(false), /boshlovchi/i);
+  console.log("PASS: Admin to'xtatishi o'yinni tugatadi, natija bir marta saqlanadi, takror chaqiruv e'tiborsiz.");
+}
+
 console.log("\nHAMMASI O'TDI: viktorina o'yini motori.");

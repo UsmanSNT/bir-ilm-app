@@ -112,6 +112,10 @@ export type QuizSession = {
   participants: number;
 };
 
+export type QuizRankRow = { rank: number; userId: string; name: string; score: number; correct: number; total: number };
+export type QuizSessionResults = { sessionId: string; startsAt: string; participants: number; rows: QuizRankRow[] };
+export type QuizResultsHistory = { sessions: QuizSessionResults[]; solo: QuizRankRow[] };
+
 export type QuizJoin = { quizId: string; sessionId: string; startsAt: string; status: "upcoming" | "open" | "closed" };
 
 /**

@@ -1,0 +1,56 @@
+/* Viktorina natijalari dialogi (app/quiz-results.tsx). */
+.qr-sheet {
+  display: grid;
+  gap: 14px;
+  width: min(94vw, 460px);
+  max-height: 84vh;
+  overflow-y: auto;
+  padding: 20px 18px;
+}
+
+.qr-section h3 {
+  margin: 4px 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.qr-board {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qr-board li {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--muted, #faf5eb);
+  font-size: 0.92rem;
+}
+
+.qr-rank {
+  font-weight: 700;
+  text-align: center;
+}
+
+.qr-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qr-score,
+.qr-correct {
+  color: var(--muted-foreground, #69667a);
+  white-space: nowrap;
+}
+
+.qr-empty {
+  color: var(--muted-foreground, #69667a);
+  margin: 0;
+}

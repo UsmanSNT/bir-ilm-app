@@ -3,10 +3,10 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { schema } from "@/server/db/client";
 import { ApiException, badRequest, notFound } from "@/server/http/errors";
-import { quizMinutes, quizScoreBounds, quizSessionStatus, type Quiz, type QuizInput, type QuizJoin, type QuizResultInput, type QuizSession } from "@/shared/contract";
+import { quizMinutes, quizScoreBounds, quizSessionStatus, type Quiz, type QuizInput, type QuizJoin, type QuizRankRow, type QuizResultInput, type QuizResultsHistory, type QuizSession } from "@/shared/contract";
 import { removeQuizImage } from "./quiz-media";
 
-const { quizzes, quizQuestions, quizSessions, quizResults, books } = schema;
+const { quizzes, quizQuestions, quizSessions, quizResults, books, users } = schema;
 
 const newId = (prefix: string) =>
   `${prefix}_${Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join("")}`;
@@ -163,6 +163,60 @@ export async function endQuizSession(db: Database, quizId: string, sessionId: st
     await db.update(quizSessions).set({ endedAt: new Date(now).toISOString() }).where(eq(quizSessions.id, sessionId));
   }
   return getQuiz(db, quizId);
+}
+
+/** Ball bo'yicha tartib (ko'p ball — yuqorida, teng ball — teng o'rin). `limit` faqat ko'rsatish uchun. */
+function rankRows(entries: Omit<QuizRankRow, "rank">[], limit: number): QuizRankRow[] {
+  const sorted = [...entries].sort((a, b) => b.score - a.score || b.correct - a.correct || a.name.localeCompare(b.name));
+  const ranked: QuizRankRow[] = [];
+  sorted.forEach((entry, i) => {
+    const tied = i > 0 && sorted[i - 1].score === entry.score && sorted[i - 1].correct === entry.correct;
+    ranked.push({ ...entry, rank: tied ? ranked[i - 1].rank : i + 1 });
+  });
+  return ranked.slice(0, limit);
+}
+
+/**
+ * Viktorina bo'yicha natijalar tarixi: har bir jonli sessiya (eng yangisi birinchi) va mustaqil natijalar
+ * (har bir foydalanuvchining eng yaxshi balli). Ro'yxat har bir sessiya uchun `limit` tagacha ko'rsatiladi.
+ */
+export async function quizResultsHistory(db: Database, quizId: string, limit = 50): Promise<QuizResultsHistory> {
+  const rows = await db
+    .select({
+      sessionId: quizResults.sessionId,
+      startsAt: quizSessions.startsAt,
+      userId: quizResults.userId,
+      name: users.name,
+      score: quizResults.score,
+      correct: quizResults.correct,
+      total: quizResults.total,
+    })
+    .from(quizResults)
+    .leftJoin(users, eq(users.id, quizResults.userId))
+    .leftJoin(quizSessions, eq(quizSessions.id, quizResults.sessionId))
+    .where(eq(quizResults.quizId, quizId));
+
+  // Har bir foydalanuvchining eng yaxshi natijasi olinadi: qayta o'ynash ikki qator bo'lib chiqmaydi.
+  type Entry = Omit<QuizRankRow, "rank">;
+  const bySession = new Map<string, { startsAt: string; best: Map<string, Entry> }>();
+  const soloBest = new Map<string, Entry>();
+  for (const row of rows) {
+    const entry: Entry = { userId: row.userId, name: row.name ?? "Kitobxon", score: row.score, correct: row.correct, total: row.total };
+    const bestMap = row.sessionId
+      ? (bySession.get(row.sessionId) ?? { startsAt: row.startsAt ?? "", best: new Map<string, Entry>() }).best
+      : soloBest;
+    if (row.sessionId && !bySession.has(row.sessionId)) bySession.set(row.sessionId, { startsAt: row.startsAt ?? "", best: bestMap });
+    const prev = bestMap.get(row.userId);
+    if (!prev || entry.score > prev.score) bestMap.set(row.userId, entry);
+  }
+
+  const sessions = [...bySession.entries()]
+    .map(([sessionId, bucket]) => {
+      const entries = [...bucket.best.values()];
+      return { sessionId, startsAt: bucket.startsAt, participants: entries.length, rows: rankRows(entries, limit) };
+    })
+    .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+  return { sessions, solo: rankRows([...soloBest.values()], limit) };
 }
 
 /** Kod bo'yicha kirish: qaysi viktorina va vaqt holati (hali ochilmagan / ochiq / tugagan). */

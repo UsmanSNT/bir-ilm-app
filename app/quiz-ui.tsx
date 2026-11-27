@@ -537,6 +537,7 @@ export function QuizIntro({
   onShare,
   onStartNow,
   onEndLive,
+  onResults,
   onEdit,
   onStart,
 }: {
@@ -559,6 +560,8 @@ export function QuizIntro({
   onStartNow?: (sessionId: string) => void;
   /** Admin/moderator: ochiq jonli sessiyani to'xtatish — kirish darhol yopiladi. */
   onEndLive?: (sessionId: string) => void;
+  /** Viktorina natijalari tarixini ochadi (sessiyalar bo'yicha o'rinlar). */
+  onResults?: () => void;
   /** Admin/moderator: viktorinani tahrirlash oynasi. */
   onEdit?: () => void;
   onStart: () => void;
@@ -637,6 +640,11 @@ export function QuizIntro({
       {staff && onEdit && (
         <button type="button" className="qz-ghost qz-start" onClick={onEdit}>
           <Pencil size={18} /> Tuzatish
+        </button>
+      )}
+      {onResults && (
+        <button type="button" className="qz-ghost qz-start" onClick={onResults}>
+          <ListChecks size={18} /> Natijalar
         </button>
       )}
       {soloButton}

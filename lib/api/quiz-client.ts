@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Quiz, QuizInput, QuizJoin } from "@/shared/contract";
+import type { Quiz, QuizInput, QuizJoin, QuizResultsHistory } from "@/shared/contract";
 import { API_PREFIX } from "./config";
 
 type Envelope<T> = { data?: T; error?: { message?: string; fields?: Record<string, string[]> } };
@@ -54,6 +54,9 @@ export const startQuizSessionNow = (quizId: string, sessionId: string) =>
 /** Admin/moderator: jonli sessiyani to'xtatadi — yangi kirish darhol yopiladi. */
 export const endQuizSession = (quizId: string, sessionId: string) =>
   call<Quiz>(`/quizzes/${encodeURIComponent(quizId)}/sessions/${encodeURIComponent(sessionId)}/end`, { method: "POST" });
+/** Viktorina natijalari tarixi (sessiyalar va mustaqil natijalar). Kirgan foydalanuvchilar uchun. */
+export const fetchQuizResults = (quizId: string) =>
+  call<QuizResultsHistory>(`/quizzes/${encodeURIComponent(quizId)}/results`);
 export const joinQuizByCode = (code: string) =>
   call<QuizJoin>("/quizzes/join", { method: "POST", body: JSON.stringify({ code }) });
 export const saveQuizResult = (input: { quizId: string; sessionId: string | null; correct: number; total: number; score?: number }) =>

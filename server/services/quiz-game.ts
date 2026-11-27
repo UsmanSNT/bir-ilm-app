@@ -20,6 +20,32 @@ const IDLE_MS = 3 * 60 * 60_000;
 
 const games = new Map<string, QuizGame>();
 const opening = new Map<string, Promise<QuizGame>>();
+/** Har bir xona uchun: admin sessiyani to'xtatganini kuzatuvchi taymer. */
+const watchers = new Map<string, ReturnType<typeof setInterval>>();
+/** Sessiya to'xtatilganini bazadan tekshirish oralig'i. */
+const WATCH_MS = 3_000;
+
+function stopWatcher(sessionId: string) {
+  const timer = watchers.get(sessionId);
+  if (timer) clearInterval(timer);
+  watchers.delete(sessionId);
+}
+
+/**
+ * `ended_at` paydo bo'lsa (admin «Jonlini to'xtatish») o'yinni tugatadi. Viktorina API jarayonida, o'yin esa
+ * shu WebSocket jarayonida turgani uchun holat bazadan o'qiladi.
+ */
+function watchSessionEnd(db: Database, sessionId: string, game: QuizGame) {
+  const timer = setInterval(() => {
+    void (async () => {
+      const row = await db.query.quizSessions.findFirst({ where: eq(quizSessions.id, sessionId), columns: { endedAt: true } });
+      if (!row?.endedAt) return;
+      stopWatcher(sessionId);
+      game.finishNow(true);
+    })().catch((error) => console.error("[quiz-game] to'xtatishni tekshirib bo'lmadi", error));
+  }, WATCH_MS);
+  watchers.set(sessionId, timer);
+}
 
 const newId = (prefix: string) =>
   `${prefix}_${Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join("")}`;
@@ -35,6 +61,7 @@ function sweep(now = Date.now()) {
     if (now - game.lastActivity < IDLE_MS) continue;
     game.dispose();
     games.delete(id);
+    stopWatcher(id);
   }
 }
 
@@ -68,6 +95,7 @@ export async function openGame(db: Database, sessionId: string, hooks: Omit<Game
       clock,
     );
     games.set(sessionId, game);
+    watchSessionEnd(db, sessionId, game);
     return game;
   })();
   opening.set(sessionId, promise);
@@ -105,5 +133,6 @@ export async function saveResults(db: Database, quizId: string, sessionId: strin
 export function resetGames(): void {
   for (const game of games.values()) game.dispose();
   games.clear();
+  for (const id of [...watchers.keys()]) stopWatcher(id);
   opening.clear();
 }

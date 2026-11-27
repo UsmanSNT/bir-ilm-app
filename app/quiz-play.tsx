@@ -15,6 +15,7 @@ import { questionPoints, type QuestionPoints } from "@/shared/contract";
 import type { Quiz, QuizQuestion } from "./quiz-data";
 import { PointsMeter, QuizChoices, formatPoints, verdictFor, type ChoiceState } from "./quiz-parts";
 import { QuizIntro } from "./quiz-ui";
+import { QuizResultsDialog } from "./quiz-results";
 
 export type SoloRow = { correct: boolean; points: QuestionPoints; elapsedMs: number };
 export type SoloResult = { correct: number; total: number; score: number; rows: SoloRow[]; best: number; record: boolean };
@@ -77,6 +78,7 @@ export default function QuizPlay({
 }) {
   const limitMs = quizLimitMs(quiz);
   const [stage, setStage] = useState<"intro" | "play" | "result">("intro");
+  const [resultsOpen, setResultsOpen] = useState(false);
   const [questions, setQuestions] = useState(() => shuffled(quiz.questions));
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
@@ -167,6 +169,7 @@ export default function QuizPlay({
 
   if (stage === "intro") {
     return (
+      <>
       <QuizIntro
         cover={cover}
         title={quiz.title}
@@ -183,8 +186,11 @@ export default function QuizPlay({
         onEdit={onEdit}
         onStartNow={staff ? (sessionId) => void startNow(sessionId) : undefined}
         onEndLive={staff ? (sessionId) => void endLive(sessionId) : undefined}
+        onResults={() => setResultsOpen(true)}
         onStart={() => begin(questions)}
       />
+      <QuizResultsDialog quizId={quiz.id} title={quiz.title} open={resultsOpen} onOpenChange={setResultsOpen} />
+      </>
     );
   }
 

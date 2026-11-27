@@ -176,6 +176,20 @@ export class QuizGame {
     }
   }
 
+  /**
+   * Admin to'xtatdi (yoki xona vaqti tugadi): o'yin hozirgi holatda tugaydi va natijalar bir marta saqlanadi.
+   * Tugagan o'yinda chaqiruv e'tiborsiz qoldiriladi.
+   */
+  finishNow(host: boolean): void {
+    this.requireHost(host);
+    if (this.phase === "ended") return;
+    this.touch();
+    this.clearTimer();
+    this.phase = "ended";
+    this.sendResults();
+    this.hooks.onPhase();
+  }
+
   /** Tugagan o'yindan yangi kutish xonasiga: o'yinchilar qoladi, ballar nollanadi. */
   reset(host: boolean): void {
     this.requireHost(host);

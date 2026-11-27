@@ -214,6 +214,21 @@ try {
   assert.equal(afterDrop.sessions.length, 1);
   await call(joinRoute.POST, "/api/v1/quizzes/join", { method: "POST", body: { code: s2.code }, expect: 404 });
   console.log("PASS: Jonli vaqtlar: har birining o'z kodi, kod faqat adminga ko'rinadi, kod bo'yicha kirish holatlari, natija va ishtirokchilar soni, o'chirish.");
+  // Natijalar tarixi: faqat kirganlarga; sessiya bo'yicha har bir foydalanuvchi bitta qator (eng yaxshi ball).
+  const historyRoute = await load("app/api/v1/quizzes/[id]/results/route.ts");
+  await call(historyRoute.GET, `/api/v1/quizzes/${made.id}/results`, { params: { id: made.id }, expect: 401 });
+  const history = (await call(historyRoute.GET, `/api/v1/quizzes/${made.id}/results`, { cookie: user.cookie, params: { id: made.id } })).payload.data;
+  assert.equal(history.sessions.length, 1, "Faqat o'chirilmagan sessiya ko'rinadi");
+  const [only] = history.sessions;
+  assert.equal(only.sessionId, s1.id);
+  assert.equal(only.participants, 1, "Bir foydalanuvchi ko'p marta o'ynasa ham bitta ishtirokchi");
+  assert.equal(only.rows.length, 1, "Qayta o'ynash alohida qator bo'lmaydi");
+  assert.equal(only.rows[0].rank, 1);
+  const best = sqlite.prepare("SELECT max(score) AS s FROM quiz_results WHERE quiz_id=? AND session_id=? AND user_id=?").get(made.id, s1.id, user.userId).s;
+  assert.equal(only.rows[0].score, best, "Eng yaxshi urinish olinadi");
+  assert.deepEqual(history.solo.map((r) => r.userId), [], "Mustaqil natija yo'q (hammasi jonli sessiyada)");
+  console.log("PASS: Natijalar tarixi: faqat kirganlarga, sessiya bo'yicha bitta qator (eng yaxshi ball).");
+
 
   // O'chirish
   await call(quiz.DELETE, `/api/v1/quizzes/${made.id}`, { method: "DELETE", cookie: user.cookie, params: { id: made.id }, expect: 403 });
